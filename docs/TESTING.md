@@ -1,0 +1,51 @@
+# Testing
+
+```
+python -m unittest discover -s tests -v
+```
+
+No dependencies. Runs in well under a second. CI runs it on Linux and Windows with Python 3.10 and 3.13.
+
+## How the suite works
+
+`tests/test_elitelab.py` sets three environment variables before importing anything:
+
+- `ELITELAB_JOURNAL_DIR` -> `tests/fixtures/journals`
+- `ELITELAB_OFFLINE=1` -> every `Services.fetch_json` raises, so nothing talks to Spansh or EDSM
+- `ELITELAB_DATA_DIR` -> `tests/.data` (gitignored; wishlist writes go there)
+
+`make_core()` builds a real `Core`, loads every module through the loader, and calls `core.watcher.replay()` synchronously (no thread, no HTTP server). Tests then call tool functions directly: `core.http.tools['get_rares_loop'].fn({})`. That exercises the exact code the HTTP and MCP paths use, minus the transport.
+
+The loop module's coordinate fetch runs in a thread and fails under OFFLINE; it logs a warning and the loop still computes (with `dist: null`). Tests assert on that behaviour implicitly.
+
+## The fixture journal
+
+`tests/fixtures/journals/Journal.2026-10-22T100000.01.log` is a hand-written session for commander "Testpilot":
+
+1. Fileheader, Commander, Materials (carbon 120, arsenic 4, chemical processors 29, datamined wake 5)
+2. LoadGame in a Type-8, Powerplay (Mahon, rank 2, 6000 merits), Loadout with an engineered FSD
+3. Location docked at George Lucas, Leesti (Stronghold); StoredShips naming a Kestrel Mk II
+4. MarketBuy 28 Leestian Evil Juice; Undocked; StartJump (class K) + FSDJump to Zaonce
+5. Docked Ridley Scott; MarketBuy 3 Leathery Eggs (`alieneggs`); ShipyardSwap to the Kestrel + a Loadout with only the internal id
+6. MarketSell 28 Evil Juice for 280,000 Cr -> PowerplayMerits +420, then +3600 (objective bonus)
+7. SupercruiseDestinationDrop into a Medium Power Conflict Zone; ShipTargeted a Krait Phantom; PowerplayMerits +172
+8. MaterialCollected 3 datamined wake; CarrierStats (TST-001, black market not activated) and CarrierLocation Leesti
+
+Plus `Cargo.json` (28 juice, 3 eggs), `Status.json` (balance overrides LoadGame credits, docked flag), `Market.json` (Ridley Scott listing eggs in stock and juice as sellable but out of stock).
+
+When you add parsing for an event, add a realistic line here (copy a real one from your own journal and change the identifiers) and assert on the tool output, not on module internals.
+
+## What is covered
+
+Loader order and missing-dependency error; tool schema completeness; commander state from fixture; ship-name learning; cargo rare tagging across both name formats; market rares; carrier summary and activated services; feed order; Powerplay status; merit attribution (rares, objective bonus, combat zone with target detail, zero unattributed); loop ticking and sorting; materials inventory, caps, wishlist set/clear with unknown names reported; fuzzy source lookup; history route and star class; recent-events filter; store change detection and bus fan-out; bus wildcard matching and handler isolation.
+
+## What is not covered (yet)
+
+The HTTP transport itself (SSE framing, static path guard), the MCP server, the front end, and anything that needs Spansh (targets, combat). The CI Docker job does an end-to-end check of the HTTP path against the fixture. For Spansh-backed modules, test by hand with `python -m elitelab call find_sell_targets min=125 max=165` and read the result.
+
+## Manual checks before a release
+
+1. `python -m elitelab serve -v` against real journals; open the dashboard; drag, resize, hide and show cards; switch presets; watch the footer for stalls.
+2. `python -m elitelab call get_commander_state` while the game is running and confirm the ship, system and cargo match the HUD.
+3. `docker compose up --build` and hit `/api/health`.
+4. In Claude Code, open the repo folder and ask for `get_powerplay_status`.
