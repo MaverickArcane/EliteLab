@@ -59,6 +59,8 @@ button.primary { background: var(--accent); color: #130a00; border-color: var(--
 .tag { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; background: #1b2230; border: 1px solid var(--line); color: var(--muted); }
 .tag.rare { background: #3b2a14; border-color: #7a4b12; color: #f0b062; }
 .tag.bad { border-color: var(--bad); color: var(--bad); }
+.tag.ok { border-color: var(--ok); color: var(--ok); }
+label.chk input:disabled { accent-color: var(--ok); }
 .links a { display: inline-block; margin: 0 10px 6px 0; }
 
 /* map */

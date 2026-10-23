@@ -18,13 +18,13 @@ document.body.addEventListener('click', e => {
 });
 
 // ---------------------------------------------------------------- static data
-const LOOP = [ // [system, station, rares, Ly from Leesti]
-  ['Leesti', 'George Lucas (Coriolis)', 'Leestian Evil Juice, Azure Milk', 0],
-  ['Diso', 'Shifnalport (Orbis, 291 ls)', 'Diso Ma Corn', 2.6],
-  ['Lave', 'Lave Station (Coriolis, 280 ls)', 'Lavian Brandy', 3.9],
-  ['Uszaa', 'Guest Installation (Orbis, 4350 ls)', 'Uszaian Tree Grub', 7.6],
-  ['Zaonce', 'Ridley Scott (Orbis, 389 ls)', 'Leathery Eggs', 8.1],
-  ['Orrere', 'Sharon Lee Free Market (Orbis, 962 ls)', 'Orrerian Vicious Brew', 9.4],
+const LOOP = [ // {system, station, rares (display), keys (journal internal names), Ly from Leesti}
+  { system: 'Leesti', station: 'George Lucas (Coriolis)', rares: 'Leestian Evil Juice, Azure Milk', keys: ['leestianeviljuice', 'bluemilk'], ly: 0 },
+  { system: 'Diso', station: 'Shifnalport (Orbis, 291 ls)', rares: 'Diso Ma Corn', keys: ['disomacorn'], ly: 2.6 },
+  { system: 'Lave', station: 'Lave Station (Coriolis, 280 ls)', rares: 'Lavian Brandy', keys: ['lavianbrandy'], ly: 3.9 },
+  { system: 'Uszaa', station: 'Guest Installation (Orbis, 4350 ls)', rares: 'Uszaian Tree Grub', keys: ['uszaiantreegrub'], ly: 7.6 },
+  { system: 'Zaonce', station: 'Ridley Scott (Orbis, 389 ls)', rares: 'Leathery Eggs', keys: ['leatheryeggs'], ly: 8.1 },
+  { system: 'Orrere', station: 'Sharon Lee Free Market (Orbis, 962 ls)', rares: 'Orrerian Vicious Brew', keys: ['orrerianviciousbrew'], ly: 9.4 },
 ];
 
 // ---------------------------------------------------------------- app state
@@ -87,7 +87,7 @@ async function refresh() {
     else if (s.power && app.lastPower !== s.power) sel.value = s.power;
     app.lastPower = s.power;
 
-    ensureCoords(); drawMap();
+    ensureCoords(); renderLoop(); drawMap();
   } catch (e) { $('h-live').textContent = 'server offline'; $('h-live').classList.remove('live'); }
 }
 
@@ -102,11 +102,11 @@ function nextThursday() {
 let coordsRequested = '';
 async function ensureCoords() {
   const s = app.state; if (!s) return;
-  const names = LOOP.map(l => l[0]); if (s.carrier && s.carrier.system) names.push(s.carrier.system); if (s.system) names.push(s.system);
+  const names = LOOP.map(l => l.system); if (s.carrier && s.carrier.system) names.push(s.carrier.system); if (s.system) names.push(s.system);
   const want = names.filter(n => !app.coords[n]); const key = want.sort().join('|');
   if (!want.length || key === coordsRequested) return;
   coordsRequested = key;
-  try { const r = await fetch('/api/coords?names=' + encodeURIComponent(want.join('|'))); Object.assign(app.coords, await r.json()); drawMap(); } catch (e) { }
+  try { const r = await fetch('/api/coords?names=' + encodeURIComponent(want.join('|'))); Object.assign(app.coords, await r.json()); renderLoop(); drawMap(); } catch (e) { }
 }
 function shipPos() {
   const s = app.state; if (!s) return null;
@@ -120,7 +120,7 @@ function mapPoints() {
   const pts = []; const s = app.state; if (!s) return pts;
   const ship = shipPos(); if (ship) pts.push({ kind: 'ship', name: s.system, ...ship, r: 6, color: '#ff8c2a', sub: s.docked ? `Docked at ${s.station}` : 'current position' });
   if (s.carrier && s.carrier.system && app.coords[s.carrier.system]) pts.push({ kind: 'carrier', name: `${s.carrier.name} (${s.carrier.callsign})`, ...app.coords[s.carrier.system], r: 5, color: '#2fd4ff', sub: s.carrier.system });
-  LOOP.forEach(l => { if (app.coords[l[0]]) pts.push({ kind: 'loop', name: l[0], ...app.coords[l[0]], r: 4, color: '#9be36b', sub: l[1] + ' · ' + l[2] }); });
+  LOOP.forEach(l => { if (app.coords[l.system]) { const st = loopStatus(l); pts.push({ kind: 'loop', name: l.system, ...app.coords[l.system], r: 4, color: st.done ? '#4e7a3a' : '#9be36b', sub: l.station + ' · ' + l.rares + (st.tons ? ` · ${st.tons} t aboard` : '') }); } });
   app.targets.forEach(t => { if (t.x != null) { const age = t.updated ? Math.round((Date.now() - Date.parse(t.updated)) / 864e5) : null; pts.push({ kind: 'target', name: t.system, x: t.x, y: t.y, z: t.z, r: 4, color: age == null ? '#4b6f9c' : (age > 60 ? '#8a4b5c' : (age > 14 ? '#c9a23a' : '#6fb3ff')), sub: `${t.station} · ${t.type} · ${t.dist} Ly · market ${age == null ? 'unknown' : age + ' d ago'}`, t }); } });
   return pts;
 }
@@ -226,12 +226,31 @@ $('t-compare').onclick = async () => {
 };
 
 // ---------------------------------------------------------------- loop checklist
-function renderLoop() {
-  const done = JSON.parse(localStorage.getItem('loopDone') || '{}');
-  $('loop').innerHTML = LOOP.map(([sys, st, rare, d], i) => `<label class="chk ${done[i] ? 'done' : ''}"><input type="checkbox" data-i="${i}" ${done[i] ? 'checked' : ''}><span class="n"><b>${esc(sys)}</b> · ${esc(st)} <span class="muted">(${d} Ly)</span><br><span class="tag rare">${esc(rare)}</span></span><span><button class="mini" data-copy="${esc(sys)}">copy</button> <a href="${inaraSys(sys)}" target="_blank">Inara</a></span></label>`).join('');
+// Two sources of truth: manual ticks (localStorage) and, when auto is on, what is actually in the hold.
+const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } };
+function loopAuto() { return lsGet('loopAuto', true); }
+function loopStatus(l) {
+  const items = (app.state && app.state.cargo && app.state.cargo.items) || [];
+  const tons = items.filter(i => l.keys.includes(i.key)).reduce((a, i) => a + (i.count || 0), 0);
+  const manual = !!lsGet('loopDone', {})[l.system];
+  const here = !!(app.state && app.state.docked && app.state.system === l.system);
+  return { tons, inHold: tons > 0, manual, here, done: manual || (loopAuto() && tons > 0) };
 }
-$('loop').addEventListener('change', e => { if (e.target.matches('input')) { const d = JSON.parse(localStorage.getItem('loopDone') || '{}'); d[e.target.dataset.i] = e.target.checked; localStorage.setItem('loopDone', JSON.stringify(d)); renderLoop(); } });
+function renderLoop() {
+  const auto = loopAuto(); $('loop-auto').textContent = 'auto: ' + (auto ? 'on' : 'off'); $('loop-auto').style.borderColor = auto ? 'var(--ok)' : '';
+  const ship = shipPos();
+  const rows = LOOP.map(l => ({ l, st: loopStatus(l), d: ship && app.coords[l.system] ? dist3(ship, app.coords[l.system]) : null }));
+  if (auto && ship) rows.sort((a, b) => (a.st.done - b.st.done) || ((a.d ?? 999) - (b.d ?? 999)));
+  const doneCount = rows.filter(r => r.st.done).length; const tons = rows.reduce((a, r) => a + r.st.tons, 0);
+  const next = auto ? rows.find(r => !r.st.done) : null;
+  $('loop-summary').innerHTML = `${doneCount}/${rows.length} stations · <b>${tons} t</b> of loop rares aboard` + (next ? ` · next: <b class="accent">${esc(next.l.system)}</b>${next.d != null ? ` (${next.d.toFixed(1)} Ly)` : ''}` : (doneCount === rows.length ? ' · <b class="ok">loop complete, go sell</b>' : ''));
+  $('loop-bar').style.width = (100 * doneCount / rows.length) + '%';
+  $('loop').innerHTML = rows.map(({ l, st, d }) => `<label class="chk ${st.done ? 'done' : ''}" ${next && next.l === l ? 'style="border-left:3px solid var(--accent);padding-left:6px"' : ''}><input type="checkbox" data-sys="${esc(l.system)}" ${st.done ? 'checked' : ''} ${auto && st.inHold ? 'disabled title="in hold (auto)"' : ''}><span class="n"><b>${esc(l.system)}</b> · ${esc(l.station)} <span class="muted">(${d != null ? d.toFixed(1) + ' Ly from you' : l.ly + ' Ly from Leesti'})</span>${st.here ? ' <span class="tag ok">docked here</span>' : ''}<br><span class="tag rare">${esc(l.rares)}</span>${st.tons ? ` <span class="tag ok">${st.tons} t aboard</span>` : ''}</span><span><button class="mini" data-copy="${esc(l.system)}">copy</button> <a href="${inaraSys(l.system)}" target="_blank">Inara</a></span></label>`).join('');
+}
+$('loop').addEventListener('change', e => { if (e.target.matches('input')) { const d = lsGet('loopDone', {}); d[e.target.dataset.sys] = e.target.checked; lsSet('loopDone', d); renderLoop(); } });
 $('loop-reset').onclick = () => { localStorage.removeItem('loopDone'); renderLoop(); };
+$('loop-auto').onclick = () => { lsSet('loopAuto', !loopAuto()); renderLoop(); drawMap(); };
 renderLoop();
 
 // ---------------------------------------------------------------- misc
