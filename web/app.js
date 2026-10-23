@@ -31,7 +31,8 @@ const LOOP = [ // {system, station, rares (display), keys (journal internal name
 const app = {
   state: null, lastPower: undefined, targets: [], selected: null,
   coords: {},              // name -> {x,y,z} from EDSM
-  map: { cx: 0, cz: 0, scale: 2, drag: null, pts: [] },
+  history: { systems: [], route: [] }, historyKey: null,
+  map: { cx: 0, cz: 0, scale: 2, drag: null, pts: [], layers: { history: true, loop: true, targets: true, labels: false } },
 };
 
 // ---------------------------------------------------------------- polling
@@ -82,12 +83,14 @@ async function refresh() {
     $('feed-count').textContent = s.feed.length ? `last ${s.feed.length}` : '';
     $('feed').innerHTML = s.feed.length ? s.feed.map(f => `<div class="ev-${f.event}"><time>${(f.ts || '').slice(11, 16)}</time><span>${esc(f.text)}</span></div>`).join('') : '<div class="muted">No events yet this session.</div>';
 
+    // Reference system follows you unless you have typed your own.
+    if (s.system && !app.refTouched && $('t-ref').value !== s.system) $('t-ref').value = s.system;
     const sel = $('t-power');
     if (!sel.options.length) { s.powers.forEach(p => { const o = document.createElement('option'); o.value = o.textContent = p; sel.appendChild(o); }); sel.value = s.power || 'Edmund Mahon'; }
     else if (s.power && app.lastPower !== s.power) sel.value = s.power;
     app.lastPower = s.power;
 
-    ensureCoords(); renderLoop(); drawMap();
+    ensureCoords(); ensureHistory(); renderLoop(); drawMap();
   } catch (e) { $('h-live').textContent = 'server offline'; $('h-live').classList.remove('live'); }
 }
 
@@ -114,19 +117,58 @@ function shipPos() {
   return s.system && app.coords[s.system] ? app.coords[s.system] : null;
 }
 
+// ---------------------------------------------------------------- history
+async function ensureHistory(force) {
+  const days = $('map-range').value; const key = days + '|' + (app.state && app.state.last_event_time);
+  if (!force && key === app.historyKey) return; app.historyKey = key;
+  try { const r = await fetch('/api/history?days=' + days); app.history = await r.json(); drawMap(); } catch (e) { }
+}
+$('map-range').onchange = () => { ensureHistory(true); app.map.fitted = false; };
+
 // ---------------------------------------------------------------- map
 const canvas = $('map'), ctx = canvas.getContext('2d'), tip = $('map-tip');
+
+// Star colour by spectral class, roughly what the galaxy map shows.
+function starColor(cls) {
+  const c = (cls || '').toUpperCase();
+  if (c.startsWith('O')) return '#9bb0ff'; if (c.startsWith('B')) return '#aabfff'; if (c.startsWith('A')) return '#cad7ff';
+  if (c.startsWith('F')) return '#f8f7ff'; if (c.startsWith('G')) return '#fff4e8'; if (c.startsWith('K')) return '#ffd2a1';
+  if (c.startsWith('M')) return '#ffb56b'; if (c.startsWith('L') || c.startsWith('T') || c.startsWith('Y')) return '#b06a4a';
+  if (c.startsWith('D')) return '#dfe9ff'; if (c === 'N' || c.startsWith('H')) return '#c9b6ff'; if (c.startsWith('TTS') || c.startsWith('AEBE')) return '#ffe9a8';
+  return '#e8dcc4';
+}
+
+// Fixed starfield rendered once to an offscreen canvas; drifts slowly with pan for a little depth.
+const field = document.createElement('canvas'); let fieldSeeded = false;
+function seedField(w, h) {
+  field.width = w * 2; field.height = h * 2; const fx = field.getContext('2d');
+  fx.fillStyle = '#05070c'; fx.fillRect(0, 0, field.width, field.height);
+  let s = 1337; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const g = fx.createRadialGradient(field.width * .35, field.height * .3, 0, field.width * .35, field.height * .3, field.width * .6);
+  g.addColorStop(0, 'rgba(60,70,120,.18)'); g.addColorStop(.5, 'rgba(40,40,80,.08)'); g.addColorStop(1, 'rgba(0,0,0,0)'); fx.fillStyle = g; fx.fillRect(0, 0, field.width, field.height);
+  for (let i = 0; i < 1400; i++) { const x = rnd() * field.width, y = rnd() * field.height, r = rnd() * 1.1 + .2, a = rnd() * .5 + .15; fx.beginPath(); fx.arc(x, y, r, 0, Math.PI * 2); fx.fillStyle = `rgba(${200 + rnd() * 55 | 0},${200 + rnd() * 55 | 0},255,${a})`; fx.fill(); }
+  fieldSeeded = true;
+}
+function glow(sx, sy, r, color, alpha) {
+  const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 3.2); g.addColorStop(0, color); g.addColorStop(.35, color); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.globalAlpha = alpha; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, sy, r * 3.2, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+}
+
 function mapPoints() {
-  const pts = []; const s = app.state; if (!s) return pts;
-  const ship = shipPos(); if (ship) pts.push({ kind: 'ship', name: s.system, ...ship, r: 6, color: '#ff8c2a', sub: s.docked ? `Docked at ${s.station}` : 'current position' });
+  const pts = []; const s = app.state; if (!s) return pts; const L = app.map.layers;
+  const ship = shipPos(); if (ship) pts.push({ kind: 'ship', name: s.system, ...ship, r: 5, color: '#ff8c2a', sub: s.docked ? `Docked at ${s.station}` : 'current position' });
   if (s.carrier && s.carrier.system && app.coords[s.carrier.system]) pts.push({ kind: 'carrier', name: `${s.carrier.name} (${s.carrier.callsign})`, ...app.coords[s.carrier.system], r: 5, color: '#2fd4ff', sub: s.carrier.system });
-  LOOP.forEach(l => { if (app.coords[l.system]) { const st = loopStatus(l); pts.push({ kind: 'loop', name: l.system, ...app.coords[l.system], r: 4, color: st.done ? '#4e7a3a' : '#9be36b', sub: l.station + ' · ' + l.rares + (st.tons ? ` · ${st.tons} t aboard` : '') }); } });
-  app.targets.forEach(t => { if (t.x != null) { const age = t.updated ? Math.round((Date.now() - Date.parse(t.updated)) / 864e5) : null; pts.push({ kind: 'target', name: t.system, x: t.x, y: t.y, z: t.z, r: 4, color: age == null ? '#4b6f9c' : (age > 60 ? '#8a4b5c' : (age > 14 ? '#c9a23a' : '#6fb3ff')), sub: `${t.station} · ${t.type} · ${t.dist} Ly · market ${age == null ? 'unknown' : age + ' d ago'}`, t }); } });
+  if (L.loop) LOOP.forEach(l => { if (app.coords[l.system]) { const st = loopStatus(l); pts.push({ kind: 'loop', name: l.system, ...app.coords[l.system], r: 4, color: st.done ? '#5c8a46' : '#9be36b', sub: l.station + ' · ' + l.rares + (st.tons ? ` · ${st.tons} t aboard` : '') }); } });
+  if (L.targets) app.targets.forEach(t => { if (t.x != null) { const age = t.updated ? Math.round((Date.now() - Date.parse(t.updated)) / 864e5) : null; pts.push({ kind: 'target', name: t.system, x: t.x, y: t.y, z: t.z, r: 4, color: age == null ? '#4b6f9c' : (age > 60 ? '#8a4b5c' : (age > 14 ? '#c9a23a' : '#6fb3ff')), sub: `${t.station} · ${t.type} · ${t.dist} Ly · market ${age == null ? 'unknown' : age + ' d ago'}`, t }); } });
+  if (L.history) {
+    const named = new Set(pts.map(p => p.name));
+    app.history.systems.forEach(h => { if (named.has(h.name)) return; pts.push({ kind: 'visited', name: h.name, x: h.pos[0], y: h.pos[1], z: h.pos[2], r: Math.min(4.5, 2 + Math.log2(1 + h.visits)), color: starColor(h.star_class), sub: `${h.star_class ? 'class ' + h.star_class + ' · ' : ''}${h.visits} visit${h.visits === 1 ? '' : 's'} · last ${(h.last || '').slice(0, 10)}${h.carrier ? ' · carrier jump' : ''}`, h }); });
+  }
   return pts;
 }
 function resizeCanvas() {
   const dpr = window.devicePixelRatio || 1; const w = canvas.clientWidth, h = canvas.clientHeight;
-  if (canvas.width !== w * dpr || canvas.height !== h * dpr) { canvas.width = w * dpr; canvas.height = h * dpr; }
+  if (canvas.width !== w * dpr || canvas.height !== h * dpr) { canvas.width = w * dpr; canvas.height = h * dpr; fieldSeeded = false; }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return { w, h };
 }
 function toScreen(p, w, h) { const m = app.map; return { sx: w / 2 + (p.x - m.cx) * m.scale, sy: h / 2 - (p.z - m.cz) * m.scale }; }
@@ -137,35 +179,64 @@ function fitMap() {
   const ext = Math.max(10, ...pts.map(p => Math.max(Math.abs(p.x - ref.x), Math.abs(p.z - ref.z))));
   app.map.cx = ref.x; app.map.cz = ref.z; app.map.scale = Math.min(w, h) / (2.3 * ext);
 }
+function niceScale(px) { // pick a round Ly length that is ~px wide
+  const ly = px / app.map.scale; const p = Math.pow(10, Math.floor(Math.log10(ly))); const m = ly / p;
+  return (m >= 5 ? 5 : m >= 2 ? 2 : 1) * p;
+}
 function drawMap() {
   const { w, h } = resizeCanvas(); const m = app.map; const pts = mapPoints(); m.pts = [];
-  ctx.clearRect(0, 0, w, h);
+  if (!fieldSeeded) seedField(w, h);
+  // starfield with slight parallax
+  const px = ((-m.cx * 0.15) % w + w) % w, pz = ((m.cz * 0.15) % h + h) % h;
+  ctx.drawImage(field, px, pz, w, h, 0, 0, w, h);
   const ship = shipPos() || (pts[0] ? { x: pts[0].x, z: pts[0].z } : { x: m.cx, z: m.cz });
-  if (!app.map.fitted && pts.length) { fitMap(); app.map.fitted = true; }
-  // range rings around the ship (or ref system)
-  const o = toScreen(ship, w, h);
-  ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.font = '11px system-ui'; ctx.lineWidth = 1;
-  const rings = [10, 25, 50, 100, 150, 200, 300, 500];
-  rings.forEach(r => { const pr = r * m.scale; if (pr < 12 || pr > Math.max(w, h) * 1.5) return; ctx.beginPath(); ctx.arc(o.sx, o.sy, pr, 0, Math.PI * 2); ctx.stroke(); ctx.fillText(r + ' Ly', o.sx + pr * 0.707 + 4, o.sy - pr * 0.707 - 4); });
-  // core direction hint (+Z is "up" = toward galactic core)
-  ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillText('▲ toward core (+Z)', 10, 16);
-  // selection line
+  if (!m.fitted && pts.length) { fitMap(); m.fitted = true; }
+  ctx.font = '11px system-ui'; ctx.lineWidth = 1;
+
+  // travelled route, newest brightest
+  if (m.layers.history && app.history.route.length > 1) {
+    const byName = {}; app.history.systems.forEach(s => byName[s.name] = s);
+    const n = app.history.route.length;
+    for (let i = 1; i < n; i++) {
+      const a = byName[app.history.route[i - 1].name], b = byName[app.history.route[i].name]; if (!a || !b) continue;
+      const A = toScreen({ x: a.pos[0], z: a.pos[2] }, w, h), B = toScreen({ x: b.pos[0], z: b.pos[2] }, w, h);
+      const age = i / n; const carrier = app.history.route[i].event === 'CarrierJump';
+      ctx.strokeStyle = carrier ? `rgba(47,212,255,${0.15 + 0.6 * age})` : `rgba(255,140,42,${0.12 + 0.65 * age})`;
+      ctx.lineWidth = carrier ? 1.5 : 1 + age; if (carrier) ctx.setLineDash([6, 4]);
+      ctx.beginPath(); ctx.moveTo(A.sx, A.sy); ctx.lineTo(B.sx, B.sy); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.lineWidth = 1;
+  }
+  // selection leg
   if (app.selected && ship) {
     const t = app.selected; const a = toScreen(ship, w, h), b = toScreen(t, w, h);
-    ctx.strokeStyle = 'rgba(255,140,42,.6)'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(a.sx, a.sy); ctx.lineTo(b.sx, b.sy); ctx.stroke(); ctx.setLineDash([]);
-    const d = dist3(ship, t); ctx.fillStyle = '#ff8c2a'; ctx.fillText(`${d.toFixed(1)} Ly`, (a.sx + b.sx) / 2 + 6, (a.sy + b.sy) / 2 - 6);
+    ctx.strokeStyle = 'rgba(111,179,255,.8)'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(a.sx, a.sy); ctx.lineTo(b.sx, b.sy); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#6fb3ff'; ctx.fillText(`${dist3(ship, t).toFixed(1)} Ly`, (a.sx + b.sx) / 2 + 6, (a.sy + b.sy) / 2 - 6);
   }
-  // points: targets first so ship/carrier draw on top
-  const order = { target: 0, loop: 1, carrier: 2, ship: 3 };
+  // stars
+  const order = { visited: 0, target: 1, loop: 2, carrier: 3, ship: 4 };
+  const recent = new Set(app.history.route.slice(-6).map(r => r.name));
   pts.sort((a, b) => order[a.kind] - order[b.kind]).forEach(p => {
-    const { sx, sy } = toScreen(p, w, h); if (sx < -20 || sy < -20 || sx > w + 20 || sy > h + 20) return;
+    const { sx, sy } = toScreen(p, w, h); if (sx < -30 || sy < -30 || sx > w + 30 || sy > h + 30) return;
     const selected = app.selected && p.t === app.selected;
-    ctx.beginPath(); ctx.arc(sx, sy, p.r + (selected ? 3 : 0), 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill();
-    if (p.kind === 'ship') { ctx.strokeStyle = 'rgba(255,140,42,.5)'; ctx.beginPath(); ctx.arc(sx, sy, 12, 0, Math.PI * 2); ctx.stroke(); }
-    if (p.kind !== 'target' || selected || m.scale > 4) { ctx.fillStyle = p.kind === 'target' ? '#a9c8ef' : '#e8edf3'; ctx.fillText(p.name, sx + p.r + 4, sy + 4); }
+    if (p.kind === 'visited') { glow(sx, sy, p.r, p.color, .35); ctx.beginPath(); ctx.arc(sx, sy, p.r * .55, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill(); }
+    else {
+      glow(sx, sy, p.r, p.color, p.kind === 'ship' ? .6 : .4);
+      ctx.beginPath(); ctx.arc(sx, sy, p.r + (selected ? 2 : 0), 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill();
+      if (p.kind === 'ship') { ctx.strokeStyle = 'rgba(255,140,42,.6)'; ctx.beginPath(); ctx.arc(sx, sy, 11, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(sx, sy, 16 + 3 * Math.sin(Date.now() / 300), 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,140,42,.25)'; ctx.stroke(); }
+      if (p.kind === 'carrier') { ctx.strokeStyle = 'rgba(47,212,255,.6)'; ctx.strokeRect(sx - 7, sy - 7, 14, 14); }
+    }
+    const label = p.kind === 'ship' || p.kind === 'carrier' || p.kind === 'loop' || selected || m.layers.labels || m.scale > 6 || (p.kind === 'visited' && recent.has(p.name) && m.scale > 1.5);
+    if (label) { ctx.fillStyle = p.kind === 'target' ? '#a9c8ef' : (p.kind === 'visited' ? 'rgba(232,237,243,.7)' : '#e8edf3'); ctx.fillText(p.name, sx + p.r + 5, sy + 4); }
     m.pts.push({ ...p, sx, sy });
   });
+  // scale bar + stats
+  const ly = niceScale(90); $('map-scale').style.width = (ly * m.scale) + 'px'; $('map-scale').textContent = ly + ' Ly';
+  const hs = app.history; $('map-stats').textContent = hs.systems.length ? `${hs.systems.length} systems · ${hs.jumps} jumps · ${fmt(hs.total_ly)} Ly travelled` : '';
+  ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fillText('▲ toward galactic core', 10, 16);
 }
+document.querySelectorAll('.map-layer').forEach(b => b.onclick = () => { const k = b.dataset.layer; app.map.layers[k] = !app.map.layers[k]; b.classList.toggle('on', app.map.layers[k]); drawMap(); });
+setInterval(() => { if (document.visibilityState === 'visible') drawMap(); }, 120); // ship pulse
 function hit(x, y) { let best = null, bd = 10; app.map.pts.forEach(p => { const d = Math.hypot(p.sx - x, p.sy - y); if (d < bd) { bd = d; best = p; } }); return best; }
 canvas.addEventListener('mousemove', e => {
   const r = canvas.getBoundingClientRect(); const x = e.clientX - r.left, y = e.clientY - r.top;
@@ -179,7 +250,7 @@ canvas.addEventListener('mousedown', e => { const r = canvas.getBoundingClientRe
 canvas.addEventListener('mouseup', e => {
   const r = canvas.getBoundingClientRect(); const x = e.clientX - r.left, y = e.clientY - r.top; const p = hit(x, y);
   app.map.drag = null; canvas.classList.remove('drag');
-  if (p && p.kind === 'target') selectTarget(p.t); else if (p && p.kind !== 'target') copy(p.name);
+  if (p && p.kind === 'target') selectTarget(p.t); else if (p) copy(p.kind === 'carrier' ? (app.state.carrier.system || p.name) : p.name);
 });
 canvas.addEventListener('wheel', e => {
   e.preventDefault(); const r = canvas.getBoundingClientRect(); const x = e.clientX - r.left, y = e.clientY - r.top; const { w, h } = resizeCanvas();
@@ -199,7 +270,7 @@ function selectTarget(t) {
   drawMap();
 }
 async function findTargets() {
-  const p = $('t-power').value, ref = $('t-ref').value.trim() || 'Leesti', mn = $('t-min').value, mx = $('t-max').value, pad = $('t-pad').value;
+  const p = $('t-power').value, ref = $('t-ref').value.trim() || (app.state && app.state.system) || 'Leesti', mn = $('t-min').value, mx = $('t-max').value, pad = $('t-pad').value;
   $('t-status').textContent = 'querying Spansh…'; $('t-compare-out').innerHTML = '';
   try {
     const r = await fetch(`/api/targets?power=${encodeURIComponent(p)}&ref=${encodeURIComponent(ref)}&min=${mn}&max=${mx}&pad=${pad}`); const d = await r.json();
@@ -215,9 +286,10 @@ async function findTargets() {
   } catch (e) { $('t-status').textContent = 'error: ' + e.message; }
 }
 $('t-go').onclick = findTargets;
-$('t-here').onclick = () => { if (app.state && app.state.system) { $('t-ref').value = app.state.system; findTargets(); } };
+$('t-ref').addEventListener('input', () => { app.refTouched = $('t-ref').value.trim() !== ''; });
+$('t-here').onclick = () => { app.refTouched = false; if (app.state && app.state.system) { $('t-ref').value = app.state.system; findTargets(); } };
 $('t-compare').onclick = async () => {
-  const ref = $('t-ref').value.trim() || 'Leesti'; $('t-status').textContent = 'comparing all powers (first run takes ~20 s)…';
+  const ref = $('t-ref').value.trim() || (app.state && app.state.system) || 'Leesti'; $('t-status').textContent = 'comparing all powers (first run takes ~20 s)…';
   try {
     const r = await fetch(`/api/powers?ref=${encodeURIComponent(ref)}`); const d = await r.json();
     $('t-compare-out').innerHTML = `<table style="margin-top:10px"><thead><tr><th>Power</th><th class="num">Acquisition starports</th><th>Nearest to ${esc(ref)}</th></tr></thead><tbody>` + d.map(p => `<tr><td><b>${esc(p.power)}</b></td><td class="num">${p.error ? '<span class="bad">error</span>' : fmt(p.count)}</td><td>${(p.nearest || []).map(n => `${esc(n.system)} <span class="muted">${n.dist} Ly</span>`).join(' · ')}</td></tr>`).join('') + '</tbody></table>';

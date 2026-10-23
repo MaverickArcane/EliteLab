@@ -71,7 +71,11 @@ label.chk input:disabled { accent-color: var(--ok); }
 .map-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
 .map-tip { position: absolute; pointer-events: none; background: rgba(10, 14, 20, .95); border: 1px solid var(--line); padding: 6px 9px; border-radius: 6px; font-size: 12px; display: none; max-width: 260px; }
 .map-tip b { color: var(--accent); }
-.map-ctl { position: absolute; right: 10px; top: 10px; display: flex; gap: 6px; }
+.map-ctl { position: absolute; right: 10px; top: 10px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.map-ctl .mini { background: rgba(10, 14, 20, .85); }
+.map-ctl select.mini { padding: 1px 4px; }
+.map-layer.on { border-color: var(--accent); color: var(--accent); }
+.map-scale { position: absolute; right: 12px; bottom: 12px; font-size: 11px; color: var(--muted); border-bottom: 2px solid rgba(255,255,255,.5); padding: 0 4px 2px; text-align: center; min-width: 40px; }
 
 /* feed */
 .feed { max-height: 300px; overflow: auto; font-size: 13px; }

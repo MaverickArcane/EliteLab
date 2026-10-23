@@ -206,6 +206,64 @@ def apply_event(st, ev):
         c["system"] = ev.get("StarSystem"); st["carrier"] = c
 
 
+_history_cache = {"key": None, "data": None}
+
+
+def history(days=30):
+    """Visited systems and the route between them, oldest first.
+
+    Scans every journal newer than `days` (0 = all) for FSDJump / CarrierJump /
+    Location events. Cached on the set of (file, mtime) so repeated polls are free
+    until the game writes something new.
+    """
+    cutoff = time.time() - days * 86400 if days else 0
+    files = [f for f in journal_files() if os.path.getmtime(f) >= cutoff]
+    key = (days, tuple((f, os.path.getmtime(f)) for f in files))
+    if _history_cache["key"] == key:
+        return _history_cache["data"]
+
+    systems = {}   # name -> record
+    route = []     # ordered list of system names (consecutive duplicates collapsed)
+    for fp in files:
+        try:
+            with open(fp, "r", encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    if '"StarPos"' not in line:
+                        continue
+                    try:
+                        ev = json.loads(line)
+                    except Exception:
+                        continue
+                    e = ev.get("event")
+                    if e not in ("FSDJump", "CarrierJump", "Location"):
+                        continue
+                    name = ev.get("StarSystem")
+                    pos = ev.get("StarPos")
+                    if not name or not pos:
+                        continue
+                    rec = systems.get(name)
+                    if not rec:
+                        rec = systems[name] = {"name": name, "pos": pos, "visits": 0, "first": ev.get("timestamp"),
+                                               "last": None, "star_class": None, "carrier": False}
+                    rec["last"] = ev.get("timestamp")
+                    if e != "Location":
+                        rec["visits"] += 1
+                    if ev.get("StarClass"):
+                        rec["star_class"] = ev.get("StarClass")
+                    if e == "CarrierJump":
+                        rec["carrier"] = True
+                    if not route or route[-1]["name"] != name:
+                        route.append({"name": name, "ts": ev.get("timestamp"), "event": e,
+                                      "dist": round(ev.get("JumpDist", 0) or 0, 1)})
+        except Exception:
+            continue
+    data = {"days": days, "systems": list(systems.values()), "route": route,
+            "total_ly": round(sum(r["dist"] for r in route), 1), "jumps": sum(1 for r in route if r["event"] == "FSDJump")}
+    _history_cache["key"] = key
+    _history_cache["data"] = data
+    return data
+
+
 def build_state():
     st = empty_state()
     for ev in iter_events(journal_files()[-config.RECENT_JOURNALS:]):

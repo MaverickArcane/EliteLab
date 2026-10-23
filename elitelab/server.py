@@ -48,6 +48,12 @@ class Handler(BaseHTTPRequestHandler):
                                         "journal_found": bool(journal.journal_files())})
             if u.path == "/api/state":
                 return self._send(200, journal.build_state())
+            if u.path == "/api/history":
+                try:
+                    days = int(q.get("days", "30"))
+                except ValueError:
+                    days = 30
+                return self._send(200, journal.history(max(0, days)))
             if u.path == "/api/targets":
                 return self._send(200, spansh.targets(q.get("power", "Edmund Mahon"), q.get("ref", "Leesti"),
                                                       q.get("min"), q.get("max"), q.get("pad", "L")))

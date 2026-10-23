@@ -19,20 +19,33 @@
 <main>
   <!-- Map -->
   <section class="card c8">
-    <h2>Sector map <span class="right muted" id="map-sub">top-down galactic X / Z, centred on you</span></h2>
+    <h2>Star map <span class="right muted" id="map-sub">top-down galactic X / Z</span></h2>
     <div class="map-wrap">
       <canvas id="map"></canvas>
       <div class="map-ctl">
+        <select class="mini" id="map-range" title="history range">
+          <option value="1">24 h</option>
+          <option value="7">7 days</option>
+          <option value="30" selected>30 days</option>
+          <option value="90">90 days</option>
+          <option value="0">all time</option>
+        </select>
+        <button class="mini map-layer on" data-layer="history">history</button>
+        <button class="mini map-layer on" data-layer="loop">loop</button>
+        <button class="mini map-layer on" data-layer="targets">targets</button>
+        <button class="mini map-layer" data-layer="labels">all labels</button>
         <button class="mini" id="map-fit">fit</button>
-        <button class="mini" id="map-center">centre on ship</button>
+        <button class="mini" id="map-center">centre</button>
       </div>
       <div class="map-legend">
         <span><i style="background:var(--accent)"></i>you</span>
         <span><i style="background:var(--accent-2)"></i>carrier</span>
         <span><i style="background:#9be36b"></i>rares loop</span>
         <span><i style="background:#6fb3ff"></i>sell targets</span>
-        <span class="muted">scroll to zoom · drag to pan · click a target</span>
+        <span><i style="background:#ffd27a;box-shadow:0 0 6px #ffd27a"></i>visited, coloured by star class</span>
+        <span class="muted" id="map-stats"></span>
       </div>
+      <div class="map-scale" id="map-scale"></div>
       <div class="map-tip" id="map-tip"></div>
     </div>
   </section>
@@ -66,7 +79,7 @@
     <h2>Powerplay sell targets <span class="right muted">unoccupied systems your power can acquire, with a market</span></h2>
     <div class="row">
       <label>Power <select id="t-power"></select></label>
-      <label>From <input id="t-ref" size="18" value="Leesti"></label>
+      <label>From <input id="t-ref" size="18" placeholder="current system" title="Follows your current system until you type your own"></label>
       <label>Min Ly <input id="t-min" size="4" value="125"></label>
       <label>Max Ly <input id="t-max" size="4" value="165"></label>
       <label>Pad <select id="t-pad"><option value="L">Large starports</option><option value="M">Include outposts</option></select></label>

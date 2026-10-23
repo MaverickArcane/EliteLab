@@ -28,6 +28,18 @@ The whole live picture. Key fields:
 | `powers` | list | the Powerplay powers, for UI dropdowns |
 | `last_event_time`, `game_version`, `generated`, `journal_dir`, `journal_ok` | | |
 
+## `GET /api/history?days=30`
+
+Visited systems and the route between them, from every journal newer than `days` (`0` = all time). Cached until a journal file changes.
+
+```json
+{"days": 30, "jumps": 212, "total_ly": 6130.4,
+ "systems": [{"name": "Leesti", "pos": [72.75, 48.75, 68.25], "visits": 9, "first": "...", "last": "...", "star_class": "K", "carrier": false}],
+ "route":   [{"name": "Leesti", "ts": "...", "event": "FSDJump", "dist": 5.2}]}
+```
+
+`route` is chronological with consecutive duplicates collapsed; `event` is `FSDJump`, `CarrierJump` or `Location`.
+
 ## `GET /api/targets?power=&ref=&min=&max=&pad=`
 
 Stations with a market in **Unoccupied** systems that `power` can acquire, nearest `ref` first.
