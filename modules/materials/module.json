@@ -1,0 +1,11 @@
+{
+  "name": "materials",
+  "version": "1.0.0",
+  "description": "Engineering materials inventory with grade caps, a wishlist with shortfalls, and where-to-find hints. Built for an AI to drive: set_wishlist then get_materials.",
+  "requires": ["journal"],
+  "provides": ["materials"],
+  "order": 60,
+  "cards": [
+    { "id": "materials", "title": "Materials", "span": 4, "script": "card.js", "order": 45 }
+  ]
+}

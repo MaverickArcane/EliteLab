@@ -1,0 +1,11 @@
+{
+  "name": "loop",
+  "version": "1.0.0",
+  "description": "Rare goods loops: which stations to sweep, what is already in the hold, distance from you and the next stop.",
+  "requires": ["journal"],
+  "provides": ["loop"],
+  "order": 50,
+  "cards": [
+    { "id": "loop", "title": "Rares loop", "span": 4, "script": "card.js", "order": 44 }
+  ]
+}

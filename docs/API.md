@@ -1,68 +1,127 @@
-# JSON API
+﻿# API / AI tools
 
-All endpoints are `GET`, return JSON, and send `Cache-Control: no-store`. Errors are `{"error": "message"}` with status 500 (or 404 for unknown paths).
+Generated from `GET /api/schema` (EliteLab 0.4.0). Every tool is an HTTP route: `GET` with query parameters or `POST` with a JSON body. Responses are JSON; errors are `{"error": "..."}`. `GET /events` streams state changes as Server-Sent Events (`snapshot` then `state` events).
 
-## `GET /api/health`
+## `health`  ·  `GET /api/health`  ·  module: core
 
-```json
-{"ok": true, "version": "0.3.0", "journal_dir": "...", "journal_found": true}
-```
+Server health, version, journal folder and loaded modules.
 
-## `GET /api/state`
+## `get_state`  ·  `GET /api/state`  ·  module: core
 
-The whole live picture. Key fields:
+Full live state snapshot: every module namespace (journal, powerplay, loop, materials...). Large; prefer the specific tools when you only need one thing.
 
-| Field | Type | Source |
+## `list_modules`  ·  `GET /api/modules`  ·  module: core
+
+Loaded modules with what they require/provide and their UI cards.
+
+## `list_tools`  ·  `GET /api/schema`  ·  module: core
+
+Every API route that is exposed as an AI tool, with parameter schemas.
+
+## `get_recent_events`  ·  `GET /api/events`  ·  module: core
+
+Most recent raw journal events (newest first). Useful to see exactly what the game just did.
+
+| Parameter | Type | Description |
 |---|---|---|
-| `cmdr`, `credits`, `ship`, `ship_name`, `ship_ident` | str / int | `LoadGame`, `Loadout`, `Status.json` |
-| `cargo_capacity`, `jump_range` | int / float | `Loadout` |
-| `system`, `star_pos` (`[x,y,z]`), `station`, `station_type`, `docked` | | `Location`, `FSDJump`, `Docked`, `Undocked` |
-| `system_power`, `system_power_state`, `system_powers` | | Powerplay fields on `Location` / `FSDJump` |
-| `power`, `merits`, `rank`, `time_pledged` (s) | | `Powerplay*` events; `null` when unpledged |
-| `materials` `{Raw, Manufactured, Encoded}` totals, `materials_detail` | | `Materials`, `MaterialCollected` |
-| `carrier` `{name, callsign, system, fuel, balance, free_space, cargo, docking, services, stats_time}` | | `CarrierStats`, `CarrierLocation`, `CarrierJump` |
-| `cargo` `{count, items[{name,key,count,stolen,rare}]}` | | `Cargo.json` |
-| `market` `{station, system, timestamp, rares_in_stock[{name,buy,stock}]}` | | `Market.json` |
-| `status` `{docked_flag, landed, supercruise, fsd_charging, fuel, cargo_tons, legal}` | | `Status.json` flags |
-| `feed` `[{ts, event, text}]` newest first, max 30 | | see `FEED_EVENTS` in `journal.py` |
-| `powers` | list | the Powerplay powers, for UI dropdowns |
-| `last_event_time`, `game_version`, `generated`, `journal_dir`, `journal_ok` | | |
+| `limit` | integer | How many events (max 200) (default `30`) |
+| `event` | string | Only this event type, e.g. MarketSell |
 
-## `GET /api/history?days=30`
+## `get_commander_state`  ·  `GET /api/journal`  ·  module: journal
 
-Visited systems and the route between them, from every journal newer than `days` (`0` = all time). Cached until a journal file changes.
+Live commander state from the journal: name, credits, ship, cargo capacity and jump range, current system/station, docked flag, Powerplay control of the current system, cargo with rare goods tagged, rares in stock at the last market opened, fleet carrier summary, materials totals, and the recent event feed.
 
-```json
-{"days": 30, "jumps": 212, "total_ly": 6130.4,
- "systems": [{"name": "Leesti", "pos": [72.75, 48.75, 68.25], "visits": 9, "first": "...", "last": "...", "star_class": "K", "carrier": false}],
- "route":   [{"name": "Leesti", "ts": "...", "event": "FSDJump", "dist": 5.2}]}
-```
+## `get_travel_history`  ·  `GET /api/history`  ·  module: history
 
-`route` is chronological with consecutive duplicates collapsed; `event` is `FSDJump`, `CarrierJump` or `Location`.
+Systems visited and the chronological route, with star class, visit counts, coordinates, total jumps and light-years.
 
-## `GET /api/targets?power=&ref=&min=&max=&pad=`
+| Parameter | Type | Description |
+|---|---|---|
+| `days` | integer | Look back this many days; 0 = all time (default `30`) |
 
-Stations with a market in **Unoccupied** systems that `power` can acquire, nearest `ref` first.
+## `get_powerplay_status`  ·  `GET /api/powerplay`  ·  module: powerplay
 
-- `power`: exact power name (default `Edmund Mahon`)
-- `ref`: reference system (default `Leesti`)
-- `min`, `max`: distance band in Ly (optional)
-- `pad`: `L` for large starports only (default) or `M` to include outposts
+Pledged power, rank, total merits, merits earned this session with a log of recent gains, days pledged, when the weekly cycle ends, and who controls the current system.
 
-```json
-{"count": 386, "ref": "Leesti", "power": "Edmund Mahon",
- "results": [{"system": "...", "station": "...", "dist": 125.2, "ls": 1143, "type": "Orbis Starport",
-              "pad": "L", "pop": 107263894, "updated": "2026-10-19T10:28:50Z", "x": .., "y": .., "z": .., "economy": "..."}]}
-```
+## `find_sell_targets`  ·  `GET /api/targets`  ·  module: targets
 
-## `GET /api/powers?ref=`
+Stations with a market in Unoccupied systems that a power can acquire (where Powerplay trade and rare goods sales earn merits), nearest the reference system first. Rare goods pay best 125-165 Ly from where they were bought. Includes market data age so stale stations can be avoided.
 
-For every power: number of large-pad acquisition starports and the three nearest to `ref`. First call takes ~20 s (12 Spansh queries), cached 30 min.
+| Parameter | Type | Description |
+|---|---|---|
+| `power` | string | Power name; default = the pledged power (one of `Edmund Mahon`, `Li Yong-Rui`, `Aisling Duval`, `Pranav Antal`, `Denton Patreus`, `Nakato Kaine`, `Felicia Winters`, `Jerome Archer`, `Zemina Torval`, `Yuri Grom`, `A. Lavigny-Duval`, `Archon Delaine`) |
+| `ref` | string | Reference system; default = current system |
+| `min` | number | Minimum distance in Ly |
+| `max` | number | Maximum distance in Ly |
+| `pad` | string | L = large starports only (default), M = include outposts (default `L`; one of `L`, `M`) |
+| `limit` | integer | Max results (<=100) (default `40`) |
 
-## `GET /api/system?name=`
+## `compare_powers`  ·  `GET /api/powers`  ·  module: targets
 
-Spansh summary for one system: `power_state`, `controlling_power`, `powers`, `population`, `allegiance`, coordinates.
+For every Powerplay power: how many large-pad acquisition starports exist and the three nearest to the reference system. Use it to choose a power to pledge to. Slow on first call (~20 s).
 
-## `GET /api/coords?names=A|B|C`
+| Parameter | Type | Description |
+|---|---|---|
+| `ref` | string | Reference system; default = current system |
 
-EDSM coordinates, pipe-separated names. Returns `{name: {x, y, z}}` for systems EDSM knows.
+## `get_system_info`  ·  `GET /api/system`  ·  module: targets
+
+Spansh summary of a system: controlling power, Powerplay state, powers present, population, allegiance, coordinates.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `name` | string | System name; default = current system |
+
+## `get_rares_loop`  ·  `GET /api/loop`  ·  module: loop
+
+The active rare goods loop: each station with its rares, tons already in the hold, distance from the ship, whether docked there, and the recommended next stop. Stations tick done when their rare is aboard.
+
+## `select_rares_loop`  ·  `POST /api/loop/select`  ·  module: loop
+
+Switch the active rare goods loop.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `id` | string | Loop id, see get_rares_loop.available (**required**) |
+
+## `get_materials`  ·  `GET /api/materials`  ·  module: materials
+
+Engineering materials inventory with grade, cap (300/250/200/150/100 for G1-G5), wishlist need and shortfall per material.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `category` | string | Raw, Manufactured or Encoded (one of `Raw`, `Manufactured`, `Encoded`) |
+| `grade` | integer | 1-5 |
+| `only_wishlist` | boolean | Only materials on the wishlist (default `False`) |
+| `only_short` | boolean | Only materials where need exceeds stock (default `False`) |
+
+## `get_wishlist`  ·  `GET /api/materials/wishlist`  ·  module: materials
+
+The materials wishlist with have/need/short for each entry.
+
+## `set_wishlist`  ·  `POST /api/materials/wishlist`  ·  module: materials
+
+Set the materials wishlist, e.g. everything needed for a blueprint. Names may be display names ('Datamined Wake Exceptions') or journal keys. The dashboard then shows shortfalls live as materials are collected.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `items` | object | Map of material name -> quantity needed (**required**) |
+| `mode` | string | replace (default), add (increase needs), remove (drop these), clear (empty the list first) (default `replace`; one of `replace`, `add`, `remove`, `clear`) |
+| `label` | string | What this is for, e.g. 'FSD G5 Increased Range x3' |
+
+## `material_sources`  ·  `GET /api/materials/sources`  ·  module: materials
+
+Where to farm a material: community-known sites and the general approach, plus current stock and cap.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `name` | string | Material display name or key (**required**) |
+
+## `get_system_coords`  ·  `GET /api/coords`  ·  module: map
+
+Galactic coordinates for one or more systems (EDSM).
+
+| Parameter | Type | Description |
+|---|---|---|
+| `names` | string | System names separated by | (**required**) |
+

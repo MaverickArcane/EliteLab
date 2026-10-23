@@ -1,0 +1,11 @@
+{
+  "name": "targets",
+  "version": "1.0.0",
+  "description": "Powerplay sell targets: stations with a market in unoccupied systems your power can acquire; power comparison.",
+  "requires": ["journal", "powerplay"],
+  "provides": ["targets"],
+  "order": 40,
+  "cards": [
+    { "id": "targets", "title": "Powerplay sell targets", "span": 12, "script": "card.js", "order": 30 }
+  ]
+}

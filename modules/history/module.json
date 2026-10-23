@@ -1,0 +1,9 @@
+{
+  "name": "history",
+  "version": "1.0.0",
+  "description": "Visited systems and route from the full journal archive, with star classes.",
+  "requires": ["journal"],
+  "provides": ["history"],
+  "order": 20,
+  "cards": []
+}

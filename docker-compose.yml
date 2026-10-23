@@ -8,4 +8,8 @@ services:
     volumes:
       # Set ELITELAB_JOURNAL_DIR in a .env file next to this compose file (see .env.example).
       - "${ELITELAB_JOURNAL_DIR}:/journals:ro"
+      - elitelab-data:/data
     restart: unless-stopped
+
+volumes:
+  elitelab-data:

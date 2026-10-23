@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "elitelab": {
+      "command": "python",
+      "args": ["-m", "elitelab", "mcp"],
+      "env": { "ELITELAB_URL": "http://127.0.0.1:8766" }
+    }
+  }
+}

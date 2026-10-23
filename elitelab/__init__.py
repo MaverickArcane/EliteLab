@@ -1,11 +1,10 @@
-"""EliteLab: a small, self-hosted live dashboard for Elite Dangerous.
+"""EliteLab: a small, self-hosted, modular live dashboard for Elite Dangerous
+with an AI-facing API (every route is also an MCP tool).
 
-Modules
--------
-config   : paths, ports and environment overrides
-journal  : turns the game's journal/Status/Cargo/Market files into one state dict
-spansh   : thin cached clients for the Spansh and EDSM public APIs
-server   : the HTTP server that serves the web UI and the JSON API
+    elitelab/core/   bus, store, services, http (+SSE), loader, journal watcher
+    elitelab/mcp.py  Model Context Protocol server proxying the HTTP API
+    modules/<name>/  self-contained features: module.json + module.py + web/
+    web/             the browser shell that hosts module cards
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

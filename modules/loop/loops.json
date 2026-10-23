@@ -1,0 +1,15 @@
+{
+  "lave": {
+    "name": "Lave cluster",
+    "origin": "Leesti",
+    "note": "All large-pad starports within 10 Ly of each other. Sell 125-165 Ly away for best price and Powerplay merits.",
+    "stations": [
+      { "system": "Leesti", "station": "George Lucas", "type": "Coriolis", "ls": 200, "rares": [ { "name": "Leestian Evil Juice", "key": "leestianeviljuice" }, { "name": "Azure Milk", "key": "bluemilk" } ] },
+      { "system": "Diso", "station": "Shifnalport", "type": "Orbis", "ls": 291, "rares": [ { "name": "Diso Ma Corn", "key": "disomacorn" } ] },
+      { "system": "Lave", "station": "Lave Station", "type": "Coriolis", "ls": 280, "rares": [ { "name": "Lavian Brandy", "key": "lavianbrandy" } ] },
+      { "system": "Uszaa", "station": "Guest Installation", "type": "Orbis", "ls": 4350, "rares": [ { "name": "Uszaian Tree Grub", "key": "uszaiantreegrub" } ] },
+      { "system": "Zaonce", "station": "Ridley Scott", "type": "Orbis", "ls": 389, "rares": [ { "name": "Leathery Eggs", "key": "alieneggs" } ] },
+      { "system": "Orrere", "station": "Sharon Lee Free Market", "type": "Orbis", "ls": 962, "rares": [ { "name": "Orrerian Vicious Brew", "key": "orrerianviciousbrew" } ] }
+    ]
+  }
+}

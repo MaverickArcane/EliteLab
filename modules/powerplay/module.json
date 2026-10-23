@@ -1,0 +1,11 @@
+{
+  "name": "powerplay",
+  "version": "1.0.0",
+  "description": "Pledged power, rank, merits (total and this session), pledge age, cycle countdown.",
+  "requires": ["journal"],
+  "provides": ["powerplay"],
+  "order": 30,
+  "cards": [
+    { "id": "powerplay", "title": "Powerplay", "span": 4, "script": "card.js", "order": 21 }
+  ]
+}

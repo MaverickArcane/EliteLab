@@ -1,0 +1,16 @@
+{
+  "name": "journal",
+  "version": "1.0.0",
+  "description": "Turns the game's journal and snapshot files into live commander state: ship, location, cargo, market, carrier, materials counts, event feed.",
+  "requires": [],
+  "provides": ["journal"],
+  "order": 10,
+  "cards": [
+    { "id": "location", "title": "Location", "span": 4, "script": "cards.js", "order": 20 },
+    { "id": "ship", "title": "Ship", "span": 4, "script": "cards.js", "order": 22 },
+    { "id": "feed", "title": "Live feed", "span": 4, "script": "cards.js", "order": 40 },
+    { "id": "cargo", "title": "Cargo", "span": 4, "script": "cards.js", "order": 41 },
+    { "id": "market", "title": "Rares at this market", "span": 4, "script": "cards.js", "order": 42 },
+    { "id": "carrier", "title": "Fleet carrier", "span": 4, "script": "cards.js", "order": 43 }
+  ]
+}

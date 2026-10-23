@@ -36,7 +36,9 @@ main { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; padding
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; min-width: 0; grid-column: span 3; }
 .card.c4 { grid-column: span 4; } .card.c6 { grid-column: span 6; } .card.c8 { grid-column: span 8; } .card.c12 { grid-column: span 12; }
 .card h2 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.card h2 .right { font-weight: 400; text-transform: none; letter-spacing: 0; }
+.card h2 .right { font-weight: 400; text-transform: none; letter-spacing: 0; display: flex; gap: 6px; align-items: center; }
+.big .right { float: right; }
+.grid2 .k { color: var(--muted); font-size: 12px; } .grid2 .v { font-weight: 600; }
 .big { font-size: 22px; font-weight: 600; line-height: 1.2; }
 .muted { color: var(--muted); } .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); } .accent { color: var(--accent); }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-top: 8px; }
