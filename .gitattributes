@@ -1,0 +1,6 @@
+# Normalise line endings so the repo works from Windows, Linux and inside Docker.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
