@@ -1,0 +1,11 @@
+services:
+  elitelab:
+    build: .
+    image: elitelab:local
+    container_name: elitelab
+    ports:
+      - "127.0.0.1:8766:8766"
+    volumes:
+      # Set ELITELAB_JOURNAL_DIR in a .env file next to this compose file (see .env.example).
+      - "${ELITELAB_JOURNAL_DIR}:/journals:ro"
+    restart: unless-stopped
