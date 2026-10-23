@@ -106,20 +106,29 @@
     renderMenu(); Lab.relayout();
   }
 
-  // drag to reorder: pointer events on the title bar, moves throttled to animation frames, a light ghost follows
+  // One interaction at a time. Listeners live on the window, never on the dragged element: moving a card in the DOM
+  // would otherwise drop the browser's pointer capture mid-drag and the drag could never end.
+  let gesture = null;
+  function endGesture() { if (gesture) { const g = gesture; gesture = null; try { g.end(); } catch (e) { console.error(e); } } }
+  addEventListener('pointerup', e => { if (gesture) { gesture.move(e); endGesture(); } }, true);
+  addEventListener('pointercancel', endGesture, true);
+  addEventListener('blur', endGesture);
+  addEventListener('keydown', e => { if (e.key === 'Escape') endGesture(); });
+  addEventListener('pointermove', e => { if (gesture) { if (!(e.buttons & 1)) return endGesture(); gesture.move(e); } }, true);
+
+  // drag to reorder: moves throttled to animation frames, a light ghost follows the pointer
   function wireDrag(sec) {
     const h2 = sec.querySelector('h2');
     h2.addEventListener('pointerdown', e => {
-      if (layout.locked || isMobile() || e.button !== 0 || e.target.closest('button, a, input, select, .right')) return;
+      if (gesture || layout.locked || isMobile() || e.button !== 0 || e.target.closest('button, a, input, select, .right')) return;
       e.preventDefault();
       const r = sec.getBoundingClientRect(); const ox = e.clientX - r.left, oy = e.clientY - r.top;
       const ghost = document.createElement('div'); ghost.className = 'card ghost'; ghost.style.width = r.width + 'px'; ghost.style.height = Math.min(r.height, 160) + 'px';
       ghost.innerHTML = `<h2><span class="title">${sec.querySelector('.title').textContent}</span></h2>`;
-      document.body.appendChild(ghost); sec.classList.add('dragging'); grid.classList.add('is-dragging');
-      try { h2.setPointerCapture(e.pointerId); } catch (err) { }
-      let last = null, raf = null;
+      document.body.appendChild(ghost); sec.classList.add('dragging'); grid.classList.add('is-dragging'); document.body.classList.add('no-select');
+      let last = { x: e.clientX, y: e.clientY }, raf = null;
       const place = () => {
-        raf = null; if (!last) return;
+        raf = null; if (!sec.isConnected) return;
         ghost.style.transform = `translate(${last.x - ox}px, ${last.y - oy}px)`;
         const under = document.elementFromPoint(last.x, last.y);     // ghost has pointer-events:none, so it is skipped
         const target = under && under.closest('#grid > .card'); if (!target || target === sec) return;
@@ -127,14 +136,15 @@
         const want = before ? target : target.nextSibling;
         if (want !== sec && sec.nextSibling !== want) grid.insertBefore(sec, want);
       };
-      const move = ev => { last = { x: ev.clientX, y: ev.clientY }; if (!raf) raf = requestAnimationFrame(place); };
-      const up = () => {
-        h2.removeEventListener('pointermove', move); h2.removeEventListener('pointerup', up); h2.removeEventListener('pointercancel', up);
-        if (raf) cancelAnimationFrame(raf); ghost.remove(); sec.classList.remove('dragging'); grid.classList.remove('is-dragging');
-        layout.order = [...grid.querySelectorAll(':scope > .card')].map(s => s.dataset.id); saveLayout(); Lab.relayout();
+      gesture = {
+        move: ev => { last = { x: ev.clientX, y: ev.clientY }; if (!raf) raf = requestAnimationFrame(place); },
+        end: () => {
+          if (raf) { cancelAnimationFrame(raf); raf = null; } place();
+          ghost.remove(); sec.classList.remove('dragging'); grid.classList.remove('is-dragging'); document.body.classList.remove('no-select');
+          layout.order = [...grid.querySelectorAll(':scope > .card')].map(s => s.dataset.id); saveLayout(); Lab.relayout();
+        },
       };
-      h2.addEventListener('pointermove', move); h2.addEventListener('pointerup', up); h2.addEventListener('pointercancel', up);
-      move(e);
+      place();
     });
   }
 
@@ -142,13 +152,14 @@
   function wireResize(sec, c) {
     const handle = sec.querySelector('.resize');
     handle.addEventListener('pointerdown', e => {
-      if (layout.locked || isMobile() || e.button !== 0) return;
-      e.preventDefault(); try { handle.setPointerCapture(e.pointerId); } catch (err) { }
+      if (gesture || layout.locked || isMobile() || e.button !== 0) return;
+      e.preventDefault(); document.body.classList.add('no-select');
       const startX = e.clientX, start = spanOf(c); const col = grid.clientWidth / 12; let cur = start, raf = null, lastX = startX;
       const apply = () => { raf = null; const n = Math.max(2, Math.min(12, Math.round(start + (lastX - startX) / col))); if (n !== cur) { cur = n; applySpan(sec, n); Lab.relayout(); } };
-      const move = ev => { lastX = ev.clientX; if (!raf) raf = requestAnimationFrame(apply); };
-      const up = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); if (raf) cancelAnimationFrame(raf); apply(); layout.spans[c.id] = cur; saveLayout(); Lab.relayout(); };
-      handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
+      gesture = {
+        move: ev => { lastX = ev.clientX; if (!raf) raf = requestAnimationFrame(apply); },
+        end: () => { if (raf) { cancelAnimationFrame(raf); raf = null; } apply(); document.body.classList.remove('no-select'); layout.spans[c.id] = cur; saveLayout(); Lab.relayout(); },
+      };
     });
     handle.addEventListener('dblclick', () => { const n = spanOf(c) >= 12 ? (c.span || 3) : 12; applySpan(sec, n); layout.spans[c.id] = n; saveLayout(); Lab.relayout(); });
   }
