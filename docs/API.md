@@ -43,6 +43,10 @@ Systems visited and the chronological route, with star class, visit counts, coor
 
 Pledged power, rank, total merits, merits earned this session with a log of recent gains, days pledged, when the weekly cycle ends, and who controls the current system.
 
+## `get_merits_summary`  ·  `GET /api/merits`  ·  module: merits
+
+Where this session's Powerplay merits came from (rares, trade, bounty hunting, combat zone bonds, hauling, exploration, missions, objective bonuses), merits per hour overall and in the last hour, merits per event, and a recent log. Use it to compare activities with real numbers.
+
 ## `find_sell_targets`  ·  `GET /api/targets`  ·  module: targets
 
 Stations with a market in Unoccupied systems that a power can acquire (where Powerplay trade and rare goods sales earn merits), nearest the reference system first. Rare goods pay best 125-165 Ly from where they were bought. Includes market data age so stale stations can be avoided.
@@ -71,6 +75,18 @@ Spansh summary of a system: controlling power, Powerplay state, powers present, 
 | Parameter | Type | Description |
 |---|---|---|
 | `name` | string | System name; default = current system |
+
+## `find_combat_systems`  ·  `GET /api/combat`  ·  module: combat
+
+Systems near the reference where combat earns Powerplay merits for the pledged power. kind=contested: acquisition systems two or more powers are fighting over (Powerplay combat zones); acquisition: bounty hunting pays +5%; undermining: rival-controlled systems where killing the controlling power's ships pays; reinforcement: your own systems (-35%). Includes security, population, conflict progress per power, distance and jumps.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `kind` | string | contested (default), acquisition, undermining, reinforcement or all (default `contested`; one of `contested`, `acquisition`, `undermining`, `reinforcement`, `all`) |
+| `ref` | string | Reference system; default = current system |
+| `power` | string | Power; default = pledged power |
+| `max` | number | Search radius in Ly (default `60`) |
+| `limit` | integer | Max results (<=100) (default `25`) |
 
 ## `get_rares_loop`  ·  `GET /api/loop`  ·  module: loop
 

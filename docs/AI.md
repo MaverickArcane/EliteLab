@@ -33,7 +33,9 @@ python -m elitelab call set_wishlist items='{"Datamined Wake Exceptions": 15}' l
 | `get_commander_state` | Who, where, what ship, docked where, cargo (rares tagged), carrier, materials totals, recent feed |
 | `get_powerplay_status` | Power, rank, merits, merits this session, cycle end, control of current system |
 | `get_rares_loop`, `select_rares_loop` | Which loop stations are done, tons aboard, next stop |
-| `find_sell_targets` | Acquisition starports for a power from a system, with distance, jumps, market age |
+| `get_merits_summary` | Merits per hour and per activity this session (rares, trade, bounties, combat zones, hauling...) with a recent log |
+| `find_combat_systems` | Where combat pays merits: contested acquisition systems (combat zones), acquisition (bounties), undermining (power kills), reinforcement |
+| `find_sell_targets` | Acquisition starports for a power from a system, with distance, jumps, market age, and which rares in the hold the station will not buy |
 | `compare_powers` | Which power has the closest acquisition systems to you |
 | `get_system_info` | Spansh summary of any system |
 | `get_materials`, `get_wishlist`, `set_wishlist`, `material_sources` | Inventory vs needs, and where to farm |

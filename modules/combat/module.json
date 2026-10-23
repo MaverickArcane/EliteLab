@@ -1,0 +1,11 @@
+{
+  "name": "combat",
+  "version": "1.0.0",
+  "description": "Where combat earns Powerplay merits for your power: contested acquisition systems (Powerplay combat zones), acquisition systems (bounty hunting +5%), rival systems (undermining, power kills) and your own systems (reinforcement, -35%).",
+  "requires": ["journal", "powerplay"],
+  "provides": ["combat"],
+  "order": 45,
+  "cards": [
+    { "id": "combat", "title": "Combat merits", "span": 12, "script": "card.js", "order": 31 }
+  ]
+}

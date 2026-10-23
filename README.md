@@ -12,7 +12,9 @@ No accounts, no uploads, no dependencies. Python standard library, one web page,
 |---|---|---|
 | **journal** | Location, Ship, Cargo, Rares at this market, Fleet carrier, Live feed | `get_commander_state` |
 | **powerplay** | Power, rank, merits, merits this session, cycle countdown | `get_powerplay_status` |
-| **targets** | Powerplay sell-target finder with jump counts and market freshness; power comparison | `find_sell_targets`, `compare_powers`, `get_system_info` |
+| **merits** | Merits per hour and per activity, attributed from the journal | `get_merits_summary` |
+| **combat** | Where combat pays merits: contested systems (combat zones), acquisition, undermining, reinforcement | `find_combat_systems` |
+| **targets** | Powerplay sell-target finder with jump counts, market freshness and "won't buy" warnings for rares in your hold; power comparison | `find_sell_targets`, `compare_powers`, `get_system_info` |
 | **loop** | Rare goods loop that ticks itself from your hold, sorted by distance, next stop | `get_rares_loop`, `select_rares_loop` |
 | **materials** | Inventory totals, wishlist with live shortfalls | `get_materials`, `set_wishlist`, `get_wishlist`, `material_sources` |
 | **history** | (feeds the map) | `get_travel_history` |

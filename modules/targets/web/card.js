@@ -65,7 +65,8 @@
       const rows = T.results || [];
       if (rows.length) $('#t-body').innerHTML = rows.map((s, i) => {
         const age = s.updated ? Math.round((Date.now() - Date.parse(s.updated)) / 864e5) : null; const cls = age == null ? 'muted' : (age > 60 ? 'bad' : (age > 14 ? 'warn' : 'ok'));
-        return `<tr data-i="${i}" class="${T.selected === s ? 'sel' : ''}"><td><b>${esc(s.system)}</b></td><td>${esc(s.station)}</td><td class="num">${s.dist}</td><td class="num">${s.jumps != null ? '~' + s.jumps : '—'}</td><td class="num">${fmt(s.ls)}</td><td>${esc(s.type)}</td><td>${s.pad}</td><td class="num">${fmt(s.pop)}</td><td class="${cls}">${age == null ? 'unknown' : age + ' d ago'}</td><td><button class="mini" data-copy="${esc(s.system)}">copy</button> <a href="${inaraSt(s.station)}" target="_blank">Inara</a> <a href="${spanshSys(s.system)}" target="_blank">Spansh</a></td></tr>`;
+        const ref = s.refuses === null || s.refuses === undefined ? '' : (s.refuses.length ? ` <span class="tag bad" title="not in this station's market list">won't buy: ${esc(s.refuses.join(', '))}</span>` : ' <span class="tag ok" title="all rares in your hold are listed here">buys all</span>');
+        return `<tr data-i="${i}" class="${T.selected === s ? 'sel' : ''}"><td><b>${esc(s.system)}</b></td><td>${esc(s.station)}${ref}</td><td class="num">${s.dist}</td><td class="num">${s.jumps != null ? '~' + s.jumps : '—'}</td><td class="num">${fmt(s.ls)}</td><td>${esc(s.type)}</td><td>${s.pad}</td><td class="num">${fmt(s.pop)}</td><td class="${cls}">${age == null ? 'unknown' : age + ' d ago'}</td><td><button class="mini" data-copy="${esc(s.system)}">copy</button> <a href="${inaraSt(s.station)}" target="_blank">Inara</a> <a href="${spanshSys(s.system)}" target="_blank">Spansh</a></td></tr>`;
       }).join('');
     },
   });
@@ -75,7 +76,7 @@
     points: S => (S.targets?.results || []).filter(t => t.x != null).map(t => {
       const age = t.updated ? Math.round((Date.now() - Date.parse(t.updated)) / 864e5) : null;
       return { name: t.system, x: t.x, y: t.y, z: t.z, r: 4, color: age == null ? '#4b6f9c' : (age > 60 ? '#8a4b5c' : (age > 14 ? '#c9a23a' : '#6fb3ff')),
-               sub: `${t.station} · ${t.type} · ${t.dist} Ly${t.jumps != null ? ` (~${t.jumps} jumps)` : ''} · market ${age == null ? 'unknown' : age + ' d ago'}`, selected: S.targets?.selected === t, onClick: () => Lab.set('targets', { selected: S.targets?.selected === t ? null : t }) };
+               sub: `${t.station} · ${t.type} · ${t.dist} Ly${t.jumps != null ? ` (~${t.jumps} jumps)` : ''} · market ${age == null ? 'unknown' : age + ' d ago'}${t.refuses && t.refuses.length ? ` · WON'T BUY ${t.refuses.join(', ')}` : ''}`, selected: S.targets?.selected === t, onClick: () => Lab.set('targets', { selected: S.targets?.selected === t ? null : t }) };
     }),
     lines: S => { const t = S.targets?.selected, p = Lab.shipPos(S); return t && p ? [{ a: p, b: t, color: 'rgba(111,179,255,.8)', dash: [4, 4], label: Lab.util.dist3(p, t).toFixed(1) + ' Ly' }] : []; },
   });

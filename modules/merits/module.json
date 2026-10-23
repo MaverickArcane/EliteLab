@@ -1,0 +1,11 @@
+{
+  "name": "merits",
+  "version": "1.0.0",
+  "description": "Attributes every Powerplay merit gain to the activity that caused it and reports merits per hour, so you can compare rares, trade, bounties, combat zones and hauling with your own numbers.",
+  "requires": ["journal", "powerplay"],
+  "provides": ["merits"],
+  "order": 35,
+  "cards": [
+    { "id": "merits", "title": "Merit rate", "span": 4, "script": "card.js", "order": 23 }
+  ]
+}

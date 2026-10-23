@@ -30,15 +30,24 @@ def setup(core, module):
             filters["distance"] = {"min": str(dmin or 0), "max": str(dmax or 500)}
         data = svc.spansh_stations(filters, ref, size=min(int(q.get("limit", 40) or 40), 100))
         jr = core.store.get("journal", "jump_range")
-        results = [{
-            "system": s.get("system_name"), "station": s.get("name"), "dist": round(s.get("distance", 0), 1),
-            "jumps": (math.ceil(s.get("distance", 0) / jr) if jr else None),
-            "ls": round(s.get("distance_to_arrival") or 0), "type": s.get("type"), "pad": svc.pad(s),
-            "pop": s.get("system_population"), "updated": s.get("market_updated_at"),
-            "x": s.get("system_x"), "y": s.get("system_y"), "z": s.get("system_z"), "economy": s.get("system_primary_economy"),
-        } for s in data.get("results", [])]
+        # Rares currently aboard: a station only buys a rare if it appears in its market list (Spansh mirrors that list).
+        hold_rares = [i.get("name") for i in ((core.store.get("journal", "cargo") or {}).get("items") or []) if i.get("rare")]
+        results = []
+        for s in data.get("results", []):
+            listed = {c.get("commodity") for c in (s.get("market") or [])}
+            refuses = [n for n in hold_rares if n not in listed] if listed else None
+            results.append({
+                "system": s.get("system_name"), "station": s.get("name"), "dist": round(s.get("distance", 0), 1),
+                "jumps": (math.ceil(s.get("distance", 0) / jr) if jr else None),
+                "ls": round(s.get("distance_to_arrival") or 0), "type": s.get("type"), "pad": svc.pad(s),
+                "pop": s.get("system_population"), "updated": s.get("market_updated_at"), "government": s.get("government"),
+                "x": s.get("system_x"), "y": s.get("system_y"), "z": s.get("system_z"), "economy": s.get("system_primary_economy"),
+                "refuses": refuses, "accepts_all": (not refuses) if refuses is not None else None,
+            })
         out = {"count": data.get("count"), "results": results, "ref": ref, "power": power, "min": dmin, "max": dmax, "pad": pad,
-               "jump_range": jr, "jumps_note": "jumps = ceil(distance / max unladen jump range); a laden ship needs more"}
+               "jump_range": jr, "hold_rares": hold_rares,
+               "jumps_note": "jumps = ceil(distance / max unladen jump range); a laden ship needs more",
+               "refuses_note": "refuses = rares in your hold that this station's last known market did not list (it will not buy them)"}
         core.store.set(NS, "last", out)
         return out
 
