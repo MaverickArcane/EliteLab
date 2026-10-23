@@ -123,5 +123,5 @@ Galactic coordinates for one or more systems (EDSM).
 
 | Parameter | Type | Description |
 |---|---|---|
-| `names` | string | System names separated by | (**required**) |
+| `names` | string | System names separated by a pipe character (**required**) |
 
