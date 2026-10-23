@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="EliteLab" \
       org.opencontainers.image.description="Self-hosted, modular live dashboard for Elite Dangerous with an AI-facing API" \
-      org.opencontainers.image.source="https://github.com/ELITELAB_REPO"
+      org.opencontainers.image.source="https://github.com/MaverickArcane/EliteLab"
 
 WORKDIR /app
 COPY elitelab ./elitelab

@@ -32,7 +32,7 @@ Everything updates live over Server-Sent Events the moment the game writes a jou
 Requires Python 3.10 or newer (python.org, tick "Add to PATH").
 
 ```
-git clone https://github.com/ELITELAB_REPO.git
+git clone https://github.com/MaverickArcane/EliteLab.git
 cd EliteLab
 "Start EliteLab.cmd"
 ```

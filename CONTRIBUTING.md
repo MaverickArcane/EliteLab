@@ -5,7 +5,7 @@ This is a hobby project, built with AI assistance, and you are welcome to do wha
 ## Set up
 
 ```
-git clone https://github.com/ELITELAB_REPO.git
+git clone https://github.com/MaverickArcane/EliteLab.git
 cd EliteLab
 python -m unittest discover -s tests -v      # should pass before and after your change
 python -m elitelab serve -v                  # run against your own journals
