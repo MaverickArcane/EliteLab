@@ -218,23 +218,42 @@
   addEventListener('resize', () => Lab.relayout());
 
   // ------------------------------------------------------------------ live connection
+  function applySnapshot(snap) { Object.keys(snap).forEach(ns => { if (ns !== '_version') Lab.state[ns] = { ...(Lab.state[ns] || {}), ...snap[ns] }; }); Lab._v = snap._version || 0; Object.keys(Lab.state).forEach(ns => Lab.emit(ns)); }
+  let resyncing = false;
+  async function resync() { if (resyncing) return; resyncing = true; try { applySnapshot(await Lab.api('/api/state')); } catch (e) { } resyncing = false; }
+
   function connect() {
     const live = document.getElementById('h-live');
     const es = new EventSource('/events');
-    es.addEventListener('snapshot', e => { const snap = JSON.parse(e.data); Object.keys(snap).forEach(ns => { if (ns !== '_version') Lab.state[ns] = { ...(Lab.state[ns] || {}), ...snap[ns] }; }); live.classList.add('live'); Object.keys(Lab.state).forEach(ns => Lab.emit(ns)); });
-    es.addEventListener('state', e => { const m = JSON.parse(e.data); (Lab.state[m.ns] = Lab.state[m.ns] || {})[m.key] = m.value; Lab.emit(m.ns); });
+    es.addEventListener('snapshot', e => { applySnapshot(JSON.parse(e.data)); live.classList.add('live'); });
+    es.addEventListener('state', e => {
+      const m = JSON.parse(e.data);
+      // Every change carries a global version. A gap means the server dropped messages for this slow/background tab.
+      if (Lab._v && m.v > Lab._v + 1) resync();
+      Lab._v = m.v;
+      (Lab.state[m.ns] = Lab.state[m.ns] || {})[m.key] = m.value; Lab.emit(m.ns);
+    });
     es.onerror = () => { live.classList.remove('live'); live.textContent = 'reconnecting…'; };
   }
 
-  (async () => {
-    const manifest = await Lab.api('/api/modules');
-    document.getElementById('f-modules').textContent = 'modules: ' + manifest.map(m => m.name).join(', ');
-    const scripts = [...new Set(manifest.flatMap(m => m.cards.map(c => c.script)))];
-    for (const s of scripts) await loadScript(s);
-    const snap = await Lab.api('/api/state'); Object.keys(snap).forEach(ns => { if (ns !== '_version') Lab.state[ns] = snap[ns]; });
-    allCards = manifest.flatMap(m => m.cards.map(c => ({ ...c, module: m.name }))).sort((a, b) => (a.order || 100) - (b.order || 100));
-    mountCards();
-    Object.keys(Lab.state).forEach(ns => Lab.emit(ns));
-    connect();
-  })();
+  async function boot() {
+    const live = document.getElementById('h-live');
+    try {
+      const manifest = await Lab.api('/api/modules');
+      document.getElementById('f-modules').textContent = 'modules: ' + manifest.map(m => m.name).join(', ');
+      const scripts = [...new Set(manifest.flatMap(m => m.cards.map(c => c.script)))];
+      await Promise.all(scripts.map(loadScript));       // registration order does not matter: cards mount after all have loaded
+      applySnapshot(await Lab.api('/api/state'));
+      allCards = manifest.flatMap(m => m.cards.map(c => ({ ...c, module: m.name }))).sort((a, b) => (a.order || 100) - (b.order || 100));
+      mountCards();
+      Object.keys(Lab.state).forEach(ns => Lab.emit(ns));
+      connect();
+    } catch (e) {
+      console.error('boot failed', e);
+      live.classList.remove('live'); live.textContent = 'server unreachable, retrying';
+      document.getElementById('grid').innerHTML = `<section class="card c12"><h2><span class="title">Cannot reach EliteLab</span></h2><div class="body"><div class="muted">${esc(e.message)}. Is the server running on this address? Retrying in 3 s.</div></div></section>`;
+      setTimeout(boot, 3000);
+    }
+  }
+  boot();
 })();

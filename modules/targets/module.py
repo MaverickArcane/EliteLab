@@ -3,8 +3,10 @@
 Defaults are live: power = the pledged power, ref = the current system.
 """
 import math
+from concurrent.futures import ThreadPoolExecutor
 
-from elitelab.core.services import MEDIUM_TYPES, POWERS, STARPORT_TYPES
+from elitelab.core.gamedata import POWERS
+from elitelab.core.services import MEDIUM_TYPES, STARPORT_TYPES
 
 NS = "targets"
 
@@ -53,16 +55,19 @@ def setup(core, module):
 
     def compare(q):
         _, ref = defaults(q)
-        out = []
-        for p in POWERS:
+
+        def one(p):
             try:
                 d = svc.spansh_stations({"system_power": {"value": [p]}, "system_power_state": {"value": ["Unoccupied"]},
                                          "has_market": {"value": True}, "has_large_pad": {"value": True},
                                          "type": {"value": STARPORT_TYPES}}, ref, size=3, ttl=1800)
-                out.append({"power": p, "count": d.get("count"),
-                            "nearest": [{"system": r.get("system_name"), "dist": round(r.get("distance", 0))} for r in d.get("results", [])]})
+                return {"power": p, "count": d.get("count"),
+                        "nearest": [{"system": r.get("system_name"), "dist": round(r.get("distance", 0))} for r in d.get("results", [])]}
             except Exception as ex:
-                out.append({"power": p, "error": str(ex)})
+                return {"power": p, "error": str(ex)}
+
+        with ThreadPoolExecutor(max_workers=6) as pool:       # 12 Spansh calls in parallel instead of ~20 s in series
+            out = list(pool.map(one, POWERS))
         return {"ref": ref, "powers": out}
 
     core.http.route("/api/targets", find, tool="find_sell_targets", module=module.name,

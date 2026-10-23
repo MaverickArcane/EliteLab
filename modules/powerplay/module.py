@@ -5,9 +5,9 @@ gains), cycle_end (ISO), cycle_hours_left.
 """
 import datetime as dt
 
+from elitelab.core.gamedata import POWERS
+
 NS = "powerplay"
-POWERS = ["Edmund Mahon", "Li Yong-Rui", "Aisling Duval", "Pranav Antal", "Denton Patreus", "Nakato Kaine",
-          "Felicia Winters", "Jerome Archer", "Zemina Torval", "Yuri Grom", "A. Lavigny-Duval", "Archon Delaine"]
 
 
 def cycle_end(now=None):

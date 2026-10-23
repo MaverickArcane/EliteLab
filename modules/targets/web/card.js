@@ -32,7 +32,7 @@
       $('#t-compare').onclick = compare;
       $('#t-body').addEventListener('click', e => {
         const tr = e.target.closest('tr[data-i]'); if (!tr || e.target.closest('a,button')) return;
-        const t = (Lab.state.targets?.results || [])[+tr.dataset.i]; select(t);
+        const t = (Lab.state.targets?.last?.results || [])[+tr.dataset.i]; select(t);
       });
 
       async function find() {
@@ -40,7 +40,9 @@
         $('#t-status').textContent = 'querying Spansh…'; $('#t-compare-out').innerHTML = '';
         try {
           const d = await Lab.api('/api/targets', params); if (d.error) throw new Error(d.error);
-          Lab.set('targets', { results: d.results, ref: d.ref, power: d.power, count: d.count, selected: null });
+          // The server stores the result as targets.last and pushes it over SSE; the card renders from there, so a
+          // search made by an AI tool call shows up here too. Only the selection is client-side.
+          Lab.set('targets', { selected: null });
           $('#t-status').textContent = `${fmt(d.count)} stations match; showing nearest ${d.results.length} from ${d.ref}${d.jump_range ? ` · jumps at ${d.jump_range.toFixed(1)} Ly max range` : ''}`;
         } catch (e) { $('#t-status').textContent = 'error: ' + e.message; }
       }
@@ -62,7 +64,7 @@
       if (j.system && !refTouched && $('#t-ref').value !== j.system) $('#t-ref').value = j.system;
       const sel = $('#t-power'); if (pp.power && sel.value !== pp.power && !sel.dataset.touched) sel.value = pp.power;
       sel.onchange = () => sel.dataset.touched = '1';
-      const rows = T.results || [];
+      const rows = T.last?.results || [];
       if (rows.length) $('#t-body').innerHTML = rows.map((s, i) => {
         const age = s.updated ? Math.round((Date.now() - Date.parse(s.updated)) / 864e5) : null; const cls = age == null ? 'muted' : (age > 60 ? 'bad' : (age > 14 ? 'warn' : 'ok'));
         const ref = s.refuses === null || s.refuses === undefined ? '' : (s.refuses.length ? ` <span class="tag bad" title="not in this station's market list">won't buy: ${esc(s.refuses.join(', '))}</span>` : ' <span class="tag ok" title="all rares in your hold are listed here">buys all</span>');
@@ -73,7 +75,7 @@
 
   Lab.map.addLayer('targets', {
     label: 'sell targets', color: '#6fb3ff', z: 1,
-    points: S => (S.targets?.results || []).filter(t => t.x != null).map(t => {
+    points: S => (S.targets?.last?.results || []).filter(t => t.x != null).map(t => {
       const age = t.updated ? Math.round((Date.now() - Date.parse(t.updated)) / 864e5) : null;
       return { name: t.system, x: t.x, y: t.y, z: t.z, r: 4, color: age == null ? '#4b6f9c' : (age > 60 ? '#8a4b5c' : (age > 14 ? '#c9a23a' : '#6fb3ff')),
                sub: `${t.station} · ${t.type} · ${t.dist} Ly${t.jumps != null ? ` (~${t.jumps} jumps)` : ''} · market ${age == null ? 'unknown' : age + ' d ago'}${t.refuses && t.refuses.length ? ` · WON'T BUY ${t.refuses.join(', ')}` : ''}`, selected: S.targets?.selected === t, onClick: () => Lab.set('targets', { selected: S.targets?.selected === t ? null : t }) };

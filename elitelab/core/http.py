@@ -12,6 +12,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import config
 
+MAX_BODY = 1_000_000      # bytes; the largest legitimate POST is a wishlist
+
 
 class Route:
     def __init__(self, path, fn, tool, description, params, method, module):
@@ -70,7 +72,9 @@ def make_handler(core):
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
-            self.send_header("Access-Control-Allow-Origin", "*")
+            # No CORS headers on purpose: the dashboard is same-origin and the API has no auth, so a random web page
+            # must not be able to read game state or change the wishlist from the user's browser. MCP and the CLI are
+            # not browsers and are unaffected.
             self.end_headers()
             self.wfile.write(body)
 
@@ -87,7 +91,10 @@ def make_handler(core):
                 return self._send(200, f.read(), ctype)
 
         def _body(self):
+            """Read the request body (always, so keep-alive connections stay in sync) and parse JSON if possible."""
             n = int(self.headers.get("Content-Length") or 0)
+            if n > MAX_BODY:
+                raise ValueError(f"request body too large ({n} bytes, max {MAX_BODY})")
             if not n:
                 return None
             raw = self.rfile.read(n)
@@ -98,29 +105,31 @@ def make_handler(core):
 
         def _dispatch(self, method):
             u = urllib.parse.urlparse(self.path)
+            path = urllib.parse.unquote(u.path)
             q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
+            body = None
             try:
-                if u.path == "/events" and method == "GET":
+                if method == "POST":
+                    body = self._body()       # read before any reply, even a 404, or the next request on this connection breaks
+                if path == "/events" and method == "GET":
                     return self._sse()
-                r = router.routes.get((method, u.path))
+                r = router.routes.get((method, path))
                 if r:
-                    body = self._body() if method == "POST" else None
                     if isinstance(body, dict):
-                        # POST bodies and query strings are merged: body wins.
-                        q = {**q, **body}
+                        q = {**q, **body}     # POST bodies and query strings are merged: body wins.
                     return self._send(200, r.fn(q))
-                if u.path.startswith("/api/"):
-                    return self._send(404, {"error": f"no {method} route for {u.path}"})
+                if path.startswith("/api/"):
+                    return self._send(404, {"error": f"no {method} route for {path}"})
                 if method != "GET":
                     return self._send(405, {"error": "method not allowed"})
                 for prefix, directory in router.static.items():
-                    if u.path.startswith(prefix):
-                        return self._static(directory, u.path[len(prefix):])
-                return self._static(config.WEB_DIR, u.path)
+                    if path.startswith(prefix):
+                        return self._static(directory, path[len(prefix):])
+                return self._static(config.WEB_DIR, path)
             except ValueError as ex:
                 return self._send(400, {"error": str(ex)})
             except Exception as ex:
-                core.log.exception("request failed: %s %s", method, u.path)
+                core.log.exception("request failed: %s %s", method, path)
                 return self._send(500, {"error": str(ex)})
 
         def do_GET(self):
@@ -129,23 +138,15 @@ def make_handler(core):
         def do_POST(self):
             self._dispatch("POST")
 
-        def do_OPTIONS(self):
-            self.send_response(204)
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type")
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-
         # -- server-sent events ----------------------------------------------
         def _sse(self):
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
             self.send_header("Connection", "keep-alive")
-            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             qu = queue.Queue(maxsize=1000)
+            # If the queue overflows (slow or background tab) the client sees a gap in 'v' and refetches /api/state.
             off = store.subscribe(lambda ns, key, value, ver: _put(qu, {"ns": ns, "key": key, "value": value, "v": ver}))
             try:
                 self._write_event("snapshot", store.snapshot())

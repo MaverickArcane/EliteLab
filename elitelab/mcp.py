@@ -29,18 +29,27 @@ def _http(method, path, params=None, body=None):
         return json.loads(resp.read().decode("utf-8"))
 
 
-def _tools():
+_tool_cache = {}
+
+
+def _tools(refresh=False):
+    """Tool table from the lab; cached for the life of the process (it only changes when the lab restarts)."""
+    if _tool_cache and not refresh:
+        return list(_tool_cache.values())
     schema = _http("GET", "/api/schema")
-    out = []
+    _tool_cache.clear()
     for t in schema.get("tools", []):
-        out.append({"name": t["tool"], "description": t["description"] or t["path"], "inputSchema": t["input_schema"],
-                    "_path": t["path"], "_method": t["method"]})
-    return out
+        _tool_cache[t["tool"]] = {"name": t["tool"], "description": t["description"] or t["path"], "inputSchema": t["input_schema"],
+                                  "_path": t["path"], "_method": t["method"]}
+    return list(_tool_cache.values())
 
 
 def _call(name, args):
-    tools = {t["name"]: t for t in _tools()}
-    t = tools.get(name)
+    _tools()
+    t = _tool_cache.get(name)
+    if not t:
+        _tools(refresh=True)                  # the lab may have been restarted with new modules
+        t = _tool_cache.get(name)
     if not t:
         raise KeyError(f"unknown tool {name}")
     if t["_method"] == "POST":
@@ -68,6 +77,8 @@ def serve():
         except Exception:
             continue
         method, msg_id, params = req.get("method"), req.get("id"), req.get("params") or {}
+        if not method:
+            continue            # a response or a malformed message; never answer those
         try:
             if method == "initialize":
                 _reply(msg_id, {"protocolVersion": PROTOCOL, "capabilities": {"tools": {}},
@@ -82,7 +93,7 @@ def serve():
             elif method == "ping":
                 _reply(msg_id, {})
             elif method == "tools/list":
-                _reply(msg_id, {"tools": [{k: v for k, v in t.items() if not k.startswith("_")} for t in _tools()]})
+                _reply(msg_id, {"tools": [{k: v for k, v in t.items() if not k.startswith("_")} for t in _tools(refresh=True)]})
             elif method == "tools/call":
                 try:
                     result = _call(params.get("name"), params.get("arguments") or {})

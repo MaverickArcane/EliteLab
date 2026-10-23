@@ -7,17 +7,10 @@ shortfalls [...], updated.
 import json
 import os
 
+from elitelab.core.gamedata import norm
+
 NS = "materials"
 HERE = os.path.dirname(os.path.abspath(__file__))
-
-
-def norm(name):
-    n = (name or "").lower().strip()
-    if n.startswith("$"):
-        n = n[1:]
-    if n.endswith("_name;"):
-        n = n[:-6]
-    return n
 
 
 class Materials:

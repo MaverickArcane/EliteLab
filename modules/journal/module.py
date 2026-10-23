@@ -7,6 +7,9 @@ carrier, cargo, market, status, feed, last_event_time, game_version.
 """
 import json
 import os
+import threading
+
+from elitelab.core.gamedata import is_rare, norm
 
 NS = "journal"
 
@@ -23,13 +26,6 @@ SHIP_NAMES = {
     "empire_trader": "Imperial Clipper", "empire_courier": "Imperial Courier", "empire_eagle": "Imperial Eagle",
     "federation_dropship": "Federal Dropship", "federation_dropship_mkii": "Federal Assault Ship",
     "federation_gunship": "Federal Gunship", "independant_trader": "Keelback", "asp_scout": "Asp Scout",
-}
-
-KNOWN_RARES = {
-    "leestianeviljuice", "bluemilk", "lavianbrandy", "disomacorn", "orrerianviciousbrew", "uszaiantreegrub",
-    "leatheryeggs", "zeesszeantgrubglue", "momusbogspaniel", "alyabodysoap", "fujintea", "witchhaulkobebeef",
-    "taurichimes", "chateaudeaegaeon", "cetirabbits", "eraninpearlwhisky", "altairianskin", "centaurimegagin",
-    "lucanonionhead", "wuthieloku", "onionheadbetastrain", "indibourbon", "harmasilversearum", "kamitracigars",
 }
 
 FEED = {
@@ -55,16 +51,6 @@ FEED = {
 }
 
 
-def norm(name):
-    """'$leestianeviljuice_name;' and 'leestianeviljuice' both -> 'leestianeviljuice'."""
-    n = (name or "").lower().strip()
-    if n.startswith("$"):
-        n = n[1:]
-    if n.endswith("_name;"):
-        n = n[:-6]
-    return n
-
-
 class Journal:
     def __init__(self, core):
         self.core = core
@@ -73,7 +59,6 @@ class Journal:
             "cargo_capacity": None, "jump_range": None, "system": None, "star_pos": None,
             "station": None, "station_type": None, "docked": False,
             "system_power": None, "system_power_state": None, "system_powers": [],
-            "materials": {"Raw": 0, "Manufactured": 0, "Encoded": 0}, "materials_detail": {},
             "carrier": None, "last_event_time": None, "game_version": None, "ship_info": None,
             "cargo": {"count": None, "items": []}, "market": {"station": None, "system": None, "rares_in_stock": []},
             "status": {},
@@ -173,17 +158,6 @@ class Journal:
             st["system"] = ev.get("StarSystem") or st["system"]; changed |= {"docked", "station", "station_type", "system"}
         elif e == "Undocked":
             st["docked"] = False; st["station"] = None; st["station_type"] = None; changed |= {"docked", "station", "station_type"}
-        elif e == "Materials":
-            det = {}
-            for cat in ("Raw", "Manufactured", "Encoded"):
-                items = ev.get(cat) or []
-                st["materials"][cat] = sum(i.get("Count", 0) for i in items)
-                det[cat] = sorted([[i.get("Name_Localised") or i.get("Name"), i.get("Count", 0)] for i in items], key=lambda x: -x[1])
-            st["materials_detail"] = det; changed |= {"materials", "materials_detail"}
-        elif e == "MaterialCollected":
-            cat = ev.get("Category")
-            if cat in st["materials"]:
-                st["materials"][cat] += ev.get("Count", 0); changed.add("materials")
         elif e == "CarrierStats":
             st["carrier"] = self._carrier(ev, st.get("carrier")); changed.add("carrier")
         elif e == "CarrierLocation":
@@ -198,9 +172,10 @@ class Journal:
                 "services": [c.get("CrewRole") for c in (ev.get("Crew") or []) if c.get("Activated")]}
 
     def on_replay_done(self, name, n):
-        if not (self.st.get("carrier") or {}).get("name"):
-            self._backfill_carrier()
         self.push()
+        if not (self.st.get("carrier") or {}).get("name"):
+            # Scanning older journals can take a while on big archives; never block the watcher thread for it.
+            threading.Thread(target=self._backfill_carrier, name="carrier-backfill", daemon=True).start()
 
     def _backfill_carrier(self):
         """CarrierStats only appears when the carrier screen is opened; look back through older journals."""
@@ -211,7 +186,10 @@ class Journal:
                 with open(fp, "r", encoding="utf-8", errors="replace") as f:
                     lines = [ln for ln in f if '"event":"CarrierStats"' in ln]
                 if lines:
-                    self.st["carrier"] = self._carrier(json.loads(lines[-1]), self.st.get("carrier")); return
+                    if not (self.st.get("carrier") or {}).get("name"):      # a live CarrierStats may have arrived meanwhile
+                        self.st["carrier"] = self._carrier(json.loads(lines[-1]), self.st.get("carrier"))
+                        self.push({"carrier"})
+                    return
             except Exception:
                 continue
 
@@ -236,12 +214,12 @@ class Journal:
                 self.on_file("Cargo", self._cargo_raw)
         elif name == "Cargo":
             self._cargo_raw = data
-            rare_keys = self._market_rares | KNOWN_RARES
             items = []
             for i in data.get("Inventory") or []:
                 key = norm(i.get("Name"))
-                items.append({"name": i.get("Name_Localised") or i.get("Name"), "key": key, "count": i.get("Count"),
-                              "stolen": i.get("Stolen", 0), "rare": key in rare_keys})
+                display = i.get("Name_Localised") or i.get("Name")
+                items.append({"name": display, "key": key, "count": i.get("Count"), "stolen": i.get("Stolen", 0),
+                              "rare": key in self._market_rares or is_rare(key) or is_rare(display)})
             st["cargo"] = {"count": data.get("Count"), "items": items, "timestamp": data.get("timestamp")}
             self.push({"cargo"})
 
@@ -250,7 +228,7 @@ def setup(core, module):
     j = Journal(core)
     core.http.route("/api/journal", lambda q: core.store.get(NS),
                     tool="get_commander_state", module=module.name,
-                    description="Live commander state from the journal: name, credits, ship, cargo capacity and jump range, "
-                                "current system/station, docked flag, Powerplay control of the current system, cargo with rare "
-                                "goods tagged, rares in stock at the last market opened, fleet carrier summary, materials totals, "
-                                "and the recent event feed.")
+                    description="Live commander state from the journal: name, credits, ship (with loadout summary), cargo capacity "
+                                "and jump range, current system/station, docked flag, Powerplay control of the current system, cargo "
+                                "with rare goods tagged, rares in stock at the last market opened, fleet carrier summary, and the "
+                                "recent event feed. Materials live in get_materials.")

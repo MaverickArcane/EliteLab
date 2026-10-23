@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import sys
+import tempfile
 import unittest
 
 logging.disable(logging.CRITICAL)   # the bus-isolation test deliberately makes a handler fail
@@ -17,7 +18,7 @@ FIXTURES = os.path.join(ROOT, "tests", "fixtures", "journals")
 sys.path.insert(0, ROOT)
 os.environ["ELITELAB_JOURNAL_DIR"] = FIXTURES
 os.environ["ELITELAB_OFFLINE"] = "1"
-os.environ["ELITELAB_DATA_DIR"] = os.path.join(ROOT, "tests", ".data")
+os.environ["ELITELAB_DATA_DIR"] = tempfile.mkdtemp(prefix="elitelab-test-")
 
 from elitelab.core import Core, config, loader  # noqa: E402
 
@@ -99,8 +100,54 @@ class CoreTests(unittest.TestCase):
     def test_feed_newest_first(self):
         feed = self.call("get_commander_state")["feed"]
         self.assertTrue(feed)
-        self.assertIn("Engineered", " ".join(f["text"] for f in feed) + " Engineered")  # smoke
+        texts = " | ".join(f["text"] for f in feed)
+        self.assertIn("Jumped to Zaonce", texts)
+        self.assertIn("Sold 28 t Leestian Evil Juice", texts)
         self.assertGreaterEqual(feed[0]["ts"], feed[-1]["ts"])
+
+    def test_rare_tagging_does_not_depend_on_the_last_market(self):
+        """Leathery Eggs must be rare even when the last-opened market did not list them (key is 'alieneggs')."""
+        from elitelab.core.gamedata import is_rare
+        self.assertTrue(is_rare("alieneggs")); self.assertTrue(is_rare("Leathery Eggs")); self.assertTrue(is_rare("$bluemilk_name;"))
+        self.assertFalse(is_rare("leatheryeggs")); self.assertFalse(is_rare("gold"))
+
+    def test_journal_no_longer_carries_materials(self):
+        j = self.call("get_commander_state")
+        self.assertNotIn("materials", j)
+        self.assertEqual(self.call("get_materials")["totals"]["Encoded"], 8)
+
+    def test_history_ignores_supercruise_startjump(self):
+        hist = self.core.modules["history"].instance
+        h = [m for m in self.core.modules.values() if m.name == "history"][0]
+        before = self.core.store.get("history", "version")
+        self.core.bus.emit("journal.StartJump", {"event": "StartJump", "JumpType": "Supercruise", "StarSystem": "Zaonce"})
+        self.assertEqual(self.core.store.get("history", "version"), before)
+        self.core.bus.emit("journal.StartJump", {"event": "StartJump", "JumpType": "Hyperspace", "StarSystem": "Lave", "StarClass": "G"})
+        self.assertEqual(self.core.store.get("history", "version"), before + 1)
+
+    def test_loop_survives_a_stale_selection(self):
+        self.core.write_data({"selected": "does-not-exist"}, "loop.json")
+        from elitelab.core import loader
+        spec = [m for m in loader.discover().values() if m.name == "loop"][0]
+        import importlib.util
+        s = importlib.util.spec_from_file_location("elitelab_modules.loop_again", os.path.join(spec.path, "module.py"))
+        mod = importlib.util.module_from_spec(s); s.loader.exec_module(mod)
+        lp = mod.Loop(self.core)
+        self.assertEqual(lp.selected, "lave")
+        self.core.write_data({"selected": "lave"}, "loop.json")
+
+    def test_recent_events_limit_is_clamped(self):
+        self.assertEqual(len(self.call("get_recent_events", limit=-5)), 1)
+        self.assertLessEqual(len(self.call("get_recent_events", limit=9999)), 200)
+
+    def test_merits_zone_cleared_on_death(self):
+        total = self.call("get_powerplay_status")["merits"]
+        self.core.bus.emit("journal.SupercruiseDestinationDrop", {"event": "SupercruiseDestinationDrop", "Type": "$Warzone_Powerplay_Med:#index=4;", "Type_Localised": "Power Conflict Zone [Medium Intensity]"})
+        self.core.bus.emit("journal.Died", {"event": "Died", "timestamp": "2026-10-22T11:00:00Z"})
+        # a gain with no cause after dying must not be blamed on the zone; TotalMerits unchanged so other tests are unaffected
+        self.core.bus.emit("journal.PowerplayMerits", {"event": "PowerplayMerits", "timestamp": "2026-10-22T11:00:05Z", "Power": "Edmund Mahon", "MeritsGained": 0, "TotalMerits": total})
+        last = self.call("get_merits_summary")["recent"][0]
+        self.assertEqual(last["activity"], "unattributed")
 
     # -- powerplay / merits -----------------------------------------------------
     def test_powerplay_status(self):

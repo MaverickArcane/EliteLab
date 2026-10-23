@@ -10,22 +10,18 @@ State ``merits``: session_start, session_merits, hours, per_hour, last_hour,
 by_activity {name: {merits, events, per_event}}, best, recent [...], unattributed.
 """
 import datetime as dt
+import threading
 import time
+
+from elitelab.core.gamedata import is_rare
 
 NS = "merits"
 WINDOW_S = 12          # a cause older than this is not blamed for a gain
 RARE_RATE = 667.0      # Cr of sale value per merit observed for rares with Mahon's bonus (used only for bonus detection)
 
-KNOWN_RARES = {
-    "leestianeviljuice", "bluemilk", "lavianbrandy", "disomacorn", "orrerianviciousbrew", "uszaiantreegrub",
-    "alieneggs", "zeesszeantgrubglue", "momusbogspaniel", "alyabodysoap", "fujintea", "witchhaulkobebeef",
-    "taurichimes", "chateaudeaegaeon", "cetirabbits", "eraninpearlwhisky", "altairianskin", "centaurimegagin",
-    "lucanonionhead", "wuthieloku", "onionheadbetastrain", "indibourbon", "harmasilversearum", "kamitracigars",
-}
-
 # event -> (activity, detail-builder)
 CAUSES = {
-    "MarketSell": lambda e: ("rares" if (e.get("Type") or "").lower() in KNOWN_RARES else "trade",
+    "MarketSell": lambda e: ("rares" if is_rare(e.get("Type")) or is_rare(e.get("Type_Localised")) else "trade",
                              f"{e.get('Count')} t {e.get('Type_Localised') or e.get('Type')} for {e.get('TotalSale', 0):,} Cr"),
     "Bounty": lambda e: ("bounty hunting", f"{e.get('Target_Localised') or e.get('Target')} {e.get('TotalReward', 0):,} Cr"),
     "FactionKillBond": lambda e: ("combat zone", f"bond {e.get('Reward', 0):,} Cr vs {e.get('VictimFaction_Localised') or e.get('VictimFaction')}"),
@@ -40,7 +36,6 @@ CAUSES = {
     "DatalinkScan": lambda e: ("scans", "datalink scan"),
     "DataScanned": lambda e: ("scans", e.get("Type_Localised") or e.get("Type")),
     "SellMicroResources": lambda e: ("odyssey trade", "sold micro resources"),
-    "ShipTargeted": None,   # ignored
 }
 
 
@@ -55,8 +50,9 @@ class Merits:
     def __init__(self, core):
         self.core = core
         self.reset(None)
+        self._lock = threading.Lock()
         for e in list(CAUSES) + ["PowerplayMerits", "LoadGame", "PowerplayJoin", "PowerplayDefect", "PowerplayLeave",
-                                 "SupercruiseDestinationDrop", "SupercruiseExit", "SupercruiseEntry", "FSDJump", "Docked", "ShipTargeted"]:
+                                 "SupercruiseDestinationDrop", "SupercruiseEntry", "FSDJump", "Docked", "Died", "Resurrect", "ShipTargeted"]:
             core.bus.on("journal." + e, self.on_event)
         core.bus.on("journal.replay.done", lambda n, v: self.publish())
 
@@ -77,7 +73,7 @@ class Merits:
             t = ev.get("Type") or ""
             self.zone = (ev.get("Type_Localised") or t) if "Warzone_Powerplay" in t or "Power Conflict Zone" in (ev.get("Type_Localised") or "") else None
             return
-        if e in ("SupercruiseEntry", "FSDJump", "Docked"):
+        if e in ("SupercruiseEntry", "FSDJump", "Docked", "Died", "Resurrect"):
             self.zone = None; return
         if e == "ShipTargeted":
             if ev.get("Ship"):
@@ -98,12 +94,13 @@ class Merits:
                 act = "combat zone"
                 lt = self.last_target or {}
                 ship = lt.get("Ship_Localised") or lt.get("Ship") or ""
-                detail = f"{self.zone.replace('$Warzone_Powerplay_Med:#index=4;', '').strip() or 'zone'} · last target {ship} {lt.get('PilotRank') or ''}".strip()
+                detail = f"{self.zone} - last target {ship} {lt.get('PilotRank') or ''}".strip()
             else:
                 self.unattributed += gained
-            self.gains.append({"ts": ev.get("timestamp"), "t": ts, "gained": gained, "activity": act, "detail": detail,
-                               "total": ev.get("TotalMerits")})
-            self.gains = self.gains[-500:]
+            with self._lock:
+                self.gains.append({"ts": ev.get("timestamp"), "t": ts, "gained": gained, "activity": act, "detail": detail,
+                                   "total": ev.get("TotalMerits")})
+                self.gains = self.gains[-500:]
             self.publish(); return
         fn = CAUSES.get(e)
         if fn:
@@ -114,12 +111,14 @@ class Merits:
 
     def summary(self):
         now = time.time()
-        total = sum(g["gained"] for g in self.gains)
-        first = self.session_start or (self.gains[0]["t"] if self.gains else None)
+        with self._lock:
+            gains = list(self.gains)
+        total = sum(g["gained"] for g in gains)
+        first = self.session_start or (gains[0]["t"] if gains else None)
         hours = max((now - first) / 3600, 1 / 60) if first else None
-        last_hour = sum(g["gained"] for g in self.gains if g["t"] and now - g["t"] <= 3600)
+        last_hour = sum(g["gained"] for g in gains if g["t"] and now - g["t"] <= 3600)
         by = {}
-        for g in self.gains:
+        for g in gains:
             b = by.setdefault(g["activity"], {"merits": 0, "events": 0})
             b["merits"] += g["gained"]; b["events"] += 1
         for b in by.values():
@@ -130,7 +129,7 @@ class Merits:
                 "session_merits": total, "hours": round(hours, 2) if hours else None,
                 "per_hour": round(total / hours) if hours else None, "last_hour": last_hour,
                 "by_activity": by, "best": best, "unattributed": self.unattributed,
-                "recent": [{k: v for k, v in g.items() if k != "t"} for g in self.gains[-15:]][::-1],
+                "recent": [{k: v for k, v in g.items() if k != "t"} for g in gains[-15:]][::-1],
                 "note": "Merits attributed to the latest sale/kill/delivery within 12 s. Observed: rares pay ~1 merit per 667 Cr of sale value (Mahon +25%)."}
 
     def publish(self):

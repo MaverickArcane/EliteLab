@@ -48,7 +48,9 @@ def discover(modules_dir=None):
             continue
         with open(mf, "r", encoding="utf-8") as f:
             manifest = json.load(f)
-        found[name] = ModuleInfo(manifest.get("name", name), path, manifest)
+        if manifest.get("name", name) != name:
+            raise RuntimeError(f"module folder '{name}' has manifest name '{manifest.get('name')}'; they must match")
+        found[name] = ModuleInfo(name, path, manifest)
     return found
 
 

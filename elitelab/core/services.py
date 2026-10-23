@@ -14,15 +14,16 @@ SPANSH_STATIONS = "https://spansh.co.uk/api/stations/search"
 SPANSH_SYSTEMS = "https://spansh.co.uk/api/systems/search"
 EDSM_SYSTEMS = "https://www.edsm.net/api-v1/systems"
 
+from .gamedata import POWERS  # noqa: F401  (re-exported for modules that import it from here)
+
 STARPORT_TYPES = ["Coriolis Starport", "Orbis Starport", "Ocellus Starport", "Asteroid base", "Planetary Port"]
 MEDIUM_TYPES = STARPORT_TYPES + ["Outpost", "Planetary Outpost"]
-POWERS = ["Edmund Mahon", "Li Yong-Rui", "Aisling Duval", "Pranav Antal", "Denton Patreus", "Nakato Kaine",
-          "Felicia Winters", "Jerome Archer", "Zemina Torval", "Yuri Grom", "A. Lavigny-Duval", "Archon Delaine"]
+CACHE_MAX_ENTRIES = 400
 
 
 class Services:
     def __init__(self):
-        self._cache = {}
+        self._cache = {}        # key -> (stored_at, ttl, data)
         self._lock = threading.Lock()
 
     # -- generic -----------------------------------------------------------
@@ -32,10 +33,11 @@ class Services:
             raise RuntimeError("ELITELAB_OFFLINE is set; refusing network call to " + url)
         ttl = config.CACHE_TTL if ttl is None else ttl
         key = (url, json.dumps(body, sort_keys=True) if body is not None else None)
+        now = time.time()
         with self._lock:
             hit = self._cache.get(key)
-            if hit and time.time() - hit[0] < ttl:
-                return hit[1]
+            if hit and now - hit[0] < ttl:
+                return hit[2]
         data = json.dumps(body).encode("utf-8") if body is not None else None
         headers = {"User-Agent": config.USER_AGENT}
         if data is not None:
@@ -44,8 +46,17 @@ class Services:
         with urllib.request.urlopen(req, timeout=40) as resp:
             out = json.loads(resp.read().decode("utf-8"))
         with self._lock:
-            self._cache[key] = (time.time(), out)
+            self._cache[key] = (now, ttl, out)
+            self._evict(now)
         return out
+
+    def _evict(self, now):
+        """Drop expired entries; if still over the cap, drop the oldest. Called under the lock."""
+        for k in [k for k, (t, ttl, _) in self._cache.items() if now - t >= ttl]:
+            del self._cache[k]
+        if len(self._cache) > CACHE_MAX_ENTRIES:
+            for k in sorted(self._cache, key=lambda k: self._cache[k][0])[: len(self._cache) - CACHE_MAX_ENTRIES]:
+                del self._cache[k]
 
     # -- spansh ------------------------------------------------------------
     @staticmethod

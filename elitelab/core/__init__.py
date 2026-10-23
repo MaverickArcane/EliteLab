@@ -12,6 +12,7 @@ Modules receive the ``Core`` instance in ``setup(core, module)`` and use:
 import json
 import logging
 import os
+import threading
 
 from . import config
 from .bus import EventBus
@@ -73,18 +74,22 @@ class Core:
                         params={"limit": {"type": "integer", "description": "How many events (max 200)", "default": 30},
                                 "event": {"type": "string", "description": "Only this event type, e.g. MarketSell"}})
         self._ring = []
+        self._ring_lock = threading.Lock()
         self.bus.on("journal.*", self._remember_event)
 
     def _remember_event(self, name, ev):
         if name.startswith("journal.file.") or name == "journal.replay.done":
             return
-        self._ring.append(ev)
-        if len(self._ring) > 500:
-            del self._ring[:-500]
+        with self._ring_lock:
+            self._ring.append(ev)
+            if len(self._ring) > 500:
+                del self._ring[:-500]
 
     def _recent_events(self, q):
-        limit = min(int(q.get("limit", 30) or 30), 200)
-        evs = [e for e in reversed(self._ring) if not q.get("event") or e.get("event") == q["event"]]
+        limit = max(1, min(int(q.get("limit", 30) or 30), 200))
+        with self._ring_lock:
+            ring = list(self._ring)
+        evs = [e for e in reversed(ring) if not q.get("event") or e.get("event") == q["event"]]
         return [{k: v for k, v in e.items() if k != "_replay"} for e in evs[:limit]]
 
     # -- lifecycle -----------------------------------------------------------

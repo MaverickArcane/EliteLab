@@ -23,8 +23,6 @@ Conventions: `null` means unknown/not yet seen. Timestamps are the journal's ISO
 | `system_power` | str or null | `ControllingPower` on jump/location | location, powerplay status |
 | `system_power_state` | str or null | `PowerplayState` (Unoccupied/Exploited/Fortified/Stronghold) | location |
 | `system_powers` | [str] | `Powers` | location |
-| `materials` | `{Raw, Manufactured, Encoded}` totals | `Materials`, `MaterialCollected` | (materials module has the detailed one) |
-| `materials_detail` | `{cat: [[name, count], ...]}` | `Materials` | |
 | `carrier` | dict or null | `CarrierStats`, `CarrierLocation`, `CarrierJump`, backfill | carrier card, map carrier marker |
 | `carrier.*` | `name, callsign, fuel (tritium), balance, free_space, cargo, docking, system, stats_time, services[str]` | | |
 | `cargo` | `{count, items[{name, key, count, stolen, rare}], timestamp}` | `Cargo.json` | cargo card, loop, targets refusal check, merits |
@@ -81,7 +79,9 @@ Activity names: `rares`, `trade`, `bounty hunting`, `combat zone`, `pvp`, `hauli
 
 Response shape: `{count, results[{system, station, dist, jumps, ls, type, pad, pop, updated, government, x, y, z, economy, refuses[str] or null, accepts_all bool or null}], ref, power, min, max, pad, jump_range, hold_rares, jumps_note, refuses_note}`.
 
-Client-only keys written by the card: `results, ref, power, count, selected` (the selected row object, used by the map layer to draw the leg).
+The card renders from `last` (so a search made by an AI tool call appears in the UI too). The only client-only key is `selected` (the selected row object, used by the map layer to draw the leg).
+
+Materials totals are not in `journal`; see the `materials` namespace.
 
 ## combat (module: combat)
 

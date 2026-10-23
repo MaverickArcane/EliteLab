@@ -62,7 +62,7 @@ The watcher emits `journal.<Event>` on the bus for every journal line (replayed 
 
 ## Things that bit us (short list; long list in docs/DECISIONS.md)
 
-- Rare goods: Leathery Eggs is `alieneggs` in the journal. Never assume the key is the slugified name. Match on display name too.
+- Rare goods: Leathery Eggs is `alieneggs` in the journal. Never assume the key is the slugified name. The one table is `elitelab/core/gamedata.py` (`RARES`, `is_rare`, `norm`); modules import from there, never keep their own copy. We shipped two disagreeing copies once.
 - `StarClass` is on `StartJump`, not `FSDJump`.
 - New hulls (Kestrel, Panther...) appear in `Loadout` as internal ids with no `Ship_Localised`. Learn names from `StoredShips`/`ShipyardSwap`.
 - `Market.json` names look like `$alieneggs_name;`; `Cargo.json` names look like `alieneggs`. Normalise with `norm()`.

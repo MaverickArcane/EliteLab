@@ -27,6 +27,10 @@ A log of why things are the way they are. Add to it when you change direction or
 - Rares must not have been on a fleet carrier and must be sold outside the system they were bought in to count for merits (community-documented; not yet tested here).
 - Guides claim mining Platinum into acquisition systems is the top merit method (25-35k/h) and High-intensity zones second (15-25k/h). Unverified; the merits module exists to measure it.
 
+- The first code review (2026-10-23) found two copies of the rare-goods set that disagreed (`leatheryeggs` vs `alieneggs`), a duplicated `norm()`, and `journal.materials` totals that only ever went up. All shared game facts now live in `elitelab/core/gamedata.py`, and materials are owned by the materials module only.
+- No CORS. The API has no auth; `Access-Control-Allow-Origin: *` let any web page the user visits read state and change the wishlist. Removed. If LAN use ever needs cross-origin, it needs a token first (roadmap issue 10).
+- POST bodies are always read before replying, even on 404, because the server speaks HTTP/1.1 keep-alive and an unread body becomes the next request.
+
 ## Front-end lessons
 
 - Pointer capture is lost when the captured element is moved in the DOM. Drag handlers must live on `window`.

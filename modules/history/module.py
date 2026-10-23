@@ -25,6 +25,8 @@ class History:
     def bump(self, name, ev):
         if isinstance(ev, dict) and ev.get("_replay"):
             return
+        if isinstance(ev, dict) and ev.get("event") == "StartJump" and ev.get("JumpType") != "Hyperspace":
+            return      # supercruise entries carry no star class and change nothing on the map
         self.version += 1
         self.core.store.set(NS, "version", self.version)
 

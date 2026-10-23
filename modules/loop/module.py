@@ -18,7 +18,9 @@ class Loop:
         self.core = core
         with open(os.path.join(HERE, "loops.json"), "r", encoding="utf-8") as f:
             self.loops = json.load(f)
-        self.selected = core.read_data("loop.json", default={}).get("selected") or next(iter(self.loops))
+        self.selected = (core.read_data("loop.json", default={}) or {}).get("selected")
+        if self.selected not in self.loops:          # stale or missing selection must never stop the server
+            self.selected = next(iter(self.loops))
         self.coords = {}
         self._lock = threading.Lock()
         for key in ("cargo", "system", "docked", "star_pos"):

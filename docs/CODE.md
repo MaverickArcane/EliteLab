@@ -33,6 +33,10 @@ Module-level constants read from environment at import time. Tests override `con
 | `DISABLED_MODULES` | `ELITELAB_DISABLE` | comma list |
 | `OFFLINE` | `ELITELAB_OFFLINE` | truthy = `Services.fetch_json` raises instead of calling out |
 
+## elitelab/core/gamedata.py
+
+Game facts shared by modules (modules may not import each other, so shared facts live in core): `POWERS` (the 12 powers, Spansh spelling), `RARES` (internal key -> display name; observed keys are marked, the rest are community slugs), `KNOWN_RARES`, `RARE_NAMES`, `norm(name)` (strip `$`/`_name;`, lowercase), `is_rare(key_or_name)`. Add a rare's key only after seeing it in a real journal.
+
 ## elitelab/core/bus.py
 
 `EventBus`:
@@ -59,7 +63,7 @@ Thread safety: a single RLock around the data. Subscriber callbacks run outside 
 
 `Services`: one shared cache for all modules.
 
-- `fetch_json(url, body=None, ttl=None, method=None)`: GET, or POST JSON if `body` given. Cached by `(url, body)` for `ttl` seconds (default `config.CACHE_TTL`). Raises `RuntimeError` immediately if `config.OFFLINE`. 40 s timeout.
+- `fetch_json(url, body=None, ttl=None, method=None)`: GET, or POST JSON if `body` given. Cached by `(url, body)` for `ttl` seconds (default `config.CACHE_TTL`). Expired entries are evicted on insert and the cache is capped at `CACHE_MAX_ENTRIES` (400, oldest first). Raises `RuntimeError` immediately if `config.OFFLINE`. 40 s timeout.
 - `spansh_stations(filters, ref, size=40, sort="distance", ttl=None)`: POST to `https://spansh.co.uk/api/stations/search` with `{filters, sort:[{sort:{direction:asc}}], size, page:0, reference_system}`. Returns the raw Spansh response (`count`, `results`). Station result fields used across modules: `name, system_name, distance, distance_to_arrival, type, has_large_pad, medium_pads, system_population, market_updated_at, system_x/y/z, system_primary_economy, government, market[{commodity, category, buy_price, sell_price, supply, demand}]`.
 - `spansh_system(name)`: POST to the systems search with `{"filters":{"name":{"value":name}}}`; returns a trimmed dict. Systems result fields used: `name, x, y, z, population, security, allegiance, controlling_power, power (list of powers present), power_state (Unoccupied|Exploited|Fortified|Stronghold), power_conflict_progress [{power, progress}]`.
 - `pad(station)`: `L` if `has_large_pad`, `M` if `medium_pads > 0`, else `S`.
@@ -72,9 +76,9 @@ Constants: `STARPORT_TYPES` (Coriolis, Orbis, Ocellus, Asteroid base, Planetary 
 - `Route(path, fn, tool, description, params, method, module)` with `schema()` producing `{tool, path, method, module, description, input_schema}`; `params` is `{name: {type, description, default?, required?, enum?}}` and becomes JSON Schema properties. Keys with `required: True` and no `default` are listed in `required`.
 - `Router`: `route(path, fn, *, tool=None, description="", params=None, method="GET", module="core")` stores by `(METHOD, path)`; the same path may have both GET and POST (materials wishlist does). `mount(prefix, directory)` serves static files under a URL prefix (used for `/modules/<name>/`).
 - `make_handler(core)` builds the `BaseHTTPRequestHandler` subclass:
-  - `_dispatch(method)`: `/events` -> SSE; else exact route match on `(method, path)`; handler is called as `fn(q)` where `q` is the query dict merged with the JSON body for POST (body wins). `ValueError` -> 400, other exceptions -> 500 with `{"error"}` and a logged traceback. Unknown `/api/*` -> 404. Everything else is static: mounted prefixes first, then `config.WEB_DIR`. `_static` normalises the path and refuses anything outside the directory (404).
-  - CORS: `Access-Control-Allow-Origin: *` on all responses, `OPTIONS` answered with 204.
-  - `_sse()`: writes `event: snapshot` with the full store, then one `event: state` per change `{ns, key, value, v}`, and a `: ping` comment every 15 s. Subscription is removed in `finally` when the client disconnects. `protocol_version = HTTP/1.1` so keep-alive works.
+  - `_dispatch(method)`: percent-decodes the path; for POST reads the body first (always, so keep-alive connections stay in sync even on a 404; bodies over `MAX_BODY` = 1 MB are rejected with 400); `/events` -> SSE; else exact route match on `(method, path)`; handler is called as `fn(q)` where `q` is the query dict merged with the JSON body for POST (body wins). `ValueError` -> 400, other exceptions -> 500 with `{"error"}` and a logged traceback. Unknown `/api/*` -> 404. Everything else is static: mounted prefixes first, then `config.WEB_DIR`. `_static` normalises the path and refuses anything outside the directory (404).
+  - No CORS headers, deliberately: the API has no auth, so a third-party page in the user's browser must not be able to read state or POST a wishlist. Same-origin dashboard, MCP and CLI are unaffected.
+  - `_sse()`: writes `event: snapshot` with the full store, then one `event: state` per change `{ns, key, value, v}`, and a `: ping` comment every 15 s. The per-client queue holds 1000 messages and drops on overflow; the browser detects the gap in `v` and refetches `/api/state`. Subscription is removed in `finally` when the client disconnects. `protocol_version = HTTP/1.1` so keep-alive works.
 - `HttpServer(core).serve(host, port)`: `ThreadingHTTPServer` with daemon threads.
 
 ## elitelab/core/loader.py
@@ -107,7 +111,7 @@ Stdio JSON-RPC 2.0, newline-delimited. `BASE` from `ELITELAB_URL`. Handles `init
 
 ## modules/journal/module.py
 
-`Journal(core)`: holds `self.st` (the namespace dict), `self.feed` (last 40 feed lines), `_market_rares` (keys flagged `Rare` in the last `Market.json`), `_cargo_raw` (last `Cargo.json`, re-tagged when a new market arrives), `_learned_ships` (internal id -> display name), `_ship_internal`.
+`Journal(core)`: holds `self.st` (the namespace dict), `self.feed` (last 40 feed lines), `_market_rares` (keys flagged `Rare` in the last `Market.json`), `_cargo_raw` (last `Cargo.json`, re-tagged when a new market arrives), `_learned_ships` (internal id -> display name), `_ship_internal`. Cargo items are tagged rare when the key is in the last market's rare set, or `gamedata.is_rare()` matches the key or the display name. Materials are not tracked here (the materials module owns them). The carrier backfill runs in a thread so the watcher is never blocked.
 
 - `on_event(name, ev)`: routes `journal.file.*` to `on_file`; otherwise folds the event (see docs/EVENTS.md) and pushes only the changed keys.
 - `_learn(internal, display)` / `ship_name(internal)`: learned names first, then `SHIP_NAMES`, then a prettified internal id (`smallcombat01_nx` -> `Smallcombat01`).
