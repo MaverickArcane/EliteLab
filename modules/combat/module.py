@@ -45,9 +45,16 @@ def setup(core, module):
                 filters["power_state"] = {"value": ["Exploited", "Fortified", "Stronghold"]}
             else:
                 filters["controlling_power"] = {"value": [power]}
-            body = {"filters": filters, "sort": [{"distance": {"direction": "asc"}}], "size": 100, "page": 0, "reference_system": ref}
-            data = svc.fetch_json("https://spansh.co.uk/api/systems/search", body)
-            for s in data.get("results", []):
+            # Contested systems are rare, so page through everything in range (up to 2,500 systems); other kinds take the nearest 100.
+            results = []
+            for page in range(25 if k == "contested" else 1):
+                body = {"filters": filters, "sort": [{"distance": {"direction": "asc"}}], "size": 100, "page": page, "reference_system": ref}
+                data = svc.fetch_json("https://spansh.co.uk/api/systems/search", body, ttl=1800)
+                chunk = data.get("results", [])
+                results.extend(chunk)
+                if len(chunk) < 100:
+                    break
+            for s in results:
                 conf = s.get("power_conflict_progress") or []
                 mine = next((c.get("progress", 0) for c in conf if c.get("power") == power), None)
                 rivals = [c for c in conf if c.get("power") != power and (c.get("progress") or 0) > 0]
