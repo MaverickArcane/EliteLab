@@ -50,7 +50,8 @@ button.icon:hover { border-color: var(--line-2); color: var(--fg); }
 .card .resize::after { content: attr(data-span); position: absolute; right: 18px; bottom: 0; font-size: 10px; color: var(--muted); }
 main.locked .card h2 { cursor: default; } main.locked .card .resize, main.locked .card h2 .grip, main.locked .card h2 .tools { display: none; }
 .card.dragging { opacity: .25; border-style: dashed; }
-.card.ghost { position: fixed; z-index: 50; pointer-events: none; opacity: .92; box-shadow: 0 16px 40px rgba(0,0,0,.6); transform: rotate(.5deg); border-color: var(--accent); }
+.card.ghost { position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; opacity: .9; box-shadow: 0 16px 40px rgba(0,0,0,.6); border-color: var(--accent); background: var(--card-2); will-change: transform; }
+.card.ghost h2 { cursor: grabbing; }
 main.is-dragging .card { transition: none; }
 
 .render-error { font-size: 12px; padding: 4px 8px; border: 1px solid var(--bad); border-radius: 6px; margin-bottom: 8px; }

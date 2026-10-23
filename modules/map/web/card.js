@@ -29,7 +29,7 @@
     for (let i = 0; i < 1400; i++) { const x = rnd() * field.width, y = rnd() * field.height, r = rnd() * 1.1 + .2, a = rnd() * .5 + .15; fx.beginPath(); fx.arc(x, y, r, 0, Math.PI * 2); fx.fillStyle = `rgba(${200 + rnd() * 55 | 0},${200 + rnd() * 55 | 0},255,${a})`; fx.fill(); }
     fieldSeeded = true;
   }
-  function resize() { const dpr = devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight; if (canvas.width !== w * dpr || canvas.height !== h * dpr) { canvas.width = w * dpr; canvas.height = h * dpr; fieldSeeded = false; } ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return { w, h }; }
+  function resize() { const dpr = devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight; if (canvas.width !== w * dpr || canvas.height !== h * dpr) { canvas.width = w * dpr; canvas.height = h * dpr; } ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return { w, h }; }
   const toScreen = (p, w, h) => ({ sx: w / 2 + (p.x - M.cx) * M.scale, sy: h / 2 - (p.z - M.cz) * M.scale });
   function glow(sx, sy, r, color, alpha) { const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 3.2); g.addColorStop(0, color); g.addColorStop(.35, color); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.globalAlpha = alpha; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, sy, r * 3.2, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
   function niceScale(px) { const ly = px / M.scale, p = Math.pow(10, Math.floor(Math.log10(ly))), m = ly / p; return (m >= 5 ? 5 : m >= 2 ? 2 : 1) * p; }
@@ -54,8 +54,11 @@
   function draw() {
     if (!canvas || !canvas.isConnected) return; const S = Lab.state; const { w, h } = resize(); M.pts = [];
     if (w < 2 || h < 2) return;                 // collapsed, hidden or not laid out yet
-    if (!fieldSeeded) seedField(w, h);
-    ctx.drawImage(field, ((-M.cx * 0.15) % w + w) % w, ((M.cz * 0.15) % h + h) % h, w, h, 0, 0, w, h);
+    if (!fieldSeeded) seedField();
+    const fw = field.width, fh = field.height, sw = Math.min(w, fw), sh = Math.min(h, fh);
+    const ox = ((-M.cx * 0.15) % (fw - sw) + (fw - sw)) % (fw - sw || 1), oy = ((M.cz * 0.15) % (fh - sh) + (fh - sh)) % (fh - sh || 1);
+    ctx.fillStyle = '#05070c'; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(field, ox, oy, sw, sh, 0, 0, sw, sh);
     const pts = allPoints(S); const ship = Lab.shipPos(S);
     if (!M.fitted && pts.length) fit(S, false);
     ctx.font = '11px system-ui'; ctx.lineWidth = 1;
@@ -93,6 +96,7 @@
   const hit = (x, y) => { let best = null, bd = 10; M.pts.forEach(p => { const d = Math.hypot(p.sx - x, p.sy - y); if (d < bd) { bd = d; best = p; } }); return best; };
 
   async function loadHistory(force) {
+    if (!el || !el.isConnected) return;
     const days = el.querySelector('#map-range').value; const key = days + '|' + (Lab.state.history?.version);
     if (!force && key === M.hKey) return; M.hKey = key;
     try { M.history = await Lab.api('/api/history', { days }); if (!M.userMoved) fit(Lab.state, false); draw(); } catch (e) { }
@@ -131,10 +135,12 @@
       canvas.addEventListener('mousedown', e => { const r = canvas.getBoundingClientRect(); M.drag = { x: e.clientX - r.left, y: e.clientY - r.top }; canvas.classList.add('drag'); });
       canvas.addEventListener('mouseup', e => { const r = canvas.getBoundingClientRect(); const p = hit(e.clientX - r.left, e.clientY - r.top); M.drag = null; canvas.classList.remove('drag'); if (p) { if (p.onClick) p.onClick(); else Lab.util.copy(p.copy || p.name); } });
       canvas.addEventListener('wheel', e => { e.preventDefault(); const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, { w, h } = resize(); const f = e.deltaY < 0 ? 1.18 : 1 / 1.18; const wx = M.cx + (x - w / 2) / M.scale, wz = M.cz - (y - h / 2) / M.scale; M.scale = Math.max(0.05, Math.min(80, M.scale * f)); M.cx = wx - (x - w / 2) / M.scale; M.cz = wz + (y - h / 2) / M.scale; M.userMoved = true; draw(); }, { passive: false });
-      addEventListener('resize', draw);
-      setInterval(() => { if (document.visibilityState === 'visible') draw(); }, 120);
+      M.onRelayout = () => draw();
+      addEventListener('lab:relayout', M.onRelayout);
+      M.timer = setInterval(() => { if (document.visibilityState === 'visible' && canvas && canvas.isConnected) draw(); }, 120);
       loadHistory(true);
     },
+    unmount(root) { clearInterval(M.timer); removeEventListener('lab:relayout', M.onRelayout); canvas = null; },
     render(root, S) { loadHistory(false); draw(); },
   });
 })();

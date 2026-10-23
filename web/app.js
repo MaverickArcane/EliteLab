@@ -18,7 +18,7 @@
       dist3: (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z),
     },
     on(ns, fn) { const nss = Array.isArray(ns) ? ns : [ns]; const sub = { nss, fn }; this._subs.push(sub); return () => { this._subs = this._subs.filter(s => s !== sub); }; },
-    emit(ns) { this._pending.add(ns); if (!this._raf) this._raf = requestAnimationFrame(() => { const p = new Set(this._pending); this._pending.clear(); this._raf = null; this._subs.forEach(s => { if (s.nss.some(n => p.has(n))) { try { s.fn(this.state); } catch (e) { console.error(e); } } }); }); },
+    emit(ns) { this._pending.add(ns); if (!this._raf) this._raf = requestAnimationFrame(() => { const p = new Set(this._pending); this._pending.clear(); this._raf = null; this._subs.slice().forEach(s => { if (s.nss.some(n => p.has(n))) { try { s.fn(this.state); } catch (e) { console.error(e); } } }); }); },
     set(ns, patch) { this.state[ns] = { ...(this.state[ns] || {}), ...patch }; this.emit(ns); },
     get(ns, key) { const d = this.state[ns] || {}; return key == null ? d : d[key]; },
     async api(path, params) { const u = new URL(path, location.origin); Object.entries(params || {}).forEach(([k, v]) => { if (v != null && v !== '') u.searchParams.set(k, v); }); const r = await fetch(u); return r.json(); },
@@ -27,6 +27,8 @@
     map: { layers: {}, addLayer(id, def) { this.layers[id] = { enabled: true, ...def }; } },
     shipPos(S) { const j = (S || Lab.state).journal || {}; if (j.star_pos) return { x: j.star_pos[0], y: j.star_pos[1], z: j.star_pos[2] }; return j.system && Lab.coords[j.system] ? Lab.coords[j.system] : null; },
     toast(msg, kind) { const t = document.createElement('div'); t.className = 'toast ' + (kind || ''); t.textContent = msg; document.getElementById('toasts').appendChild(t); setTimeout(() => t.classList.add('show'), 10); setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 2600); },
+    // cards call this to be told when their card is resized/moved (cheaper than a window resize)
+    relayout() { if (this._relayoutRaf) return; this._relayoutRaf = requestAnimationFrame(() => { this._relayoutRaf = null; dispatchEvent(new Event('lab:relayout')); }); },
   };
 
   document.body.addEventListener('click', e => { const b = e.target.closest('[data-copy]'); if (b) { Lab.util.copy(b.dataset.copy); const t = b.textContent; b.textContent = 'copied'; setTimeout(() => b.textContent = t, 900); } });
@@ -47,24 +49,26 @@
   let layout = ls.get(LAYOUT_KEY, { order: [], spans: {}, hidden: [], collapsed: [], locked: false });
   const saveLayout = () => ls.set(LAYOUT_KEY, layout);
   const isMobile = () => matchMedia('(max-width: 760px)').matches;
+  const mounted = {};                // id -> { sec, off, def, body }
 
   function orderedCards() {
     const byId = Object.fromEntries(allCards.map(c => [c.id, c]));
-    const seen = new Set();
-    const out = [];
+    const seen = new Set(); const out = [];
     layout.order.forEach(id => { if (byId[id] && !seen.has(id)) { out.push(byId[id]); seen.add(id); } });
     allCards.forEach(c => { if (!seen.has(c.id)) out.push(c); });
     return out;
   }
-  function spanOf(c) { return layout.spans[c.id] || c.span || 3; }
-  function applySpan(sec, n) { sec.className = sec.className.replace(/\bc\d+\b/g, '').trim() + ` c${n}`; }
+  const spanOf = c => layout.spans[c.id] || c.span || 3;
+  function applySpan(sec, n) { sec.className = sec.className.replace(/\bc\d+\b/g, '').replace(/\s+/g, ' ').trim() + ` c${n}`; const h = sec.querySelector('.resize'); if (h) h.dataset.span = n; }
 
   function buildCard(c) {
     const def = Lab.cards[c.id];
-    const sec = document.createElement('section'); sec.className = 'card'; sec.id = 'card-' + c.id; sec.dataset.id = c.id; applySpan(sec, spanOf(c));
+    const sec = document.createElement('section'); sec.className = 'card'; sec.id = 'card-' + c.id; sec.dataset.id = c.id;
     if (layout.collapsed.includes(c.id)) sec.classList.add('collapsed');
     sec.innerHTML = `<h2><span class="grip" title="drag to move">⋮⋮</span><span class="title">${esc(c.title)}</span><span class="mod">${esc(c.module)}</span><span class="right"></span><span class="tools"><button class="icon" data-act="collapse" title="collapse">–</button><button class="icon" data-act="hide" title="hide">×</button></span></h2><div class="body"></div><div class="resize" title="drag to resize"></div>`;
+    applySpan(sec, spanOf(c));
     const body = sec.querySelector('.body'), head = sec.querySelector('.right');
+    const rec = { sec, def, body, off: () => { } };
     if (!def) body.innerHTML = `<div class="muted">Card "${esc(c.id)}" from module ${esc(c.module)} did not register.</div>`;
     else {
       try { if (def.header) def.header(head); if (def.mount) def.mount(body); } catch (e) { console.error(c.id, e); }
@@ -72,41 +76,65 @@
         try { def.render && def.render(body, S); body.querySelector(':scope > .render-error')?.remove(); }
         catch (e) { console.error(c.id, e); let b = body.querySelector(':scope > .render-error'); if (!b) { b = document.createElement('div'); b.className = 'render-error bad'; body.prepend(b); } b.textContent = 'render error: ' + e.message; }
       };
-      Lab.on(def.requires || [], render); render(Lab.state);
+      rec.off = Lab.on(def.requires || [], render); render(Lab.state);
     }
-    sec.querySelector('[data-act=collapse]').onclick = () => { sec.classList.toggle('collapsed'); layout.collapsed = layout.collapsed.filter(i => i !== c.id); if (sec.classList.contains('collapsed')) layout.collapsed.push(c.id); saveLayout(); dispatchEvent(new Event('resize')); };
-    sec.querySelector('[data-act=hide]').onclick = () => { layout.hidden.push(c.id); saveLayout(); sec.remove(); renderMenu(); Lab.toast(`${c.title} hidden. Bring it back from Layout.`); };
+    sec.querySelector('[data-act=collapse]').onclick = () => { sec.classList.toggle('collapsed'); layout.collapsed = layout.collapsed.filter(i => i !== c.id); if (sec.classList.contains('collapsed')) layout.collapsed.push(c.id); saveLayout(); Lab.relayout(); };
+    sec.querySelector('[data-act=hide]').onclick = () => { hideCard(c.id); Lab.toast(`${c.title} hidden. Bring it back from Layout.`); };
     wireDrag(sec); wireResize(sec, c);
+    mounted[c.id] = rec;
     return sec;
   }
-
+  function unmountCard(id) {
+    const rec = mounted[id]; if (!rec) return;
+    try { rec.off(); if (rec.def && rec.def.unmount) rec.def.unmount(rec.body); } catch (e) { console.error(id, e); }
+    rec.sec.remove(); delete mounted[id];
+  }
+  function hideCard(id) { if (!layout.hidden.includes(id)) layout.hidden.push(id); saveLayout(); unmountCard(id); renderMenu(); }
+  function showCard(id) {
+    layout.hidden = layout.hidden.filter(i => i !== id); saveLayout();
+    const c = allCards.find(x => x.id === id); if (!c || mounted[id]) return;
+    // insert at its position in the ordered list
+    const order = orderedCards().map(x => x.id); const idx = order.indexOf(id);
+    const next = order.slice(idx + 1).map(i => mounted[i]).find(Boolean);
+    const sec = buildCard(c); if (next) grid.insertBefore(sec, next.sec); else grid.appendChild(sec);
+    renderMenu(); Lab.relayout();
+  }
   function mountCards() {
-    grid.innerHTML = '';
+    Object.keys(mounted).forEach(unmountCard); grid.innerHTML = '';
     orderedCards().forEach(c => { if (!layout.hidden.includes(c.id)) grid.appendChild(buildCard(c)); });
     grid.classList.toggle('locked', !!layout.locked);
-    renderMenu();
+    renderMenu(); Lab.relayout();
   }
 
-  // drag to reorder: pointer events on the title bar, live DOM reordering, ghost follows the pointer
+  // drag to reorder: pointer events on the title bar, moves throttled to animation frames, a light ghost follows
   function wireDrag(sec) {
     const h2 = sec.querySelector('h2');
     h2.addEventListener('pointerdown', e => {
       if (layout.locked || isMobile() || e.button !== 0 || e.target.closest('button, a, input, select, .right')) return;
       e.preventDefault();
       const r = sec.getBoundingClientRect(); const ox = e.clientX - r.left, oy = e.clientY - r.top;
-      const ghost = sec.cloneNode(true); ghost.className += ' ghost'; ghost.style.width = r.width + 'px'; ghost.style.height = r.height + 'px'; ghost.style.left = (e.clientX - ox) + 'px'; ghost.style.top = (e.clientY - oy) + 'px';
+      const ghost = document.createElement('div'); ghost.className = 'card ghost'; ghost.style.width = r.width + 'px'; ghost.style.height = Math.min(r.height, 160) + 'px';
+      ghost.innerHTML = `<h2><span class="title">${sec.querySelector('.title').textContent}</span></h2>`;
       document.body.appendChild(ghost); sec.classList.add('dragging'); grid.classList.add('is-dragging');
-      h2.setPointerCapture(e.pointerId);
-      const move = ev => {
-        ghost.style.left = (ev.clientX - ox) + 'px'; ghost.style.top = (ev.clientY - oy) + 'px';
-        ghost.style.display = 'none'; const under = document.elementFromPoint(ev.clientX, ev.clientY); ghost.style.display = '';
-        const target = under && under.closest('.card'); if (!target || target === sec || !grid.contains(target)) return;
-        const tr = target.getBoundingClientRect(); const before = (ev.clientX - tr.left) < tr.width / 2;
-        if (before) grid.insertBefore(sec, target); else grid.insertBefore(sec, target.nextSibling);
-        dispatchEvent(new Event('resize'));
+      try { h2.setPointerCapture(e.pointerId); } catch (err) { }
+      let last = null, raf = null;
+      const place = () => {
+        raf = null; if (!last) return;
+        ghost.style.transform = `translate(${last.x - ox}px, ${last.y - oy}px)`;
+        const under = document.elementFromPoint(last.x, last.y);     // ghost has pointer-events:none, so it is skipped
+        const target = under && under.closest('#grid > .card'); if (!target || target === sec) return;
+        const tr = target.getBoundingClientRect(); const before = (last.x - tr.left) < tr.width / 2;
+        const want = before ? target : target.nextSibling;
+        if (want !== sec && sec.nextSibling !== want) grid.insertBefore(sec, want);
       };
-      const up = () => { h2.removeEventListener('pointermove', move); h2.removeEventListener('pointerup', up); h2.removeEventListener('pointercancel', up); ghost.remove(); sec.classList.remove('dragging'); grid.classList.remove('is-dragging'); layout.order = [...grid.querySelectorAll('.card')].map(s => s.dataset.id); saveLayout(); };
+      const move = ev => { last = { x: ev.clientX, y: ev.clientY }; if (!raf) raf = requestAnimationFrame(place); };
+      const up = () => {
+        h2.removeEventListener('pointermove', move); h2.removeEventListener('pointerup', up); h2.removeEventListener('pointercancel', up);
+        if (raf) cancelAnimationFrame(raf); ghost.remove(); sec.classList.remove('dragging'); grid.classList.remove('is-dragging');
+        layout.order = [...grid.querySelectorAll(':scope > .card')].map(s => s.dataset.id); saveLayout(); Lab.relayout();
+      };
       h2.addEventListener('pointermove', move); h2.addEventListener('pointerup', up); h2.addEventListener('pointercancel', up);
+      move(e);
     });
   }
 
@@ -114,14 +142,15 @@
   function wireResize(sec, c) {
     const handle = sec.querySelector('.resize');
     handle.addEventListener('pointerdown', e => {
-      if (layout.locked || isMobile()) return;
-      e.preventDefault(); handle.setPointerCapture(e.pointerId);
-      const startX = e.clientX, start = spanOf(c); const col = grid.clientWidth / 12; let cur = start;
-      const move = ev => { const n = Math.max(2, Math.min(12, Math.round(start + (ev.clientX - startX) / col))); if (n !== cur) { cur = n; applySpan(sec, n); sec.querySelector('.resize').dataset.span = n; dispatchEvent(new Event('resize')); } };
-      const up = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); layout.spans[c.id] = cur; saveLayout(); };
-      handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up);
+      if (layout.locked || isMobile() || e.button !== 0) return;
+      e.preventDefault(); try { handle.setPointerCapture(e.pointerId); } catch (err) { }
+      const startX = e.clientX, start = spanOf(c); const col = grid.clientWidth / 12; let cur = start, raf = null, lastX = startX;
+      const apply = () => { raf = null; const n = Math.max(2, Math.min(12, Math.round(start + (lastX - startX) / col))); if (n !== cur) { cur = n; applySpan(sec, n); Lab.relayout(); } };
+      const move = ev => { lastX = ev.clientX; if (!raf) raf = requestAnimationFrame(apply); };
+      const up = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); if (raf) cancelAnimationFrame(raf); apply(); layout.spans[c.id] = cur; saveLayout(); Lab.relayout(); };
+      handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
     });
-    handle.addEventListener('dblclick', () => { const n = spanOf(c) >= 12 ? (c.span || 3) : 12; applySpan(sec, n); layout.spans[c.id] = n; saveLayout(); dispatchEvent(new Event('resize')); });
+    handle.addEventListener('dblclick', () => { const n = spanOf(c) >= 12 ? (c.span || 3) : 12; applySpan(sec, n); layout.spans[c.id] = n; saveLayout(); Lab.relayout(); });
   }
 
   // layout menu
@@ -135,10 +164,11 @@
     menu.querySelector('#lm-reset').onclick = () => { layout = { order: [], spans: {}, hidden: [], collapsed: [], locked: false }; saveLayout(); mountCards(); Lab.toast('Layout reset'); };
     menu.querySelector('#lm-export').onclick = () => { Lab.util.copy(JSON.stringify(layout)); Lab.toast('Layout JSON copied to clipboard'); };
     menu.querySelector('#lm-import').onclick = () => { const s = prompt('Paste layout JSON'); if (!s) return; try { const l = JSON.parse(s); layout = { order: l.order || [], spans: l.spans || {}, hidden: l.hidden || [], collapsed: l.collapsed || [], locked: !!l.locked }; saveLayout(); mountCards(); Lab.toast('Layout imported'); } catch (e) { Lab.toast('Invalid layout JSON', 'bad'); } };
-    menu.querySelectorAll('input[data-id]').forEach(cb => cb.onchange = () => { const id = cb.dataset.id; layout.hidden = layout.hidden.filter(i => i !== id); if (!cb.checked) layout.hidden.push(id); saveLayout(); mountCards(); });
+    menu.querySelectorAll('input[data-id]').forEach(cb => cb.onchange = () => { cb.checked ? showCard(cb.dataset.id) : hideCard(cb.dataset.id); });
   }
   document.getElementById('layout-btn').onclick = e => { e.stopPropagation(); menu.classList.toggle('open'); };
   document.addEventListener('click', e => { if (!e.target.closest('#layout-menu, #layout-btn')) menu.classList.remove('open'); });
+  addEventListener('resize', () => Lab.relayout());
 
   // ------------------------------------------------------------------ live connection
   function connect() {
