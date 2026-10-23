@@ -167,6 +167,11 @@
     menu.querySelectorAll('input[data-id]').forEach(cb => cb.onchange = () => { cb.checked ? showCard(cb.dataset.id) : hideCard(cb.dataset.id); });
   }
   document.getElementById('layout-btn').onclick = e => { e.stopPropagation(); menu.classList.toggle('open'); };
+
+  // UI health: measures frame gaps and warns in the footer when the page is struggling (shown only when visible)
+  (() => { let last = performance.now(), worst = 0; const el = document.getElementById('f-perf');
+    const tick = now => { const gap = now - last; last = now; if (document.visibilityState === 'visible' && gap > worst) worst = gap; requestAnimationFrame(tick); }; requestAnimationFrame(tick);
+    setInterval(() => { if (!el) return; el.textContent = worst > 120 ? ` · UI stalled ${Math.round(worst)} ms` : ''; el.className = worst > 120 ? 'bad' : 'muted'; worst = 0; }, 2000); })();
   document.addEventListener('click', e => { if (!e.target.closest('#layout-menu, #layout-btn')) menu.classList.remove('open'); });
   addEventListener('resize', () => Lab.relayout());
 
