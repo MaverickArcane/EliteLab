@@ -241,7 +241,8 @@ function renderLoop() {
   const auto = loopAuto(); $('loop-auto').textContent = 'auto: ' + (auto ? 'on' : 'off'); $('loop-auto').style.borderColor = auto ? 'var(--ok)' : '';
   const ship = shipPos();
   const rows = LOOP.map(l => ({ l, st: loopStatus(l), d: ship && app.coords[l.system] ? dist3(ship, app.coords[l.system]) : null }));
-  if (auto && ship) rows.sort((a, b) => (a.st.done - b.st.done) || ((a.d ?? 999) - (b.d ?? 999)));
+  // Always nearest-first from the ship's current position; with auto on, finished stations sink to the bottom.
+  rows.sort((a, b) => (auto ? (a.st.done - b.st.done) : 0) || ((a.d ?? a.l.ly) - (b.d ?? b.l.ly)));
   const doneCount = rows.filter(r => r.st.done).length; const tons = rows.reduce((a, r) => a + r.st.tons, 0);
   const next = auto ? rows.find(r => !r.st.done) : null;
   $('loop-summary').innerHTML = `${doneCount}/${rows.length} stations · <b>${tons} t</b> of loop rares aboard` + (next ? ` · next: <b class="accent">${esc(next.l.system)}</b>${next.d != null ? ` (${next.d.toFixed(1)} Ly)` : ''}` : (doneCount === rows.length ? ' · <b class="ok">loop complete, go sell</b>' : ''));
