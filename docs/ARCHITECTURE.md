@@ -20,11 +20,11 @@ web/            shell: index.html, app.js (Lab runtime), style.css
 ## Data flow
 
 ```
-game journal ──watcher──▶ bus: journal.<Event>, journal.file.<Name>
-                              │
-          modules subscribe ──┤── store.set("ns", key, value) ──▶ bus: state.<ns>.<key>
-                              │                                 └─▶ SSE /events ──▶ browser Lab.state
-          modules register ───┴── http.route(path, fn, tool=...) ──▶ /api/*  and  MCP tools
+game journal --watcher--> bus: journal.<Event>, journal.file.<Name>
+                             |
+         modules subscribe --+-- store.set("ns", key, value) --> bus: state.<ns>.<key>
+                             |                                 +-> SSE /events --> browser Lab.state
+         modules register ---+-- http.route(path, fn, tool=...) --> /api/*  and  MCP tools
 ```
 
 1. **Watcher** replays the last `ELITELAB_RECENT_JOURNALS` files (events carry `_replay: true`), emits `journal.replay.done`, then polls the newest file every second. Snapshot files (`Status.json`, `Cargo.json`, `Market.json`...) are emitted as `journal.file.<Name>` whenever their mtime changes.

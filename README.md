@@ -1,33 +1,35 @@
-﻿# EliteLab
+# EliteLab
 
-A small, self-hosted, **modular live dashboard for Elite Dangerous** with an **AI-facing API**. It reads the game's journal on your PC, shows what matters right now, and exposes the same data as tools that Claude Code (or any MCP client, or a shell) can call: *"what am I short for this blueprint?"*, *"where do I sell these rares for merits?"*, *"am I done with the loop?"*.
+A small, self-hosted dashboard for Elite Dangerous that an AI assistant can also talk to. It reads the game's journal files on your PC, shows what is going on right now (location, ship, cargo, Powerplay, carrier, materials, a star map), and exposes the same data as tools that Claude Code, any MCP client, or a shell script can call.
 
-No accounts, no uploads, no dependencies. Python standard library, one web page, no build step.
+This project is vibe coded. I built it with an AI assistant while playing, to test things out in Elite and to have a dashboard I can interact with and call on with AI help. It is not polished software and does not try to be. Anyone is welcome to fork it, mess around with it, rip modules out, add their own, or take it somewhere else entirely. If you find a bug, open an issue with the journal lines around it. If you build a module, open a PR. Nothing fancy.
 
-![EliteLab screenshot placeholder](docs/screenshot.jpg)
+No accounts, no uploads, no dependencies: Python standard library, one web page, no build step.
 
-## What's in the box
+![EliteLab dashboard](docs/screenshot.jpg)
+
+## What it does
 
 | Module | Dashboard card(s) | AI tools |
 |---|---|---|
-| **journal** | Location, Ship, Cargo, Rares at this market, Fleet carrier, Live feed | `get_commander_state` |
-| **powerplay** | Power, rank, merits, merits this session, cycle countdown | `get_powerplay_status` |
-| **merits** | Merits per hour and per activity, attributed from the journal | `get_merits_summary` |
-| **combat** | Where combat pays merits: contested systems (combat zones), acquisition, undermining, reinforcement | `find_combat_systems` |
-| **targets** | Powerplay sell-target finder with jump counts, market freshness and "won't buy" warnings for rares in your hold; power comparison | `find_sell_targets`, `compare_powers`, `get_system_info` |
-| **loop** | Rare goods loop that ticks itself from your hold, sorted by distance, next stop | `get_rares_loop`, `select_rares_loop` |
-| **materials** | Inventory totals, wishlist with live shortfalls | `get_materials`, `set_wishlist`, `get_wishlist`, `material_sources` |
-| **history** | (feeds the map) | `get_travel_history` |
-| **map** | Star map: starfield, visited systems coloured by star class, route trail, layers from other modules | `get_system_coords` |
-| core | header, live connection | `get_state`, `get_recent_events`, `list_modules`, `list_tools`, `health` |
+| journal | Location, Ship, Cargo, Rares at this market, Fleet carrier, Live feed | `get_commander_state` |
+| powerplay | Power, rank, merits, merits this session, cycle countdown | `get_powerplay_status` |
+| merits | Merits per hour and per activity, worked out from the journal | `get_merits_summary` |
+| combat | Where combat pays merits: contested systems with combat zones, acquisition, undermining, reinforcement | `find_combat_systems` |
+| targets | Powerplay sell-target finder with jump counts, market freshness, and warnings about rares a station will not buy; power comparison | `find_sell_targets`, `compare_powers`, `get_system_info` |
+| loop | Rare goods loop that ticks itself from your hold, sorted by distance, with the next stop | `get_rares_loop`, `select_rares_loop` |
+| materials | Inventory totals, wishlist with live shortfalls, where-to-farm hints | `get_materials`, `set_wishlist`, `get_wishlist`, `material_sources` |
+| history | Feeds the map | `get_travel_history` |
+| map | Star map: starfield, visited systems coloured by star class, route trail, layers from other modules | `get_system_coords` |
+| core | Header, live connection, layout | `get_state`, `get_recent_events`, `list_modules`, `list_tools`, `health` |
 
-Everything updates live over Server-Sent Events the moment the game writes a journal line.
+Everything updates live over Server-Sent Events the moment the game writes a journal line. Cards can be dragged, resized, hidden, saved as named layouts, or switched between presets (Powerplay, Rares run, Combat, Mining and trade, Engineering, Second screen).
 
 ## Quick start
 
 ### Windows, no Docker
 
-Requires Python 3.10+ ([python.org](https://www.python.org/downloads/), tick "Add to PATH").
+Requires Python 3.10 or newer (python.org, tick "Add to PATH").
 
 ```
 git clone https://github.com/ELITELAB_REPO.git
@@ -35,7 +37,7 @@ cd EliteLab
 "Start EliteLab.cmd"
 ```
 
-Opens http://localhost:8766. The journal folder is auto-detected at `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`.
+That opens http://localhost:8766. The journal folder is found automatically at `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`.
 
 ### Docker
 
@@ -44,21 +46,21 @@ cp .env.example .env        # set ELITELAB_JOURNAL_DIR
 docker compose up -d --build
 ```
 
-Journals are mounted read-only; wishlists persist in a named volume.
+Journals are mounted read-only. Wishlists and the selected loop persist in a named volume.
 
-### Linux / macOS
+### Linux and macOS
 
 ```
 ./start.sh --journals "/path/to/Saved Games/Frontier Developments/Elite Dangerous"
 ```
 
-## Talk to it from an AI
+## Talking to it from an AI
 
-With the lab running, open the repo folder in **Claude Code**: `.mcp.json` registers the `elitelab` MCP server automatically. Then just ask:
+With the lab running, open the repo folder in Claude Code. The `.mcp.json` in the repo registers the `elitelab` MCP server automatically. Then ask things like:
 
 > I want to work on getting materials for an FSD G5 Increased Range roll.
 
-The assistant sets your wishlist, reads your shortfalls, and tells you where to farm. The Materials card on the dashboard shows the same shortfalls ticking down as you collect.
+The assistant sets your wishlist, reads your shortfalls, and tells you where to farm. The Materials card shows the same shortfalls going down as you collect.
 
 Any agent with a shell can do the same without MCP:
 
@@ -68,7 +70,7 @@ python -m elitelab call get_materials only_short=true
 python -m elitelab call find_sell_targets min=125 max=165
 ```
 
-See [docs/AI.md](docs/AI.md).
+See docs/AI.md.
 
 ## Configuration
 
@@ -79,39 +81,50 @@ See [docs/AI.md](docs/AI.md).
 | `ELITELAB_DATA_DIR` | `./data` | Persistent files (wishlist, selected loop) |
 | `ELITELAB_RECENT_JOURNALS` | `3` | Journal files replayed at startup |
 | `ELITELAB_DISABLE` | | Comma-separated module names to skip |
+| `ELITELAB_OFFLINE` | | Set to `1` to never call Spansh or EDSM (tests use this) |
 | `ELITELAB_URL` | `http://127.0.0.1:8766` | Where the MCP proxy finds the lab |
 
-Bind to `0.0.0.0` to open the dashboard from a tablet on your LAN. There is no auth; don't expose it to the internet.
+Bind to `0.0.0.0` to open the dashboard from a tablet on your LAN. There is no auth, so do not expose it to the internet.
 
-## How it's built
+## How it is built
 
 ```
-game journal â”€â–¶ watcher â”€â–¶ event bus â”€â–¶ modules â”€â–¶ state store â”€â–¶ SSE â”€â–¶ browser cards
-                                          â”‚
-                                          â””â”€â–¶ routes = /api/* = MCP tools
+game journal --> watcher --> event bus --> modules --> state store --> SSE --> browser cards
+                                              |
+                                              +--> routes = /api/* = MCP tools
 ```
 
-A **core** (bus, store, services, HTTP, loader, watcher) and **modules** that declare what they `require` and `provide`. Modules talk only through the store and the bus; the loader sorts them by dependency and refuses to start on a missing one. Every route registered with a tool name is automatically an MCP tool.
+A core (bus, store, services, HTTP, loader, journal watcher) and modules that declare what they require and provide. Modules talk only through the store and the bus. The loader sorts them by dependency and refuses to start on a missing one. Every route registered with a tool name is automatically an MCP tool.
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how the pieces fit
-- [docs/MODULES.md](docs/MODULES.md): write a module in 60 lines
-- [docs/API.md](docs/API.md): every endpoint / tool, generated from `/api/schema`
-- [docs/AI.md](docs/AI.md): MCP, shell and HTTP usage for assistants
+- docs/ARCHITECTURE.md: how the pieces fit
+- docs/MODULES.md: how to write a module
+- docs/API.md: every endpoint and tool, generated from `/api/schema`
+- docs/AI.md: MCP, shell and HTTP usage for assistants
+- ROADMAP.md: what I want to do next
+- CONTRIBUTING.md: how to help
+
+## Tests
+
+```
+python -m unittest discover -s tests -v
+```
+
+Runs offline against a synthetic journal in `tests/fixtures/journals`. CI runs the same on Linux and Windows, syntax-checks the front end, and builds the Docker image.
 
 ## Similar projects
 
-EliteLab is deliberately tiny and Powerplay-first. For more, see the established open-source tools:
+EliteLab is small and Powerplay-first. For more complete tools, see:
 
-- [EDMarketConnector](https://github.com/EDCD/EDMarketConnector): the standard journal uploader (Inara, EDDN, EDSM) with a plugin API.
-- [EDDiscovery](https://github.com/EDDiscovery/EDDiscovery): full logbook, 3D galaxy map, materials, carrier panel.
-- [Odyssey Materials Helper](https://github.com/jixxed/ed-odyssey-materials-helper): blueprint-level materials planning.
-- [Elite Observatory](https://github.com/Xjph/ObservatoryCore): exploration-focused journal watcher with plugins.
-- AI bridges: [EDGPT](https://glama.ai/mcp/servers/bnrkhmvp3c), [Elite Dangerous Local AI Tie-In MCP](https://github.com/GWLlosa/elite-dangerous-local-ai-tie-in-mcp).
+- EDMarketConnector (https://github.com/EDCD/EDMarketConnector): the standard journal uploader (Inara, EDDN, EDSM) with a plugin API.
+- EDDiscovery (https://github.com/EDDiscovery/EDDiscovery): full logbook, 3D galaxy map, materials, carrier panel.
+- Odyssey Materials Helper (https://github.com/jixxed/ed-odyssey-materials-helper): blueprint-level materials planning.
+- Elite Observatory (https://github.com/Xjph/ObservatoryCore): exploration-focused journal watcher with plugins.
+- AI bridges: EDGPT (https://glama.ai/mcp/servers/bnrkhmvp3c) and Elite Dangerous Local AI Tie-In MCP (https://github.com/GWLlosa/elite-dangerous-local-ai-tie-in-mcp).
 
 ## Data sources and thanks
 
-[Spansh](https://spansh.co.uk) for station and system search, [EDSM](https://www.edsm.net) for coordinates, Frontier's [Player Journal manual](https://hosting.zaonce.net/community/journal/) for the format. Elite Dangerous is Â© Frontier Developments plc; this project is not affiliated with Frontier.
+Spansh (https://spansh.co.uk) for station and system search, EDSM (https://www.edsm.net) for coordinates, and Frontier's Player Journal manual for the format. Elite Dangerous is a trademark of Frontier Developments plc. This project is not affiliated with Frontier.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See LICENSE.

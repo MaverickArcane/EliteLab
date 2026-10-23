@@ -1,13 +1,13 @@
 # Contributing
 
-Thanks for looking. EliteLab is small on purpose: standard-library Python, no build step, modules that don't know about each other. Keep it that way and most contributions are easy.
+This is a hobby project, built with AI assistance, and you are welcome to do whatever you like with it. The notes below are only there so changes keep working with each other. EliteLab is small on purpose: standard-library Python, no build step, modules that do not know about each other. Keep it that way and most contributions are easy.
 
 ## Set up
 
 ```
 git clone https://github.com/ELITELAB_REPO.git
 cd EliteLab
-python -m unittest discover -s tests -v      # must pass before and after your change
+python -m unittest discover -s tests -v      # should pass before and after your change
 python -m elitelab serve -v                  # run against your own journals
 ```
 
@@ -15,18 +15,19 @@ No virtualenv or dependencies needed. Node is only used in CI for `node --check`
 
 ## Where things go
 
-- A new feature is almost always a **new module** under `modules/<name>/`. Read [docs/MODULES.md](docs/MODULES.md); it's a 60-line job.
-- Changes to the **core** (`elitelab/core/`) need a test in `tests/` and a note in `docs/ARCHITECTURE.md` if they change the module contract.
-- The **shell** (`web/`) owns layout and the `Lab` runtime. Cards never touch layout.
+- A new feature is almost always a new module under `modules/<name>/`. Read docs/MODULES.md; it is a short job.
+- Changes to the core (`elitelab/core/`) need a test in `tests/` and a note in docs/ARCHITECTURE.md if they change the module contract.
+- The shell (`web/`) owns layout and the `Lab` runtime. Cards never touch layout.
 - Game-data facts (internal commodity keys, star classes, Powerplay rules) go next to the code that uses them with a comment saying where they came from. The journal format is documented in Frontier's Player Journal manual.
 
 ## Rules of thumb
 
 - Everything the server exposes should be an AI tool: register routes with `tool=` and write the description for a model.
-- Don't block in bus handlers. Network calls go in a thread or in a request handler.
+- Do not block in bus handlers. Network calls go in a thread or in a request handler.
 - Only write to your own store namespace.
 - `esc()` anything from the journal or an API before putting it in HTML.
 - Keep responses small; add parameters rather than returning everything.
+- Plain text in docs and UI. No emojis.
 
 ## Tests
 
@@ -34,4 +35,4 @@ No virtualenv or dependencies needed. Node is only used in CI for `node --check`
 
 ## Pull requests
 
-One topic per PR. Describe what you tested against a real journal if the fixture can't cover it. CI runs the tests on Linux and Windows, syntax-checks the scripts, and builds the Docker image.
+One topic per PR. Say what you tested against a real journal if the fixture cannot cover it. CI runs the tests on Linux and Windows, syntax-checks the scripts, and builds the Docker image.
