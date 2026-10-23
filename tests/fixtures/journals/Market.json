@@ -1,0 +1,4 @@
+{ "timestamp":"2026-10-22T10:10:05Z", "event":"Market", "MarketID":128164088, "StationName":"Ridley Scott", "StationType":"Orbis", "StarSystem":"Zaonce", "Items":[
+{ "id":128672775, "Name":"$alieneggs_name;", "Name_Localised":"Leathery Eggs", "Category":"$MARKET_category_foods;", "Category_Localised":"Foods", "BuyPrice":24350, "SellPrice":0, "MeanPrice":25000, "StockBracket":2, "DemandBracket":0, "Stock":12, "Demand":0, "Consumer":false, "Producer":true, "Rare":true },
+{ "id":128049152, "Name":"$leestianeviljuice_name;", "Name_Localised":"Leestian Evil Juice", "Category":"$MARKET_category_drugs;", "Category_Localised":"Legal Drugs", "BuyPrice":0, "SellPrice":10000, "MeanPrice":9000, "StockBracket":0, "DemandBracket":0, "Stock":0, "Demand":0, "Consumer":false, "Producer":false, "Rare":true }
+ ] }

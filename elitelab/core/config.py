@@ -26,3 +26,4 @@ RECENT_JOURNALS = int(os.environ.get("ELITELAB_RECENT_JOURNALS", "3"))   # files
 CACHE_TTL = int(os.environ.get("ELITELAB_CACHE_TTL", "600"))             # seconds for Spansh/EDSM responses
 POLL_SECONDS = float(os.environ.get("ELITELAB_POLL_SECONDS", "1.0"))     # journal tail interval
 DISABLED_MODULES = {m.strip() for m in os.environ.get("ELITELAB_DISABLE", "").split(",") if m.strip()}
+OFFLINE = os.environ.get("ELITELAB_OFFLINE", "") not in ("", "0", "false")   # tests/CI: never call Spansh or EDSM

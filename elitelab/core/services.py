@@ -28,6 +28,8 @@ class Services:
     # -- generic -----------------------------------------------------------
     def fetch_json(self, url, body=None, ttl=None, method=None):
         """GET (or POST when ``body`` is given) and parse JSON, cached for ``ttl`` seconds."""
+        if config.OFFLINE:
+            raise RuntimeError("ELITELAB_OFFLINE is set; refusing network call to " + url)
         ttl = config.CACHE_TTL if ttl is None else ttl
         key = (url, json.dumps(body, sort_keys=True) if body is not None else None)
         with self._lock:
