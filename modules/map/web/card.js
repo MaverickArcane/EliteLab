@@ -20,8 +20,8 @@
 
   let canvas, ctx, tip, el;
   const field = document.createElement('canvas'); let fieldSeeded = false;
-  function seedField(w, h) {
-    field.width = w * 2; field.height = h * 2; const fx = field.getContext('2d');
+  function seedField() {   // fixed size, generated once; resizing the card never regenerates it
+    field.width = 2400; field.height = 1400; const fx = field.getContext('2d');
     fx.fillStyle = '#05070c'; fx.fillRect(0, 0, field.width, field.height);
     let s = 1337; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
     const g = fx.createRadialGradient(field.width * .35, field.height * .3, 0, field.width * .35, field.height * .3, field.width * .6);
