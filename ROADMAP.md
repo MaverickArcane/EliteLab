@@ -1,4 +1,4 @@
-# Roadmap
+﻿# Roadmap
 
 Where EliteLab is going, roughly in order. Each item is meant to become a GitHub issue; pick one and say so.
 
@@ -20,6 +20,6 @@ Where EliteLab is going, roughly in order. Each item is meant to become a GitHub
 
 ## Housekeeping
 
-- Screenshot and short GIF in the README.
+- Short GIF of the layout editor in the README.
 - Issue templates for "bug with a journal excerpt" and "module idea".
 - A `tests/fixtures/journals/` scenario per module as they grow.

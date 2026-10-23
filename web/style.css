@@ -18,11 +18,14 @@ header h1 small { color: var(--muted); letter-spacing: 0; font-weight: 400; marg
 .pill.live::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-right: 6px; animation: blink 2s infinite; }
 @keyframes blink { 50% { opacity: .35; } }
 .layout-wrap { position: relative; }
-.menu { display: none; position: absolute; right: 0; top: 30px; width: 300px; background: var(--card-2); border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; box-shadow: 0 10px 30px rgba(0,0,0,.5); z-index: 30; }
+.menu { display: none; position: absolute; right: 0; top: 30px; width: 340px; background: var(--card-2); border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; box-shadow: 0 10px 30px rgba(0,0,0,.5); z-index: 30; }
 .menu.open { display: block; }
 .menu-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
 .menu-row label { display: flex; gap: 6px; align-items: center; margin-right: auto; }
-.menu-list { max-height: 50vh; overflow: auto; display: grid; gap: 2px; }
+.menu-sec { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 10px 0 4px; }
+.menu-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.menu-chips .chip { display: inline-flex; align-items: center; gap: 2px; }
+.menu-list { max-height: 40vh; overflow: auto; display: grid; gap: 2px; }
 .menu-list label { display: flex; gap: 8px; align-items: center; padding: 3px 4px; border-radius: 6px; }
 .menu-list label:hover { background: rgba(255,255,255,.04); }
 footer { padding: 8px 20px; font-size: 12px; }

@@ -164,17 +164,48 @@
     handle.addEventListener('dblclick', () => { const n = spanOf(c) >= 12 ? (c.span || 3) : 12; applySpan(sec, n); layout.spans[c.id] = n; saveLayout(); Lab.relayout(); });
   }
 
+  // presets: order + spans + hidden. Cards not listed in `order` follow in manifest order; cards in `hidden` are off.
+  const ALL = () => allCards.map(c => c.id);
+  const PRESETS = {
+    'Default': () => ({ order: [], spans: {}, hidden: [] }),
+    'Powerplay': () => ({ order: ['map', 'powerplay', 'merits', 'targets', 'combat', 'location', 'loop', 'cargo', 'ship', 'feed'],
+      spans: { map: 8, powerplay: 4, merits: 4, targets: 12, combat: 12, location: 4, loop: 4, cargo: 4, ship: 4, feed: 4 }, hidden: ['materials', 'market', 'carrier'] }),
+    'Rares run': () => ({ order: ['loop', 'cargo', 'market', 'map', 'location', 'targets', 'merits', 'ship', 'feed'],
+      spans: { loop: 4, cargo: 4, market: 4, map: 8, location: 4, targets: 12, merits: 4, ship: 4, feed: 4 }, hidden: ['combat', 'materials', 'carrier', 'powerplay'] }),
+    'Combat': () => ({ order: ['merits', 'ship', 'location', 'combat', 'map', 'feed', 'powerplay'],
+      spans: { merits: 4, ship: 4, location: 4, combat: 12, map: 8, feed: 4, powerplay: 4 }, hidden: ['loop', 'targets', 'materials', 'market', 'cargo', 'carrier'] }),
+    'Mining & trade': () => ({ order: ['cargo', 'market', 'ship', 'targets', 'map', 'location', 'merits', 'feed'],
+      spans: { cargo: 4, market: 4, ship: 4, targets: 12, map: 8, location: 4, merits: 4, feed: 4 }, hidden: ['loop', 'combat', 'materials', 'powerplay', 'carrier'] }),
+    'Engineering': () => ({ order: ['materials', 'feed', 'location', 'ship', 'cargo', 'map'],
+      spans: { materials: 6, feed: 6, location: 4, ship: 4, cargo: 4, map: 12 }, hidden: ['loop', 'targets', 'combat', 'market', 'powerplay', 'merits', 'carrier'] }),
+    'Second screen': () => ({ order: ['map', 'location', 'feed', 'merits'], spans: { map: 12, location: 4, feed: 4, merits: 4 },
+      hidden: ALL().filter(id => !['map', 'location', 'feed', 'merits'].includes(id)) }),
+  };
+  const SAVED_KEY = 'layouts.v1';
+  const savedLayouts = () => ls.get(SAVED_KEY, {});
+  function applyLayout(l, name) { layout = { order: l.order || [], spans: l.spans || {}, hidden: l.hidden || [], collapsed: l.collapsed || [], locked: !!l.locked }; saveLayout(); mountCards(); if (name) Lab.toast(`Layout: ${name}`); }
+
   // layout menu
   const menu = document.getElementById('layout-menu');
   function renderMenu() {
+    const saved = savedLayouts();
     menu.innerHTML = `
-      <div class="menu-row"><label><input type="checkbox" id="lm-lock" ${layout.locked ? 'checked' : ''}> lock layout</label><button class="mini" id="lm-reset">reset</button><button class="mini" id="lm-export">export</button><button class="mini" id="lm-import">import</button></div>
+      <div class="menu-row"><label><input type="checkbox" id="lm-lock" ${layout.locked ? 'checked' : ''}> lock</label><button class="mini" id="lm-export">export</button><button class="mini" id="lm-import">import</button></div>
+      <div class="menu-sec">Presets</div>
+      <div class="menu-chips">${Object.keys(PRESETS).map(n => `<button class="mini" data-preset="${esc(n)}">${esc(n)}</button>`).join('')}</div>
+      <div class="menu-sec">Saved layouts</div>
+      <div class="menu-row"><input id="lm-name" placeholder="name this layout" size="16"><button class="mini primary" id="lm-save">save current</button></div>
+      <div class="menu-chips">${Object.keys(saved).length ? Object.keys(saved).map(n => `<span class="chip"><button class="mini" data-load="${esc(n)}">${esc(n)}</button><button class="mini icon" data-del="${esc(n)}" title="delete">×</button></span>`).join('') : '<span class="muted" style="font-size:12px">none yet</span>'}</div>
+      <div class="menu-sec">Cards</div>
       <div class="menu-list">${orderedCards().map(c => `<label><input type="checkbox" data-id="${esc(c.id)}" ${layout.hidden.includes(c.id) ? '' : 'checked'}> ${esc(c.title)} <span class="muted">${esc(c.module)}</span></label>`).join('')}</div>
-      <div class="muted" style="font-size:11px;margin-top:6px">Drag a title bar to move, drag the corner to resize, double-click the corner for full width. Saved in this browser.</div>`;
+      <div class="muted" style="font-size:11px;margin-top:6px">Drag a title bar to move, drag the corner to resize, double-click the corner for full width. Everything here is saved in this browser.</div>`;
     menu.querySelector('#lm-lock').onchange = e => { layout.locked = e.target.checked; saveLayout(); grid.classList.toggle('locked', layout.locked); };
-    menu.querySelector('#lm-reset').onclick = () => { layout = { order: [], spans: {}, hidden: [], collapsed: [], locked: false }; saveLayout(); mountCards(); Lab.toast('Layout reset'); };
     menu.querySelector('#lm-export').onclick = () => { Lab.util.copy(JSON.stringify(layout)); Lab.toast('Layout JSON copied to clipboard'); };
-    menu.querySelector('#lm-import').onclick = () => { const s = prompt('Paste layout JSON'); if (!s) return; try { const l = JSON.parse(s); layout = { order: l.order || [], spans: l.spans || {}, hidden: l.hidden || [], collapsed: l.collapsed || [], locked: !!l.locked }; saveLayout(); mountCards(); Lab.toast('Layout imported'); } catch (e) { Lab.toast('Invalid layout JSON', 'bad'); } };
+    menu.querySelector('#lm-import').onclick = () => { const s = prompt('Paste layout JSON'); if (!s) return; try { applyLayout(JSON.parse(s), 'imported'); } catch (e) { Lab.toast('Invalid layout JSON', 'bad'); } };
+    menu.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => applyLayout(PRESETS[b.dataset.preset](), b.dataset.preset));
+    menu.querySelector('#lm-save').onclick = () => { const n = menu.querySelector('#lm-name').value.trim(); if (!n) return Lab.toast('Give the layout a name', 'bad'); const all = savedLayouts(); all[n] = { ...layout, order: [...grid.querySelectorAll(':scope > .card')].map(s => s.dataset.id) }; ls.set(SAVED_KEY, all); renderMenu(); Lab.toast(`Saved layout "${n}"`); };
+    menu.querySelectorAll('[data-load]').forEach(b => b.onclick = () => applyLayout(savedLayouts()[b.dataset.load], b.dataset.load));
+    menu.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { const all = savedLayouts(); delete all[b.dataset.del]; ls.set(SAVED_KEY, all); renderMenu(); });
     menu.querySelectorAll('input[data-id]').forEach(cb => cb.onchange = () => { cb.checked ? showCard(cb.dataset.id) : hideCard(cb.dataset.id); });
   }
   document.getElementById('layout-btn').onclick = e => { e.stopPropagation(); menu.classList.toggle('open'); };

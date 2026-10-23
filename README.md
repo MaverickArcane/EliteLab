@@ -1,10 +1,10 @@
-# EliteLab
+﻿# EliteLab
 
 A small, self-hosted, **modular live dashboard for Elite Dangerous** with an **AI-facing API**. It reads the game's journal on your PC, shows what matters right now, and exposes the same data as tools that Claude Code (or any MCP client, or a shell) can call: *"what am I short for this blueprint?"*, *"where do I sell these rares for merits?"*, *"am I done with the loop?"*.
 
 No accounts, no uploads, no dependencies. Python standard library, one web page, no build step.
 
-![EliteLab screenshot placeholder](docs/screenshot.png)
+![EliteLab screenshot placeholder](docs/screenshot.jpg)
 
 ## What's in the box
 
@@ -86,9 +86,9 @@ Bind to `0.0.0.0` to open the dashboard from a tablet on your LAN. There is no a
 ## How it's built
 
 ```
-game journal ─▶ watcher ─▶ event bus ─▶ modules ─▶ state store ─▶ SSE ─▶ browser cards
-                                          │
-                                          └─▶ routes = /api/* = MCP tools
+game journal â”€â–¶ watcher â”€â–¶ event bus â”€â–¶ modules â”€â–¶ state store â”€â–¶ SSE â”€â–¶ browser cards
+                                          â”‚
+                                          â””â”€â–¶ routes = /api/* = MCP tools
 ```
 
 A **core** (bus, store, services, HTTP, loader, watcher) and **modules** that declare what they `require` and `provide`. Modules talk only through the store and the bus; the loader sorts them by dependency and refuses to start on a missing one. Every route registered with a tool name is automatically an MCP tool.
@@ -110,7 +110,7 @@ EliteLab is deliberately tiny and Powerplay-first. For more, see the established
 
 ## Data sources and thanks
 
-[Spansh](https://spansh.co.uk) for station and system search, [EDSM](https://www.edsm.net) for coordinates, Frontier's [Player Journal manual](https://hosting.zaonce.net/community/journal/) for the format. Elite Dangerous is © Frontier Developments plc; this project is not affiliated with Frontier.
+[Spansh](https://spansh.co.uk) for station and system search, [EDSM](https://www.edsm.net) for coordinates, Frontier's [Player Journal manual](https://hosting.zaonce.net/community/journal/) for the format. Elite Dangerous is Â© Frontier Developments plc; this project is not affiliated with Frontier.
 
 ## License
 
