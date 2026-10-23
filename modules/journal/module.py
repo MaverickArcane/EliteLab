@@ -81,6 +81,8 @@ class Journal:
         self.feed = []
         self._market_rares = set()
         self._cargo_raw = None
+        self._learned_ships = {}     # internal hull id -> display name, learned from shipyard events
+        self._ship_internal = None
         self.core.store.update(NS, self.st)
         core.bus.on("journal.*", self.on_event)
         core.bus.on("journal.replay.done", self.on_replay_done)
@@ -89,6 +91,17 @@ class Journal:
     def push(self, keys=None):
         data = self.st if keys is None else {k: self.st[k] for k in keys}
         self.core.store.update(NS, data)
+
+    # -- ship names -----------------------------------------------------------
+    def _learn(self, internal, display):
+        if internal and display:
+            self._learned_ships[internal.lower()] = display
+
+    def ship_name(self, internal):
+        k = (internal or "").lower()
+        if not k:
+            return None
+        return self._learned_ships.get(k) or SHIP_NAMES.get(k) or k.replace("_nx", "").replace("_", " ").title()
 
     # -- events -------------------------------------------------------------
     def on_event(self, name, ev):
@@ -111,13 +124,22 @@ class Journal:
             st["game_version"] = ev.get("gameversion"); changed.add("game_version")
         elif e == "Commander":
             st["cmdr"] = ev.get("Name"); changed.add("cmdr")
+        elif e == "StoredShips":
+            for s in (ev.get("ShipsHere") or []) + (ev.get("ShipsRemote") or []):
+                self._learn(s.get("ShipType"), s.get("ShipType_Localised"))
+        elif e in ("ShipyardSwap", "ShipyardNew", "ShipyardBuy"):
+            self._learn(ev.get("ShipType"), ev.get("ShipType_Localised"))
+            if e == "ShipyardSwap":
+                self._ship_internal = ev.get("ShipType"); st["ship"] = self.ship_name(ev.get("ShipType")); changed.add("ship")
         elif e == "LoadGame":
             st["cmdr"] = ev.get("Commander"); st["credits"] = ev.get("Credits")
-            st["ship"] = ev.get("Ship_Localised") or SHIP_NAMES.get((ev.get("Ship") or "").lower()) or ev.get("Ship")
+            self._learn(ev.get("Ship"), ev.get("Ship_Localised"))
+            self._ship_internal = ev.get("Ship"); st["ship"] = ev.get("Ship_Localised") or self.ship_name(ev.get("Ship"))
             st["ship_name"] = ev.get("ShipName"); st["ship_ident"] = ev.get("ShipIdent")
             changed |= {"cmdr", "credits", "ship", "ship_name", "ship_ident"}
         elif e == "Loadout":
-            st["ship"] = ev.get("Ship_Localised") or SHIP_NAMES.get((ev.get("Ship") or "").lower()) or st["ship"] or ev.get("Ship")
+            self._learn(ev.get("Ship"), ev.get("Ship_Localised"))
+            self._ship_internal = ev.get("Ship"); st["ship"] = ev.get("Ship_Localised") or self.ship_name(ev.get("Ship"))
             st["ship_name"] = ev.get("ShipName"); st["ship_ident"] = ev.get("ShipIdent")
             st["cargo_capacity"] = ev.get("CargoCapacity"); st["jump_range"] = ev.get("MaxJumpRange")
             fuel = ev.get("FuelCapacity") or {}
