@@ -224,17 +224,22 @@ def history(days=30):
 
     systems = {}   # name -> record
     route = []     # ordered list of system names (consecutive duplicates collapsed)
+    classes = {}   # name -> star class (StartJump carries it; FSDJump does not)
     for fp in files:
         try:
             with open(fp, "r", encoding="utf-8", errors="replace") as f:
                 for line in f:
-                    if '"StarPos"' not in line:
+                    if '"StarPos"' not in line and '"StartJump"' not in line:
                         continue
                     try:
                         ev = json.loads(line)
                     except Exception:
                         continue
                     e = ev.get("event")
+                    if e == "StartJump":
+                        if ev.get("StarClass") and ev.get("StarSystem"):
+                            classes[ev["StarSystem"]] = ev["StarClass"]
+                        continue
                     if e not in ("FSDJump", "CarrierJump", "Location"):
                         continue
                     name = ev.get("StarSystem")
@@ -257,6 +262,9 @@ def history(days=30):
                                       "dist": round(ev.get("JumpDist", 0) or 0, 1)})
         except Exception:
             continue
+    for name, rec in systems.items():
+        if not rec["star_class"] and name in classes:
+            rec["star_class"] = classes[name]
     data = {"days": days, "systems": list(systems.values()), "route": route,
             "total_ly": round(sum(r["dist"] for r in route), 1), "jumps": sum(1 for r in route if r["event"] == "FSDJump")}
     _history_cache["key"] = key
