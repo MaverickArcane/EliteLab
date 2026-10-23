@@ -48,8 +48,8 @@ class Powerplay:
         elif e == "PowerplayMerits":
             gained = ev.get("MeritsGained") or 0
             st["merits"] = ev.get("TotalMerits", st["merits"])
-            if not ev.get("_replay") or True:   # count replayed merits from this session too (LoadGame resets)
-                st["session_merits"] = (st.get("session_merits") or 0) + gained
+            # Replayed merits count too: LoadGame resets the session, so only the current session's gains survive replay.
+            st["session_merits"] = (st.get("session_merits") or 0) + gained
             st["merit_log"] = (st.get("merit_log") or [])[-19:] + [{"ts": ev.get("timestamp"), "gained": gained, "total": st["merits"]}]
         elif e == "PowerplayRank":
             st["rank"] = ev.get("Rank")
