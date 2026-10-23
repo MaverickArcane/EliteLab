@@ -55,7 +55,8 @@ class Merits:
     def __init__(self, core):
         self.core = core
         self.reset(None)
-        for e in list(CAUSES) + ["PowerplayMerits", "LoadGame", "PowerplayJoin", "PowerplayDefect", "PowerplayLeave"]:
+        for e in list(CAUSES) + ["PowerplayMerits", "LoadGame", "PowerplayJoin", "PowerplayDefect", "PowerplayLeave",
+                                 "SupercruiseDestinationDrop", "SupercruiseExit", "SupercruiseEntry", "FSDJump", "Docked", "ShipTargeted"]:
             core.bus.on("journal." + e, self.on_event)
         core.bus.on("journal.replay.done", lambda n, v: self.publish())
 
@@ -64,11 +65,24 @@ class Merits:
         self.causes = []          # [(ts, activity, detail, cr)]
         self.gains = []           # [{ts, gained, activity, detail}]
         self.unattributed = 0
+        self.zone = None          # name of the Powerplay conflict zone we are in, if any
+        self.last_target = None   # last ShipTargeted with a ship name
 
     def on_event(self, name, ev):
         e, ts = ev.get("event"), _ts(ev.get("timestamp"))
         if e in ("LoadGame", "PowerplayJoin", "PowerplayDefect", "PowerplayLeave"):
             self.reset(ts); self.publish(); return
+        # Powerplay conflict zones: the game logs no bounty/bond for zone kills, so remember when we are inside one.
+        if e == "SupercruiseDestinationDrop":
+            t = ev.get("Type") or ""
+            self.zone = (ev.get("Type_Localised") or t) if "Warzone_Powerplay" in t or "Power Conflict Zone" in (ev.get("Type_Localised") or "") else None
+            return
+        if e in ("SupercruiseEntry", "FSDJump", "Docked"):
+            self.zone = None; return
+        if e == "ShipTargeted":
+            if ev.get("Ship"):
+                self.last_target = ev
+            return
         if e == "PowerplayMerits":
             gained = ev.get("MeritsGained") or 0
             act, detail = "unattributed", ""
@@ -80,6 +94,11 @@ class Merits:
                 act, detail, cr = cause[1], cause[2], cause[3]
                 if act in ("rares", "trade") and cr and gained > 2.5 * (cr / RARE_RATE) and gained >= 500:
                     act, detail = "objective bonus", f"paid alongside {detail}"
+            elif self.zone:
+                act = "combat zone"
+                lt = self.last_target or {}
+                ship = lt.get("Ship_Localised") or lt.get("Ship") or ""
+                detail = f"{self.zone.replace('$Warzone_Powerplay_Med:#index=4;', '').strip() or 'zone'} · last target {ship} {lt.get('PilotRank') or ''}".strip()
             else:
                 self.unattributed += gained
             self.gains.append({"ts": ev.get("timestamp"), "t": ts, "gained": gained, "activity": act, "detail": detail,
