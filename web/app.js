@@ -68,7 +68,10 @@
     if (!def) body.innerHTML = `<div class="muted">Card "${esc(c.id)}" from module ${esc(c.module)} did not register.</div>`;
     else {
       try { if (def.header) def.header(head); if (def.mount) def.mount(body); } catch (e) { console.error(c.id, e); }
-      const render = S => { try { def.render && def.render(body, S); } catch (e) { console.error(c.id, e); body.innerHTML = `<div class="bad">render error: ${esc(e.message)}</div>`; } };
+      const render = S => {
+        try { def.render && def.render(body, S); body.querySelector(':scope > .render-error')?.remove(); }
+        catch (e) { console.error(c.id, e); let b = body.querySelector(':scope > .render-error'); if (!b) { b = document.createElement('div'); b.className = 'render-error bad'; body.prepend(b); } b.textContent = 'render error: ' + e.message; }
+      };
       Lab.on(def.requires || [], render); render(Lab.state);
     }
     sec.querySelector('[data-act=collapse]').onclick = () => { sec.classList.toggle('collapsed'); layout.collapsed = layout.collapsed.filter(i => i !== c.id); if (sec.classList.contains('collapsed')) layout.collapsed.push(c.id); saveLayout(); dispatchEvent(new Event('resize')); };

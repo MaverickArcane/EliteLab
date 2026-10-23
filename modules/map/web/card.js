@@ -52,7 +52,8 @@
   }
 
   function draw() {
-    if (!canvas) return; const S = Lab.state; const { w, h } = resize(); M.pts = [];
+    if (!canvas || !canvas.isConnected) return; const S = Lab.state; const { w, h } = resize(); M.pts = [];
+    if (w < 2 || h < 2) return;                 // collapsed, hidden or not laid out yet
     if (!fieldSeeded) seedField(w, h);
     ctx.drawImage(field, ((-M.cx * 0.15) % w + w) % w, ((M.cz * 0.15) % h + h) % h, w, h, 0, 0, w, h);
     const pts = allPoints(S); const ship = Lab.shipPos(S);

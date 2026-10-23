@@ -53,6 +53,8 @@ main.locked .card h2 { cursor: default; } main.locked .card .resize, main.locked
 .card.ghost { position: fixed; z-index: 50; pointer-events: none; opacity: .92; box-shadow: 0 16px 40px rgba(0,0,0,.6); transform: rotate(.5deg); border-color: var(--accent); }
 main.is-dragging .card { transition: none; }
 
+.render-error { font-size: 12px; padding: 4px 8px; border: 1px solid var(--bad); border-radius: 6px; margin-bottom: 8px; }
+
 /* toasts */
 #toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 60; }
 .toast { background: var(--card-2); border: 1px solid var(--line-2); border-left: 3px solid var(--accent); padding: 8px 12px; border-radius: 8px; font-size: 13px; opacity: 0; transform: translateY(8px); transition: all .25s; }
