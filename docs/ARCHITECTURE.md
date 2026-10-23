@@ -50,6 +50,8 @@ game journal ──watcher──▶ bus: journal.<Event>, journal.file.<Name>
 
 No framework, no build. Cards render by replacing their body's innerHTML; the map keeps a canvas across renders via `mount`.
 
+**Layout** is owned by the shell, not by modules. Cards can be dragged by their title bar to reorder (pointer events, live DOM reordering, a ghost follows the pointer), resized by the corner handle in grid columns (2 to 12), collapsed, or hidden. The Layout menu lists every card, locks the layout, resets it, and exports/imports it as JSON. State lives in `localStorage` under `layout.v1` as `{order, spans, hidden, collapsed, locked}`; manifests supply defaults for anything not overridden. Moving a card moves its DOM node, so a card's `mount` state (the map canvas) survives.
+
 ## Threading
 
 The watcher runs in one background thread and emits synchronously, so module handlers run there; keep them fast and never block on the network inside a handler (the loop module fetches coordinates in its own thread). HTTP requests run in the server's thread pool. The store is lock-protected; everything else is single-writer.
