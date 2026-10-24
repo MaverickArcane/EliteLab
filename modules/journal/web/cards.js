@@ -27,16 +27,17 @@
       const fuelPct = s.fuel_main && st.fuel != null ? Math.round(100 * st.fuel / s.fuel_main) : null;
       const hullPct = s.hull_health != null ? Math.round(s.hull_health * 100) : null;
       const mods = s.modules || [];
-      const CORE_ORDER = ['PowerPlant', 'MainEngines', 'FrameShiftDrive', 'LifeSupport', 'PowerDistributor', 'Radar', 'FuelTank', 'Armour'];
       const CORE_SHORT = { PowerPlant: 'PP', MainEngines: 'THR', FrameShiftDrive: 'FSD', LifeSupport: 'LS', PowerDistributor: 'PD', Radar: 'SNS', FuelTank: 'FT', Armour: 'HULL' };
+      const CORE_ORDER = Object.keys(CORE_SHORT);
       const engText = e => e ? `${esc(e.blueprint_name || e.blueprint)} G${e.level}${e.experimental ? ' + ' + esc(e.experimental_name || e.experimental) : ''}` : '';
       const chip = (m, label) => `<span class="chip${m.engineering ? ' eng' : ''}${m.on === false ? ' off' : ''}" title="${esc(m.slot)}${m.engineering && m.engineering.engineer ? ' - ' + esc(m.engineering.engineer) : ''}${m.on === false ? ' - powered off' : ''}">
           ${label ? `<span class="lbl">${esc(label)}</span>` : ''}<b>${m.class != null ? m.class : ''}${esc(m.rating || '')}</b> ${esc(m.name)}${m.mount ? ` <span class="muted">${{ F: 'fixed', G: 'gimballed', T: 'turreted' }[m.mount] || m.mount}</span>` : ''}
           ${m.engineering ? `<span class="sub">${engText(m.engineering)}</span>` : ''}</span>`;
-      const core = CORE_ORDER.map(slot => mods.find(m => m.slot === slot)).filter(Boolean);
+      // every component slot the server classified, in cockpit order; unknown core slots still show, after the known ones
+      const core = mods.filter(m => m.group === 'component').sort((a, b) => (CORE_ORDER.indexOf(a.slot) + 99) % 99 - (CORE_ORDER.indexOf(b.slot) + 99) % 99);
       const hard = mods.filter(m => m.group === 'hardpoint'), util = mods.filter(m => m.group === 'utility'), inner = mods.filter(m => m.group === 'internal' || m.group === 'military');
       const engineered = mods.filter(m => m.engineering).length;
-      const bar = (label, pct, text, colour) => `<div class="ship-bar"><div class="k">${label} <span class="muted">${text}</span></div><div class="bar"><i style="width:${Math.max(0, Math.min(100, pct))}%;background:${colour}"></i></div></div>`;
+      const bar = Lab.util.bar;
       el.innerHTML = `
         <div class="ship-head"><div><div class="big">${esc(s.type || '-')}</div><div class="muted">${[s.name, s.ident].filter(Boolean).map(esc).join(' - ') || 'unnamed'}${s.hot ? ' <span class="tag bad">HOT</span>' : ''}${j.docked ? ` <span class="tag">docked</span>` : st.supercruise ? ' <span class="tag">supercruise</span>' : ''}</div></div>
           <div class="ship-range"><div class="k">Jump range</div><div class="v">${j.jump_range_now != null ? j.jump_range_now.toFixed(1) : '-'} <span class="muted">Ly now</span></div><div class="muted">${j.jump_range_laden != null ? j.jump_range_laden.toFixed(1) + ' laden' : ''}${s.max_jump_range != null ? ` / ${s.max_jump_range.toFixed(1)} max` : ''}</div></div></div>
@@ -50,7 +51,7 @@
           <div><div class="k">Modules</div><div class="v">${mods.length} <span class="muted">${engineered} engineered</span></div></div>
           <div><div class="k">Hardpoints</div><div class="v">${hard.length} <span class="muted">+ ${util.length} utility</span></div></div>
         </div>
-        ${core.length ? `<div class="k ship-sec">Core</div><div class="chips">${core.map(m => chip(m, CORE_SHORT[m.slot])).join('')}</div>` : ''}
+        ${core.length ? `<div class="k ship-sec">Core</div><div class="chips">${core.map(m => chip(m, CORE_SHORT[m.slot] || m.slot)).join('')}</div>` : ''}
         ${hard.length ? `<div class="k ship-sec">Hardpoints</div><div class="chips">${hard.map(m => chip(m)).join('')}</div>` : ''}
         ${util.length ? `<div class="k ship-sec">Utility</div><div class="chips">${util.map(m => chip(m)).join('')}</div>` : ''}
         ${inner.length ? `<div class="k ship-sec">Internals</div><div class="chips">${inner.map(m => chip(m)).join('')}</div>` : ''}
