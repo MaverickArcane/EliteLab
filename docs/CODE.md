@@ -178,7 +178,9 @@ Route: `/api/powerplay` -> `get_powerplay_status` (adds `current_system` from th
 - `zone`: set by `SupercruiseDestinationDrop` whose `Type` contains `Warzone_Powerplay`; cleared by `SupercruiseEntry`, `FSDJump`, `Docked`.
 - `last_target`: last `ShipTargeted` that had a `Ship` field.
 - On `PowerplayMerits`: blame the newest cause within `WINDOW_S` (12 s). If the cause is a sale and the gain is more than 2.5x the expected `credits / RARE_RATE` and at least 500, relabel as `objective bonus`. Else if `zone` is set, label `combat zone` with the last target in the detail. Else `unattributed`.
-- `summary()`: totals, `hours` since session start (or first gain), `per_hour`, `last_hour`, `by_activity{merits, events, per_event, share}`, `best`, `recent` (last 15, newest first).
+- Activity clock: `_on_any` (every `journal.*` event, snapshot files included) calls `_touch(ts)`, which adds the gap since the previous event to `active_s` capped at `IDLE_GAP_S` (10 min) and counts a longer gap as a break. Incremental, so the 500-entry `gains` cap does not affect it; reset with the session.
+- Earning clock: on each `PowerplayMerits`, the gap since the previous gain is added to `earn_s` capped at `EARN_GAP_S` (20 min); long enough for a rares loop leg, short enough that an hour of outfitting between two fights does not count.
+- `summary()`: totals, `hours` since session start (or first gain), `per_hour` (elapsed), `active_hours` / `per_hour_active` (journal activity; null until 5 min) / `breaks` / `idle`, `earning_hours` / `per_hour_earning` (the headline), `last_hour`, `by_activity{merits, events, per_event, share}`, `best`, `recent` (last 15, newest first).
 
 Route: `/api/merits` -> `get_merits_summary`.
 
