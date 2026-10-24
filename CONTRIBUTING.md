@@ -33,6 +33,12 @@ No virtualenv or dependencies needed. Node is only used in CI for `node --check`
 
 `tests/fixtures/journals/` is a synthetic journal. Add events there when you add parsing, and assert on the tool output rather than on internals. Tests run offline (`ELITELAB_OFFLINE=1`), so anything that needs Spansh or EDSM must degrade cleanly when the call fails.
 
+## Branches
+
+- `main` is what people run. It only changes through a pull request from `development` with green CI; no direct pushes, no force pushes, no deleting it.
+- `development` is where work lands first. Branch from it (`git checkout -b my-change development`), open your PR against it, and it goes to `main` in the next release PR.
+- CI runs on pushes to `main` and `development` and on every pull request.
+
 ## Pull requests
 
 One topic per PR. Say what you tested against a real journal if the fixture cannot cover it. CI runs the tests on Linux and Windows, syntax-checks the scripts, and builds the Docker image.
