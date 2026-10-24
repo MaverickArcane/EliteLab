@@ -351,6 +351,47 @@ class EngineeringTests(unittest.TestCase):
         pp = r["progress"]["slots"][0]
         self.assertEqual((pp["target"], pp["blueprint"], pp["grade"], pp["experimental"]), ("5A Power Plant", "Armoured", 4, "Thermal Spread"))
         self.call("unpin_build")
+class JournalDockingTests(unittest.TestCase):
+    def test_location_undocked_clears_previous_station(self):
+        core = make_core()
+        core.bus.emit("journal.Docked", {
+            "event": "Docked", "StarSystem": "Old system",
+            "StationName": "Old station", "StationType": "Coriolis",
+        })
+        core.bus.emit("journal.Location", {
+            "event": "Location", "StarSystem": "New system",
+            "StarPos": [0, 0, 0], "Docked": False,
+        })
+        j = core.http.tools["get_commander_state"].fn({})
+        self.assertEqual(j["system"], "New system")
+        self.assertEqual((j["docked"], j["station"], j["station_type"]), (False, None, None))
+
+    def test_location_docked_sets_station(self):
+        core = make_core()
+        core.bus.emit("journal.Undocked", {"event": "Undocked"})
+        core.bus.emit("journal.Location", {
+            "event": "Location", "StarSystem": "New system",
+            "StarPos": [0, 0, 0], "Docked": True,
+            "StationName": "New station", "StationType": "Orbis",
+        })
+        j = core.http.tools["get_commander_state"].fn({})
+        self.assertEqual(j["system"], "New system")
+        self.assertEqual((j["docked"], j["station"], j["station_type"]), (True, "New station", "Orbis"))
+
+    def test_jumps_clear_previous_station(self):
+        for event in ("FSDJump", "CarrierJump"):
+            with self.subTest(event=event):
+                core = make_core()
+                core.bus.emit("journal.Docked", {
+                    "event": "Docked", "StarSystem": "Old system",
+                    "StationName": "Old station", "StationType": "Coriolis",
+                })
+                core.bus.emit("journal." + event, {
+                    "event": event, "StarSystem": "New system", "StarPos": [0, 0, 0],
+                })
+                j = core.http.tools["get_commander_state"].fn({})
+                self.assertEqual(j["system"], "New system")
+                self.assertEqual((j["docked"], j["station"], j["station_type"]), (False, None, None))
 
 
 class StoreTests(unittest.TestCase):
