@@ -291,6 +291,11 @@ class EngineeringTests(unittest.TestCase):
         rng = self.call("wishlist_add", item="dirty drives 2-5 x2")["entry"]
         self.assertEqual((rng["from_grade"], rng["grade"], rng["qty"]), (2, 5, 2))
         self.assertEqual(self.call("wishlist_add", item="unlock_guardian_fsd_booster")["entry"]["commodities"], {"HN Shock Mount": 8})
+        gp = self.call("wishlist_add", item="guardian_powercell", kind="material", qty=5)["entry"]     # exact key with an underscore
+        self.assertEqual((gp["kind"], gp["key"], gp["qty"]), ("material", "guardian_powercell", 5))
+        self.assertEqual(self.call("wishlist_add", item="FSD_LongRange", rolls="[1,2,3,4,6]")["entry"]["rolls"]["5"], 6)
+        self.call("wishlist_remove", id=gp["id"])
+        self.call("wishlist_remove", id=self.core.store.get("wishlist", "entries")[-1]["id"])
         self.assertEqual(self.call("wishlist_remove", all=True)["removed"], 4)
         self.assertEqual(self.core.store.get("wishlist", "summary")["entries"], 0)
 

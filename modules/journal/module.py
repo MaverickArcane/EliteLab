@@ -51,8 +51,7 @@ FEED = {
 }
 
 
-COSMETIC_SLOTS = ("PaintJob", "Decal", "ShipKit", "Bobble", "VesselVoice", "ShipName", "ShipID", "WeaponColour", "EngineColour",
-                  "ShipCockpit", "CargoHatch", "PlanetaryApproachSuite", "DataLinkScanner", "CodexScanner", "DiscoveryScanner", "StringLights")
+from elitelab.core.builds import COSMETIC as COSMETIC_SLOTS      # one list, shared with the build comparison
 
 
 class Journal:

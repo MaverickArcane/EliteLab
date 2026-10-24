@@ -58,7 +58,11 @@ class Farming:
             self.core.log.warning("farming: coords fetch failed: %s", ex)
         with self._lock:
             if found:
+                # EDSM answered: names it left out are unknown to it; remember that (None) so we do not ask forever
                 self.coords.update(found)
+                for n in names - found.keys():
+                    self.coords[n] = None
+                    self.core.log.warning("farming: EDSM has no coordinates for %s", n)
                 self.core.write_data(self.coords, "farm_coords.json")
             self._fetching = False
             if names - self.coords.keys():

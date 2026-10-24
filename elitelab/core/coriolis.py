@@ -48,7 +48,15 @@ def _mods(part):
     out = {}
     if not part or ":" in part:                       # the pre-2017 text format carried no blueprints
         return out
-    raw = gzip.decompress(base64.b64decode(part.replace("-", "+").replace("_", "/") + "=" * (-len(part) % 4)))
+    try:
+        raw = gzip.decompress(base64.b64decode(part.replace("-", "+").replace("_", "/") + "=" * (-len(part) % 4)))
+        return _parse_mods(raw)
+    except (OSError, EOFError, ValueError, struct.error) as ex:   # BadGzipFile is an OSError; binascii.Error a ValueError
+        raise ValueError(f"the Coriolis link's modification data is damaged ({ex.__class__.__name__}); copy the link again") from None
+
+
+def _parse_mods(raw):
+    out = {}
     pos = 0
     slot = struct.unpack_from("b", raw, pos)[0]; pos += 1
     while slot != ID_DONE and pos < len(raw):

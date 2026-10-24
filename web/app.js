@@ -335,7 +335,7 @@
     } catch (e) {
       if (e.status === 401) {
         live.textContent = 'sign in required';
-        grid.innerHTML = '<section class="card c12"><h2>Sign in to EliteLab</h2><form id="login-form"><label>Access token <input type="password" name="token" required autocomplete="current-password"></label> <button type="submit">Sign in</button><p id="login-error" role="alert"></p></form></section>';
+        grid.innerHTML = '<section class="card" style="grid-column: 1 / -1"><h2>Sign in to EliteLab</h2><form id="login-form"><label>Access token <input type="password" name="token" required autocomplete="current-password"></label> <button type="submit">Sign in</button><p id="login-error" role="alert"></p></form></section>';
         document.getElementById('login-form').onsubmit = async event => {
           event.preventDefault();
           try { await Lab.post('/api/login', { token: event.target.elements.token.value }); event.target.reset(); boot(); }
@@ -345,7 +345,7 @@
       }
       console.error('boot failed', e);
       live.classList.remove('live'); live.textContent = 'server unreachable, retrying';
-      document.getElementById('grid').innerHTML = `<section class="card c12"><h2><span class="title">Cannot reach EliteLab</span></h2><div class="body"><div class="muted">${esc(e.message)}. Is the server running on this address? Retrying in 3 s.</div></div></section>`;
+      document.getElementById('grid').innerHTML = `<section class="card" style="grid-column: 1 / -1"><h2><span class="title">Cannot reach EliteLab</span></h2><div class="body"><div class="muted">${esc(e.message)}. Is the server running on this address? Retrying in 3 s.</div></div></section>`;
       setTimeout(boot, 3000);
     }
   }

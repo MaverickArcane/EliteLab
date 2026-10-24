@@ -111,8 +111,9 @@ def make_handler(core):
 
         def _check_mutation(self):
             origin = self.headers.get("Origin")
-            expected = "http://" + self.headers.get("Host", "")
-            if ((origin is not None and origin != expected)
+            host = self.headers.get("Host", "")
+            # same host over http or https (a reverse proxy may terminate TLS in front of us)
+            if ((origin is not None and origin not in ("http://" + host, "https://" + host))
                     or self.headers.get("Sec-Fetch-Site") == "cross-site"):
                 return 403, "cross-origin mutations are not allowed"
             if self.headers.get_content_type() != "application/json":
@@ -132,7 +133,7 @@ def make_handler(core):
                 expires, nonce, signature = value.split(".")
                 expected = hmac.new(config.AUTH_TOKEN.encode(), f"{expires}.{nonce}".encode(), hashlib.sha256).hexdigest()
                 return int(expires) > time.time() and hmac.compare_digest(signature, expected)
-            except (KeyError, ValueError):
+            except Exception:                       # no/invalid cookie, or SimpleCookie's CookieError on a junk Cookie header
                 return False
 
         def _login(self, body):

@@ -53,6 +53,10 @@ class Loop:
             self.core.log.warning("loop: coords fetch failed: %s", ex)
         with self._lock:
             self.coords.update(found)
+            if found:                                   # EDSM answered; names it left out are unknown, do not ask forever
+                for n in names - found.keys():
+                    self.coords[n] = None
+                    self.core.log.warning("loop: EDSM has no coordinates for %s", n)
             self._fetching = False
             if names - self.coords.keys():
                 self._retry = threading.Timer(self._retry_delay, self._request_coords)

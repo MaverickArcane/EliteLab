@@ -198,7 +198,10 @@ class Wishlist:
         hit = None
         if key in gd.BLUEPRINT_BY_KEY or key in gd.EXPERIMENTAL_BY_KEY or key in gd.UNLOCK_BY_KEY:
             hit = gd.resolve_recipe(key)["match"]
-        mat = gd.resolve_material(query) if (kind in (None, "material") and not hit) else None
+        if key.lower() in gd.MATERIAL_BY_KEY and kind in (None, "material"):   # exact journal key (guardian_powercell has an underscore)
+            mat = key.lower()
+        else:
+            mat = gd.resolve_material(query) if (kind in (None, "material") and not hit) else None
         if not hit and kind != "material":
             r = gd.resolve_recipe(query, kind=kind, module=q.get("module") or None)
             if "match" in r and not (mat and gd.MATERIAL_BY_NAME.get(query.lower()) == mat):
@@ -256,7 +259,7 @@ class Wishlist:
         if v in (None, ""):
             return None
         if isinstance(v, str):
-            v = [p for p in re.split(r"[,\s]+", v.strip()) if p]
+            v = [p for p in re.split(r"[,\s]+", v.strip().strip("[]")) if p]     # '[1,2,3,4,6]' as documented, or '1 2 3 4 6'
         if isinstance(v, dict):
             v = {str(k): int(n) for k, n in v.items()}
         elif isinstance(v, (list, tuple)):
