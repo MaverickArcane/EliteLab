@@ -41,6 +41,7 @@ FEED = {
     "PowerplayDefect": lambda e: f"Defected from {e.get('FromPower')} to {e.get('ToPower')}",
     "CarrierJump": lambda e: f"Carrier arrived in {e.get('StarSystem')}",
     "CarrierJumpRequest": lambda e: f"Carrier jump scheduled to {e.get('SystemName')}",
+    "CarrierJumpCancelled": lambda e: "Carrier jump cancelled",
     "Bounty": lambda e: f"Bounty {e.get('TotalReward', 0):,} Cr",
     "MissionCompleted": lambda e: f"Mission complete: {e.get('LocalisedName') or e.get('Name')}",
     "Interdicted": lambda e: f"Interdicted by {e.get('Interdictor_Localised') or e.get('Interdictor')}",
@@ -142,7 +143,7 @@ class Journal:
             st["ship_internal"] = (ev.get("Ship") or "").lower()
             self._ship_internal = ev.get("Ship"); st["ship"] = ev.get("Ship_Localised") or self.ship_name(ev.get("Ship"))
             st["ship_name"] = ev.get("ShipName"); st["ship_ident"] = ev.get("ShipIdent")
-            st["cargo_capacity"] = ev.get("CargoCapacity"); st["jump_range"] = ev.get("MaxJumpRange")
+            st["cargo_capacity"] = ev.get("CargoCapacity"); st["jump_range"] = ev.get("MaxJumpRange"); st["jump_range_now"] = ev.get("MaxJumpRange")
             fuel = ev.get("FuelCapacity") or {}
             mods = ev.get("Modules") or []
             st["ship_info"] = {
@@ -224,14 +225,15 @@ class Journal:
         """jump_range_laden (full tank, full hold) and jump_range_now (fuel and cargo from Status.json) from the FSD."""
         f = getattr(self, "_fsd", None) or {}
         st = self.st
-        if not f.get("item") or not f.get("unladen"):
-            st["jump_range_now"] = st["jump_range_laden"] = None
-            return
-        stt = st.get("status") or {}
-        fuel_now = stt.get("fuel") if stt.get("fuel") is not None else f["fuel_cap"]
-        cargo_now = stt.get("cargo_tons") if stt.get("cargo_tons") is not None else 0
-        st["jump_range_laden"] = edsy.jump_range(f["item"], f["optmass"], f["unladen"] + f["fuel_cap"] + f["cargo_cap"], f["booster"])
-        st["jump_range_now"] = edsy.jump_range(f["item"], f["optmass"], f["unladen"] + fuel_now + cargo_now, f["booster"])
+        laden = now = None
+        if f.get("item") and f.get("unladen"):
+            stt = st.get("status") or {}
+            fuel_now = stt.get("fuel") if stt.get("fuel") is not None else f["fuel_cap"]
+            cargo_now = stt.get("cargo_tons") if stt.get("cargo_tons") is not None else 0
+            laden = edsy.jump_range(f["item"], f["optmass"], f["unladen"] + f["fuel_cap"] + f["cargo_cap"], f["booster"])
+            now = edsy.jump_range(f["item"], f["optmass"], f["unladen"] + fuel_now + cargo_now, f["booster"], fuel=fuel_now)
+        st["jump_range_laden"] = laden
+        st["jump_range_now"] = now if now is not None else st.get("jump_range")     # the one key consumers read; unladen max as fallback
 
     # -- snapshot files ------------------------------------------------------------
     def on_file(self, name, data):

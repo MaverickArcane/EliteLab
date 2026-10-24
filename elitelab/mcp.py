@@ -80,7 +80,8 @@ PROMPTS = {
                  "the next buy stops in order, then the sell stop, with jump counts, and anything that would stop a station buying.")},
     "engineering_plan": {
         "description": "Work out what to farm, trade or buy for an engineering goal (a pinned build, or a blueprint such as 'G5 dirty drives').",
-        "arguments": [{"name": "goal", "description": "What to engineer, e.g. 'the pinned build' or 'G5 dirty drives on my thrusters'", "required": False}],
+        "arguments": [{"name": "goal", "description": "What to engineer, e.g. 'the pinned build' or 'G5 dirty drives on my thrusters'", "required": False,
+                       "default": "the pinned build"}],
         "text": ("My engineering goal: {goal}. If it is the pinned build, call get_build_progress and build_to_wishlist; otherwise use "
                  "list_recipes / get_recipe and wishlist_add with the right grades. Then call get_engineering_wishlist (what is short), "
                  "plan_material_trades (what my surplus can be traded into and at which trader type), find_material_traders (where) and "
@@ -175,16 +176,21 @@ def serve():
                 except KeyError as ex:
                     _reply(msg_id, error={"code": -32002, "message": str(ex)})
             elif method == "prompts/list":
-                _reply(msg_id, {"prompts": [{"name": k, "description": v["description"], "arguments": v["arguments"]} for k, v in PROMPTS.items()]})
+                _reply(msg_id, {"prompts": [{"name": k, "description": v["description"],
+                                             "arguments": [{kk: vv for kk, vv in a.items() if kk != "default"} for a in v["arguments"]]}
+                                            for k, v in PROMPTS.items()]})
             elif method == "prompts/get":
                 p = PROMPTS.get(params.get("name") or "")
                 if not p:
                     _reply(msg_id, error={"code": -32602, "message": f"unknown prompt: {params.get('name')}"})
                 else:
-                    args = {a["name"]: "the pinned build" for a in p["arguments"]}
-                    args.update({k: v for k, v in (params.get("arguments") or {}).items() if v})
+                    args = {a["name"]: a.get("default", "") for a in p["arguments"]}
+                    args.update({k: str(v) for k, v in (params.get("arguments") or {}).items() if v})
+                    text = p["text"]
+                    for k, v in args.items():                       # plain substitution, so braces in prompt text are safe
+                        text = text.replace("{" + k + "}", v)
                     _reply(msg_id, {"description": p["description"],
-                                    "messages": [{"role": "user", "content": {"type": "text", "text": p["text"].format(**args)}}]})
+                                    "messages": [{"role": "user", "content": {"type": "text", "text": text}}]})
             else:
                 _reply(msg_id, error={"code": -32601, "message": f"method not found: {method}"})
         except Exception as ex:

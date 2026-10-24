@@ -54,15 +54,18 @@ def _text(h):
     return "".join(out)
 
 
-def jump_range(fsd_item, optmass, mass, booster_item=None):
-    """Single-jump range in Ly: (maxfuel / fuelmul) ** (1 / fuelpower) * optimal mass / ship mass, plus a Guardian FSD
-    booster's flat bonus. ``optmass`` is the engineered value from the Loadout modifiers (or the base value); ``mass``
-    is hull + modules + fuel + cargo. Matches the journal's MaxJumpRange when mass = unladen + one jump's fuel.
-    Returns None when the FSD is not in the table."""
+def jump_range(fsd_item, optmass, mass, booster_item=None, fuel=None):
+    """Single-jump range in Ly: (fuel / fuelmul) ** (1 / fuelpower) * optimal mass / ship mass, plus a Guardian FSD
+    booster's flat bonus, where fuel is the FSD's max per jump or the fuel actually in the tank when that is less.
+    ``optmass`` is the engineered value from the Loadout modifiers (or the base value); ``mass`` is hull + modules +
+    fuel + cargo. Matches the journal's MaxJumpRange when mass = unladen + one jump's fuel. None when the FSD is unknown."""
     fsd = MODULE_BY_FDNAME.get((fsd_item or "").lower())
     if not fsd or not fsd.get("fuelpower") or not mass or not optmass:
         return None
-    r = (fsd["maxfuel"] / fsd["fuelmul"]) ** (1.0 / fsd["fuelpower"]) * optmass / mass
+    burn = fsd["maxfuel"] if fuel is None else max(0.0, min(fsd["maxfuel"], fuel))
+    if burn <= 0:
+        return 0.0
+    r = (burn / fsd["fuelmul"]) ** (1.0 / fsd["fuelpower"]) * optmass / mass
     boost = (MODULE_BY_FDNAME.get((booster_item or "").lower()) or {}).get("jumpbst") or 0
     return round(r + boost, 2)
 
