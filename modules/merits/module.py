@@ -16,6 +16,7 @@ import time
 from elitelab.core.gamedata import is_rare
 
 NS = "merits"
+IDLE_GAP_S = 15 * 60   # a gap between merit gains longer than this is a break, not slow play
 WINDOW_S = 12          # a cause older than this is not blamed for a gain
 RARE_RATE = 667.0      # Cr of sale value per merit observed for rares with Mahon's bonus (used only for bonus detection)
 
@@ -64,6 +65,8 @@ class Merits:
         self.by_activity = {}
         self.hour_gains = []      # time window, independent of the display log
         self.first_gain = None
+        self.last_gain_t = None   # for active time: gaps between gains count up to IDLE_GAP_S each
+        self.active_s = 0.0
         self.unattributed = 0
         self.zone = None          # name of the Powerplay conflict zone we are in, if any
         self.last_target = None   # last ShipTargeted with a ship name
@@ -116,6 +119,10 @@ class Merits:
                 if self.first_gain is None:
                     self.first_gain = ts
                 if ts is not None:
+                    if self.last_gain_t is not None:
+                        self.active_s += min(max(0.0, ts - self.last_gain_t), IDLE_GAP_S)
+                    self.last_gain_t = ts
+                if ts is not None:
                     self.hour_gains.append((ts, gained))
             self.publish(); return
         fn = CAUSES.get(e)
@@ -143,9 +150,15 @@ class Merits:
             b["per_event"] = round(b["merits"] / b["events"]) if b["events"] else 0
             b["share"] = round(100 * b["merits"] / total) if total else 0
         best = max(by.items(), key=lambda kv: kv[1]["merits"])[0] if by else None
+        active_h = (self.active_s + (min(now - self.last_gain_t, IDLE_GAP_S) if self.last_gain_t else 0)) / 3600
+        active_h = max(active_h, 1 / 60) if self.first_gain else 0
+        breaks = sum(1 for g1, g2 in zip(gains, gains[1:]) if g1.get("t") and g2.get("t") and g2["t"] - g1["t"] > IDLE_GAP_S)
         return {"session_start": dt.datetime.fromtimestamp(first, dt.timezone.utc).isoformat() if first else None,
                 "session_merits": total, "hours": round(hours, 2) if hours else None,
                 "per_hour": round(total / hours) if hours else None, "last_hour": last_hour,
+                # rate while actually earning: gaps longer than IDLE_GAP_S (docked, away) count as IDLE_GAP_S, not as play time
+                "active_hours": round(active_h, 2), "per_hour_active": round(total / active_h) if active_h else None,
+                "breaks": breaks,
                 "by_activity": by, "best": best, "unattributed": self.unattributed,
                 "recent": [{k: v for k, v in g.items() if k != "t"} for g in gains[-15:]][::-1],
                 "note": "Merits attributed to the latest sale/kill/delivery within 12 s. Observed: rares pay ~1 merit per 667 Cr of sale value (Mahon +25%)."}

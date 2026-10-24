@@ -8,8 +8,8 @@
       const m = S.merits || {}; const by = m.by_activity || {}; const acts = Object.entries(by).sort((a, b) => b[1].merits - a[1].merits);
       el.innerHTML = `
         <div class="grid2" style="margin-top:0">
-          <div><div class="k">Session merits</div><div class="v">${fmt(m.session_merits)}</div></div>
-          <div><div class="k">Per hour (session)</div><div class="v">${m.per_hour != null ? fmt(m.per_hour) : '—'}</div></div>
+          <div><div class="k">Session merits</div><div class="v">${fmt(m.session_merits)} <span class="muted" style="font-size:12px;font-weight:400">${m.hours != null ? `in ${m.hours} h` : ''}</span></div></div>
+          <div><div class="k">Per hour <span style="text-transform:none;letter-spacing:0">(while earning)</span></div><div class="v" title="${m.active_hours != null ? `${m.active_hours} h earning; breaks over 15 min do not count` : ''}">${m.per_hour_active != null ? fmt(m.per_hour_active) : '-'}${m.breaks ? ` <span class="muted" style="font-size:12px;font-weight:400">${m.per_hour != null ? fmt(m.per_hour) + '/h incl. ' : ''}${m.breaks} break${m.breaks === 1 ? '' : 's'}</span>` : ''}</div></div>
           <div><div class="k">Last 60 min</div><div class="v ${m.last_hour ? 'ok' : ''}">${fmt(m.last_hour)}</div></div>
           <div><div class="k">Best activity</div><div class="v">${esc(m.best || '—')}</div></div>
         </div>

@@ -359,6 +359,20 @@ class EngineeringTests(unittest.TestCase):
         self.assertLess(low, 20)
         self.assertAlmostEqual(low, jump_range("int_hyperdrive_overcharge_size4_class5", 943.019958, 349.8 + 1.0, fuel=1.0), places=2)
 
+    def test_merit_rate_ignores_breaks(self):
+        import time as _time
+        now = int(_time.time())
+        iso = lambda t: _time.strftime("%Y-%m-%dT%H:%M:%SZ", _time.gmtime(t))
+        self.core.bus.emit("journal.LoadGame", {"event": "LoadGame", "timestamp": iso(now - 4 * 3600 - 600), "Commander": "Testpilot"})
+        for t, n in ((now - 4 * 3600, 100), (now - 4 * 3600 + 300, 100), (now - 60, 100)):       # two gains 5 min apart, a 4 h break, one more
+            self.core.bus.emit("journal.PowerplayMerits", {"event": "PowerplayMerits", "timestamp": iso(t), "Power": "Edmund Mahon", "MeritsGained": n, "TotalMerits": n})
+        m = self.call("get_merits_summary")
+        self.assertEqual(m["session_merits"], 300)
+        self.assertEqual(m["breaks"], 1)
+        self.assertLess(m["per_hour"], 100)                     # elapsed-time rate is dragged down by the break
+        self.assertAlmostEqual(m["active_hours"], (300 + 900 + 60) / 3600, places=2)   # 5 min, a capped 15 min, 1 min since the last gain
+        self.assertGreater(m["per_hour_active"], 800)
+
     def test_rares_table_is_the_fdev_list(self):
         from elitelab.core.gamedata import RARES, RARE_MARKETS, is_rare
         self.assertEqual(len(RARES), 142)
