@@ -67,6 +67,7 @@
       $('#wl-add').onclick = async () => {
         const body = { item: kind.value === 'build' ? 'build' : rec.value, kind: kind.value, qty: +qty.value || 1 };
         if (!body.item) return;
+        if (kind.value === 'experimental') body.module = mod.value;        // which of the effect's modules this is for
         if (kind.value === 'blueprint') { body.from_grade = +from.value; body.grade = +to.value; }
         try {
           const r = await Lab.post('/api/wishlist/add', body);
@@ -88,7 +89,7 @@
       const entries = W.entries || [], needs = W.needs || [], T = W.trades || {}, sum = W.summary || {};
       const sw = (view, value, label) => ui[view] === value ? `<b>${label}</b>` : `<a href="#" data-view="${view}" data-value="${value}">${label}</a>`;
       const what = e => e.kind === 'build' ? `<b>Build: ${esc(e.name)}</b> <span class="muted">${esc(e.module || '')}, follows the build card</span>`
-        : `${e.qty} x ${e.module && e.kind !== 'unlock' ? esc(e.module) + ' ' : ''}<b>${esc(e.name)}</b>` + (e.kind === 'blueprint' ? ` <span class="muted">G${e.from_grade || 0} to G${e.grade}</span>` : e.kind === 'experimental' ? ' <span class="muted">experimental</span>'
+        : `${e.qty} x ${e.module && e.kind !== 'unlock' ? esc(e.module) + ' ' : ''}<b>${esc(e.name)}</b>` + (e.kind === 'blueprint' ? ` <span class="muted">G${e.from_grade || 0} to G${e.grade}</span>` : e.kind === 'experimental' ? ` <span class="muted">experimental${!e.module && e.fits ? ', fits ' + esc(e.fits.join(', ')) : ''}</span>`
           : e.kind === 'unlock' ? ` <span class="muted">${esc(e.broker || '')} tech broker${Object.keys(e.commodities || {}).length ? '; also buy ' + Object.entries(e.commodities).map(([n, q]) => `${q} ${esc(n)}`).join(', ') : ''}</span>` : '');
       el.querySelector('.wl-entries').innerHTML = entries.length ? `<table style="margin-top:8px"><tbody>` + entries.map(e => `<tr>
           <td>${what(e)}${e.label ? ` <span class="muted">- ${esc(e.label)}</span>` : ''}</td>

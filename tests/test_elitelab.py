@@ -296,6 +296,10 @@ class EngineeringTests(unittest.TestCase):
         gp = self.call("wishlist_add", item="guardian_powercell", kind="material", qty=5)["entry"]     # exact key with an underscore
         self.assertEqual((gp["kind"], gp["key"], gp["qty"]), ("material", "guardian_powercell", 5))
         self.assertEqual(self.call("wishlist_add", item="FSD_LongRange", rolls="[1,2,3,4,6]")["entry"]["rolls"]["5"], 6)
+        cs = self.call("wishlist_add", item="special_corrosive_shell", kind="experimental", module="Multi-cannon")["entry"]
+        self.assertEqual((cs["module"], cs["name"]), ("Multi-cannon", "Corrosive shell"))     # the picked module, not the whole list
+        self.assertIn("Fragment cannon", cs["fits"])
+        self.call("wishlist_remove", id=cs["id"])
         self.call("wishlist_remove", id=gp["id"])
         self.call("wishlist_remove", id=self.core.store.get("wishlist", "entries")[-1]["id"])
         self.assertEqual(self.call("wishlist_remove", all=True)["removed"], 4)

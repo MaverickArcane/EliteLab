@@ -215,6 +215,12 @@ class Wishlist:
                             "hint": "several recipes match; repeat with the module or blueprint name, or pass a key from the candidates"}
         if hit:
             entry = {"kind": hit["kind"], "key": hit["key"], "name": hit["name"], "module": hit["module"]}
+            if hit["kind"] == "experimental":
+                # the search hit lists every module the effect fits; keep the one the user picked (or the only one)
+                fits = gd.EXPERIMENTAL_BY_KEY[hit["key"]]["modules"]
+                picked = (q.get("module") or "").strip().lower()
+                entry["module"] = next((m for m in fits if m.lower() == picked), fits[0] if len(fits) == 1 else None)
+                entry["fits"] = fits
             if hit["kind"] == "blueprint":
                 b = gd.BLUEPRINT_BY_KEY[hit["key"]]
                 grade = grade or b["max_grade"]
