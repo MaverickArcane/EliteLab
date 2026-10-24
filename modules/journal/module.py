@@ -148,7 +148,7 @@ class Journal:
             changed |= {"system", "star_pos", "system_power", "system_power_state", "system_powers"}
             if ev.get("Docked"):
                 st["docked"] = True; st["station"] = ev.get("StationName"); st["station_type"] = ev.get("StationType")
-            elif e != "Location":
+            else:
                 st["docked"] = False; st["station"] = None; st["station_type"] = None
             changed |= {"docked", "station", "station_type"}
             if e == "CarrierJump":
