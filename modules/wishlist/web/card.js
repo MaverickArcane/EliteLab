@@ -1,7 +1,7 @@
 /* wishlist card: what you are collecting. Structured picker (kind, module, blueprint/effect/unlock/material, grade range, qty),
    entries vs live inventory, trade plan, nearest traders. A pinned build is tracked as one entry. */
 (() => {
-  const { esc, fmt } = Lab.util;
+  const { esc, fmt, inaraSys } = Lab.util;
   const bad = e => Lab.toast(e.message || String(e), 'bad');
   const opt = (v, label, sel) => `<option value="${esc(v)}"${sel ? ' selected' : ''}>${esc(label)}</option>`;
   const ui = { needs: 'short', trades: 'few', preselected: 0 };
@@ -109,7 +109,9 @@
         ((T.unresolved || []).length ? `<div class="muted" style="margin-top:4px">Still short after trading: ${T.unresolved.slice(0, 8).map(u => `${fmt(u.short)} ${esc(u.name)}${u.note ? ' (' + esc(u.note) + ')' : ''}`).join(', ')}${T.unresolved.length > 8 ? ` and ${T.unresolved.length - 8} more` : ''}. See the farm sites card.</div>` : '') : '';
       const tr = U.traders;
       el.querySelector('.wl-traders').innerHTML = tr === 'loading' ? `<div class="muted" style="margin-top:8px">looking up traders</div>` : tr && tr.traders ? `<div style="margin-top:8px"><b>Nearest traders</b> <span class="muted">from ${esc(tr.ref)}</span></div>` +
-        Object.entries(tr.traders).map(([type, list]) => `<div><span class="tag">${esc(type)}</span> ${Array.isArray(list) ? list.map(s => `${esc(s.station)} <span class="muted">(${esc(s.system)}, ${fmt(s.dist)} Ly${s.jumps ? ', ~' + s.jumps + ' j' : ''}, ${esc(s.pad)} pad, ${fmt(s.ls)} ls)</span>`).join('; ') : `<span class="bad">${esc(list.error)}</span>`}</div>`).join('') : '';
+        `<table><tbody>` + Object.entries(tr.traders).map(([type, list]) => Array.isArray(list)
+          ? list.map((s, i) => `<tr>${i === 0 ? `<td rowspan="${list.length}"><span class="tag">${esc(type)}</span></td>` : ''}<td><b>${esc(s.system)}</b> <button class="mini" data-copy="${esc(s.system)}" title="copy the system name for the galaxy map">copy</button> <a href="${inaraSys(s.system)}" target="_blank">Inara</a></td><td>${esc(s.station)} <span class="muted">${esc(s.pad)} pad, ${fmt(s.ls)} ls</span></td><td class="num">${fmt(s.dist)} Ly${s.jumps ? ` <span class="muted">~${s.jumps} j</span>` : ''}</td></tr>`).join('')
+          : `<tr><td><span class="tag">${esc(type)}</span></td><td colspan="3" class="bad">${esc(list.error)}</td></tr>`).join('') + `</tbody></table>` : '';
     },
   });
 })();
