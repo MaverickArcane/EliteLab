@@ -52,11 +52,13 @@ Lifecycle (`buildCard` / `unmountCard` in app.js): header -> mount -> subscribe 
 
 Render errors are caught and shown as a `.render-error` banner at the top of the body; the body is not replaced, so a mounted canvas survives a bad render.
 
-Cards are `section.card` with classes `cN` for grid span (N = 2..12 of a 12-column grid). Below 1200 px small cards snap to 6 columns and wide ones to 12; below 760 px everything is 12 and the drag/resize handles are hidden.
+Cards are `section.card`; their span is an inline `grid-column` (see the layout engine). Below 760 px there is one column, so everything is full width and the drag/resize handles are hidden.
 
 ## Layout engine
 
-State: `layout = {order[], spans{}, hidden[], collapsed[], locked}` in `localStorage.layout.v1`. `orderedCards()` = saved order first (ignoring unknown ids), then any new cards in manifest order. `spanOf(c)` = saved span or manifest span or 3.
+State: `layout = {order[], spans{}, hidden[], collapsed[], locked, pack}` in `localStorage.layout.v1`. `orderedCards()` = saved order first (ignoring unknown ids), then any new cards in manifest order. `spanOf(c)` = saved span or manifest span or 3.
+
+The grid always fills the window: `computeCols()` sets `cols` = 12 from 1100 px up, 6 below that, 1 on a phone, as `--cols` on `main` (no max-width), and a `ResizeObserver` on the grid re-applies every card's span when the count changes. Spans are nominal (designed for 12) and `applySpan()` writes `grid-column: span min(n, cols)` inline, so rows that sum to 12 are always full width and cards scale with the window; at 6 columns a span-4 card is two thirds and 6 or more is full width. Resizing by hand allows up to `cols`; double-click the corner toggles full width. `layout.pack` (default true, "fill gaps" in the menu) adds `main.dense`, i.e. `grid-auto-flow: row dense`, so small cards fill holes left by wide ones; it can move a small card visually ahead of a wider one that precedes it in `order`.
 
 Gestures share one `gesture` object (`{move(e), end()}`) and window-level listeners:
 

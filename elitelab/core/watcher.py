@@ -43,13 +43,14 @@ class JournalWatcher(threading.Thread):
         files = journal_files()[-config.RECENT_JOURNALS:]
         n = 0
         for fp in files:
-            for ev in self._read_lines(fp, 0)[0]:
+            events, offset = self._read_lines(fp, 0)
+            for ev in events:
                 ev["_replay"] = True
                 self.bus.emit("journal." + ev.get("event", "Unknown"), ev)
                 n += 1
         if files:
             self._file = files[-1]
-            self._offset = os.path.getsize(self._file)
+            self._offset = offset
         self.replayed = n
         self._check_snapshots(force=True)
         self.bus.emit("journal.replay.done", n)

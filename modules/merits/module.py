@@ -49,8 +49,8 @@ def _ts(s):
 class Merits:
     def __init__(self, core):
         self.core = core
+        self._lock = threading.RLock()
         self.reset(None)
-        self._lock = threading.Lock()
         for e in list(CAUSES) + ["PowerplayMerits", "LoadGame", "PowerplayJoin", "PowerplayDefect", "PowerplayLeave",
                                  "SupercruiseDestinationDrop", "SupercruiseEntry", "FSDJump", "Docked", "Died", "Resurrect", "ShipTargeted"]:
             core.bus.on("journal." + e, self.on_event)
@@ -60,11 +60,19 @@ class Merits:
         self.session_start = ts
         self.causes = []          # [(ts, activity, detail, cr)]
         self.gains = []           # [{ts, gained, activity, detail}]
+        self.total = 0
+        self.by_activity = {}
+        self.hour_gains = []      # time window, independent of the display log
+        self.first_gain = None
         self.unattributed = 0
         self.zone = None          # name of the Powerplay conflict zone we are in, if any
         self.last_target = None   # last ShipTargeted with a ship name
 
     def on_event(self, name, ev):
+        with self._lock:
+            self._on_event(name, ev)
+
+    def _on_event(self, name, ev):
         e, ts = ev.get("event"), _ts(ev.get("timestamp"))
         if e in ("LoadGame", "PowerplayJoin", "PowerplayDefect", "PowerplayLeave"):
             self.reset(ts); self.publish(); return
@@ -101,6 +109,14 @@ class Merits:
                 self.gains.append({"ts": ev.get("timestamp"), "t": ts, "gained": gained, "activity": act, "detail": detail,
                                    "total": ev.get("TotalMerits")})
                 self.gains = self.gains[-500:]
+                self.total += gained
+                b = self.by_activity.setdefault(act, {"merits": 0, "events": 0})
+                b["merits"] += gained
+                b["events"] += 1
+                if self.first_gain is None:
+                    self.first_gain = ts
+                if ts is not None:
+                    self.hour_gains.append((ts, gained))
             self.publish(); return
         fn = CAUSES.get(e)
         if fn:
@@ -110,17 +126,19 @@ class Merits:
             self.causes = self.causes[-50:]
 
     def summary(self):
+        with self._lock:
+            return self._summary()
+
+    def _summary(self):
         now = time.time()
         with self._lock:
             gains = list(self.gains)
-        total = sum(g["gained"] for g in gains)
-        first = self.session_start or (gains[0]["t"] if gains else None)
+        total = self.total
+        first = self.session_start or self.first_gain
         hours = max((now - first) / 3600, 1 / 60) if first else None
-        last_hour = sum(g["gained"] for g in gains if g["t"] and now - g["t"] <= 3600)
-        by = {}
-        for g in gains:
-            b = by.setdefault(g["activity"], {"merits": 0, "events": 0})
-            b["merits"] += g["gained"]; b["events"] += 1
+        self.hour_gains = [(t, n) for t, n in self.hour_gains if t >= now - 3600]
+        last_hour = sum(n for t, n in self.hour_gains if t <= now)
+        by = {k: dict(v) for k, v in self.by_activity.items()}
         for b in by.values():
             b["per_event"] = round(b["merits"] / b["events"]) if b["events"] else 0
             b["share"] = round(100 * b["merits"] / total) if total else 0

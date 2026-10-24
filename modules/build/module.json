@@ -1,0 +1,11 @@
+{
+  "name": "build",
+  "version": "1.0.0",
+  "description": "Pin an EDSY or Coriolis build (or SLEF JSON) and measure the current ship against it: modules to fit, blueprints and grades still to roll, experimental effects, credits, and the materials for all of it, tracked on the engineering wishlist as one live entry.",
+  "requires": ["journal", "materials"],
+  "provides": ["build"],
+  "order": 70,
+  "cards": [
+    { "id": "build", "title": "Pinned build", "span": 6, "script": "card.js", "order": 22 }
+  ]
+}

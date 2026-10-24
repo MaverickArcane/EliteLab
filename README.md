@@ -18,7 +18,11 @@ No accounts, no uploads, no dependencies: Python standard library, one web page,
 | combat | Where combat pays merits: contested systems with combat zones, acquisition, undermining, reinforcement | `find_combat_systems` |
 | targets | Powerplay sell-target finder with jump counts, market freshness, and warnings about rares a station will not buy; power comparison | `find_sell_targets`, `compare_powers`, `get_system_info` |
 | loop | Rare goods loop that ticks itself from your hold, sorted by distance, with the next stop | `get_rares_loop`, `select_rares_loop` |
-| materials | Inventory totals, wishlist with live shortfalls, where-to-farm hints | `get_materials`, `set_wishlist`, `get_wishlist`, `material_sources` |
+| materials | Inventory as the game reports it, filterable; where-to-farm hints; a flat per-material wishlist for scripts | `get_materials`, `set_wishlist`, `get_wishlist`, `material_sources` |
+| recipes | Engineering blueprints G1-G5 and experimental effects with materials per grade and which engineers offer them; searchable | `list_recipes`, `get_recipe` |
+| wishlist | Engineering wishlist: pick a blueprint (from grade X to grade Y), experimental effect, tech broker unlock or material; have/need/short against live inventory; material trader plan for the shortfalls; nearest traders | `get_engineering_wishlist`, `wishlist_add`, `wishlist_remove`, `wishlist_options`, `plan_material_trades`, `find_material_traders` |
+| farming | Where to farm: crystal shards, brain trees, Dav's Hope, Jameson, Guardian structures, HGE by state; nearest first, flagged when they cover a wishlist shortfall; map layer | `find_farm_sites` |
+| build | Pin an EDSY or Coriolis build (or SLEF JSON) and measure your ship against it: modules to buy (with credits), blueprints and grades still to roll, effects, every material vs inventory, one click to track it on the wishlist | `get_build_progress`, `pin_build`, `unpin_build`, `build_to_wishlist` |
 | history | Feeds the map | `get_travel_history` |
 | map | Star map: starfield, visited systems coloured by star class, route trail, layers from other modules | `get_system_coords` |
 | core | Header, live connection, layout | `get_state`, `get_recent_events`, `list_modules`, `list_tools`, `health` |
@@ -60,7 +64,7 @@ With the lab running, open the repo folder in Claude Code. The `.mcp.json` in th
 
 > I want to work on getting materials for an FSD G5 Increased Range roll.
 
-The assistant sets your wishlist, reads your shortfalls, and tells you where to farm. The Materials card shows the same shortfalls going down as you collect.
+The assistant adds the blueprint to your engineering wishlist, reads your shortfalls, suggests material trader exchanges from your surplus, and tells you where to farm the rest. The Engineering wishlist card shows the same shortfalls going down as you collect.
 
 Any agent with a shell can do the same without MCP:
 

@@ -6,6 +6,6 @@
   "provides": ["merits"],
   "order": 35,
   "cards": [
-    { "id": "merits", "title": "Merit rate", "span": 4, "script": "card.js", "order": 23 }
+    { "id": "merits", "title": "Merit rate", "span": 4, "script": "card.js", "order": 28 }
   ]
 }

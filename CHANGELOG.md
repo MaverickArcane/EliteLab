@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- New `recipes` module: 81 engineering blueprints (materials per grade G1-G5, engineers per grade) and 87 experimental effects, searchable by free text; `list_recipes`, `get_recipe`.
+- New `wishlist` module: an engineering wishlist that takes "2x g5 fsd increased range", "mass manager" or "50 tellurium", tracks have/need/short against the live inventory, plans material trader exchanges for the shortfalls (same-family 1:3 down, 6:1 up, cross-family x6), and finds the nearest traders by type on Spansh; `get_engineering_wishlist`, `wishlist_add`, `wishlist_remove`, `plan_material_trades`, `find_material_traders`.
+- New `farming` module: curated material farm sites (crystal shards, brain trees, Dav's Hope, Jameson Crash Site, Guardian structures, crashed ships) and methods (High Grade Emissions by state, wake and ship scans), nearest first with EDSM distances, flagged when they cover a wishlist shortfall; map layer; `find_farm_sites`.
+- New `build` module: pin an EDSY link, a Coriolis link or SLEF/Loadout JSON (decoded locally by `elitelab/core/edsy.py`, `coriolis.py`, `builds.py`), compare it with the current loadout slot by slot (buy / engineer / ok, credits, blueprint rolls from the current grade, effects), sum the materials against inventory, and track it on the wishlist as one live entry; `pin_build`, `get_build_progress`, `build_to_wishlist`, `unpin_build`.
+- Shell: the grid fills the window (12 columns with no width cap, 6 on small windows, dense packing fills gaps, "fill gaps" toggle in the layout menu); the default layout starts with location and ship, then the engineering cards, Powerplay, and the map last; the Engineering preset shows build, wishlist, farm sites, recipes and materials; the materials card is now a filterable inventory and no longer has its own wishlist.
+- MCP: a failed tool call now returns the lab's own error message instead of "HTTP Error 400".
+- Recipes: 37 technology broker unlocks (Guardian modules, weapons, fighters; human broker items) with materials and commodities; module, kind and engineer filters on the card.
+- Wishlist: structured picker instead of free text (kind, module, blueprint, from/to grade, quantity); grade ranges ("2-5") for modules that already have some grades; tech broker unlock entries; `wishlist_options`.
+- Journal: `ship_info.modules` now carries every functional module with full engineering (blueprint, level, quality, experimental effect) and `ship_internal` the hull id.
+- Core: the material catalog (with trader families and caps, now including Thargoid and Guardian materials), blueprints, effects and unlocks live in `elitelab/core/engineering.json` and are exposed by `gamedata`; the materials module reads the catalog from there and now publishes `materials.inventory`.
+- docs/API.md regenerated (34 tools).
+
 ## 0.4.0 (2026-10-23)
 
 First public version.

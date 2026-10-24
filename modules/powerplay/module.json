@@ -6,6 +6,6 @@
   "provides": ["powerplay"],
   "order": 30,
   "cards": [
-    { "id": "powerplay", "title": "Powerplay", "span": 4, "script": "card.js", "order": 21 }
+    { "id": "powerplay", "title": "Powerplay", "span": 4, "script": "card.js", "order": 27 }
   ]
 }

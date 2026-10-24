@@ -23,18 +23,44 @@ class Loop:
             self.selected = next(iter(self.loops))
         self.coords = {}
         self._lock = threading.Lock()
-        for key in ("cargo", "system", "docked", "star_pos"):
-            core.bus.on(f"state.journal.{key}", lambda n, v: self.recompute())
+        self._retry = None
+        self._fetching = False
+        self._retry_delay = 5
+        core.bus.on("state.journal.location", lambda n, v: self.recompute())
         core.bus.on("journal.replay.done", lambda n, v: self.recompute())
-        threading.Thread(target=self._fetch_coords, daemon=True).start()
+        self._request_coords()
         self.recompute()
 
+    def _request_coords(self):
+        if self.core.config.OFFLINE:
+            return
+        with self._lock:
+            if self._fetching:
+                return
+            if self._retry:
+                self._retry.cancel()
+                self._retry = None
+            self._fetching = True
+        threading.Thread(target=self._fetch_coords, daemon=True).start()
+
     def _fetch_coords(self):
-        names = {s["system"] for lp in self.loops.values() for s in lp["stations"]}
+        with self._lock:
+            names = {s["system"] for lp in self.loops.values() for s in lp["stations"]} - self.coords.keys()
+        found = {}
         try:
-            self.coords.update(self.core.services.edsm_coords(sorted(names)))
+            found = self.core.services.edsm_coords(sorted(names))
         except Exception as ex:
             self.core.log.warning("loop: coords fetch failed: %s", ex)
+        with self._lock:
+            self.coords.update(found)
+            self._fetching = False
+            if names - self.coords.keys():
+                self._retry = threading.Timer(self._retry_delay, self._request_coords)
+                self._retry.daemon = True
+                self._retry.start()
+                self._retry_delay = min(300, self._retry_delay * 2)
+            else:
+                self._retry_delay = 5
         self.recompute()
 
     def select(self, loop_id):
@@ -43,11 +69,12 @@ class Loop:
         self.selected = loop_id
         self.core.write_data({"selected": loop_id}, "loop.json")
         self.recompute()
+        self._request_coords()
         return self.core.store.get(NS)
 
     def recompute(self):
         with self._lock:
-            j = self.core.store.get("journal")
+            j = {k: self.core.store.get("journal", k) for k in ("cargo", "system", "docked", "star_pos")}
             items = (j.get("cargo") or {}).get("items") or []
             ship = j.get("star_pos")
             lp = self.loops[self.selected]
