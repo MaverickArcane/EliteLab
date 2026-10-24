@@ -61,7 +61,9 @@
         if (!O || !p) return;
         kind.value = p.kind; fillModules();
         if (p.kind !== 'build') { mod.value = p.module; fillRecipes(); rec.value = p.key; fillGrades(); }
-        $('#wl-add').classList.add('primary'); $('#wl-add').focus();
+        $('#wl-add').focus();
+        const row = $('#wl-add').closest('.row'); row.style.outline = '2px solid var(--accent)'; row.style.outlineOffset = '4px';
+        setTimeout(() => { row.style.outline = ''; row.style.outlineOffset = ''; }, 2500);
       };
       Lab.api('/api/wishlist/options').then(o => { O = o; fillModules(); const p = Lab.get('wishlist_ui', 'preselect'); if (p && p.at !== ui.preselected) { ui.preselected = p.at; el._preselect(p); } }).catch(bad);
       $('#wl-add').onclick = async () => {
