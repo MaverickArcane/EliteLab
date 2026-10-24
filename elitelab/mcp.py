@@ -70,6 +70,54 @@ def _call(name, args):
     return _http("GET", t["_path"], params=args or {})
 
 
+PROMPTS = {
+    "plan_rares_run": {
+        "description": "Plan a rare goods run from where the commander is: which loop, what to buy, where to sell for Powerplay merits.",
+        "arguments": [],
+        "text": ("Plan a rare goods run for me. Call get_commander_state (where I am, my ship, cargo and jump range), get_rares_loop "
+                 "(the active loop and what is already aboard), get_powerplay_status (my power) and find_sell_targets with min=125 "
+                 "max=165 (acquisition starports that pay merits; check the refuses list against my hold). Then give me the route: "
+                 "the next buy stops in order, then the sell stop, with jump counts, and anything that would stop a station buying.")},
+    "engineering_plan": {
+        "description": "Work out what to farm, trade or buy for an engineering goal (a pinned build, or a blueprint such as 'G5 dirty drives').",
+        "arguments": [{"name": "goal", "description": "What to engineer, e.g. 'the pinned build' or 'G5 dirty drives on my thrusters'", "required": False,
+                       "default": "the pinned build"}],
+        "text": ("My engineering goal: {goal}. If it is the pinned build, call get_build_progress and build_to_wishlist; otherwise use "
+                 "list_recipes / get_recipe and wishlist_add with the right grades. Then call get_engineering_wishlist (what is short), "
+                 "plan_material_trades (what my surplus can be traded into and at which trader type), find_material_traders (where) and "
+                 "find_farm_sites for_wishlist=true (where to farm what trading cannot cover). Give me an ordered plan: trade first, "
+                 "then farm, nearest first, with the materials each stop covers.")},
+    "where_am_i": {
+        "description": "A quick situation report: location, ship, fuel, cargo, Powerplay standing, and anything that needs attention.",
+        "arguments": [],
+        "text": ("Give me a short situation report. Call get_commander_state and get_powerplay_status, then tell me where I am, what I am "
+                 "flying, fuel and cargo, my pledge and merits this session, and flag anything that needs attention (low fuel, hot ship, "
+                 "a rares loop in progress, a build that is close to done).")},
+}
+
+
+def _resources():
+    """Live state as readable resources: the whole snapshot and one per module namespace."""
+    state = _http("GET", "/api/state")
+    out = [{"uri": "elitelab://state", "name": "Live state (all modules)", "mimeType": "application/json",
+            "description": "Every module namespace as one JSON object; prefer the per-namespace resources or the tools when you need one thing."}]
+    for ns in sorted(k for k in state if not k.startswith("_")):
+        out.append({"uri": f"elitelab://state/{ns}", "name": f"{ns} state", "mimeType": "application/json",
+                    "description": f"The {ns} module's live namespace."})
+    return out
+
+
+def _read_resource(uri):
+    state = _http("GET", "/api/state")
+    if uri == "elitelab://state":
+        return state
+    if uri.startswith("elitelab://state/"):
+        ns = uri[len("elitelab://state/"):]
+        if ns in state:
+            return state[ns]
+    raise KeyError(f"unknown resource {uri}")
+
+
 def _reply(msg_id, result=None, error=None):
     msg = {"jsonrpc": "2.0", "id": msg_id}
     if error is not None:
@@ -95,7 +143,8 @@ def serve():
         try:
             if method == "initialize":
                 requested = params.get("protocolVersion")
-                _reply(msg_id, {"protocolVersion": requested if requested in SUPPORTED_PROTOCOLS else PROTOCOL, "capabilities": {"tools": {}},
+                _reply(msg_id, {"protocolVersion": requested if requested in SUPPORTED_PROTOCOLS else PROTOCOL,
+                                "capabilities": {"tools": {}, "resources": {}, "prompts": {}},
                                 "serverInfo": {"name": "elitelab", "version": __version__},
                                 "instructions": ("EliteLab exposes the commander's live Elite Dangerous state. Start with "
                                                  "get_commander_state for where they are and what they fly, get_powerplay_status "
@@ -114,6 +163,34 @@ def serve():
                     _reply(msg_id, {"content": [{"type": "text", "text": json.dumps(result, indent=1)}], "isError": False})
                 except Exception as ex:
                     _reply(msg_id, {"content": [{"type": "text", "text": f"error: {ex}"}], "isError": True})
+            elif method == "resources/list":
+                _reply(msg_id, {"resources": _resources()})
+            elif method == "resources/templates/list":
+                _reply(msg_id, {"resourceTemplates": [{"uriTemplate": "elitelab://state/{namespace}", "name": "Module state",
+                                                        "mimeType": "application/json", "description": "One module namespace, e.g. journal, powerplay, wishlist"}]})
+            elif method == "resources/read":
+                uri = params.get("uri") or ""
+                try:
+                    data = _read_resource(uri)
+                    _reply(msg_id, {"contents": [{"uri": uri, "mimeType": "application/json", "text": json.dumps(data, indent=1)}]})
+                except KeyError as ex:
+                    _reply(msg_id, error={"code": -32002, "message": str(ex)})
+            elif method == "prompts/list":
+                _reply(msg_id, {"prompts": [{"name": k, "description": v["description"],
+                                             "arguments": [{kk: vv for kk, vv in a.items() if kk != "default"} for a in v["arguments"]]}
+                                            for k, v in PROMPTS.items()]})
+            elif method == "prompts/get":
+                p = PROMPTS.get(params.get("name") or "")
+                if not p:
+                    _reply(msg_id, error={"code": -32602, "message": f"unknown prompt: {params.get('name')}"})
+                else:
+                    args = {a["name"]: a.get("default", "") for a in p["arguments"]}
+                    args.update({k: str(v) for k, v in (params.get("arguments") or {}).items() if v})
+                    text = p["text"]
+                    for k, v in args.items():                       # plain substitution, so braces in prompt text are safe
+                        text = text.replace("{" + k + "}", v)
+                    _reply(msg_id, {"description": p["description"],
+                                    "messages": [{"role": "user", "content": {"type": "text", "text": text}}]})
             else:
                 _reply(msg_id, error={"code": -32601, "message": f"method not found: {method}"})
         except Exception as ex:

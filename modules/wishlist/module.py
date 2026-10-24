@@ -310,7 +310,7 @@ class Wishlist:
         ref = q.get("ref") or self.core.store.get("journal", "system") or "Sol"
         limit = max(1, min(int(q.get("limit", 3) or 3), 10))
         pad = (q.get("pad") or "").upper()
-        jr = self.core.store.get("journal", "jump_range")
+        jr = self.core.store.get("journal", "jump_range_now")
 
         def one(t):
             filters = {"material_trader": {"value": [t]}}

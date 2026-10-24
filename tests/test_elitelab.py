@@ -337,6 +337,35 @@ class EngineeringTests(unittest.TestCase):
         self.assertEqual(self.call("wishlist_remove", all=True)["removed"], 1)
         self.assertIsNone(self.call("unpin_build")["pinned"])
 
+    def test_jump_range_laden_and_now(self):
+        from elitelab.core.edsy import jump_range
+        # a real Kestrel: 4A SCO FSD engineered to 943.02 optimal mass, 349.8 t unladen; the journal said MaxJumpRange 29.27
+        self.assertAlmostEqual(jump_range("int_hyperdrive_overcharge_size4_class5", 943.019958, 349.8 + 3.2), 29.27, delta=0.02)
+        self.assertEqual(jump_range("int_guardianfsdbooster_size5", 1, 1), None)                   # not an FSD
+        self.assertAlmostEqual(jump_range("int_hyperdrive_size5_class5", 1050, 463, "int_guardianfsdbooster_size5") -
+                               jump_range("int_hyperdrive_size5_class5", 1050, 463), 10.5, places=2)   # booster bonus
+        self.core.bus.emit("journal.Loadout", {"event": "Loadout", "Ship": "smallcombat01_nx", "ShipID": 50, "UnladenMass": 349.8, "CargoCapacity": 8,
+                                               "MaxJumpRange": 29.27, "FuelCapacity": {"Main": 16.0, "Reserve": 0.61}, "Modules": [
+            {"Slot": "FrameShiftDrive", "Item": "int_hyperdrive_overcharge_size4_class5", "On": True,
+             "Engineering": {"BlueprintName": "FSD_LongRange", "Level": 5, "Modifiers": [{"Label": "FSDOptimalMass", "Value": 943.019958, "OriginalValue": 585.0}]}}]})
+        self.core.bus.emit("journal.file.Status", {"event": "Status", "Flags": 0, "Fuel": {"FuelMain": 14.72, "FuelReservoir": 0.45}, "Cargo": 0.0})
+        j = self.call("get_commander_state")
+        self.assertAlmostEqual(j["jump_range_laden"], jump_range("int_hyperdrive_overcharge_size4_class5", 943.019958, 349.8 + 16 + 8), places=2)
+        self.assertAlmostEqual(j["jump_range_now"], jump_range("int_hyperdrive_overcharge_size4_class5", 943.019958, 349.8 + 14.72), places=2)
+        self.assertGreater(j["jump_range_now"], j["jump_range_laden"])
+        # with less than one jump of fuel in the tank the range shrinks (the FSD cannot burn 3.2 t it does not have)
+        self.core.bus.emit("journal.file.Status", {"event": "Status", "Flags": 0, "Fuel": {"FuelMain": 1.0, "FuelReservoir": 0.45}, "Cargo": 0.0})
+        low = self.call("get_commander_state")["jump_range_now"]
+        self.assertLess(low, 20)
+        self.assertAlmostEqual(low, jump_range("int_hyperdrive_overcharge_size4_class5", 943.019958, 349.8 + 1.0, fuel=1.0), places=2)
+
+    def test_rares_table_is_the_fdev_list(self):
+        from elitelab.core.gamedata import RARES, RARE_MARKETS, is_rare
+        self.assertEqual(len(RARES), 142)
+        self.assertEqual(RARES["alieneggs"], "Leathery Eggs")
+        self.assertEqual(RARE_MARKETS["leestianeviljuice"], 128639992)
+        self.assertTrue(is_rare("Lucan Onionhead") and not is_rare("lucanonionhead"))   # the old community slug was wrong
+
     def test_coriolis_link_and_slef_pin(self):
         import base64, gzip, struct
         from elitelab.core import coriolis

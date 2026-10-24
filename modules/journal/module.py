@@ -41,6 +41,7 @@ FEED = {
     "PowerplayDefect": lambda e: f"Defected from {e.get('FromPower')} to {e.get('ToPower')}",
     "CarrierJump": lambda e: f"Carrier arrived in {e.get('StarSystem')}",
     "CarrierJumpRequest": lambda e: f"Carrier jump scheduled to {e.get('SystemName')}",
+    "CarrierJumpCancelled": lambda e: "Carrier jump cancelled",
     "Bounty": lambda e: f"Bounty {e.get('TotalReward', 0):,} Cr",
     "MissionCompleted": lambda e: f"Mission complete: {e.get('LocalisedName') or e.get('Name')}",
     "Interdicted": lambda e: f"Interdicted by {e.get('Interdictor_Localised') or e.get('Interdictor')}",
@@ -51,6 +52,7 @@ FEED = {
 }
 
 
+from elitelab.core import edsy
 from elitelab.core.builds import COSMETIC as COSMETIC_SLOTS      # one list, shared with the build comparison
 
 
@@ -68,7 +70,7 @@ class Journal:
         self.core = core
         self.st = {
             "cmdr": None, "credits": None, "ship": None, "ship_name": None, "ship_ident": None,
-            "cargo_capacity": None, "jump_range": None, "system": None, "star_pos": None,
+            "cargo_capacity": None, "jump_range": None, "jump_range_now": None, "jump_range_laden": None, "system": None, "star_pos": None,
             "station": None, "station_type": None, "docked": False,
             "system_power": None, "system_power_state": None, "system_powers": [],
             "carrier": None, "last_event_time": None, "game_version": None, "ship_info": None,
@@ -141,7 +143,7 @@ class Journal:
             st["ship_internal"] = (ev.get("Ship") or "").lower()
             self._ship_internal = ev.get("Ship"); st["ship"] = ev.get("Ship_Localised") or self.ship_name(ev.get("Ship"))
             st["ship_name"] = ev.get("ShipName"); st["ship_ident"] = ev.get("ShipIdent")
-            st["cargo_capacity"] = ev.get("CargoCapacity"); st["jump_range"] = ev.get("MaxJumpRange")
+            st["cargo_capacity"] = ev.get("CargoCapacity"); st["jump_range"] = ev.get("MaxJumpRange"); st["jump_range_now"] = ev.get("MaxJumpRange")
             fuel = ev.get("FuelCapacity") or {}
             mods = ev.get("Modules") or []
             st["ship_info"] = {
@@ -157,7 +159,16 @@ class Journal:
                 # every functional module with its engineering, for the build module; cosmetics and fixed fittings dropped
                 "modules": [self._module(m) for m in mods if not (m.get("Slot") or "").startswith(COSMETIC_SLOTS)],
             }
-            changed |= {"ship", "ship_name", "ship_ident", "cargo_capacity", "jump_range", "ship_info", "ship_internal"}
+            # laden and current jump range (issue 4): FSD stats from the EDSY table, optimal mass from the engineering modifiers
+            fsd = next((m for m in mods if m.get("Slot") == "FrameShiftDrive"), None)
+            optmass = next((x.get("Value") for x in ((fsd or {}).get("Engineering") or {}).get("Modifiers") or [] if x.get("Label") == "FSDOptimalMass"), None)
+            if fsd and not optmass:
+                optmass = (edsy.MODULE_BY_FDNAME.get((fsd.get("Item") or "").lower()) or {}).get("fsdoptmass")
+            self._fsd = {"item": (fsd or {}).get("Item"), "optmass": optmass, "unladen": ev.get("UnladenMass"), "fuel_cap": fuel.get("Main") or 0,
+                         "cargo_cap": ev.get("CargoCapacity") or 0,
+                         "booster": next((m.get("Item") for m in mods if (m.get("Item") or "").lower().startswith("int_guardianfsdbooster")), None)}
+            self._ranges()
+            changed |= {"ship", "ship_name", "ship_ident", "cargo_capacity", "jump_range", "jump_range_now", "jump_range_laden", "ship_info", "ship_internal"}
         elif e in ("Location", "FSDJump", "CarrierJump"):
             st["system"] = ev.get("StarSystem"); st["star_pos"] = ev.get("StarPos")
             st["system_power"] = ev.get("ControllingPower"); st["system_power_state"] = ev.get("PowerplayState")
@@ -210,6 +221,20 @@ class Journal:
             except Exception:
                 continue
 
+    def _ranges(self):
+        """jump_range_laden (full tank, full hold) and jump_range_now (fuel and cargo from Status.json) from the FSD."""
+        f = getattr(self, "_fsd", None) or {}
+        st = self.st
+        laden = now = None
+        if f.get("item") and f.get("unladen"):
+            stt = st.get("status") or {}
+            fuel_now = stt.get("fuel") if stt.get("fuel") is not None else f["fuel_cap"]
+            cargo_now = stt.get("cargo_tons") if stt.get("cargo_tons") is not None else 0
+            laden = edsy.jump_range(f["item"], f["optmass"], f["unladen"] + f["fuel_cap"] + f["cargo_cap"], f["booster"])
+            now = edsy.jump_range(f["item"], f["optmass"], f["unladen"] + fuel_now + cargo_now, f["booster"], fuel=fuel_now)
+        st["jump_range_laden"] = laden
+        st["jump_range_now"] = now if now is not None else st.get("jump_range")     # the one key consumers read; unladen max as fallback
+
     # -- snapshot files ------------------------------------------------------------
     def on_file(self, name, data):
         st = self.st
@@ -220,7 +245,8 @@ class Journal:
                             "cargo_tons": data.get("Cargo"), "legal": data.get("LegalState"), "timestamp": data.get("timestamp")}
             if "Balance" in data:
                 st["credits"] = data["Balance"]
-            self.push({"status", "credits"})
+            self._ranges()
+            self.push({"status", "credits", "jump_range_now"})
         elif name == "Market":
             self._market_rares = {norm(i.get("Name")) for i in (data.get("Items") or []) if i.get("Rare")}
             st["market"] = {"station": data.get("StationName"), "system": data.get("StarSystem"), "timestamp": data.get("timestamp"),

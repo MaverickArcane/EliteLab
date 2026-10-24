@@ -13,7 +13,8 @@ Conventions: `null` means unknown/not yet seen. Timestamps are the journal's ISO
 | `ship` | str display name | `LoadGame`, `Loadout`, `ShipyardSwap` (+ learned names) | header, ship card |
 | `ship_name`, `ship_ident` | str | `LoadGame`, `Loadout` | header |
 | `cargo_capacity` | int | `Loadout.CargoCapacity` | cargo card, targets (not yet) |
-| `jump_range` | float | `Loadout.MaxJumpRange` (unladen) | targets/combat jump estimates |
+| `jump_range` | float | `Loadout.MaxJumpRange` (unladen) | fallback for jump estimates |
+| `jump_range_now`, `jump_range_laden` | float or null | computed from the FSD (EDSY table: max fuel per jump, fuel multiplier and power, optimal mass from the `FSDOptimalMass` engineering modifier) and the ship mass: `now` = unladen + current fuel + current cargo (`Status.json`), burning at most the fuel in the tank; `laden` = unladen + full tank + full hold; plus a Guardian FSD booster's bonus. `jump_range_now` falls back to `jump_range` when the FSD is unknown, so it is the one key consumers read | targets, combat, farming, wishlist traders (jumps), ship card |
 | `ship_info` | dict | `Loadout` | ship card |
 | `ship_info.*` | `type, internal, id, name, ident, hull_value, modules_value, rebuy, hull_health (0..1), unladen_mass, cargo_capacity, max_jump_range, fuel_main, fuel_reserve, hot, module_count, core[{slot,item,engineering,level}], hardpoints[{slot,item}], modules[{slot, item (lower case), on, priority, health, engineering{blueprint, level, quality, experimental, engineer} | null}]` (cosmetic slots dropped) | | build module reads `modules` |
 | `ship_internal` | str lower-case hull id (`smallcombat01_nx`) | `Loadout` | build module (same ship as the pinned build?) |

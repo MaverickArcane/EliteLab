@@ -35,7 +35,7 @@ Module-level constants read from environment at import time. Tests override `con
 
 ## elitelab/core/gamedata.py
 
-Game facts shared by modules (modules may not import each other, so shared facts live in core): `POWERS` (the 12 powers, Spansh spelling), `RARES` (internal key -> display name; observed keys are marked, the rest are community slugs), `KNOWN_RARES`, `RARE_NAMES`, `norm(name)` (strip `$`/`_name;`, lowercase), `is_rare(key_or_name)`. Add a rare's key only after seeing it in a real journal.
+Game facts shared by modules (modules may not import each other, so shared facts live in core): `POWERS` (the 12 powers, Spansh spelling), `RARES` (journal key -> display name for all 142 rare goods, from EDCD FDevIDs `rare_commodity.csv`), `RARE_MARKETS` (key -> origin station market id), `KNOWN_RARES`, `RARE_NAMES`, `norm(name)` (strip `$`/`_name;`, lowercase), `is_rare(key_or_name)`.
 
 Engineering, loaded from `engineering.json` next to it: `MATERIALS` / `MATERIAL_BY_KEY` / `MATERIAL_BY_NAME` (`key, name, category, grade, family`; family is the trader group, null for Guardian/Thargoid), `MATERIAL_CAPS` (grade -> 300/250/200/150/100), `BLUEPRINTS` / `BLUEPRINT_BY_KEY` (`key` like `FSD_LongRange`, `name`, `module`, `aliases`, `max_grade`, `grades{"1".."5": {material key: count}}`, `engineers{name: max grade}`), `EXPERIMENTALS` / `EXPERIMENTAL_BY_KEY` (`key` like `special_fsd_heavy`, `name`, `modules`, `ingredients`), `ROLLS_PER_GRADE`, `TRADE`.
 
@@ -53,7 +53,7 @@ Engineering, loaded from `engineering.json` next to it: `MATERIALS` / `MATERIAL_
 
 Decoder for EDSY build links (`#/L=<hash>`, hash versions 15 to 20), with EDSY's tables in `edsy.json` (ships, modules, module types with their blueprint and effect index lists, blueprints, effects; extracted from EDSY's `eddb.js`). `extract_hash(text)` accepts a URL, fragment or bare hash. `decode(text)` returns `{version, ship{id, fdname, name}, name, tag, hash, slots[{group, index, slot, module{id, fdname, name, class, rating, mount, mtype, cost}, blueprint{fdname, name} | None, grade, roll, experimental{fdname, name} | None, preengineered, powered, priority}]}`. Modified-attribute values are skipped (only the blueprint, grade and effect matter for materials). `slot_name()` reconstructs journal-style slot names (`LargeHardpoint2`, `Slot03_Size6`...) for display; the build module never relies on them outside the core slots. Hull (bulkhead) module ids have ship-specific fdnames and are resolved through the ship's module table.
 
-`MODULE_BY_FDNAME` (journal item -> EDSY module incl. ship-specific bulkheads) and `SHIP_BY_FDNAME` serve the other build sources.
+`MODULE_BY_FDNAME` (journal item -> EDSY module incl. ship-specific bulkheads) and `SHIP_BY_FDNAME` serve the other build sources. FSD entries also carry `fsdoptmass, maxfuel, fuelmul, fuelpower` and Guardian boosters `jumpbst`; `jump_range(fsd_item, optmass, mass, booster_item)` is the single-jump range formula `(maxfuel / fuelmul) ** (1 / fuelpower) * optmass / mass + boost`, which reproduces the journal's `MaxJumpRange` when mass is unladen plus one jump's fuel.
 
 Format summary: EDSY base-64 alphabet `0-9A-Za-z_-`, 6 bits per character. Build: version (1), ship id (1), hull discount (1), hull cost bits (1) + cost (2-5), crew (1), distributor (2), cargo hatch module; then one comma-separated chunk per group (hardpoint, utility, component, military, internal). Per fitted slot: module id (3), slot bits (1: 0x20 costed, 0x10 engineered, 0x08 unpowered, 0x07 priority), cost bits + cost or discount (1), and when engineered: engineering bits (2: 0x800 pre-engineered, 0x780 blueprint index, 0x070 grade, 0x00F effect index), roll (2), modifier count (1), modifiers (4 each). A module id >= 199900 is a gap of that many empty slots. Chunks 6 and 7 are the build name and tag in EDSY's text encoding.
 
@@ -140,6 +140,10 @@ Decoder for Coriolis links (`/outfit/<ship>?code=<code>&bn=<name>`), tables in `
 ## elitelab/core/builds.py
 
 `parse(text)`: the one entry point for `pin_build`. JSON (SLEF `[{header, data}]` or a bare Loadout event) -> `from_loadout()`; `L=<hash>` -> `edsy.decode`; `/outfit/` -> `coriolis.decode`; otherwise EDSY again for its error message. Adds `source` (`edsy`, `coriolis`, `slef`). `group_of(slot)` maps journal slot names to EDSY groups (used by the build module too). `from_loadout()` drops cosmetic slots and resolves blueprint and effect display names through `gamedata`.
+
+## elitelab/mcp.py (prompts and resources)
+
+Besides tools, the stdio server advertises `resources` and `prompts`. `resources/list` returns `elitelab://state` (the whole snapshot) and `elitelab://state/<ns>` per namespace (from `/api/state`); `resources/read` returns the JSON; `resources/templates/list` has the namespace template. `PROMPTS` holds three prompt recipes (`plan_rares_run`, `engineering_plan` with a `goal` argument, `where_am_i`), each a user message that tells the model which tools to call and what to produce.
 
 ## modules/journal/module.py
 

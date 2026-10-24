@@ -29,7 +29,7 @@
       el.innerHTML = `
         <div class="big">${esc(s.type || '—')} <span class="muted" style="font-size:13px">${[s.name, s.ident].filter(Boolean).map(esc).join(' · ')}</span></div>
         <div class="grid2">
-          <div><div class="k">Jump range (max)</div><div class="v">${s.max_jump_range != null ? s.max_jump_range.toFixed(1) + ' Ly' : '—'}</div></div>
+          <div><div class="k">Jump range <span class="muted">now / laden / max</span></div><div class="v">${j.jump_range_now != null ? j.jump_range_now.toFixed(1) : '-'} / ${j.jump_range_laden != null ? j.jump_range_laden.toFixed(1) : '-'} / ${s.max_jump_range != null ? s.max_jump_range.toFixed(1) + ' Ly' : '-'}</div></div>
           <div><div class="k">Cargo</div><div class="v">${fmt((j.cargo || {}).count)} / ${fmt(s.cargo_capacity)} t</div></div>
           <div><div class="k">Fuel</div><div class="v">${st.fuel != null ? st.fuel.toFixed(1) : '—'} / ${fmt(s.fuel_main)} t${fuelPct != null ? ` <span class="muted">(${fuelPct}%)</span>` : ''}</div></div>
           <div><div class="k">Hull</div><div class="v ${s.hull_health != null && s.hull_health < 0.5 ? 'bad' : ''}">${s.hull_health != null ? Math.round(s.hull_health * 100) + '%' : '—'}</div></div>

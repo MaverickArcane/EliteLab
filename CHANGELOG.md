@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Jump range now and laden (issue 4): computed from the FSD, its engineered optimal mass, fuel and cargo; the ship card shows now / laden / max and every jump estimate (targets, combat, farm sites, traders) uses the current range.
+- Rare goods table is the full FDevIDs list of 142 with origin market ids (issue 15); five wrong community slugs dropped.
+- Notifications (issue 5): toasts for merits gained, loop complete, fuel under 25 percent, interdiction, death and carrier jumps, with an optional beep.
+- MCP prompts and resources (issue 8): `plan_rares_run`, `engineering_plan`, `where_am_i`; live state readable as `elitelab://state` and per namespace.
+
 - New `recipes` module: 81 engineering blueprints (materials per grade G1-G5, engineers per grade) and 87 experimental effects, searchable by free text; `list_recipes`, `get_recipe`.
 - New `wishlist` module: an engineering wishlist that takes "2x g5 fsd increased range", "mass manager" or "50 tellurium", tracks have/need/short against the live inventory, plans material trader exchanges for the shortfalls (same-family 1:3 down, 6:1 up, cross-family x6), and finds the nearest traders by type on Spansh; `get_engineering_wishlist`, `wishlist_add`, `wishlist_remove`, `plan_material_trades`, `find_material_traders`.
 - New `farming` module: curated material farm sites (crystal shards, brain trees, Dav's Hope, Jameson Crash Site, Guardian structures, crashed ships) and methods (High Grade Emissions by state, wake and ship scans), nearest first with EDSM distances, flagged when they cover a wishlist shortfall; map layer; `find_farm_sites`.

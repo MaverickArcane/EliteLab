@@ -49,6 +49,10 @@ python -m elitelab call set_wishlist items='{"Datamined Wake Exceptions": 15}' l
 | `get_recent_events` | Raw journal events, newest first |
 | `get_state`, `list_modules`, `list_tools`, `health` | Introspection |
 
+## MCP prompts and resources
+
+Besides the tools, the MCP server offers three prompts (`plan_rares_run`, `engineering_plan` with a `goal` argument, `where_am_i`) that tell the model which tools to chain and what to answer, and read-only resources: `elitelab://state` (everything) and `elitelab://state/<namespace>` (one module, e.g. `elitelab://state/wishlist`).
+
 ## Example conversations
 
 **"I want to work on getting materials for an FSD G5 Increased Range roll."**
