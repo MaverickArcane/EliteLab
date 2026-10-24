@@ -2,7 +2,7 @@
 (() => {
   const { esc, fmt } = Lab.util;
   const bad = e => Lab.toast(e.message || String(e), 'bad');
-  const bar = (label, pct, text) => `<div style="margin-top:6px"><div class="k">${esc(label)} <span class="muted">${esc(text)}</span></div><div class="bar"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></div></div>`;
+  const bar = Lab.util.bar;
   const ui = { slots: 'todo', mats: 'short' };          // view state, kept across renders
   const LIMIT = 12;
   const short = r => {                                   // one short phrase per slot instead of the full to-do list

@@ -7,6 +7,7 @@ carrier, cargo, market, status, feed, last_event_time, game_version.
 """
 import json
 import os
+import re
 import threading
 
 from elitelab.core.gamedata import is_rare, norm
@@ -64,7 +65,9 @@ class Journal:
         display name, class, rating and mount from the EDSY table and blueprint/effect names from gamedata (for the ship card)."""
         eng = m.get("Engineering") or {}
         item = (m.get("Item") or "").lower()
-        info = edsy.MODULE_BY_FDNAME.get(item) or {}
+        info = edsy.MODULE_BY_FDNAME.get(item)
+        if not info:                                    # newer than the EDSY table: make the journal id presentable
+            info = {"name": re.sub(r"class(\d)", r"C\1", re.sub(r"size(\d)", r"S\1", re.sub(r"^(int_|hpt_)", "", item))).replace("_", " ")}
         bpk = gd.BLUEPRINT_BY_LOWER.get((eng.get("BlueprintName") or "").lower())
         exk = gd.EXPERIMENTAL_BY_LOWER.get((eng.get("ExperimentalEffect") or "").lower())
         return {"slot": m.get("Slot"), "group": group_of(m.get("Slot")), "item": item, "on": m.get("On"), "priority": m.get("Priority"),
@@ -161,11 +164,8 @@ class Journal:
                 "hull_health": ev.get("HullHealth"), "unladen_mass": ev.get("UnladenMass"), "cargo_capacity": ev.get("CargoCapacity"),
                 "max_jump_range": ev.get("MaxJumpRange"), "fuel_main": fuel.get("Main"), "fuel_reserve": fuel.get("Reserve"),
                 "hot": ev.get("Hot"), "module_count": len(mods),
-                "core": [{"slot": m.get("Slot"), "item": m.get("Item"), "engineering": (m.get("Engineering") or {}).get("BlueprintName"),
-                          "level": (m.get("Engineering") or {}).get("Level")} for m in mods
-                         if m.get("Slot") in ("PowerPlant", "MainEngines", "FrameShiftDrive", "LifeSupport", "PowerDistributor", "Radar", "FuelTank", "Armour")],
-                "hardpoints": [{"slot": m.get("Slot"), "item": m.get("Item")} for m in mods if (m.get("Slot") or "").startswith(("Small", "Medium", "Large", "Huge", "Tiny"))],
-                # every functional module with its engineering, for the build module; cosmetics and fixed fittings dropped
+                # every functional module with its group and engineering (the ship card and the build module read this);
+                # cosmetics and fixed fittings dropped
                 "modules": [self._module(m) for m in mods if not (m.get("Slot") or "").startswith(COSMETIC_SLOTS)],
             }
             # laden and current jump range (issue 4): FSD stats from the EDSY table, optimal mass from the engineering modifiers

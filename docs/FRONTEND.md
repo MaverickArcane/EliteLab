@@ -29,7 +29,7 @@
 | `Lab.coords` | `{system: {x,y,z}}` cache |
 | `Lab.toast(msg, kind?)` | bottom-right toast for 2.6 s; `kind='bad'` is red |
 | `Lab.relayout()` | coalesced dispatch of a `lab:relayout` window event; cards that own canvases listen to it instead of `resize` |
-| `Lab.util` | `esc, fmt, ls{get,set}, inaraSys, inaraSt, spanshSys, copy, dist3` |
+| `Lab.util` | `esc, fmt, ls{get,set}, inaraSys, inaraSt, spanshSys, copy, dist3, bar(label, pct, text, colour?)` (the labelled segmented gauge the ship and build cards use) |
 
 Global click handler: any element with `data-copy="text"` copies that text and flashes "copied".
 

@@ -16,6 +16,8 @@
       spanshSys: n => `https://spansh.co.uk/search/${encodeURIComponent(n)}`,
       copy: t => navigator.clipboard && navigator.clipboard.writeText(t),
       dist3: (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z),
+      // a labelled gauge: label + muted text above a segmented bar; colour is optional (background-color keeps the segments)
+      bar: (label, pct, text, colour) => { const e = Lab.util.esc; return `<div class="gauge"><div class="k">${e(label)} <span class="muted">${e(text || '')}</span></div><div class="bar"><i style="width:${Math.max(0, Math.min(100, +pct || 0))}%${colour ? `;background-color:${e(colour)}` : ''}"></i></div></div>`; },
     },
     on(ns, fn) { const nss = Array.isArray(ns) ? ns : [ns]; const sub = { nss, fn }; this._subs.push(sub); return () => { this._subs = this._subs.filter(s => s !== sub); }; },
     emit(ns) { this._pending.add(ns); if (!this._raf) this._raf = requestAnimationFrame(() => { const p = new Set(this._pending); this._pending.clear(); this._raf = null; this._subs.slice().forEach(s => { if (s.nss.some(n => p.has(n))) { try { s.fn(this.state); } catch (e) { console.error(e); } } }); }); },
