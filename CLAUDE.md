@@ -12,7 +12,7 @@ The owner plays Elite and builds this while testing things in game. The code is 
 
 | Path | What | Read when |
 |---|---|---|
-| `elitelab/core/` | bus, store, services, http, loader, watcher, Core | changing plumbing |
+| `elitelab/core/` | bus, store, services, http, loader, watcher, Core; `gamedata` (shared game tables), `coords` (EDSM cache), `edsy` / `coriolis` / `builds` (build link decoders) | changing plumbing or shared game data |
 | `elitelab/mcp.py` | MCP stdio server (proxies the HTTP tools) | AI integration |
 | `elitelab/__main__.py` | CLI: serve, mcp, modules, tools, call | |
 | `modules/<name>/` | one feature each: `module.json` + `module.py` + `web/*.js` | adding or changing a feature |
