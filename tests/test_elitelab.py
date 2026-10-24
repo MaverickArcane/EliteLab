@@ -215,6 +215,149 @@ class CoreTests(unittest.TestCase):
         self.assertNotIn("_replay", evs[0])
 
 
+class EngineeringTests(unittest.TestCase):
+    """Recipes, the engineering wishlist and the trade planner against the fixture inventory
+    (carbon 120, arsenic 4, chemical processors 29, datamined wake 8)."""
+    @classmethod
+    def setUpClass(cls):
+        cls.core = make_core()
+        cls.tools = cls.core.http.tools
+
+    def call(self, tool, **q):
+        return self.tools[tool].fn(q)
+
+    def test_recipe_search_and_cost(self):
+        hits = self.call("list_recipes", query="fsd boost")["results"]
+        self.assertEqual(hits[0]["key"], "FSD_LongRange")                  # the Guardian FSD Booster unlock ranks below it
+        self.assertEqual(self.call("list_recipes", query="guardian fsd booster", kind="unlock")["results"][0]["key"], "unlock_guardian_fsd_booster")
+        u = self.call("get_recipe", key="unlock_guardian_fsd_booster")
+        self.assertEqual(u["commodities"], {"HN Shock Mount": 8})
+        self.assertEqual({m["key"]: m["count"] for m in u["materials"]}["guardian_moduleblueprint"], 1)
+        r = self.call("get_recipe", key="fsd increased range", grade=5)
+        g5 = {m["key"]: m["count"] for m in r["grades"]["5"]}
+        self.assertEqual(g5, {"arsenic": 1, "chemicalmanipulators": 1, "dataminedwake": 1})
+        total = {m["key"]: m["count"] for m in r["total"]["materials"]}
+        self.assertEqual(total["dataminedwake"], 5)              # 5 rolls at G5
+        self.assertEqual(total["chemicalprocessors"], 5)         # 2 rolls at G2 + 3 at G3
+        self.assertEqual(r["engineers"]["Felicity Farseer"], 5)
+        self.assertIn("candidates", self.call("get_recipe", key="shield"))   # ambiguous: no guess
+        self.assertEqual(self.call("get_recipe", key="mass manager")["kind"], "experimental")
+        by_eng = self.call("list_recipes", module="frame shift drive", engineer="farseer")["results"]
+        self.assertEqual({h["key"]: h["engineer_grade"] for h in by_eng if h["key"] == "FSD_LongRange"}, {"FSD_LongRange": 5})
+        self.assertTrue(all(h["kind"] == "blueprint" for h in by_eng))
+        self.assertEqual({h["module"] for h in by_eng}, {"Frame shift drive"})       # exact module name excludes the interdictor
+        self.assertIn("Frame shift drive interdictor", {h["module"] for h in self.call("list_recipes", module="frame shift")["results"]})
+
+    def test_trade_ratios(self):
+        from elitelab.core.gamedata import trade_ratio
+        self.assertEqual(trade_ratio("vanadium", "carbon"), (1, 3))      # same family, one grade down
+        self.assertEqual(trade_ratio("carbon", "vanadium"), (6, 1))      # same family, one grade up
+        self.assertEqual(trade_ratio("iron", "vanadium"), (36, 1))       # other family: 6x more
+        self.assertEqual(trade_ratio("tin", "vanadium"), (2, 1))         # other family, one grade down: 6 -> 3
+        self.assertEqual(trade_ratio("carbon", "iron"), (6, 1))          # same grade, other family
+        self.assertIsNone(trade_ratio("carbon", "gridresistors"))         # raw -> manufactured: no trader does that
+
+    def test_wishlist_tracks_inventory_and_plans_trades(self):
+        a = self.call("wishlist_add", item="2x g5 fsd boost")
+        self.assertEqual(a["status"], "added")
+        e = a["entry"]
+        self.assertEqual((e["kind"], e["key"], e["grade"], e["qty"]), ("blueprint", "FSD_LongRange", 5, 2))
+        needs = {n["key"]: n for n in a["needs"]}
+        self.assertEqual((needs["dataminedwake"]["need"], needs["dataminedwake"]["have"], needs["dataminedwake"]["short"]), (10, 8, 2))
+        self.assertEqual(needs["chemicalprocessors"]["short"], 0)
+        self.assertEqual(self.call("wishlist_add", item="shield")["status"], "ambiguous")
+        m = self.call("wishlist_add", item="50 vanadium")["entry"]
+        self.assertEqual((m["kind"], m["key"], m["qty"]), ("material", "vanadium", 50))
+        w = self.call("get_engineering_wishlist")
+        self.assertEqual(w["summary"]["entries"], 2)
+        trades = w["trades"]["trades"]
+        van = next(t for t in trades if t["get"]["key"] == "vanadium")
+        self.assertEqual((van["give"]["key"], van["give"]["qty"], van["get"]["qty"], van["ratio"]), ("carbon", 120, 20, "6:1"))
+        self.assertFalse(any(t["get"]["key"] == "arsenic" for t in trades))   # the 6:1 trade used the carbon before the 36:1 one could
+        self.assertIn("vanadium", [u["key"] for u in w["trades"]["unresolved"]])
+        # live: collecting materials changes the shortfall without touching the list
+        self.core.bus.emit("journal.MaterialCollected", {"event": "MaterialCollected", "Category": "Encoded", "Name": "dataminedwake", "Count": 2})
+        row = next(r for r in self.core.store.get("wishlist", "needs") if r["key"] == "dataminedwake")
+        self.assertEqual(row["short"], 0)
+        # farm sites: by material, and only those covering a current shortfall (vanadium has no site, datamined wake does)
+        tell = self.call("find_farm_sites", material="tellurium")["sites"]
+        self.assertEqual([s["system"] for s in tell], ["HIP 36601"])
+        self.assertEqual(tell[0]["body"], "C 3 b")
+        self.assertIsNone(tell[0]["dist"])                                  # offline: no EDSM coordinates
+        cover = self.call("find_farm_sites", for_wishlist=True)["sites"]
+        self.assertTrue(cover and all(s["covers"] for s in cover))
+        self.assertTrue(any("Atypical Disrupted Wake Echoes" in s["covers"] for s in cover))
+        # grade ranges and tech broker unlocks
+        rng = self.call("wishlist_add", item="dirty drives 2-5 x2")["entry"]
+        self.assertEqual((rng["from_grade"], rng["grade"], rng["qty"]), (2, 5, 2))
+        self.assertEqual(self.call("wishlist_add", item="unlock_guardian_fsd_booster")["entry"]["commodities"], {"HN Shock Mount": 8})
+        self.assertNotIn("inventory", self.core.store.get("materials"))                 # not on SSE; modules use the tool
+        self.assertEqual(self.call("get_material_inventory")["inventory"]["carbon"], 120)
+        gp = self.call("wishlist_add", item="guardian_powercell", kind="material", qty=5)["entry"]     # exact key with an underscore
+        self.assertEqual((gp["kind"], gp["key"], gp["qty"]), ("material", "guardian_powercell", 5))
+        self.assertEqual(self.call("wishlist_add", item="FSD_LongRange", rolls="[1,2,3,4,6]")["entry"]["rolls"]["5"], 6)
+        self.call("wishlist_remove", id=gp["id"])
+        self.call("wishlist_remove", id=self.core.store.get("wishlist", "entries")[-1]["id"])
+        self.assertEqual(self.call("wishlist_remove", all=True)["removed"], 4)
+        self.assertEqual(self.core.store.get("wishlist", "summary")["entries"], 0)
+
+    def test_build_pinned_and_compared(self):
+        url = ("https://edsy.org/#/L=JT00000H4C0S40,KLz29KLz29KLz29HNlI97H_W0HNlI97K_W0,DBwJ95L_W0DBwJ95L_W0DBwJ99L_W0DBwJ99L_W0,"
+               "9p3H05I_W0A8cH93K_W0AOHG95I_W0AcJK95J_W0Ani19B76G93L_W0BIWG95G_W0Bb619,23u19,7T4H99L_W015OH95I_W013qH95I_W012GH95I_W0"
+               "12GH95I_W012GH95I_W068qK92m_W0,Proper_0Bo_0I_0Tell_0Thee,ida_D07")
+        r = self.call("pin_build", url=url)
+        self.assertEqual((r["pinned"]["name"], r["pinned"]["ship"]), ("Proper Bo I Tell Thee", "Kestrel Mk II"))
+        self.assertTrue(r["progress"]["same_ship"])                               # the fixture ends in a Kestrel with no modules
+        self.assertEqual(r["progress"]["totals"]["to_buy"], 25)
+        self.core.bus.emit("journal.Loadout", {"event": "Loadout", "Ship": "smallcombat01_nx", "ShipID": 50, "Modules": [
+            {"Slot": "FrameShiftDrive", "Item": "Int_Hyperdrive_Overcharge_Size4_Class5", "On": True, "Engineering": {"BlueprintName": "FSD_LongRange", "Level": 3}},
+            {"Slot": "TinyHardpoint1", "Item": "hpt_shieldbooster_size0_class5", "On": True, "Engineering": {"BlueprintName": "ShieldBooster_HeavyDuty", "Level": 5, "ExperimentalEffect": "special_shieldbooster_chunky"}}]})
+        P = self.core.store.get("build", "progress")
+        rows = {x["slot"]: x for x in P["slots"]}
+        self.assertEqual(rows["FrameShiftDrive"]["status"], "engineer")
+        self.assertEqual(rows["FrameShiftDrive"]["todo"], ["Increased Range G3 to G5", "apply Mass Manager"])
+        self.assertEqual({m["key"]: m["count"] for m in rows["FrameShiftDrive"]["materials"]}["dataminedwake"], 5)   # only the G5 rolls
+        self.assertEqual(rows["TinyHardpoint1"]["status"], "ok")                 # matched by item within the utility group
+        self.assertEqual(P["totals"]["ok"], 1)
+        w = self.call("build_to_wishlist")
+        self.assertEqual((w["entry"]["kind"], w["entry"]["name"]), ("build", "Proper Bo I Tell Thee"))
+        self.assertGreater(w["needs"], 10)
+        self.call("build_to_wishlist")                                             # idempotent: still one build entry
+        self.assertEqual(sum(1 for e in self.core.store.get("wishlist", "entries") if e["kind"] == "build"), 1)
+        need_before = next(e for e in self.core.store.get("wishlist", "entries") if e["kind"] == "build")["units"]
+        self.core.bus.emit("journal.Loadout", {"event": "Loadout", "Ship": "smallcombat01_nx", "ShipID": 50, "Modules": [
+            {"Slot": "FrameShiftDrive", "Item": "Int_Hyperdrive_Overcharge_Size4_Class5", "On": True, "Engineering": {"BlueprintName": "FSD_LongRange", "Level": 5, "ExperimentalEffect": "special_fsd_heavy"}},
+            {"Slot": "TinyHardpoint1", "Item": "hpt_shieldbooster_size0_class5", "On": True, "Engineering": {"BlueprintName": "ShieldBooster_HeavyDuty", "Level": 5, "ExperimentalEffect": "special_shieldbooster_chunky"}}]})
+        need_after = next(e for e in self.core.store.get("wishlist", "entries") if e["kind"] == "build")["units"]
+        self.assertLess(need_after, need_before)                                  # the entry follows the build's progress
+        self.assertEqual(self.call("wishlist_remove", all=True)["removed"], 1)
+        self.assertIsNone(self.call("unpin_build")["pinned"])
+
+    def test_coriolis_link_and_slef_pin(self):
+        import base64, gzip, struct
+        from elitelab.core import coriolis
+        # A Kestrel with only a 4A SCO FSD (standard slot 3 -> modification slot 3) engineered Increased Range G5 + Mass Manager
+        fsd_id = next(i for i, m in coriolis.STANDARD["fsd"].items() if m["symbol"].lower() == "int_hyperdrive_overcharge_size4_class5")
+        bp_id = next(int(i) for i, b in coriolis.BLUEPRINTS.items() if b["fdname"] == "FSD_LongRange")
+        sp_id = next(int(i) for i, s in coriolis.SPECIALS.items() if s["edname"] == "special_fsd_heavy")
+        ship = coriolis.SHIPS["kestrel"]
+        code = "A0" + "--" + fsd_id + "----" + "-" * len(ship["slots"]["hardpoints"]) + "-" * len(ship["slots"]["internal"])
+        blob = struct.pack("<bbibibi b b", 3, -2, bp_id, -3, 5, -4, sp_id, -1, -1)
+        mods = base64.b64encode(gzip.compress(blob)).decode().replace("+", "-").replace("/", "_")
+        url = f"https://coriolis.io/outfit/kestrel?code={code}..." + mods + "&bn=Test%20Kestrel"
+        r = self.call("pin_build", url=url)
+        self.assertEqual((r["pinned"]["source"], r["pinned"]["name"], r["pinned"]["ship"]), ("coriolis", "Test Kestrel", "Kestrel Mk II"))
+        fsd = next(s for s in r["progress"]["slots"] if s["slot"] == "FrameShiftDrive")
+        self.assertEqual((fsd["item"], fsd["blueprint"], fsd["grade"], fsd["experimental"]), ("int_hyperdrive_overcharge_size4_class5", "Increased range", 5, "Mass Manager"))
+        self.assertEqual(r["progress"]["totals"]["slots"], 2)                       # bulkheads + the FSD
+        # SLEF (what EDSY and Coriolis export): a Loadout event wrapped in [{header, data}]
+        slef = json.dumps([{"header": {"appName": "EDSY"}, "data": {"Ship": "smallcombat01_nx", "ShipName": "Slef Kestrel", "Modules": [
+            {"Slot": "PowerPlant", "Item": "Int_PowerPlant_Size5_Class5", "Engineering": {"BlueprintName": "PowerPlant_Armoured", "Level": 4, "ExperimentalEffect": "special_powerplant_cooled"}}]}}])
+        r = self.call("pin_build", url=slef)
+        self.assertEqual((r["pinned"]["source"], r["pinned"]["name"]), ("slef", "Slef Kestrel"))
+        pp = r["progress"]["slots"][0]
+        self.assertEqual((pp["target"], pp["blueprint"], pp["grade"], pp["experimental"]), ("5A Power Plant", "Armoured", 4, "Thermal Spread"))
+        self.call("unpin_build")
 class JournalDockingTests(unittest.TestCase):
     def test_location_undocked_clears_previous_station(self):
         core = make_core()

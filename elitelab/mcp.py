@@ -10,13 +10,16 @@ Run:  python -m elitelab mcp            (ELITELAB_URL defaults to http://127.0.0
 import json
 import os
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 
 from . import __version__
 
 BASE = os.environ.get("ELITELAB_URL", "http://127.0.0.1:8766").rstrip("/")
-PROTOCOL = "2024-11-05"
+# Versions whose initialize/stdio/tools contract this server implements.
+SUPPORTED_PROTOCOLS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")
+PROTOCOL = SUPPORTED_PROTOCOLS[-1]
 
 
 def _http(method, path, params=None, body=None):
@@ -25,8 +28,18 @@ def _http(method, path, params=None, body=None):
         url += "?" + urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})
     data = json.dumps(body).encode("utf-8") if body is not None else None
     req = urllib.request.Request(url, data=data, method=method, headers={"Content-Type": "application/json", "User-Agent": "EliteLab-MCP"})
-    with urllib.request.urlopen(req, timeout=90) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    if os.environ.get("ELITELAB_AUTH_TOKEN"):
+        req.add_header("Authorization", "Bearer " + os.environ["ELITELAB_AUTH_TOKEN"])
+    try:
+        with urllib.request.urlopen(req, timeout=90) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as ex:
+        # surface the lab's own message ({"error": "..."}) instead of "HTTP Error 400: Bad Request"
+        try:
+            detail = json.loads(ex.read().decode("utf-8")).get("error")
+        except Exception:
+            detail = None
+        raise RuntimeError(detail or f"HTTP {ex.code} from {path}") from None
 
 
 _tool_cache = {}
@@ -81,7 +94,8 @@ def serve():
             continue            # a response or a malformed message; never answer those
         try:
             if method == "initialize":
-                _reply(msg_id, {"protocolVersion": PROTOCOL, "capabilities": {"tools": {}},
+                requested = params.get("protocolVersion")
+                _reply(msg_id, {"protocolVersion": requested if requested in SUPPORTED_PROTOCOLS else PROTOCOL, "capabilities": {"tools": {}},
                                 "serverInfo": {"name": "elitelab", "version": __version__},
                                 "instructions": ("EliteLab exposes the commander's live Elite Dangerous state. Start with "
                                                  "get_commander_state for where they are and what they fly, get_powerplay_status "

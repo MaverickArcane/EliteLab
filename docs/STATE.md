@@ -15,7 +15,8 @@ Conventions: `null` means unknown/not yet seen. Timestamps are the journal's ISO
 | `cargo_capacity` | int | `Loadout.CargoCapacity` | cargo card, targets (not yet) |
 | `jump_range` | float | `Loadout.MaxJumpRange` (unladen) | targets/combat jump estimates |
 | `ship_info` | dict | `Loadout` | ship card |
-| `ship_info.*` | `type, internal, id, name, ident, hull_value, modules_value, rebuy, hull_health (0..1), unladen_mass, cargo_capacity, max_jump_range, fuel_main, fuel_reserve, hot, module_count, core[{slot,item,engineering,level}], hardpoints[{slot,item}]` | | |
+| `ship_info.*` | `type, internal, id, name, ident, hull_value, modules_value, rebuy, hull_health (0..1), unladen_mass, cargo_capacity, max_jump_range, fuel_main, fuel_reserve, hot, module_count, core[{slot,item,engineering,level}], hardpoints[{slot,item}], modules[{slot, item (lower case), on, priority, health, engineering{blueprint, level, quality, experimental, engineer} | null}]` (cosmetic slots dropped) | | build module reads `modules` |
+| `ship_internal` | str lower-case hull id (`smallcombat01_nx`) | `Loadout` | build module (same ship as the pinned build?) |
 | `system` | str | `Location`, `FSDJump`, `CarrierJump`, `Docked` | everything |
 | `star_pos` | [x,y,z] | `Location`, `FSDJump`, `CarrierJump` | loop distances, map ship marker |
 | `station`, `station_type` | str or null | `Docked`, `Undocked`, `Location.Docked` | location card |
@@ -112,8 +113,49 @@ Client-side manual overrides live in `localStorage.loopManual` as `{system: {don
 | `wishlist` | `{key: {name, need, label}}` |
 | `shortfalls` | rows for wishlist entries: `{key, name, category, grade, cap, count, need, label, short}` |
 | `inventory_count` | int distinct materials |
+| `inventory_version` | int, bumped on every inventory change; wishlist and build recompute on `state.materials.inventory_version` and read the counts through the `get_material_inventory` tool (the dict itself stays out of the store so it is not sent over SSE on every pickup) |
 
 `GET /api/materials` returns rows for every material in inventory or on the wishlist with the same row shape.
+
+## recipes (module: recipes)
+
+| Key | Type |
+|---|---|
+| `blueprints`, `experimentals` | int counts of the tables in `elitelab/core/engineering.json` |
+| `rolls_per_grade` | `{1: 1, 2: 2, 3: 3, 4: 4, 5: 5}` planning hint |
+| `modules`, `engineers` | sorted distinct names, for the card's filter selects |
+
+The tables themselves are served by `/api/recipes` and `/api/recipes/get`, never pushed over SSE.
+
+## wishlist (module: wishlist)
+
+| Key | Type |
+|---|---|
+| `entries` | `[{id, kind (blueprint/experimental/unlock/material/build), key, name, module, grade, from_grade, qty, rolls, label, added, commodities?, broker?, materials, units, short, complete}]`; a `build` entry's needs are `build.progress.materials` |
+| `needs` | `[{key, name, category, grade, family, cap, have, need, short}]`, short first |
+| `summary` | `{entries, materials, short, units_short, complete}` |
+| `trades` | `{trades[{category, ratio, same_family, give{key,name,grade,qty}, get{...}}], by_trader{type: {trades, give, get}}, unresolved[{key,name,grade,category,short,note?}], covered, reserve, note}` |
+| `updated` | ISO timestamp of the last recompute |
+
+Raw entries persist in `data/engineering_wishlist.json`; everything else is recomputed from the materials inventory (via `get_material_inventory`) on `state.materials.inventory_version` and `state.build.progress`. The card keeps a client-only `wishlist_ui.traders` with the last `find_material_traders` result.
+
+## farming (module: farming)
+
+| Key | Type |
+|---|---|
+| `sites` | `[{id, name, system, body, type, category, materials[keys], material_names[], surface[lat, lon], how, notes, coords{x,y,z}, dist, jumps, covers[names]}]`, nearest first; entries without a system are methods |
+| `coords_ready` | bool, EDSM coordinates cached in `data/farm_coords.json` |
+
+Recomputed on `state.journal.star_pos` (distances) and `state.wishlist.needs` (`covers` = wishlist shortfalls the site supplies).
+
+## build (module: build)
+
+| Key | Type |
+|---|---|
+| `pinned` | `{url, source (edsy | coriolis | slef), hash, name, ship, ship_fdname, slots, pinned_at}` or null; persisted in `data/build.json` |
+| `progress` | null, or `{same_ship, current_ship, target_ship, slots[...], totals{slots, ok, fitted, to_buy, to_engineer, engineering_total, engineering_done, credits}, percent{fitted, engineered, materials, overall}, materials[{key, name, category, grade, have, need, short}], materials_short, wishlist_items[{item, grade, from_grade, qty}], not_in_build[{slot, item}], note}` |
+
+`progress.slots[]`: `{group, slot, item, target, blueprint, grade, experimental, status (ok | engineer | buy), todo[], materials[{key, name, count}], current{slot, item, blueprint, level, experimental} | null, credits}`. Recomputed on `state.journal.ship_info` and `state.materials.inventory_version`.
 
 ## map (module: map)
 
@@ -124,6 +166,8 @@ Client-side manual overrides live in `localStorage.loopManual` as `{system: {don
 ## Client-only runtime state (web/app.js)
 
 - `Lab.coords`: `{systemName: {x,y,z}}` fetched for the carrier system and loop systems.
-- `localStorage.layout.v1`: `{order[ids], spans{id: n}, hidden[ids], collapsed[ids], locked}`.
+- `localStorage.layout.v1`: `{order[ids], spans{id: n}, heights{id: px}, hidden[ids], collapsed[ids], locked, pack}` (`pack` = dense packing, default true; `heights` caps a card's body height).
+- `localStorage.farming.filter`: the farm sites card's filter, category and shortfall checkbox.
+- `wishlist_ui` (client-only): `{traders, preselect{key, kind, module, at}}`.
 - `localStorage.layouts.v1`: `{name: layout}` saved layouts.
 - `localStorage.loopManual`: see loop.

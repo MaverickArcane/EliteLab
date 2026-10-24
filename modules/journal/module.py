@@ -51,7 +51,19 @@ FEED = {
 }
 
 
+from elitelab.core.builds import COSMETIC as COSMETIC_SLOTS      # one list, shared with the build comparison
+
+
 class Journal:
+    @staticmethod
+    def _module(m):
+        """One Loadout module for ship_info.modules: journal slot, lower-case item, power state and engineering."""
+        eng = m.get("Engineering") or {}
+        return {"slot": m.get("Slot"), "item": (m.get("Item") or "").lower(), "on": m.get("On"), "priority": m.get("Priority"),
+                "health": m.get("Health"),
+                "engineering": ({"blueprint": eng.get("BlueprintName"), "level": eng.get("Level"), "quality": eng.get("Quality"),
+                                 "experimental": eng.get("ExperimentalEffect"), "engineer": eng.get("Engineer")} if eng else None)}
+
     def __init__(self, core):
         self.core = core
         self.st = {
@@ -76,6 +88,8 @@ class Journal:
     def push(self, keys=None):
         data = self.st if keys is None else {k: self.st[k] for k in keys}
         self.core.store.update(NS, data)
+        if keys is None or set(keys) & {"cargo", "system", "docked", "star_pos"}:
+            self.core.bus.emit("state.journal.location", None)
 
     # -- ship names -----------------------------------------------------------
     def _learn(self, internal, display):
@@ -124,6 +138,7 @@ class Journal:
             changed |= {"cmdr", "credits", "ship", "ship_name", "ship_ident"}
         elif e == "Loadout":
             self._learn(ev.get("Ship"), ev.get("Ship_Localised"))
+            st["ship_internal"] = (ev.get("Ship") or "").lower()
             self._ship_internal = ev.get("Ship"); st["ship"] = ev.get("Ship_Localised") or self.ship_name(ev.get("Ship"))
             st["ship_name"] = ev.get("ShipName"); st["ship_ident"] = ev.get("ShipIdent")
             st["cargo_capacity"] = ev.get("CargoCapacity"); st["jump_range"] = ev.get("MaxJumpRange")
@@ -139,8 +154,10 @@ class Journal:
                           "level": (m.get("Engineering") or {}).get("Level")} for m in mods
                          if m.get("Slot") in ("PowerPlant", "MainEngines", "FrameShiftDrive", "LifeSupport", "PowerDistributor", "Radar", "FuelTank", "Armour")],
                 "hardpoints": [{"slot": m.get("Slot"), "item": m.get("Item")} for m in mods if (m.get("Slot") or "").startswith(("Small", "Medium", "Large", "Huge", "Tiny"))],
+                # every functional module with its engineering, for the build module; cosmetics and fixed fittings dropped
+                "modules": [self._module(m) for m in mods if not (m.get("Slot") or "").startswith(COSMETIC_SLOTS)],
             }
-            changed |= {"ship", "ship_name", "ship_ident", "cargo_capacity", "jump_range", "ship_info"}
+            changed |= {"ship", "ship_name", "ship_ident", "cargo_capacity", "jump_range", "ship_info", "ship_internal"}
         elif e in ("Location", "FSDJump", "CarrierJump"):
             st["system"] = ev.get("StarSystem"); st["star_pos"] = ev.get("StarPos")
             st["system_power"] = ev.get("ControllingPower"); st["system_power_state"] = ev.get("PowerplayState")
