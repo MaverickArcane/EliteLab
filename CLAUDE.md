@@ -1,6 +1,6 @@
 # Agent guide to this repository
 
-Read this first. It is written for an AI assistant (or a human) landing in this repo cold. Everything here is current as of 0.4.0.
+Read this first. It is written for an AI assistant (or a human) landing in this repo cold. Everything here is current as of 0.5.0.
 
 ## What this is
 

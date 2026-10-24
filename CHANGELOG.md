@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 (2026-10-24)
 
 - Jump range now and laden (issue 4): computed from the FSD, its engineered optimal mass, fuel and cargo; the ship card shows now / laden / max and every jump estimate (targets, combat, farm sites, traders) uses the current range.
 - Rare goods table is the full FDevIDs list of 142 with origin market ids (issue 15); five wrong community slugs dropped.
