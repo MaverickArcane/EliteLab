@@ -11,7 +11,7 @@
           <select id="rc-kind"><option value="">blueprints, effects, unlocks</option><option value="blueprint">blueprints only</option><option value="experimental">experimental effects only</option><option value="unlock">tech broker unlocks only</option></select>
           <select id="rc-eng"><option value="">any engineer</option></select><button class="mini" id="rc-reset">reset</button></div>
         <div class="rc-results"></div>
-        <div class="note">Reference only: click a recipe for its materials per grade and who offers it. "+ wishlist" sends it to the Engineering wishlist card, where you pick the grades and quantity.</div>`;
+        <div class="note">Click a recipe for its materials per grade and who offers it. "add to wishlist" adds an effect or unlock right away; blueprints go to the Engineering wishlist card first so you can pick the from/to grades.</div>`;
       const q = el.querySelector('#rc-q'), res = el.querySelector('.rc-results');
       const sel = { module: el.querySelector('#rc-module'), kind: el.querySelector('#rc-kind'), engineer: el.querySelector('#rc-eng') };
       const search = async () => {
@@ -21,7 +21,7 @@
           const r = await Lab.api('/api/recipes', params);
           res.innerHTML = r.count ? `<table><tbody>` + r.results.map(h => `<tr><td><a href="#" class="rc-open" data-key="${esc(h.key)}">${esc(h.module)}: ${esc(h.name)}</a>
             <span class="muted">${h.kind === 'blueprint' ? (h.engineer_grade ? `G1-${h.engineer_grade} here, G${h.max_grade} max` : `G1-${h.max_grade}`) : h.kind === 'unlock' ? `${esc(h.broker || '')} tech broker` : 'experimental'}</span></td>
-            <td class="num"><button class="mini rc-add" data-key="${esc(h.key)}" data-kind="${esc(h.kind)}" data-module="${esc(h.module)}" title="pick grades and quantity in the wishlist card">+ wishlist</button></td></tr><tr class="rc-detail" data-for="${esc(h.key)}" style="display:none"><td colspan="2"></td></tr>`).join('') + `</tbody></table>` +
+            <td class="num"><button class="mini rc-add" data-key="${esc(h.key)}" data-kind="${esc(h.kind)}" data-module="${esc(h.module)}" title="${h.kind === 'blueprint' ? 'selects it in the wishlist card, where you pick from/to grade and quantity' : 'adds one to the engineering wishlist now'}">${h.kind === 'blueprint' ? 'pick grades in wishlist' : 'add to wishlist'}</button></td></tr><tr class="rc-detail" data-for="${esc(h.key)}" style="display:none"><td colspan="2"></td></tr>`).join('') + `</tbody></table>` +
             (r.count > 60 ? `<div class="muted">${r.count} matches, showing 60; narrow it down</div>` : `<div class="muted">${r.count} match${r.count === 1 ? '' : 'es'}</div>`) : `<div class="muted">no match</div>`;
         } catch (e) { res.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
       };
@@ -49,11 +49,21 @@
             }
           } catch (e) { cell.innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
         } else if (add) {
-          // hand over to the wishlist card's picker (client-only namespace); it selects the recipe and the user sets grades and qty there
+          if (add.dataset.kind !== 'blueprint') {
+            // effects, unlocks: nothing to choose, add one now (the module filter, if set, says which module the effect is for)
+            try {
+              const body = { item: add.dataset.key, kind: add.dataset.kind, qty: 1 };
+              if (add.dataset.kind === 'experimental' && sel.module.value) body.module = sel.module.value;
+              const r = await Lab.post('/api/wishlist/add', body);
+              Lab.toast(`Added to the wishlist: ${r.entry.module ? r.entry.module + ' ' : ''}${r.entry.name}`);
+            } catch (e) { Lab.toast(e.message, 'bad'); }
+            return;
+          }
+          // blueprints need from/to grades: hand over to the wishlist card's picker (client-only namespace) and say so
           Lab.set('wishlist_ui', { preselect: { key: add.dataset.key, kind: add.dataset.kind, module: add.dataset.module, at: Date.now() } });
           const card = document.getElementById('card-wishlist');
-          if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); Lab.toast('Selected in the Engineering wishlist card; pick grades and quantity there'); }
-          else Lab.toast('Show the Engineering wishlist card (Layout menu) to add recipes', 'bad');
+          if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); Lab.toast('Not added yet: it is selected in the Engineering wishlist card. Set from/to grade and quantity there, then press add.'); }
+          else Lab.toast('Show the Engineering wishlist card (Layout menu) to add blueprints', 'bad');
         }
       };
     },
