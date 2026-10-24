@@ -236,9 +236,9 @@ Routes: `/api/wishlist` -> `get_engineering_wishlist` (`reserve`); `POST /api/wi
 
 `Farming(core)`: `sites.json` (`{sites: [{id, name, system, body, type, category, materials[keys], surface, how, notes}]}`; sites with `system: null` are methods such as High Grade Emissions by state). System coordinates come from a `CoordCache` (see core/coords.py) cached in `data/farm_coords.json`. `rows(material, category, type_, max_dist, for_wishlist)` filters, adds `dist`/`jumps` from `journal.star_pos` and `covers` (wishlist shortfalls the site supplies, from `wishlist.needs`), nearest first with method entries last. Publishes on `state.journal.star_pos`, `state.wishlist.needs` and replay done.
 
-Route: `/api/farming` -> `find_farm_sites` (`material`, `category`, `type`, `max_dist`, `for_wishlist`, `limit`).
+Routes: `/api/farming` -> `find_farm_sites` (`material`, `category`, `type`, `max_dist`, `for_wishlist`, `limit`); `/api/farming/systems` -> `find_hge_systems` (`site` = an HGE entry id whose `spansh` query in sites.json gives the controlling-faction states and/or allegiance, or `state` / `allegiance` directly; `ref`, `min_pop` default 1,000,000, `limit`). Uses `services.spansh_systems()` (population, `controlling_minor_faction_state`, `allegiance` filters, nearest first, 30 min cache).
 
-`web/card.js`: text filter, category select and an "only my shortfalls" checkbox (remembered in `localStorage.farming.filter`), expandable how-to per site, copy/Inara buttons, and a `farming` map layer (off by default) with sites that cover a shortfall drawn red.
+`web/card.js`: text filter, category select and an "only my shortfalls" checkbox (remembered in `localStorage.farming.filter`), expandable how-to per site, copy/Inara buttons, a "find systems" button on HGE entries (result kept per site in the client-only `farming_ui.systems`), and a `farming` map layer (off by default) with sites that cover a shortfall drawn red.
 
 ## modules/build/module.py
 

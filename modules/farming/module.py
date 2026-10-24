@@ -67,8 +67,56 @@ class Farming:
             self.core.log.warning("farming: publish failed: %s", ex)
 
 
+STATES = ["Boom", "Civil Unrest", "War", "Civil War", "Outbreak", "Expansion", "Election", "Investment", "None"]
+ALLEGIANCES = ["Empire", "Federation", "Alliance", "Independent"]
+
+
 def setup(core, module):
     f = Farming(core)
+
+    def systems(q):
+        """Nearest populated systems whose controlling faction state / allegiance match: where High Grade Emissions for a
+        given material spawn. Spansh data, so a few hours old; confirm the state on the galaxy map before relogging."""
+        site = next((s for s in f.sites if s["id"] == q.get("site")), None) if q.get("site") else None
+        query = dict((site or {}).get("spansh") or {})
+        if q.get("state"):
+            query["state"] = [s.strip() for s in str(q["state"]).split(",") if s.strip()]
+        if q.get("allegiance"):
+            query["allegiance"] = [str(q["allegiance"]).strip()]
+        if not query:
+            raise ValueError("give a site id (an HGE entry from find_farm_sites), a state, or an allegiance")
+        bad = [s for s in query.get("state", []) if s not in STATES]
+        if bad:
+            raise ValueError(f"unknown state {bad}; use {STATES}")
+        ref = q.get("ref") or core.store.get("journal", "system") or "Sol"
+        limit = max(1, min(int(q.get("limit", 8) or 8), 30))
+        min_pop = int(q.get("min_pop", 1000000) or 0)
+        filters = {"population": {"comparison": "<=>", "value": [min_pop, 100000000000]}}
+        if query.get("state"):
+            filters["controlling_minor_faction_state"] = {"value": query["state"]}
+        if query.get("allegiance"):
+            filters["allegiance"] = {"value": query["allegiance"]}
+        jr = core.store.get("journal", "jump_range_now") or core.store.get("journal", "jump_range")
+        d = core.services.spansh_systems(filters, ref, size=limit, ttl=1800)
+        rows = [{"system": s.get("name"), "dist": round(s.get("distance", 0), 1), "jumps": (math.ceil(s.get("distance", 0) / jr) if jr else None),
+                 "population": s.get("population"), "state": s.get("controlling_minor_faction_state"), "allegiance": s.get("allegiance"),
+                 "government": s.get("government"), "economy": s.get("primary_economy"), "updated": s.get("updated_at"),
+                 "x": s.get("x"), "y": s.get("y"), "z": s.get("z")} for s in d.get("results", [])]
+        return {"site": (site or {}).get("id"), "materials": [gd.material_name(k) for k in (site or {}).get("materials", [])], "query": query,
+                "ref": ref, "count": d.get("count"), "systems": rows,
+                "note": "Controlling-faction state and allegiance from Spansh (hours old). HGE spawn in populated systems; bigger "
+                        "populations spawn more signals. Check the state on the galaxy map before you relog-farm."}
+
+    core.http.route("/api/farming/systems", systems, tool="find_hge_systems", module=module.name,
+                    description="Nearest populated systems where High Grade Emissions for a material would spawn: pass the HGE site id "
+                                "from find_farm_sites (hge-boom, hge-war, hge-empire...) or a state/allegiance directly. Returns systems "
+                                "with distance, jumps, population, controlling faction state and allegiance (Spansh data).",
+                    params={"site": {"type": "string", "description": "HGE site id from find_farm_sites, e.g. hge-boom"},
+                            "state": {"type": "string", "description": "Controlling faction state(s), comma-separated", "enum": STATES},
+                            "allegiance": {"type": "string", "description": "Superpower allegiance", "enum": ALLEGIANCES},
+                            "ref": {"type": "string", "description": "Reference system; default = current system"},
+                            "min_pop": {"type": "integer", "description": "Minimum population", "default": 1000000},
+                            "limit": {"type": "integer", "description": "Max systems (<=30)", "default": 8}})
 
     def find(q):
         limit = max(1, min(int(q.get("limit", 30) or 30), 100))

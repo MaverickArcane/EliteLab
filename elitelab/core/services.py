@@ -69,6 +69,11 @@ class Services:
         body = {"filters": filters, "sort": [{sort: {"direction": "asc"}}], "size": size, "page": 0, "reference_system": ref}
         return self.fetch_json(SPANSH_STATIONS, body, ttl=ttl)
 
+    def spansh_systems(self, filters, ref, size=10, sort="distance", ttl=None):
+        """Spansh system search (filters such as allegiance, population, controlling_minor_faction_state), nearest ``ref`` first."""
+        body = {"filters": filters, "sort": [{sort: {"direction": "asc"}}], "size": size, "page": 0, "reference_system": ref}
+        return self.fetch_json(SPANSH_SYSTEMS, body, ttl=ttl)
+
     def spansh_system(self, name):
         d = self.fetch_json(SPANSH_SYSTEMS, {"filters": {"name": {"value": name}}, "size": 1, "page": 0})
         r = (d.get("results") or [None])[0]

@@ -43,6 +43,7 @@ python -m elitelab call set_wishlist items='{"Datamined Wake Exceptions": 15}' l
 | `get_engineering_wishlist`, `wishlist_add`, `wishlist_remove` | Track blueprints ("2x g5 fsd increased range"), effects and materials against live inventory |
 | `plan_material_trades`, `find_material_traders` | Which trader exchanges cover the shortfalls from current surplus, and the nearest traders by type |
 | `find_farm_sites` | Where to farm a material: known sites with system, body, surface coordinates and method, nearest first; `for_wishlist=true` for the current shortfalls |
+| `find_hge_systems` | Nearest populated systems in the state or allegiance a High Grade Emissions material needs (Boom, War, Outbreak, Empire...) |
 | `pin_build`, `get_build_progress`, `build_to_wishlist`, `unpin_build` | Pin an EDSY link; what the current ship still needs to match it (buy, engineer, materials, credits); push the engineering to the wishlist |
 | `get_travel_history` | Systems visited, route, star classes |
 | `get_system_coords` | Coordinates |

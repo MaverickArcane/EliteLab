@@ -170,5 +170,6 @@ Recomputed on `state.journal.star_pos` (distances) and `state.wishlist.needs` (`
 - `localStorage.layout.v1`: `{order[ids], spans{id: n}, heights{id: px}, hidden[ids], collapsed[ids], locked, pack}` (`pack` = dense packing, default true; `heights` caps a card's body height).
 - `localStorage.farming.filter`: the farm sites card's filter, category and shortfall checkbox.
 - `wishlist_ui` (client-only): `{traders, preselect{key, kind, module, at}}`.
+- `farming_ui` (client-only): `{systems{site id: 'loading' | find_hge_systems result | {error}}}`.
 - `localStorage.layouts.v1`: `{name: layout}` saved layouts.
 - `localStorage.loopManual`: see loop.

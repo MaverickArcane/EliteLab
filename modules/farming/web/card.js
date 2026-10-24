@@ -3,7 +3,7 @@
   const { esc, fmt, inaraSys, ls } = Lab.util;
   const KEY = 'farming.filter';
   Lab.card({
-    id: 'farming', requires: ['farming', 'wishlist'],
+    id: 'farming', requires: ['farming', 'wishlist', 'farming_ui'],
     mount(el) {
       const saved = ls.get(KEY) || {};
       el.innerHTML = `<div class="row"><input id="fm-q" placeholder="material or site, e.g. tellurium, jameson" size="26" value="${esc(saved.q || '')}">
@@ -13,10 +13,27 @@
         <div class="note">Community-documented sites, nearest first; entries without a system are methods. Lat/long is where to land. Ask your AI: "where do I farm tellurium" and it calls find_farm_sites.</div>`;
       const rerender = () => { ls.set(KEY, { q: el.querySelector('#fm-q').value, cat: el.querySelector('#fm-cat').value, short: el.querySelector('#fm-short').checked }); Lab.emit('farming'); };
       el.querySelector('#fm-q').oninput = rerender; el.querySelector('#fm-cat').onchange = rerender; el.querySelector('#fm-short').onchange = rerender;
-      el.onclick = e => { const t = e.target.closest('.fm-more'); if (t) { e.preventDefault(); const d = t.closest('.fm-site').querySelector('.fm-how'); d.style.display = d.style.display === 'none' ? '' : 'none'; } };
+      el.onclick = async e => {
+        const t = e.target.closest('.fm-more'); if (t) { e.preventDefault(); const d = t.closest('.fm-site').querySelector('.fm-how'); d.style.display = d.style.display === 'none' ? '' : 'none'; return; }
+        const b = e.target.closest('.fm-systems');
+        if (b) {
+          const id = b.dataset.site, found = { ...(Lab.get('farming_ui', 'systems') || {}) };
+          found[id] = 'loading'; Lab.set('farming_ui', { systems: found });
+          try { found[id] = await Lab.api('/api/farming/systems', { site: id }); } catch (err) { found[id] = { error: err.message }; }
+          Lab.set('farming_ui', { systems: { ...found } });
+        }
+      };
     },
     render(el, S) {
-      const F = S.farming || {}; const q = (el.querySelector('#fm-q').value || '').trim().toLowerCase(), cat = el.querySelector('#fm-cat').value, onlyShort = el.querySelector('#fm-short').checked;
+      const F = S.farming || {}, found = (S.farming_ui || {}).systems || {}; const q = (el.querySelector('#fm-q').value || '').trim().toLowerCase(), cat = el.querySelector('#fm-cat').value, onlyShort = el.querySelector('#fm-short').checked;
+      const systemsHtml = s => {
+        if (!s.spansh) return '';
+        const r = found[s.id];
+        if (!r) return ` <button class="mini fm-systems" data-site="${esc(s.id)}" title="nearest populated systems in this state, from Spansh">find systems</button>`;
+        if (r === 'loading') return ' <span class="muted">looking up systems</span>';
+        if (r.error) return ` <span class="bad">${esc(r.error)}</span> <button class="mini fm-systems" data-site="${esc(s.id)}">retry</button>`;
+        return `<table style="margin:4px 0"><tbody>${(r.systems || []).map(x => `<tr><td><b>${esc(x.system)}</b> <button class="mini" data-copy="${esc(x.system)}">copy</button> <a href="${inaraSys(x.system)}" target="_blank">Inara</a></td><td class="muted">${esc(x.state || '')}${x.allegiance ? ', ' + esc(x.allegiance) : ''}, pop ${fmt(x.population)}</td><td class="num">${fmt(x.dist)} Ly${x.jumps ? ` <span class="muted">~${x.jumps} j</span>` : ''}</td></tr>`).join('') || `<tr><td class="muted">none within Spansh's data</td></tr>`}</tbody></table><div class="muted">from ${esc(r.ref)}; Spansh states are hours old, check the galaxy map</div>`;
+      };
       const words = q.split(/\s+/).filter(Boolean);
       const rows = (F.sites || []).filter(s => (!cat || s.category === cat) && (!onlyShort || s.covers.length) &&
         words.every(w => (s.name + ' ' + (s.system || '') + ' ' + s.type + ' ' + s.material_names.join(' ')).toLowerCase().includes(w)));
@@ -25,6 +42,7 @@
             ${s.system ? ` <button class="mini" data-copy="${esc(s.system)}">copy</button> <a href="${inaraSys(s.system)}" target="_blank">Inara</a>` : ''} <a href="#" class="fm-more muted">how</a></div>
           <div>${s.material_names.length ? s.material_names.map(m => `<span class="tag${s.covers.includes(m) ? ' bad' : ''}">${esc(m)}</span>`).join(' ') : '<span class="muted">low and mid grade raws</span>'}</div>
           <div class="fm-how muted" style="display:none">${s.body ? `<b>${esc(s.system)} ${esc(s.body)}</b>${s.surface ? ` at ${s.surface[0]}, ${s.surface[1]}` : ''}. ` : ''}${esc(s.how)}${s.notes ? ` ${esc(s.notes)}` : ''}</div>
+          ${systemsHtml(s)}
         </div>`).join('') : `<div class="muted" style="margin-top:8px">${onlyShort ? 'No known site covers a current shortfall (or the wishlist is empty).' : 'No site matches.'}</div>`;
     },
   });

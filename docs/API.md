@@ -221,6 +221,19 @@ Nearest material traders by type (Spansh), default from the current system and o
 | `limit` | integer | Traders per type (<=10) (default `3`) |
 | `pad` | string | L = large pads only (one of `L`) |
 
+## `find_hge_systems`  -  `GET /api/farming/systems`  -  module: farming
+
+Nearest populated systems where High Grade Emissions for a material would spawn: pass the HGE site id from find_farm_sites (hge-boom, hge-war, hge-empire...) or a state/allegiance directly. Returns systems with distance, jumps, population, controlling faction state and allegiance (Spansh data).
+
+| Parameter | Type | Description |
+|---|---|---|
+| `site` | string | HGE site id from find_farm_sites, e.g. hge-boom |
+| `state` | string | Controlling faction state(s), comma-separated (one of `Boom`, `Civil Unrest`, `War`, `Civil War`, `Outbreak`, `Expansion`, `Election`, `Investment`, `None`) |
+| `allegiance` | string | Superpower allegiance (one of `Empire`, `Federation`, `Alliance`, `Independent`) |
+| `ref` | string | Reference system; default = current system |
+| `min_pop` | integer | Minimum population (default `1000000`) |
+| `limit` | integer | Max systems (<=30) (default `8`) |
+
 ## `find_farm_sites`  -  `GET /api/farming`  -  module: farming
 
 Where to farm engineering materials: community-known sites (crystalline shards and brain trees for G4 raw, Dav's Hope for manufactured, Jameson Crash Site for encoded, Guardian structures) and methods (High Grade Emissions by system state, wake and ship scans), with system, body, surface coordinates and how-to, nearest to the ship first. Filter by material to answer 'where do I get X'; for_wishlist=true returns only sites that supply a current wishlist shortfall.
