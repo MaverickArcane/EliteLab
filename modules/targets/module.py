@@ -31,7 +31,7 @@ def setup(core, module):
         if dmin or dmax:
             filters["distance"] = {"min": str(dmin or 0), "max": str(dmax or 500)}
         data = svc.spansh_stations(filters, ref, size=min(int(q.get("limit", 40) or 40), 100))
-        jr = core.store.get("journal", "jump_range")
+        jr = core.store.get("journal", "jump_range_now") or core.store.get("journal", "jump_range")   # current fuel and cargo when known
         # Rares currently aboard: a station only buys a rare if it appears in its market list (Spansh mirrors that list).
         hold_rares = [i.get("name") for i in ((core.store.get("journal", "cargo") or {}).get("items") or []) if i.get("rare")]
         results = []
@@ -48,7 +48,7 @@ def setup(core, module):
             })
         out = {"count": data.get("count"), "results": results, "ref": ref, "power": power, "min": dmin, "max": dmax, "pad": pad,
                "jump_range": jr, "hold_rares": hold_rares,
-               "jumps_note": "jumps = ceil(distance / max unladen jump range); a laden ship needs more",
+               "jumps_note": "jumps = ceil(distance / jump range with the current fuel and cargo, else the unladen maximum)",
                "refuses_note": "refuses = rares in your hold that this station's last known market did not list (it will not buy them)"}
         core.store.set(NS, "last", out)
         return out

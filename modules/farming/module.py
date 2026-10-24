@@ -33,7 +33,7 @@ class Farming:
     # -- rows ---------------------------------------------------------------------
     def rows(self, material=None, category=None, type_=None, max_dist=None, for_wishlist=False):
         pos = self.core.store.get("journal", "star_pos")
-        jr = self.core.store.get("journal", "jump_range")
+        jr = self.core.store.get("journal", "jump_range_now") or self.core.store.get("journal", "jump_range")
         short = {r["key"] for r in (self.core.store.get("wishlist", "needs") or []) if r.get("short")}
         want = None
         if material:

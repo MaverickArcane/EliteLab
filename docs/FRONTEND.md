@@ -80,6 +80,10 @@ Presets are plain objects `{order, spans, hidden}` in `PRESETS` in app.js. Cards
 
 UI health: a `requestAnimationFrame` loop records the worst frame gap every 2 s; above 120 ms the footer shows "UI stalled N ms" in red. Note Chrome throttles rAF to 1 Hz in background tabs, so a stall right after switching back to the tab is expected.
 
+## Notifications
+
+A block at the end of app.js subscribes to `journal`, `powerplay` and `loop` and toasts on transitions only (the first render arms it without replaying history): new feed entries for `Interdicted`, `Died`, `CarrierJumpRequest`, `CarrierJump`, `CarrierJumpCancelled`; `powerplay.session_merits` increasing ("+N merits"); `loop.complete` going false to true; fuel (`journal.status.fuel` over `ship_info.fuel_main`) crossing below 25 percent. The "sound" checkbox in the layout menu (`localStorage.notify.sound`) adds a short Web Audio beep; the audio context is created on that click because browsers require a gesture.
+
 ## Map layers
 
 The map card (`modules/map/web/card.js`) draws every registered layer. Register from any card script:

@@ -272,7 +272,7 @@
   function renderMenu() {
     const saved = savedLayouts();
     menu.innerHTML = `
-      <div class="menu-row"><label><input type="checkbox" id="lm-lock" ${layout.locked ? 'checked' : ''}> lock</label><label title="let smaller cards move up to fill gaps left by wide ones"><input type="checkbox" id="lm-pack" ${layout.pack !== false ? 'checked' : ''}> fill gaps</label><button class="mini" id="lm-export">export</button><button class="mini" id="lm-import">import</button></div>
+      <div class="menu-row"><label><input type="checkbox" id="lm-lock" ${layout.locked ? 'checked' : ''}> lock</label><label title="let smaller cards move up to fill gaps left by wide ones"><input type="checkbox" id="lm-pack" ${layout.pack !== false ? 'checked' : ''}> fill gaps</label><label title="beep with alerts (merits, low fuel, interdiction, carrier jump)"><input type="checkbox" id="lm-sound" ${Lab.notifySound && Lab.notifySound() ? 'checked' : ''}> sound</label><button class="mini" id="lm-export">export</button><button class="mini" id="lm-import">import</button></div>
       <div class="menu-sec">Presets</div>
       <div class="menu-chips">${Object.keys(PRESETS).map(n => `<button class="mini" data-preset="${esc(n)}">${esc(n)}</button>`).join('')}</div>
       <div class="menu-sec">Saved layouts</div>
@@ -283,6 +283,7 @@
       <div class="muted" style="font-size:11px;margin-top:6px">Drag a title bar to move. Drag the corner sideways for width, downwards to cap a card's height (it scrolls inside); double-click the corner to reset or go full width. The grid fills the window (${cols} columns now). Everything here is saved in this browser.</div>`;
     menu.querySelector('#lm-lock').onchange = e => { layout.locked = e.target.checked; saveLayout(); grid.classList.toggle('locked', layout.locked); };
     menu.querySelector('#lm-pack').onchange = e => { layout.pack = e.target.checked; saveLayout(); grid.classList.toggle('dense', layout.pack); Lab.relayout(); };
+    menu.querySelector('#lm-sound').onchange = e => { if (Lab.notifySoundToggle) Lab.notifySoundToggle(e.target.checked); };
     menu.querySelector('#lm-export').onclick = () => { Lab.util.copy(JSON.stringify(layout)); Lab.toast('Layout JSON copied to clipboard'); };
     menu.querySelector('#lm-import').onclick = () => { const s = prompt('Paste layout JSON'); if (!s) return; try { applyLayout(JSON.parse(s), 'imported'); } catch (e) { Lab.toast('Invalid layout JSON', 'bad'); } };
     menu.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => applyLayout(PRESETS[b.dataset.preset](), b.dataset.preset));
@@ -299,6 +300,48 @@
     setInterval(() => { if (!el) return; el.textContent = worst > 120 ? ` · UI stalled ${Math.round(worst)} ms` : ''; el.className = worst > 120 ? 'bad' : 'muted'; worst = 0; }, 2000); })();
   document.addEventListener('click', e => { if (!e.target.closest('#layout-menu, #layout-btn')) menu.classList.remove('open'); });
   addEventListener('resize', () => Lab.relayout());
+
+  // ------------------------------------------------------------------ notifications (issue 5)
+  // Toasts for things worth looking up from the HOTAS: merits gained, loop complete, fuel under 25 percent, interdiction,
+  // death, carrier jump lock. Optional beep (Web Audio, no asset) toggled in the layout menu; audio needs a user gesture
+  // first, so the context is created when the checkbox is ticked.
+  (() => {
+    const SOUND_KEY = 'notify.sound';
+    let audio = null, seenTs = null, lastMerits = null, lowFuel = null, loopDone = null, armed = false;
+    const beep = () => {
+      if (!ls.get(SOUND_KEY)) return;
+      try {
+        audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+        const o = audio.createOscillator(), g = audio.createGain();
+        o.frequency.value = 880; g.gain.value = 0.08; o.connect(g); g.connect(audio.destination);
+        o.start(); o.stop(audio.currentTime + 0.12);
+      } catch (e) { }
+    };
+    const alert = (msg, kind) => { Lab.toast(msg, kind); beep(); };
+    const EVENTS = { Interdicted: ['Interdicted!', 'bad'], Died: ['Ship destroyed', 'bad'], CarrierJumpRequest: ['Carrier jump scheduled: lock-down soon', ''],
+                     CarrierJump: ['Carrier jumped', ''], CarrierJumpCancelled: ['Carrier jump cancelled', ''], FuelScoop: null };
+    Lab.on(['journal', 'powerplay', 'loop'], S => {
+      const j = S.journal || {}, feed = j.feed || [];
+      if (!armed) {                                   // first render: remember where we are, do not replay history as alerts
+        seenTs = feed[0]?.ts || null; lastMerits = (S.powerplay || {}).session_merits ?? null;
+        loopDone = (S.loop || {}).complete ?? null; armed = true;
+      } else {
+        const fresh = seenTs ? feed.filter(f => f.ts > seenTs) : [];
+        fresh.slice().reverse().forEach(f => { const spec = EVENTS[f.event]; if (spec) alert(spec[0], spec[1]); });
+        if (feed[0]) seenTs = feed[0].ts;
+        const m = (S.powerplay || {}).session_merits;
+        if (m != null && lastMerits != null && m > lastMerits) alert(`+${(m - lastMerits).toLocaleString()} merits`);
+        if (m != null) lastMerits = m;
+        const done = (S.loop || {}).complete;
+        if (done === true && loopDone === false) alert('Rares loop complete: everything is aboard');
+        if (done != null) loopDone = done;
+      }
+      const cap = (j.ship_info || {}).fuel_main, fuel = (j.status || {}).fuel;
+      if (cap && fuel != null) { const low = fuel / cap < 0.25; if (low && lowFuel === false) alert(`Fuel under 25% (${fuel.toFixed(1)} of ${cap} t)`, 'bad'); lowFuel = low; }
+    });
+    Lab.notifySoundToggle = on => { ls.set(SOUND_KEY, !!on); if (on) beep(); };
+    Lab.notifySound = () => !!ls.get(SOUND_KEY);
+  })();
 
   // ------------------------------------------------------------------ live connection
   function applySnapshot(snap) { Object.keys(snap).forEach(ns => { if (ns !== '_version') Lab.state[ns] = { ...(Lab.state[ns] || {}), ...snap[ns] }; }); Lab._v = snap._version || 0; Object.keys(Lab.state).forEach(ns => Lab.emit(ns)); }

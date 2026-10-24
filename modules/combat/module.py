@@ -135,7 +135,7 @@ def setup(core, module):
             raise ValueError(f"kind must be one of {KINDS + ['all']}")
         radius = float(q.get("max") or 60)
         limit = min(int(q.get("limit") or 25), 100)
-        jr = core.store.get("journal", "jump_range")
+        jr = core.store.get("journal", "jump_range_now") or core.store.get("journal", "jump_range")
         kinds = KINDS if kind == "all" else [kind]
         rows = []
         for k in kinds:
