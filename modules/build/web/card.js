@@ -4,6 +4,7 @@
   const bad = e => Lab.toast(e.message || String(e), 'bad');
   const bar = (label, pct, text) => `<div style="margin-top:6px"><div class="k">${esc(label)} <span class="muted">${esc(text)}</span></div><div class="bar"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></div></div>`;
   const ui = { slots: 'todo', mats: 'short' };          // view state, kept across renders
+  const LIMIT = 12;
   const short = r => {                                   // one short phrase per slot instead of the full to-do list
     if (r.status === 'ok') return 'done';
     const parts = [];
@@ -34,8 +35,10 @@
       const T = P.totals, pc = P.percent;
       const tag = s => s === 'ok' ? '<span class="tag ok">ok</span>' : s === 'buy' ? '<span class="tag bad">buy</span>' : '<span class="tag warn">eng</span>';
       const sw = (view, value, label) => ui[view] === value ? `<b>${label}</b>` : `<a href="#" data-view="${view}" data-value="${value}">${label}</a>`;
-      const slots = ui.slots === 'all' ? P.slots : P.slots.filter(r => r.status !== 'ok');
-      const mats = ui.mats === 'all' ? P.materials : P.materials.filter(r => r.short);
+      const slots = ui.slots === 'all' ? P.slots : ui.slots === 'hide' ? [] : P.slots.filter(r => r.status !== 'ok');
+      const shortMats = P.materials.filter(r => r.short);
+      const mats = ui.mats === 'all' ? P.materials : ui.mats === 'short' ? shortMats.slice(0, LIMIT) : shortMats;
+      const moreMats = ui.mats === 'short' && shortMats.length > LIMIT ? `<tr><td colspan="5" class="muted"><a href="#" data-view="mats" data-value="shortall">${shortMats.length - LIMIT} more short</a></td></tr>` : '';
       const link = pin.source === 'slef' ? '' : ` - <a href="${esc(pin.url)}" target="_blank">${pin.source === 'coriolis' ? 'Coriolis' : 'EDSY'}</a>`;
       body.innerHTML = `<div style="margin-top:8px"><span class="big">${esc(pin.name)}</span> <span class="muted">${esc(pin.ship)}${link}</span>
           ${P.same_ship ? '' : `<div class="bad">Flying ${esc(P.current_ship || 'an unknown ship')}; this build is a ${esc(P.target_ship)}. Comparing with the current loadout anyway.</div>`}</div>
@@ -43,10 +46,10 @@
         ${bar('Fitted', pc.fitted, `${T.fitted} of ${T.slots} modules aboard${T.credits ? `, ${fmt(T.credits)} Cr to buy` : ''}`)}
         ${bar('Engineered', pc.engineered, `${T.engineering_done} of ${T.engineering_total} engineered slots complete`)}
         ${bar('Materials', pc.materials, P.materials.length ? `${P.materials_short} of ${P.materials.length} materials short` : 'nothing needed')}
-        <div style="margin-top:8px"><b>Slots</b> <span class="muted">${T.to_buy} to buy, ${T.to_engineer} to engineer - ${sw('slots', 'todo', 'to do')} / ${sw('slots', 'all', 'all')}</span></div>
-        <table><tbody>${slots.map(r => `<tr title="${esc(r.todo.join('; '))}"><td class="muted" style="white-space:nowrap">${esc(r.slot)}</td><td style="white-space:nowrap">${esc(r.target)}${r.blueprint ? ` <span class="muted">${esc(r.blueprint)} G${r.grade}${r.experimental ? ' + ' + esc(r.experimental) : ''}</span>` : ''}</td><td>${tag(r.status)}</td><td class="muted" style="white-space:nowrap">${esc(short(r))}</td></tr>`).join('') || `<tr><td class="muted">everything fitted and engineered</td></tr>`}</tbody></table>
+        <div style="margin-top:8px"><b>Slots</b> <span class="muted">${T.to_buy} to buy, ${T.to_engineer} to engineer - ${sw('slots', 'todo', 'to do')} / ${sw('slots', 'all', 'all')} / ${sw('slots', 'hide', 'hide')}</span></div>
+        ${ui.slots === 'hide' ? '' : `<table><tbody>${slots.map(r => `<tr title="${esc(r.todo.join('; '))}"><td class="muted" style="white-space:nowrap">${esc(r.slot)}</td><td style="white-space:nowrap">${esc(r.target)}${r.blueprint ? ` <span class="muted">${esc(r.blueprint)} G${r.grade}${r.experimental ? ' + ' + esc(r.experimental) : ''}</span>` : ''}</td><td>${tag(r.status)}</td><td class="muted" style="white-space:nowrap">${esc(short(r))}</td></tr>`).join('') || `<tr><td class="muted">everything fitted and engineered</td></tr>`}</tbody></table>`}
         ${P.materials.length ? `<div style="margin-top:8px"><b>Materials</b> <span class="muted">for the engineering above - ${sw('mats', 'short', 'short')} / ${sw('mats', 'all', 'all')}</span></div><table><thead><tr><th>Material</th><th>G</th><th class="num">Have</th><th class="num">Need</th><th class="num">Short</th></tr></thead><tbody>` +
-          (mats.map(r => `<tr><td>${esc(r.name)}</td><td>${r.grade ?? ''}</td><td class="num">${fmt(r.have)}</td><td class="num">${fmt(r.need)}</td><td class="num ${r.short ? 'bad' : 'ok'}">${r.short ? fmt(r.short) : 'ok'}</td></tr>`).join('') || `<tr><td class="muted" colspan="5">every material in stock</td></tr>`) + `</tbody></table>` : ''}
+          (mats.map(r => `<tr><td>${esc(r.name)}</td><td>${r.grade ?? ''}</td><td class="num">${fmt(r.have)}</td><td class="num">${fmt(r.need)}</td><td class="num ${r.short ? 'bad' : 'ok'}">${r.short ? fmt(r.short) : 'ok'}</td></tr>`).join('') || `<tr><td class="muted" colspan="5">every material in stock</td></tr>`) + moreMats + `</tbody></table>` : ''}
         ${P.not_in_build.length ? `<div class="muted" style="margin-top:6px">Aboard but not in the build: ${P.not_in_build.map(m => esc(m.item)).join(', ')}</div>` : ''}`;
     },
   });

@@ -4,7 +4,8 @@
   const { esc, fmt } = Lab.util;
   const bad = e => Lab.toast(e.message || String(e), 'bad');
   const opt = (v, label, sel) => `<option value="${esc(v)}"${sel ? ' selected' : ''}>${esc(label)}</option>`;
-  const ui = { needs: 'short', preselected: 0 };
+  const ui = { needs: 'short', trades: 'few', preselected: 0 };
+  const LIMIT = 12;
   Lab.card({
     id: 'wishlist', requires: ['wishlist', 'wishlist_ui', 'build'],
     header(h) {
@@ -94,14 +95,17 @@
           <td class="num">${e.complete ? '<span class="tag ok">ready</span>' : `<span class="tag bad">${fmt(e.short)} short</span>`}</td>
           <td class="num"><button class="mini" data-rm="${esc(e.id)}" title="remove">x</button></td></tr>`).join('') + `</tbody></table>`
         : `<div class="muted" style="margin-top:8px">Nothing tracked. Pick something above, or track the pinned build.</div>`;
-      const rows = ui.needs === 'all' ? needs : needs.filter(r => r.short);
+      const shortRows = needs.filter(r => r.short);
+      const rows = ui.needs === 'all' ? needs : ui.needs === 'short' ? shortRows.slice(0, LIMIT) : shortRows;
+      const more = ui.needs === 'short' && shortRows.length > LIMIT ? `<tr><td colspan="5" class="muted"><a href="#" data-view="needs" data-value="shortall">${shortRows.length - LIMIT} more short</a></td></tr>` : '';
       el.querySelector('.wl-needs').innerHTML = needs.length ? `<div style="margin-top:8px"><b>Materials</b> <span class="muted">${sum.short ? `${sum.short} of ${sum.materials} short (${fmt(sum.units_short)} units)` : `all ${sum.materials} in stock`} - ${sw('needs', 'short', 'short')} / ${sw('needs', 'all', 'all')}</span></div>
         <table><thead><tr><th>Material</th><th>G</th><th class="num">Have</th><th class="num">Need</th><th class="num">Short</th></tr></thead><tbody>` +
-        (rows.map(r => `<tr><td>${esc(r.name)} <span class="muted">${esc((r.category || '').slice(0, 3))}</span></td><td>${r.grade ?? ''}</td><td class="num">${fmt(r.have)}${r.cap ? `<span class="muted">/${r.cap}</span>` : ''}</td><td class="num">${fmt(r.need)}</td><td class="num ${r.short ? 'bad' : 'ok'}">${r.short ? fmt(r.short) : 'ok'}</td></tr>`).join('') || `<tr><td colspan="5" class="muted">nothing short</td></tr>`) + `</tbody></table>` : '';
+        (rows.map(r => `<tr><td>${esc(r.name)} <span class="muted">${esc((r.category || '').slice(0, 3))}</span></td><td>${r.grade ?? ''}</td><td class="num">${fmt(r.have)}${r.cap ? `<span class="muted">/${r.cap}</span>` : ''}</td><td class="num">${fmt(r.need)}</td><td class="num ${r.short ? 'bad' : 'ok'}">${r.short ? fmt(r.short) : 'ok'}</td></tr>`).join('') || `<tr><td colspan="5" class="muted">nothing short</td></tr>`) + more + `</tbody></table>` : '';
       const trades = T.trades || [];
-      el.querySelector('.wl-trades').innerHTML = (trades.length || (T.unresolved || []).length) ? `<div style="margin-top:8px"><b>Trader plan</b> <span class="muted">${Object.entries(T.by_trader || {}).map(([k, v]) => `${k}: ${v.trades} trade${v.trades === 1 ? '' : 's'}`).join(', ') || 'nothing tradeable'}</span></div>` +
-        (trades.length ? `<div class="feed">` + trades.map(t => `<div>${esc(t.category)}: give <b>${fmt(t.give.qty)}</b> ${esc(t.give.name)} <span class="muted">G${t.give.grade}</span> for <b>${fmt(t.get.qty)}</b> ${esc(t.get.name)} <span class="muted">G${t.get.grade} (${t.ratio}${t.same_family ? '' : ', cross family'})</span></div>`).join('') + `</div>` : '') +
-        ((T.unresolved || []).length ? `<div class="muted">Still short after trading: ${T.unresolved.map(u => `${fmt(u.short)} ${esc(u.name)}${u.note ? ' (' + esc(u.note) + ')' : ''}`).join(', ')}. See the farm sites card.</div>` : '') : '';
+      const shown = ui.trades === 'all' ? trades : trades.slice(0, 8);
+      el.querySelector('.wl-trades').innerHTML = (trades.length || (T.unresolved || []).length) ? `<div style="margin-top:8px"><b>Trader plan</b> <span class="muted">${Object.entries(T.by_trader || {}).map(([k, v]) => `${k}: ${v.trades} trade${v.trades === 1 ? '' : 's'}`).join(', ') || 'nothing tradeable'}${trades.length > 8 ? ` - ${sw('trades', 'few', 'first 8')} / ${sw('trades', 'all', 'all')}` : ''}</span></div>` +
+        (shown.length ? `<table><tbody>` + shown.map(t => `<tr><td class="muted">${esc(t.category)}</td><td>give <b>${fmt(t.give.qty)}</b> ${esc(t.give.name)} <span class="muted">G${t.give.grade}</span></td><td>for <b>${fmt(t.get.qty)}</b> ${esc(t.get.name)} <span class="muted">G${t.get.grade}</span></td><td class="muted">${t.ratio}${t.same_family ? '' : ', cross family'}</td></tr>`).join('') + `</tbody></table>` : '') +
+        ((T.unresolved || []).length ? `<div class="muted" style="margin-top:4px">Still short after trading: ${T.unresolved.slice(0, 8).map(u => `${fmt(u.short)} ${esc(u.name)}${u.note ? ' (' + esc(u.note) + ')' : ''}`).join(', ')}${T.unresolved.length > 8 ? ` and ${T.unresolved.length - 8} more` : ''}. See the farm sites card.</div>` : '') : '';
       const tr = U.traders;
       el.querySelector('.wl-traders').innerHTML = tr === 'loading' ? `<div class="muted" style="margin-top:8px">looking up traders</div>` : tr && tr.traders ? `<div style="margin-top:8px"><b>Nearest traders</b> <span class="muted">from ${esc(tr.ref)}</span></div>` +
         Object.entries(tr.traders).map(([type, list]) => `<div><span class="tag">${esc(type)}</span> ${Array.isArray(list) ? list.map(s => `${esc(s.station)} <span class="muted">(${esc(s.system)}, ${fmt(s.dist)} Ly${s.jumps ? ', ~' + s.jumps + ' j' : ''}, ${esc(s.pad)} pad, ${fmt(s.ls)} ls)</span>`).join('; ') : `<span class="bad">${esc(list.error)}</span>`}</div>`).join('') : '';

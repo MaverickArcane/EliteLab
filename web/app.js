@@ -76,6 +76,11 @@
     sec.style.gridColumn = `span ${Math.max(1, Math.min(n, cols))}`;
     const h = sec.querySelector('.resize'); if (h) h.dataset.span = n;
   }
+  // Optional height cap per card (drag the corner downwards): the body scrolls inside instead of the card growing.
+  function applyHeight(sec, px) {
+    const body = sec.querySelector(':scope > .body'); if (!body) return;
+    body.style.maxHeight = px ? px + 'px' : ''; body.style.overflowY = px ? 'auto' : '';
+  }
   new ResizeObserver(() => { if (computeCols()) Lab.relayout(); }).observe(grid);
 
   function buildCard(c) {
@@ -84,6 +89,7 @@
     if (layout.collapsed.includes(c.id)) sec.classList.add('collapsed');
     sec.innerHTML = `<h2><span class="grip" title="drag to move">⋮⋮</span><span class="title">${esc(c.title)}</span><span class="mod">${esc(c.module)}</span><span class="right"></span><span class="tools"><button class="icon" data-act="collapse" title="collapse">–</button><button class="icon" data-act="hide" title="hide">×</button></span></h2><div class="body"></div><div class="resize" title="drag to resize"></div>`;
     applySpan(sec, spanOf(c));
+    if ((layout.heights || {})[c.id]) applyHeight(sec, layout.heights[c.id]);
     const body = sec.querySelector('.body'), head = sec.querySelector('.right');
     const rec = { sec, def, body, c, off: () => { } };
     if (!def) body.innerHTML = `<div class="muted">Card "${esc(c.id)}" from module ${esc(c.module)} did not register.</div>`;
@@ -203,14 +209,38 @@
     handle.addEventListener('pointerdown', e => {
       if (gesture || layout.locked || isMobile() || e.button !== 0) return;
       e.preventDefault(); document.body.classList.add('no-select');
-      const startX = e.clientX, start = Math.min(spanOf(c), cols); const col = grid.clientWidth / cols; let cur = start, raf = null, lastX = startX;
-      const apply = () => { raf = null; const n = Math.max(2, Math.min(cols, Math.round(start + (lastX - startX) / col))); if (n !== cur) { cur = n; applySpan(sec, n); Lab.relayout(); } };
+      const startX = e.clientX, startY = e.clientY, start = Math.min(spanOf(c), cols); const col = grid.clientWidth / cols;
+      const body = sec.querySelector(':scope > .body'); const startH = body.getBoundingClientRect().height;
+      let cur = start, curH = (layout.heights || {})[c.id] || 0, raf = null, lastX = startX, lastY = startY, moved = false;
+      const apply = () => {
+        raf = null;
+        const n = Math.max(2, Math.min(cols, Math.round(start + (lastX - startX) / col)));
+        if (n !== cur) { cur = n; applySpan(sec, n); Lab.relayout(); }
+        const dy = lastY - startY;
+        if (Math.abs(dy) > 12 || moved) {                       // vertical drag caps the body height; drag past the bottom to uncap
+          moved = true;
+          const h = Math.round(startH + dy);
+          curH = (h >= body.scrollHeight + 8) ? 0 : Math.max(120, h);
+          applyHeight(sec, curH); Lab.relayout();
+        }
+      };
       gesture = {
-        move: ev => { lastX = ev.clientX; if (!raf) raf = requestAnimationFrame(apply); },
-        end: () => { if (raf) { cancelAnimationFrame(raf); raf = null; } apply(); document.body.classList.remove('no-select'); layout.spans[c.id] = cur; saveLayout(); Lab.relayout(); },
+        move: ev => { lastX = ev.clientX; lastY = ev.clientY; if (!raf) raf = requestAnimationFrame(apply); },
+        end: () => {
+          if (raf) { cancelAnimationFrame(raf); raf = null; } apply(); document.body.classList.remove('no-select');
+          layout.spans[c.id] = cur; layout.heights = layout.heights || {};
+          if (curH) layout.heights[c.id] = curH; else delete layout.heights[c.id];
+          saveLayout(); Lab.relayout();
+        },
       };
     });
-    handle.addEventListener('dblclick', () => { const n = spanOf(c) >= cols ? (c.span || 3) : cols; applySpan(sec, n); layout.spans[c.id] = n; saveLayout(); Lab.relayout(); });
+    handle.addEventListener('dblclick', () => {              // reset: nominal width, no height cap (or full width when already nominal)
+      const capped = !!(layout.heights || {})[c.id];
+      const n = (capped || spanOf(c) >= cols) ? (c.span || 3) : cols;
+      applySpan(sec, n); layout.spans[c.id] = n;
+      if (capped) { delete layout.heights[c.id]; applyHeight(sec, 0); }
+      saveLayout(); Lab.relayout();
+    });
   }
 
   // presets: order + spans + hidden. Cards not listed in `order` follow in manifest order; cards in `hidden` are off.
@@ -235,7 +265,7 @@
   };
   const SAVED_KEY = 'layouts.v1';
   const savedLayouts = () => ls.get(SAVED_KEY, {});
-  function applyLayout(l, name) { layout = { order: l.order || [], spans: l.spans || {}, hidden: l.hidden || [], collapsed: l.collapsed || [], locked: !!l.locked, pack: l.pack !== false }; saveLayout(); mountCards(); if (name) Lab.toast(`Layout: ${name}`); }
+  function applyLayout(l, name) { layout = { order: l.order || [], spans: l.spans || {}, heights: l.heights || {}, hidden: l.hidden || [], collapsed: l.collapsed || [], locked: !!l.locked, pack: l.pack !== false }; saveLayout(); mountCards(); if (name) Lab.toast(`Layout: ${name}`); }
 
   // layout menu
   const menu = document.getElementById('layout-menu');
@@ -250,7 +280,7 @@
       <div class="menu-chips">${Object.keys(saved).length ? Object.keys(saved).map(n => `<span class="chip"><button class="mini" data-load="${esc(n)}">${esc(n)}</button><button class="mini icon" data-del="${esc(n)}" title="delete">×</button></span>`).join('') : '<span class="muted" style="font-size:12px">none yet</span>'}</div>
       <div class="menu-sec">Cards</div>
       <div class="menu-list">${orderedCards().map(c => `<label><input type="checkbox" data-id="${esc(c.id)}" ${layout.hidden.includes(c.id) ? '' : 'checked'}> ${esc(c.title)} <span class="muted">${esc(c.module)}</span></label>`).join('')}</div>
-      <div class="muted" style="font-size:11px;margin-top:6px">Drag a title bar to move, drag the corner to resize, double-click the corner for full width. The grid fills the window (${cols} columns now). Everything here is saved in this browser.</div>`;
+      <div class="muted" style="font-size:11px;margin-top:6px">Drag a title bar to move. Drag the corner sideways for width, downwards to cap a card's height (it scrolls inside); double-click the corner to reset or go full width. The grid fills the window (${cols} columns now). Everything here is saved in this browser.</div>`;
     menu.querySelector('#lm-lock').onchange = e => { layout.locked = e.target.checked; saveLayout(); grid.classList.toggle('locked', layout.locked); };
     menu.querySelector('#lm-pack').onchange = e => { layout.pack = e.target.checked; saveLayout(); grid.classList.toggle('dense', layout.pack); Lab.relayout(); };
     menu.querySelector('#lm-export').onclick = () => { Lab.util.copy(JSON.stringify(layout)); Lab.toast('Layout JSON copied to clipboard'); };
