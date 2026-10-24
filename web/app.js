@@ -307,37 +307,45 @@
   // first, so the context is created when the checkbox is ticked.
   (() => {
     const SOUND_KEY = 'notify.sound';
-    let audio = null, seenTs = null, lastMerits = null, lowFuel = null, loopDone = null, armed = false;
+    let audio = null, seen = null, lastMerits = null, lowFuel = null, loopDone = null, armed = false;
+    const audioReady = () => {      // browsers only let audio start after a gesture; create/resume on the first click or key
+      try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); if (audio.state === 'suspended') audio.resume(); } catch (e) { }
+    };
+    addEventListener('pointerdown', audioReady, { once: true }); addEventListener('keydown', audioReady, { once: true });
     const beep = () => {
       if (!ls.get(SOUND_KEY)) return;
       try {
-        audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+        audioReady();
         const o = audio.createOscillator(), g = audio.createGain();
         o.frequency.value = 880; g.gain.value = 0.08; o.connect(g); g.connect(audio.destination);
         o.start(); o.stop(audio.currentTime + 0.12);
       } catch (e) { }
     };
-    const alert = (msg, kind) => { Lab.toast(msg, kind); beep(); };
+    const notify = (msg, kind) => { Lab.toast(msg, kind); beep(); };
     const EVENTS = { Interdicted: ['Interdicted!', 'bad'], Died: ['Ship destroyed', 'bad'], CarrierJumpRequest: ['Carrier jump scheduled: lock-down soon', ''],
-                     CarrierJump: ['Carrier jumped', ''], CarrierJumpCancelled: ['Carrier jump cancelled', ''], FuelScoop: null };
+                     CarrierJump: ['Carrier jumped', ''], CarrierJumpCancelled: ['Carrier jump cancelled', ''] };
+    const same = (a, b) => a && b && a.ts === b.ts && a.event === b.event && a.text === b.text;
     Lab.on(['journal', 'powerplay', 'loop'], S => {
-      const j = S.journal || {}, feed = j.feed || [];
+      const j = S.journal || {}, feed = j.feed || [];               // newest first
       if (!armed) {                                   // first render: remember where we are, do not replay history as alerts
-        seenTs = feed[0]?.ts || null; lastMerits = (S.powerplay || {}).session_merits ?? null;
+        seen = feed[0] || null; lastMerits = (S.powerplay || {}).session_merits ?? null;
         loopDone = (S.loop || {}).complete ?? null; armed = true;
       } else {
-        const fresh = seenTs ? feed.filter(f => f.ts > seenTs) : [];
-        fresh.slice().reverse().forEach(f => { const spec = EVENTS[f.event]; if (spec) alert(spec[0], spec[1]); });
-        if (feed[0]) seenTs = feed[0].ts;
+        // everything above the last entry we saw is new; same-second events are fine because we match the entry itself,
+        // and a snapshot that rewinds the feed (server replaying) cannot move the marker backwards
+        let idx = seen ? feed.findIndex(f => same(f, seen)) : feed.length;
+        if (idx < 0) idx = seen ? feed.filter(f => f.ts > seen.ts).length : feed.length;
+        feed.slice(0, idx).reverse().forEach(f => { const spec = EVENTS[f.event]; if (spec) notify(spec[0], spec[1]); });
+        if (feed[0] && (!seen || feed[0].ts >= seen.ts)) seen = feed[0];
         const m = (S.powerplay || {}).session_merits;
-        if (m != null && lastMerits != null && m > lastMerits) alert(`+${(m - lastMerits).toLocaleString()} merits`);
+        if (m != null && lastMerits != null && m > lastMerits) notify(`+${(m - lastMerits).toLocaleString()} merits`);
         if (m != null) lastMerits = m;
         const done = (S.loop || {}).complete;
-        if (done === true && loopDone === false) alert('Rares loop complete: everything is aboard');
+        if (done === true && loopDone === false) notify('Rares loop complete: everything is aboard');
         if (done != null) loopDone = done;
       }
       const cap = (j.ship_info || {}).fuel_main, fuel = (j.status || {}).fuel;
-      if (cap && fuel != null) { const low = fuel / cap < 0.25; if (low && lowFuel === false) alert(`Fuel under 25% (${fuel.toFixed(1)} of ${cap} t)`, 'bad'); lowFuel = low; }
+      if (cap && fuel != null) { const low = fuel / cap < 0.25; if (low && lowFuel === false) notify(`Fuel under 25% (${fuel.toFixed(1)} of ${cap} t)`, 'bad'); lowFuel = low; }
     });
     Lab.notifySoundToggle = on => { ls.set(SOUND_KEY, !!on); if (on) beep(); };
     Lab.notifySound = () => !!ls.get(SOUND_KEY);

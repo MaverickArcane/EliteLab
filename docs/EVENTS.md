@@ -48,7 +48,7 @@ Replay: at startup the watcher re-emits events from the newest `RECENT_JOURNALS`
 | `Cargo.json` (snapshot) | `Count, Inventory[{Name, Name_Localised, Count, Stolen}]` | names are plain keys (`alieneggs`) |
 | `Market.json` (snapshot) | `StationName, StarSystem, Items[{Name, Name_Localised, Category, BuyPrice, SellPrice, Stock, Demand, Rare}]` | names are `$alieneggs_name;`; `Rare: true` marks rare goods; a rare absent from the list is not accepted at that station |
 
-Rare goods keys seen so far: `leestianeviljuice`, `bluemilk` (Azure Milk), `lavianbrandy`, `disomacorn`, `orrerianviciousbrew`, `uszaiantreegrub`, `alieneggs` (Leathery Eggs), `zeesszeantgrubglue`. Do not guess keys; add them when observed.
+Rare goods keys are the FDevIDs symbols lower-cased (`gamedata.RARES`, all 142). Keys seen in real journals that confirm the table: `leestianeviljuice`, `bluemilk` (Azure Milk), `lavianbrandy`, `disomacorn`, `orrerianviciousbrew`, `uszaiantreegrub`, `alieneggs` (Leathery Eggs), `zeesszeantglue` (Zeessze Ant Grub Glue; an earlier note here said `zeesszeantgrubglue`, which was wrong).
 
 ## Combat
 

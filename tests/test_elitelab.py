@@ -353,6 +353,11 @@ class EngineeringTests(unittest.TestCase):
         self.assertAlmostEqual(j["jump_range_laden"], jump_range("int_hyperdrive_overcharge_size4_class5", 943.019958, 349.8 + 16 + 8), places=2)
         self.assertAlmostEqual(j["jump_range_now"], jump_range("int_hyperdrive_overcharge_size4_class5", 943.019958, 349.8 + 14.72), places=2)
         self.assertGreater(j["jump_range_now"], j["jump_range_laden"])
+        # with less than one jump of fuel in the tank the range shrinks (the FSD cannot burn 3.2 t it does not have)
+        self.core.bus.emit("journal.file.Status", {"event": "Status", "Flags": 0, "Fuel": {"FuelMain": 1.0, "FuelReservoir": 0.45}, "Cargo": 0.0})
+        low = self.call("get_commander_state")["jump_range_now"]
+        self.assertLess(low, 20)
+        self.assertAlmostEqual(low, jump_range("int_hyperdrive_overcharge_size4_class5", 943.019958, 349.8 + 1.0, fuel=1.0), places=2)
 
     def test_rares_table_is_the_fdev_list(self):
         from elitelab.core.gamedata import RARES, RARE_MARKETS, is_rare
