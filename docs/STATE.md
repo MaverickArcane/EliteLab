@@ -78,7 +78,7 @@ The data itself is not in the store (it can be thousands of rows). `GET /api/his
 | `session_merits` | int |
 | `hours` | float or null |
 | `per_hour` | int or null, session merits over elapsed hours since login |
-| `active_hours`, `per_hour_active`, `breaks` | float, int or null, int: hours actually earning (a gap between gains longer than 15 min counts as 15 min), the rate over that, and how many such breaks there were; the card's headline rate |
+| `active_hours`, `per_hour_active`, `breaks`, `idle` | hours with journal activity (any event keeps the clock running; a silence longer than 10 min counts as 10 min and as one break), the rate over that (null until 5 min of activity), the break count (an ongoing silence counts), and whether a break is in progress; the card's headline rate |
 | `last_hour` | int |
 | `by_activity` | `{activity: {merits, events, per_event, share}}` |
 | `best` | activity name or null |
