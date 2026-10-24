@@ -8,7 +8,8 @@ objective bonuses.
 
 State ``merits``: session_start, session_merits, hours, per_hour (over elapsed time), active_hours, per_hour_active
 (over time with journal activity; a gap without any journal event longer than IDLE_GAP_S counts as a break of
-IDLE_GAP_S), breaks, idle, last_hour, by_activity {name: {merits, events, per_event}}, best, recent [...], unattributed.
+IDLE_GAP_S), breaks, idle, earning_hours, per_hour_earning (over time between merit gains, gaps capped at
+EARN_GAP_S: the rate for the activity itself), last_hour, by_activity {name: {merits, events, per_event}}, best, recent [...], unattributed.
 """
 import datetime as dt
 import threading
@@ -18,6 +19,7 @@ from elitelab.core.gamedata import is_rare
 
 NS = "merits"
 IDLE_GAP_S = 10 * 60   # no journal event at all for this long = a break (docked and away, menus), not slow play
+EARN_GAP_S = 20 * 60   # between merit gains: longer than this and you were doing something else (outfitting, engineering)
 WINDOW_S = 12          # a cause older than this is not blamed for a gain
 RARE_RATE = 667.0      # Cr of sale value per merit observed for rares with Mahon's bonus (used only for bonus detection)
 
@@ -70,6 +72,8 @@ class Merits:
         self.last_event_t = ts    # active time: any journal event keeps the clock running, see _touch()
         self.active_s = 0.0
         self.breaks = 0
+        self.last_gain_t = None   # earning time: gaps between merit gains, each capped at EARN_GAP_S
+        self.earn_s = 0.0
         self.unattributed = 0
         self.zone = None          # name of the Powerplay conflict zone we are in, if any
         self.last_target = None   # last ShipTargeted with a ship name
@@ -139,6 +143,10 @@ class Merits:
                 if self.first_gain is None:
                     self.first_gain = ts
                 if ts is not None:
+                    if self.last_gain_t is not None:
+                        self.earn_s += min(max(0.0, ts - self.last_gain_t), EARN_GAP_S)
+                    self.last_gain_t = ts
+                if ts is not None:
                     self.hour_gains.append((ts, gained))
             self.publish(); return
         fn = CAUSES.get(e)
@@ -170,12 +178,15 @@ class Merits:
         active_h = (self.active_s + min(idle_s, IDLE_GAP_S)) / 3600
         idle = idle_s > IDLE_GAP_S
         breaks = self.breaks + (1 if idle else 0)
+        earn_h = (self.earn_s + min(max(0.0, now - self.last_gain_t), EARN_GAP_S)) / 3600 if self.last_gain_t else 0.0
         return {"session_start": dt.datetime.fromtimestamp(first, dt.timezone.utc).isoformat() if first else None,
                 "session_merits": total, "hours": round(hours, 2) if hours else None,
                 "per_hour": round(total / hours) if hours else None, "last_hour": last_hour,
                 # rate over time with journal activity: a silence longer than IDLE_GAP_S counts as IDLE_GAP_S, not as play time
                 "active_hours": round(active_h, 2), "per_hour_active": round(total / active_h) if active_h >= 5 / 60 else None,
                 "breaks": breaks, "idle": idle,
+                # rate while earning: time between merit gains, a gap over EARN_GAP_S counts as EARN_GAP_S (the combat-zone figure)
+                "earning_hours": round(earn_h, 2), "per_hour_earning": round(total / earn_h) if earn_h >= 5 / 60 else None,
                 "by_activity": by, "best": best, "unattributed": self.unattributed,
                 "recent": [{k: v for k, v in g.items() if k != "t"} for g in gains[-15:]][::-1],
                 "note": "Merits attributed to the latest sale/kill/delivery within 12 s. Observed: rares pay ~1 merit per 667 Cr of sale value (Mahon +25%)."}
@@ -188,6 +199,7 @@ def setup(core, module):
     m = Merits(core)
     core.http.route("/api/merits", lambda q: m.summary(), tool="get_merits_summary", module=module.name,
                     description="Where this session's Powerplay merits came from (rares, trade, bounty hunting, combat zone bonds, hauling, "
-                                "exploration, missions, objective bonuses), merits per event, and a recent log. Rates: per_hour_active is the "
-                                "one to quote (merits over hours with journal activity; a silence over 10 min is a break and counts 10 min), "
-                                "per_hour is over elapsed time since login, last_hour is the last 60 minutes; breaks and idle say why they differ.")
+                                "exploration, missions, objective bonuses), merits per event, and a recent log. Rates: per_hour_earning is the "
+                                "activity's own pace (time between merit gains, a gap over 20 min counts as 20 min), per_hour_active is over time "
+                                "with any journal activity (a silence over 10 min is a break), per_hour is over elapsed time since login, "
+                                "last_hour is the last 60 minutes; breaks and idle say why they differ.")

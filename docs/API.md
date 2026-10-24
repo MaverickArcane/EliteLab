@@ -65,7 +65,7 @@ Pledged power, rank, total merits, merits earned this session with a log of rece
 
 ## `get_merits_summary`  -  `GET /api/merits`  -  module: merits
 
-Where this session's Powerplay merits came from (rares, trade, bounty hunting, combat zone bonds, hauling, exploration, missions, objective bonuses), merits per event, and a recent log. Rates: per_hour_active is the one to quote (merits over hours with journal activity; a silence over 10 min is a break and counts 10 min), per_hour is over elapsed time since login, last_hour is the last 60 minutes; breaks and idle say why they differ.
+Where this session's Powerplay merits came from (rares, trade, bounty hunting, combat zone bonds, hauling, exploration, missions, objective bonuses), merits per event, and a recent log. Rates: per_hour_earning is the activity's own pace (time between merit gains, a gap over 20 min counts as 20 min), per_hour_active is over time with any journal activity (a silence over 10 min is a break), per_hour is over elapsed time since login, last_hour is the last 60 minutes; breaks and idle say why they differ.
 
 ## `find_sell_targets`  -  `GET /api/targets`  -  module: targets
 

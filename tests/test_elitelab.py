@@ -451,6 +451,7 @@ class MeritRateTests(unittest.TestCase):
         self.assertLess(m["per_hour"], 100)                               # elapsed rate is dragged down by the break
         self.assertTrue(0.35 < m["active_hours"] < 0.5)                   # 5 + 5 + 5 min, a capped 10 min, and a minute at the end
         self.assertGreater(m["per_hour_active"], 5 * m["per_hour"])
+        self.assertGreater(m["per_hour_earning"], m["per_hour_active"])         # the earning clock skips the silent four hours entirely
 
 
 class StoreTests(unittest.TestCase):
