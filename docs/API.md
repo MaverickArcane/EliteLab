@@ -115,6 +115,10 @@ Engineering materials inventory with grade, cap (300/250/200/150/100 for G1-G5),
 | `only_wishlist` | boolean | Only materials on the wishlist (default `False`) |
 | `only_short` | boolean | Only materials where need exceeds stock (default `False`) |
 
+## `get_material_inventory`  -  `GET /api/materials/inventory`  -  module: materials
+
+The raw inventory as {journal key: count} for every material ever seen, plus a version that changes on every update. Small and fast; get_materials has names, grades and caps.
+
 ## `get_wishlist`  -  `GET /api/materials/wishlist`  -  module: materials
 
 The materials wishlist with have/need/short for each entry.

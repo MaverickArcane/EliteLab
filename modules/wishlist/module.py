@@ -65,13 +65,15 @@ class Wishlist:
         self.core = core
         self._lock = threading.RLock()
         self.entries = [e for e in (core.read_data(FILE, default=[]) or []) if isinstance(e, dict) and e.get("key")]
-        core.bus.on("state.materials.inventory", lambda n, v: self.publish())
+        core.bus.on("state.materials.inventory_version", lambda n, v: self.publish())
         core.bus.on("state.build.progress", lambda n, v: self.publish())      # a tracked build's needs come from the build module
         self.publish()
 
     # -- helpers --------------------------------------------------------------------
     def inventory(self):
-        return self.core.store.get("materials", "inventory") or {}
+        """{key: count} from the materials module's tool (the inventory is not in the store; see materials)."""
+        t = self.core.http.tools.get("get_material_inventory")
+        return (t.fn({}).get("inventory") if t else None) or {}
 
     def entry_needs(self, e):
         if e["kind"] == "material":

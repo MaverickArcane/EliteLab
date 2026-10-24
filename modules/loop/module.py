@@ -9,6 +9,8 @@ import math
 import os
 import threading
 
+from elitelab.core.coords import CoordCache
+
 NS = "loop"
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -21,51 +23,15 @@ class Loop:
         self.selected = (core.read_data("loop.json", default={}) or {}).get("selected")
         if self.selected not in self.loops:          # stale or missing selection must never stop the server
             self.selected = next(iter(self.loops))
-        self.coords = {}
         self._lock = threading.Lock()
-        self._retry = None
-        self._fetching = False
-        self._retry_delay = 5
+        self.coords = CoordCache(core, "loop", on_update=self.recompute)      # EDSM lookups off the watcher thread
         core.bus.on("state.journal.location", lambda n, v: self.recompute())
         core.bus.on("journal.replay.done", lambda n, v: self.recompute())
         self._request_coords()
         self.recompute()
 
     def _request_coords(self):
-        if self.core.config.OFFLINE:
-            return
-        with self._lock:
-            if self._fetching:
-                return
-            if self._retry:
-                self._retry.cancel()
-                self._retry = None
-            self._fetching = True
-        threading.Thread(target=self._fetch_coords, daemon=True).start()
-
-    def _fetch_coords(self):
-        with self._lock:
-            names = {s["system"] for lp in self.loops.values() for s in lp["stations"]} - self.coords.keys()
-        found = {}
-        try:
-            found = self.core.services.edsm_coords(sorted(names))
-        except Exception as ex:
-            self.core.log.warning("loop: coords fetch failed: %s", ex)
-        with self._lock:
-            self.coords.update(found)
-            if found:                                   # EDSM answered; names it left out are unknown, do not ask forever
-                for n in names - found.keys():
-                    self.coords[n] = None
-                    self.core.log.warning("loop: EDSM has no coordinates for %s", n)
-            self._fetching = False
-            if names - self.coords.keys():
-                self._retry = threading.Timer(self._retry_delay, self._request_coords)
-                self._retry.daemon = True
-                self._retry.start()
-                self._retry_delay = min(300, self._retry_delay * 2)
-            else:
-                self._retry_delay = 5
-        self.recompute()
+        self.coords.request({s["system"] for lp in self.loops.values() for s in lp["stations"]})
 
     def select(self, loop_id):
         if loop_id not in self.loops:

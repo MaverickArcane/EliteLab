@@ -10,7 +10,7 @@ import json
 import os
 import threading
 
-from elitelab.core.gamedata import MATERIAL_BY_KEY, MATERIAL_BY_NAME, MATERIAL_CAPS, norm
+from elitelab.core.gamedata import MATERIAL_BY_KEY, MATERIAL_BY_NAME, MATERIAL_CAPS, norm, resolve_material
 
 NS = "materials"
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -27,6 +27,7 @@ class Materials:
         self.by_name = dict(MATERIAL_BY_NAME)
         self.sources = data.get("sources", {})
         self.inv = {}      # key -> count
+        self._version = 0  # bumped on every publish; the store key other modules watch
         self.names = {}    # key -> display name seen in journal
         self.cats = {}     # key -> category seen in journal
         self.wishlist = core.read_data("wishlist.json", default={}) or {}
@@ -41,12 +42,13 @@ class Materials:
         """Accept a journal key, a display name, or a case-insensitive fuzzy name. Returns key or None."""
         if not name:
             return None
+        k = resolve_material(name)              # the shared resolver: key, exact name, or a unique loose match
+        if k:
+            return k
         k = norm(name)
-        if k in self.catalog or k in self.inv:
+        if k in self.inv:                       # a key the journal used that the catalog does not know
             return k
         n = name.strip().lower()
-        if n in self.by_name:
-            return self.by_name[n]
         for key, disp in self.names.items():
             if disp and disp.lower() == n:
                 return key
@@ -138,10 +140,16 @@ class Materials:
             cat = self.info(k)["category"]
             if cat in totals:
                 totals[cat] += c
+        self._version += 1
+        # The inventory itself is not in the store (it would go over SSE on every pickup); other modules read it through
+        # the get_material_inventory tool and recompute on inventory_version.
         self.core.store.update(NS, {"totals": totals, "wishlist": self.wishlist,
                                     "shortfalls": [r for r in self.rows(only_wishlist=True)],
-                                    "inventory": dict(self.inv),          # read by the wishlist module (state.materials.inventory)
-                                    "inventory_count": len(self.inv)})
+                                    "inventory_count": len(self.inv), "inventory_version": self._version})
+
+    def inventory(self):
+        with self._lock:
+            return dict(self.inv)
 
     # -- wishlist ------------------------------------------------------------------
     def set_wishlist(self, items, mode="replace", label=None):
@@ -205,6 +213,10 @@ def setup(core, module):
                             "grade": {"type": "integer", "description": "1-5"},
                             "only_wishlist": {"type": "boolean", "description": "Only materials on the wishlist", "default": False},
                             "only_short": {"type": "boolean", "description": "Only materials where need exceeds stock", "default": False}})
+    core.http.route("/api/materials/inventory", lambda q: {"inventory": m.inventory(), "version": core.store.get(NS, "inventory_version")},
+                    tool="get_material_inventory", module=module.name,
+                    description="The raw inventory as {journal key: count} for every material ever seen, plus a version that changes on "
+                                "every update. Small and fast; get_materials has names, grades and caps.")
     core.http.route("/api/materials/wishlist", lambda q: {"wishlist": m.rows(only_wishlist=True)},
                     tool="get_wishlist", module=module.name, description="The materials wishlist with have/need/short for each entry.")
     core.http.route("/api/materials/wishlist", lambda q: m.set_wishlist(q.get("items"), q.get("mode", "replace"), q.get("label")),

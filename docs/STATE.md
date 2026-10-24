@@ -112,8 +112,8 @@ Client-side manual overrides live in `localStorage.loopManual` as `{system: {don
 | `totals` | `{Raw, Manufactured, Encoded}` |
 | `wishlist` | `{key: {name, need, label}}` |
 | `shortfalls` | rows for wishlist entries: `{key, name, category, grade, cap, count, need, label, short}` |
-| `inventory` | `{key: count}` for every material seen in the journal; the wishlist module recomputes on `state.materials.inventory` |
 | `inventory_count` | int distinct materials |
+| `inventory_version` | int, bumped on every inventory change; wishlist and build recompute on `state.materials.inventory_version` and read the counts through the `get_material_inventory` tool (the dict itself stays out of the store so it is not sent over SSE on every pickup) |
 
 `GET /api/materials` returns rows for every material in inventory or on the wishlist with the same row shape.
 
@@ -137,7 +137,7 @@ The tables themselves are served by `/api/recipes` and `/api/recipes/get`, never
 | `trades` | `{trades[{category, ratio, same_family, give{key,name,grade,qty}, get{...}}], by_trader{type: {trades, give, get}}, unresolved[{key,name,grade,category,short,note?}], covered, reserve, note}` |
 | `updated` | ISO timestamp of the last recompute |
 
-Raw entries persist in `data/engineering_wishlist.json`; everything else is recomputed from `materials.inventory`. The card keeps a client-only `wishlist_ui.traders` with the last `find_material_traders` result.
+Raw entries persist in `data/engineering_wishlist.json`; everything else is recomputed from the materials inventory (via `get_material_inventory`) on `state.materials.inventory_version` and `state.build.progress`. The card keeps a client-only `wishlist_ui.traders` with the last `find_material_traders` result.
 
 ## farming (module: farming)
 
@@ -155,7 +155,7 @@ Recomputed on `state.journal.star_pos` (distances) and `state.wishlist.needs` (`
 | `pinned` | `{url, source (edsy | coriolis | slef), hash, name, ship, ship_fdname, slots, pinned_at}` or null; persisted in `data/build.json` |
 | `progress` | null, or `{same_ship, current_ship, target_ship, slots[...], totals{slots, ok, fitted, to_buy, to_engineer, engineering_total, engineering_done, credits}, percent{fitted, engineered, materials, overall}, materials[{key, name, category, grade, have, need, short}], materials_short, wishlist_items[{item, grade, from_grade, qty}], not_in_build[{slot, item}], note}` |
 
-`progress.slots[]`: `{group, slot, item, target, blueprint, grade, experimental, status (ok | engineer | buy), todo[], materials[{key, name, count}], current{slot, item, blueprint, level, experimental} | null, credits}`. Recomputed on `state.journal.ship_info` and `state.materials.inventory`.
+`progress.slots[]`: `{group, slot, item, target, blueprint, grade, experimental, status (ok | engineer | buy), todo[], materials[{key, name, count}], current{slot, item, blueprint, level, experimental} | null, credits}`. Recomputed on `state.journal.ship_info` and `state.materials.inventory_version`.
 
 ## map (module: map)
 

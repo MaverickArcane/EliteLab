@@ -40,9 +40,13 @@ class Build:
                 self.pinned = {**saved, "source": self.target.get("source")}
             except Exception as ex:
                 core.log.warning("build: pinned build no longer decodes (%s); unpinning", ex)
-        for ev in ("state.journal.ship_info", "state.materials.inventory", "journal.replay.done"):
+        for ev in ("state.journal.ship_info", "state.materials.inventory_version", "journal.replay.done"):
             core.bus.on(ev, lambda n, v: self.publish())
         self.publish()
+
+    def inventory(self):
+        t = self.core.http.tools.get("get_material_inventory")
+        return (t.fn({}).get("inventory") if t else None) or {}
 
     # -- pinning ----------------------------------------------------------------------
     def pin(self, q):
@@ -75,7 +79,7 @@ class Build:
         j = self.core.store.get("journal", "ship_info") or {}
         cur_ship = (j.get("internal") or self.core.store.get("journal", "ship_internal") or "").lower()   # ship_info is the Loadout itself
         same_ship = bool(cur_ship) and cur_ship == t["ship"]["fdname"]
-        inv = self.core.store.get("materials", "inventory") or {}
+        inv = self.inventory()
         current = [m for m in (j.get("modules") or []) if m.get("item")]
         pools = {}
         for m in current:

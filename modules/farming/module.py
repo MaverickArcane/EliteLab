@@ -9,9 +9,9 @@ State ``farming``: sites [...], coords_ready.
 import json
 import math
 import os
-import threading
 
 from elitelab.core import gamedata as gd
+from elitelab.core.coords import CoordCache
 
 NS = "farming"
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -23,55 +23,11 @@ class Farming:
         self.core = core
         with open(os.path.join(HERE, "sites.json"), "r", encoding="utf-8") as f:
             self.sites = json.load(f)["sites"]
-        self.coords = core.read_data("farm_coords.json", default={}) or {}
-        self._lock = threading.Lock()
-        self._retry = None
-        self._fetching = False
-        self._retry_delay = 5
+        self.coords = CoordCache(core, "farming", cache_file="farm_coords.json", on_update=self.publish)
         core.bus.on("state.journal.star_pos", lambda n, v: self.publish())
         core.bus.on("state.wishlist.needs", lambda n, v: self.publish())
         core.bus.on("journal.replay.done", lambda n, v: self.publish())
-        self._request_coords()
-        self.publish()
-
-    # -- coordinates (same pattern as the loop module: never on the watcher thread) ------
-    def _request_coords(self):
-        if self.core.config.OFFLINE:
-            return
-        with self._lock:
-            if self._fetching:
-                return
-            if self._retry:
-                self._retry.cancel()
-                self._retry = None
-            self._fetching = True
-        threading.Thread(target=self._fetch_coords, daemon=True).start()
-
-    def _fetch_coords(self):
-        with self._lock:
-            names = {s["system"] for s in self.sites if s.get("system")} - self.coords.keys()
-        found = {}
-        try:
-            if names:
-                found = self.core.services.edsm_coords(sorted(names))
-        except Exception as ex:
-            self.core.log.warning("farming: coords fetch failed: %s", ex)
-        with self._lock:
-            if found:
-                # EDSM answered: names it left out are unknown to it; remember that (None) so we do not ask forever
-                self.coords.update(found)
-                for n in names - found.keys():
-                    self.coords[n] = None
-                    self.core.log.warning("farming: EDSM has no coordinates for %s", n)
-                self.core.write_data(self.coords, "farm_coords.json")
-            self._fetching = False
-            if names - self.coords.keys():
-                self._retry = threading.Timer(self._retry_delay, self._request_coords)
-                self._retry.daemon = True
-                self._retry.start()
-                self._retry_delay = min(300, self._retry_delay * 2)
-            else:
-                self._retry_delay = 5
+        self.coords.request({s["system"] for s in self.sites if s.get("system")})
         self.publish()
 
     # -- rows ---------------------------------------------------------------------
@@ -106,7 +62,7 @@ class Farming:
 
     def publish(self):
         try:
-            self.core.store.update(NS, {"sites": self.rows(), "coords_ready": bool(self.coords)})
+            self.core.store.update(NS, {"sites": self.rows(), "coords_ready": self.coords.ready})
         except Exception as ex:                      # a bad store read must never kill the watcher thread
             self.core.log.warning("farming: publish failed: %s", ex)
 
