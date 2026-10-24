@@ -5,6 +5,8 @@
 - Jump range now and laden (issue 4): computed from the FSD, its engineered optimal mass, fuel and cargo; the ship card shows now / laden / max and every jump estimate (targets, combat, farm sites, traders) uses the current range.
 - Rare goods table is the full FDevIDs list of 142 with origin market ids (issue 15); five wrong community slugs dropped.
 - Notifications (issue 5): toasts for merits gained, loop complete, fuel under 25 percent, interdiction, death and carrier jumps, with an optional beep.
+- Visual overhaul: one cockpit-panel theme across the page (readout-strip header, angular cards with corner brackets, orange card titles with a rule, uppercase micro-labels, segmented gauge bars, tabular numbers, scanline background); every card class kept, so module cards needed no changes.
+- Ship card redesigned: jump range up front, fuel and hull bars, a stats grid, and the whole loadout as chips (core, hardpoints, utility, internals) with class/rating, mount, blueprint grade and effect; engineered modules outlined, powered-off ones dimmed. `ship_info.modules` now carries display names.
 - Farm sites: "find systems" on each High Grade Emissions entry asks Spansh for the nearest populated systems in that state or allegiance (`find_hge_systems`).
 - MCP prompts and resources (issue 8): `plan_rares_run`, `engineering_plan`, `where_am_i`; live state readable as `elitelab://state` and per namespace.
 

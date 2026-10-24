@@ -52,6 +52,8 @@ A log of why things are the way they are. Add to it when you change direction or
 
 ## Front-end lessons
 
+- The first theme was a generic dark dashboard (rounded cards, muted titles, pills) and read as machine-made. The redesign commits to one reference, the in-game cockpit: angular panels with corner brackets, HUD orange reserved for titles and things that matter, labels as uppercase micro-text above values, segmented gauges, tabular figures. Rules for new cards: use `.k` for every label, `.grid2`/`.grid3` for stats, `.chips` for lists of fitted things, tags for state, and never a new colour. Everything is in `web/style.css`; cards carry no inline colours beyond bar fills.
+
 - The grid used to be 12 fixed columns capped at 1800 px, so an ultrawide showed a strip with empty margins and a laptop squeezed every card. A first fix made the column count follow the width (one per 150 px) so cards kept their size; that left holes whenever a row's nominal spans did not add up to the new count. Now it is 12 columns with no cap (rows that sum to 12 always fill the width, cards scale), 6 columns below 1100 px, 1 on a phone, and `grid-auto-flow: dense` fills the holes wide cards leave. Dense packing can reorder small cards visually, which is why it is a layout-menu checkbox.
 
 - Pointer capture is lost when the captured element is moved in the DOM. Drag handlers must live on `window`.

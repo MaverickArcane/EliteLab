@@ -53,18 +53,27 @@ FEED = {
 
 
 from elitelab.core import edsy
-from elitelab.core.builds import COSMETIC as COSMETIC_SLOTS      # one list, shared with the build comparison
+from elitelab.core import gamedata as gd
+from elitelab.core.builds import COSMETIC as COSMETIC_SLOTS, group_of      # shared with the build comparison
 
 
 class Journal:
     @staticmethod
     def _module(m):
-        """One Loadout module for ship_info.modules: journal slot, lower-case item, power state and engineering."""
+        """One Loadout module for ship_info.modules: journal slot, lower-case item, power state and engineering, plus the
+        display name, class, rating and mount from the EDSY table and blueprint/effect names from gamedata (for the ship card)."""
         eng = m.get("Engineering") or {}
-        return {"slot": m.get("Slot"), "item": (m.get("Item") or "").lower(), "on": m.get("On"), "priority": m.get("Priority"),
-                "health": m.get("Health"),
-                "engineering": ({"blueprint": eng.get("BlueprintName"), "level": eng.get("Level"), "quality": eng.get("Quality"),
-                                 "experimental": eng.get("ExperimentalEffect"), "engineer": eng.get("Engineer")} if eng else None)}
+        item = (m.get("Item") or "").lower()
+        info = edsy.MODULE_BY_FDNAME.get(item) or {}
+        bpk = gd.BLUEPRINT_BY_LOWER.get((eng.get("BlueprintName") or "").lower())
+        exk = gd.EXPERIMENTAL_BY_LOWER.get((eng.get("ExperimentalEffect") or "").lower())
+        return {"slot": m.get("Slot"), "group": group_of(m.get("Slot")), "item": item, "on": m.get("On"), "priority": m.get("Priority"),
+                "health": m.get("Health"), "name": info.get("name") or item, "class": info.get("class"), "rating": info.get("rating"),
+                "mount": info.get("mount"),
+                "engineering": ({"blueprint": eng.get("BlueprintName"), "blueprint_name": gd.BLUEPRINT_BY_KEY[bpk]["name"] if bpk else eng.get("BlueprintName"),
+                                 "level": eng.get("Level"), "quality": eng.get("Quality"), "experimental": eng.get("ExperimentalEffect"),
+                                 "experimental_name": gd.EXPERIMENTAL_BY_KEY[exk]["name"] if exk else eng.get("ExperimentalEffect"),
+                                 "engineer": eng.get("Engineer")} if eng else None)}
 
     def __init__(self, core):
         self.core = core

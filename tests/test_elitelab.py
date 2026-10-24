@@ -350,6 +350,9 @@ class EngineeringTests(unittest.TestCase):
              "Engineering": {"BlueprintName": "FSD_LongRange", "Level": 5, "Modifiers": [{"Label": "FSDOptimalMass", "Value": 943.019958, "OriginalValue": 585.0}]}}]})
         self.core.bus.emit("journal.file.Status", {"event": "Status", "Flags": 0, "Fuel": {"FuelMain": 14.72, "FuelReservoir": 0.45}, "Cargo": 0.0})
         j = self.call("get_commander_state")
+        fsd = j["ship_info"]["modules"][0]
+        self.assertEqual((fsd["group"], fsd["name"], fsd["class"], fsd["rating"]), ("component", "Frame Shift Drive (SCO)", 4, "A"))
+        self.assertEqual(fsd["engineering"]["blueprint_name"], "Increased range")
         self.assertAlmostEqual(j["jump_range_laden"], jump_range("int_hyperdrive_overcharge_size4_class5", 943.019958, 349.8 + 16 + 8), places=2)
         self.assertAlmostEqual(j["jump_range_now"], jump_range("int_hyperdrive_overcharge_size4_class5", 943.019958, 349.8 + 14.72), places=2)
         self.assertGreater(j["jump_range_now"], j["jump_range_laden"])
