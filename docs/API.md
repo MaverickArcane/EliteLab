@@ -31,6 +31,22 @@ Most recent raw journal events (newest first). Useful to see exactly what the ga
 
 Live commander state from the journal: name, credits, ship (with loadout summary), cargo capacity and jump range, current system/station, docked flag, Powerplay control of the current system, cargo with rare goods tagged, rares in stock at the last market opened, fleet carrier summary, and the recent event feed. Materials live in get_materials.
 
+## `get_followed_carrier` - `GET /api/carrier` - module: carrier
+
+Returns `pinned`, up to 50 `visited` carriers, `checked_at`, `error`, `refreshing` and `offline`. Pinned information is last reported, not guaranteed current. See STATE.md for fields. Owner-only details remain in `get_commander_state`.
+
+## `pin_fleet_carrier` - `POST /api/carrier/pin` - module: carrier
+
+Persistently follow one visited carrier, replacing the previous pin. Requires integer `market_id` from `get_followed_carrier.visited`. Unknown IDs return a validation error. Returns the carrier state.
+
+## `unpin_fleet_carrier` - `POST /api/carrier/unpin` - module: carrier
+
+Remove the pin while retaining visited carriers. The card returns to owned-carrier details if available. No parameters. Returns the carrier state.
+
+## `refresh_followed_carrier` - `POST /api/carrier/refresh` - module: carrier
+
+Check the pinned carrier's Spansh station record, cached for five minutes. No parameters. Returns the carrier state, with `error` on a failed remote check; retains previous observations. Older or equally dated remote reports do not replace journal evidence. No external request in offline mode or without a pin.
+
 ## `get_travel_history`  -  `GET /api/history`  -  module: history
 
 Systems visited and the chronological route, with star class, visit counts, coordinates, total jumps and light-years.

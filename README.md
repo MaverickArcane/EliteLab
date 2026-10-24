@@ -12,7 +12,8 @@ No accounts, no uploads, no dependencies: Python standard library, one web page,
 
 | Module | Dashboard card(s) | AI tools |
 |---|---|---|
-| journal | Location, Ship, Cargo, Rares at this market, Fleet carrier, Live feed | `get_commander_state` |
+| journal | Location, Ship, Cargo, Rares at this market, Live feed | `get_commander_state` |
+| carrier | Fleet carrier: owned details or one pinned visitor carrier | `get_followed_carrier`, `pin_fleet_carrier`, `unpin_fleet_carrier`, `refresh_followed_carrier` |
 | powerplay | Power, rank, merits, merits this session, cycle countdown | `get_powerplay_status` |
 | merits | Merits per hour and per activity, worked out from the journal | `get_merits_summary` |
 | combat | Where combat pays merits: contested systems with combat zones, acquisition, undermining, reinforcement | `find_combat_systems` |
@@ -28,6 +29,8 @@ No accounts, no uploads, no dependencies: Python standard library, one web page,
 | core | Header, live connection, layout | `get_state`, `get_recent_events`, `list_modules`, `list_tools`, `health` |
 
 Everything updates live over Server-Sent Events the moment the game writes a journal line. Cards can be dragged, resized, hidden, saved as named layouts, or switched between presets (Powerplay, Rares run, Combat, Mining and trade, Engineering, Second screen).
+
+You do not need to own a fleet carrier to use the Fleet carrier card. Choose a carrier from your journal visits and click **Pin** to follow its last reported system and services. The selection survives restarts. Your journal updates it when you dock, log in aboard, or ride a jump; Spansh reports are checked every five minutes while EliteLab runs. **Refresh** uses the same five-minute cache. Reports can lag behind movements, so the card shows the source, observation time and last check separately. Offline mode keeps saved observations. **Unpin** restores the owned-carrier view, if available. Fuel, balance and free capacity are owner-only information. If the card is hidden by your layout preset, enable **Fleet carrier** in the Layout menu.
 
 ## Quick start
 

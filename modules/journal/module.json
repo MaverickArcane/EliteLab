@@ -10,7 +10,6 @@
     { "id": "ship", "title": "Ship", "span": 4, "script": "cards.js", "order": 21 },
     { "id": "feed", "title": "Live feed", "span": 4, "script": "cards.js", "order": 40 },
     { "id": "cargo", "title": "Cargo", "span": 4, "script": "cards.js", "order": 41 },
-    { "id": "market", "title": "Rares at this market", "span": 4, "script": "cards.js", "order": 42 },
-    { "id": "carrier", "title": "Fleet carrier", "span": 4, "script": "cards.js", "order": 43 }
+    { "id": "market", "title": "Rares at this market", "span": 4, "script": "cards.js", "order": 42 }
   ]
 }
