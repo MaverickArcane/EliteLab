@@ -249,8 +249,11 @@ class Journal:
         st = self.st
         if name == "Status":
             flags = data.get("Flags", 0)
+            prev = st.get("status") or {}
+            fuel = (data.get("Fuel") or {}).get("FuelMain")
             st["status"] = {"docked_flag": bool(flags & 1), "landed": bool(flags & 2), "supercruise": bool(flags & 16),
-                            "fsd_charging": bool(flags & (1 << 17)), "fuel": (data.get("Fuel") or {}).get("FuelMain"),
+                            "fsd_charging": bool(flags & (1 << 17)),
+                            "fuel": fuel if fuel is not None else prev.get("fuel"),   # the game omits Fuel in station menus; keep the last reading
                             "cargo_tons": data.get("Cargo"), "legal": data.get("LegalState"), "timestamp": data.get("timestamp")}
             if "Balance" in data:
                 st["credits"] = data["Balance"]
