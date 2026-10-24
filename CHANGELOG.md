@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Merit rate: the headline is now merits per hour while earning (breaks over 15 minutes between gains do not count), with the elapsed-session rate and break count alongside; a three-hour pause used to halve the figure.
 - Jump range now and laden (issue 4): computed from the FSD, its engineered optimal mass, fuel and cargo; the ship card shows now / laden / max and every jump estimate (targets, combat, farm sites, traders) uses the current range.
 - Rare goods table is the full FDevIDs list of 142 with origin market ids (issue 15); five wrong community slugs dropped.
 - Notifications (issue 5): toasts for merits gained, loop complete, fuel under 25 percent, interdiction, death and carrier jumps, with an optional beep.
