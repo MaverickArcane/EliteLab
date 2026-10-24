@@ -245,6 +245,13 @@ Route: `/api/farming` -> `find_farm_sites` (`material`, `category`, `type`, `max
 Routes: `/api/build` -> `get_build_progress`; `POST /api/build/pin` -> `pin_build` (`url`); `POST /api/build/unpin` -> `unpin_build`; `POST /api/build/wishlist` -> `build_to_wishlist`.
 
 `web/card.js`: link/JSON input, four progress bars (overall, fitted, engineered, materials), a one-line-per-slot table (to-do rows by default, "all" toggle; the full to-do text is the row tooltip), the materials table (short by default), and header buttons "track in wishlist" and "unpin". View toggles live in a closure so renders keep them.
+## modules/carrier/module.py
+
+`Carriers(core)` owns the `carrier` namespace and `data/carrier.json`. `observe()` folds FleetCarrier Docked, docked Location and docked CarrierJump events into a bounded visited list keyed by MarketID. FSDJump/Location/CarrierJump positions provide coordinates when Docked omits them. `scan_archive()` discovers earlier visits after recent replay without emitting historical events onto the bus.
+
+In the running server a daemon worker scans the archive and checks the pin every five minutes (or on a new pin). Network calls use the shared service cache and run outside bus handlers. `refresh()` rejects mismatched IDs, invalid timestamps and reports older than the current observation. A lock serializes refreshes; a selection generation prevents an in-flight response from restoring an old pin. Offline mode uses local observations only. The card retains ID `carrier` for saved layouts, displays owner data when unpinned, and contributes its own `pinned-carrier` map layer.
+
+Routes: `get_followed_carrier`, `pin_fleet_carrier`, `unpin_fleet_carrier`, `refresh_followed_carrier`.
 
 ## modules/map/module.py
 

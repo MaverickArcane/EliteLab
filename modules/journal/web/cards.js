@@ -1,4 +1,4 @@
-/* journal cards: location, feed, cargo, market rares, carrier. */
+/* journal cards: location, ship, feed, cargo, market rares. */
 (() => {
   const { esc, fmt, inaraSys, spanshSys } = Lab.util;
 
@@ -70,20 +70,4 @@
     },
   });
 
-  Lab.card({
-    id: 'carrier', requires: ['journal'],
-    render(el, S) {
-      const c = (S.journal || {}).carrier;
-      if (!c || !c.name) { el.innerHTML = '<div class="muted">No fleet carrier seen in recent journals. Open Carrier Management in game once.</div>'; return; }
-      el.innerHTML = `
-        <div class="big">${esc(c.name)} <span class="muted" style="font-size:13px">(${esc(c.callsign)})</span></div>
-        <div class="grid2">
-          <div><div class="k">System</div><div class="v">${esc(c.system || '—')}</div></div>
-          <div><div class="k">Tritium</div><div class="v">${c.fuel != null ? c.fuel + ' / 1000' : '—'}</div></div>
-          <div><div class="k">Balance</div><div class="v">${fmt(c.balance)}</div></div>
-          <div><div class="k">Free space</div><div class="v">${c.free_space != null ? fmt(c.free_space) + ' t' : '—'}</div></div>
-        </div>
-        <div class="note">${(c.services || []).length ? 'Services: ' + esc(c.services.join(', ')) : ''}${c.stats_time ? ` · stats from ${c.stats_time.slice(0, 10)}` : ''}</div>`;
-    },
-  });
 })();

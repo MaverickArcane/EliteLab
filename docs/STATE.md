@@ -33,6 +33,20 @@ Conventions: `null` means unknown/not yet seen. Timestamps are the journal's ISO
 | `last_event_time` | str | every event | header live pill |
 | `game_version` | str | `Fileheader` | header |
 
+## carrier (module: carrier)
+
+| Key | Type | Meaning |
+|---|---|---|
+| `pinned` | object or null | Selected visitor carrier; null means show the existing owned-carrier view |
+| `pinned.*` | `market_id, callsign, system, star_pos, services, docking, source, observed_at, last_seen, distance` | `distance` in Ly; `source` is `journal` or `Spansh`; unknown coordinates, distance and docking access are null |
+| `visited` | list | Up to 50 `{market_id, callsign, system, last_seen}` choices from journal visits, newest visits first; includes the pin |
+| `checked_at` | ISO string or null | Last completed remote check, including failures; not the observation time |
+| `error` | string or null | Remote lookup failed; cached information remains visible |
+| `refreshing` | bool | Remote request in progress |
+| `offline` | bool | External lookups disabled by configuration |
+
+Selection and observations persist in `data/carrier.json`. `last_seen` is the latest local visit; `observed_at` dates the displayed location report. Remote reports replace observations only when strictly newer. Owner data remains in `journal.carrier`; the visitor namespace never writes it. Docked, docked Location and docked CarrierJump events are matched by MarketID, not station name. The map card receives a `pinned-carrier` layer from the carrier card script.
+
 ## history (module: history)
 
 | Key | Type | Notes |

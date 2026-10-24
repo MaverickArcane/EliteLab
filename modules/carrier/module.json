@@ -1,0 +1,11 @@
+{
+  "name": "carrier",
+  "version": "1.0.0",
+  "description": "Pin a visited fleet carrier and follow its last reported location and services.",
+  "requires": ["journal"],
+  "provides": ["carrier"],
+  "order": 25,
+  "cards": [
+    { "id": "carrier", "title": "Fleet carrier", "span": 4, "script": "card.js", "order": 43 }
+  ]
+}

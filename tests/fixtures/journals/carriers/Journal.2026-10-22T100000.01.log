@@ -1,0 +1,8 @@
+{"timestamp":"2026-10-22T10:00:00Z","event":"Docked","StationName":"TST-001","StationType":"FleetCarrier","StarSystem":"Leesti","MarketID":3700000001,"StationServices":["refuel","repair"]}
+{"timestamp":"2026-10-22T10:01:00Z","event":"Undocked","StationName":"TST-001","StationType":"FleetCarrier","MarketID":3700000001}
+{"timestamp":"2026-10-22T10:02:00Z","event":"Location","Docked":true,"StationName":"TST-001","StationType":"FleetCarrier","StarSystem":"Leesti","StarPos":[72.75,48.75,68.25],"MarketID":3700000001,"StationServices":["refuel","repair"]}
+{"timestamp":"2026-10-22T10:03:00Z","event":"CarrierJump","Docked":true,"StationName":"TST-001","StationType":"FleetCarrier","StarSystem":"Zaonce","StarPos":[80.75,48.75,69.25],"MarketID":3700000001,"StationServices":["refuel","repair"]}
+{"timestamp":"2026-10-22T10:04:00Z","event":"Undocked","StationName":"TST-001","StationType":"FleetCarrier","MarketID":3700000001}
+{"timestamp":"2026-10-22T10:05:00Z","event":"Docked","StationName":"TST-002","StationType":"FleetCarrier","StarSystem":"Zaonce","MarketID":3700000002,"StationServices":["refuel"]}
+{"timestamp":"2026-10-22T10:06:00Z","event":"CarrierStats","CarrierID":3700000003,"Callsign":"OWN-001","Name":"OWNED CARRIER","FuelLevel":850,"SpaceUsage":{"FreeSpace":19985},"Finance":{"CarrierBalance":1000000},"Crew":[{"CrewRole":"Refuel","Activated":true}]}
+{"timestamp":"2026-10-22T10:07:00Z","event":"CarrierLocation","StarSystem":"Leesti"}
