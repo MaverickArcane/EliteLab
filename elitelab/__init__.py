@@ -7,4 +7,4 @@ with an AI-facing API (every route is also an MCP tool).
     web/             the browser shell that hosts module cards
 """
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"

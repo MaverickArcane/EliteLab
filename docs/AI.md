@@ -26,7 +26,7 @@ python -m elitelab call set_wishlist items='{"Datamined Wake Exceptions": 15}' l
 
 `GET /api/schema` lists every tool with a JSON Schema for its parameters. Tools are plain `GET` routes with query parameters, or `POST` with a JSON body. `GET /api/state` is the whole live state; `GET /events` is a Server-Sent Events stream of changes.
 
-## Tools (as of 0.4)
+## Tools (as of 0.5)
 
 | Tool | What it answers |
 |---|---|
