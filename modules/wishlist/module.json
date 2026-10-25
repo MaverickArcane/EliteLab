@@ -1,0 +1,11 @@
+{
+  "name": "wishlist",
+  "version": "1.0.0",
+  "description": "Engineering wishlist: blueprints from one grade to another, experimental effects, tech broker unlocks, plain materials and the pinned build, tracked live against the materials inventory, with a material trader plan for the shortfalls and the nearest traders.",
+  "requires": ["materials"],
+  "provides": ["wishlist"],
+  "order": 65,
+  "cards": [
+    { "id": "wishlist", "title": "Engineering wishlist", "span": 6, "script": "card.js", "order": 23 }
+  ]
+}

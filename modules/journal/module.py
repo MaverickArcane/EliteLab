@@ -7,6 +7,7 @@ carrier, cargo, market, status, feed, last_event_time, game_version.
 """
 import json
 import os
+import re
 import threading
 
 from elitelab.core.gamedata import is_rare, norm
@@ -41,6 +42,7 @@ FEED = {
     "PowerplayDefect": lambda e: f"Defected from {e.get('FromPower')} to {e.get('ToPower')}",
     "CarrierJump": lambda e: f"Carrier arrived in {e.get('StarSystem')}",
     "CarrierJumpRequest": lambda e: f"Carrier jump scheduled to {e.get('SystemName')}",
+    "CarrierJumpCancelled": lambda e: "Carrier jump cancelled",
     "Bounty": lambda e: f"Bounty {e.get('TotalReward', 0):,} Cr",
     "MissionCompleted": lambda e: f"Mission complete: {e.get('LocalisedName') or e.get('Name')}",
     "Interdicted": lambda e: f"Interdicted by {e.get('Interdictor_Localised') or e.get('Interdictor')}",
@@ -51,12 +53,36 @@ FEED = {
 }
 
 
+from elitelab.core import edsy
+from elitelab.core import gamedata as gd
+from elitelab.core.builds import COSMETIC as COSMETIC_SLOTS, group_of      # shared with the build comparison
+
+
 class Journal:
+    @staticmethod
+    def _module(m):
+        """One Loadout module for ship_info.modules: journal slot, lower-case item, power state and engineering, plus the
+        display name, class, rating and mount from the EDSY table and blueprint/effect names from gamedata (for the ship card)."""
+        eng = m.get("Engineering") or {}
+        item = (m.get("Item") or "").lower()
+        info = edsy.MODULE_BY_FDNAME.get(item)
+        if not info:                                    # newer than the EDSY table: make the journal id presentable
+            info = {"name": re.sub(r"class(\d)", r"C\1", re.sub(r"size(\d)", r"S\1", re.sub(r"^(int_|hpt_)", "", item))).replace("_", " ")}
+        bpk = gd.BLUEPRINT_BY_LOWER.get((eng.get("BlueprintName") or "").lower())
+        exk = gd.EXPERIMENTAL_BY_LOWER.get((eng.get("ExperimentalEffect") or "").lower())
+        return {"slot": m.get("Slot"), "group": group_of(m.get("Slot")), "item": item, "on": m.get("On"), "priority": m.get("Priority"),
+                "health": m.get("Health"), "name": info.get("name") or item, "class": info.get("class"), "rating": info.get("rating"),
+                "mount": info.get("mount"),
+                "engineering": ({"blueprint": eng.get("BlueprintName"), "blueprint_name": gd.BLUEPRINT_BY_KEY[bpk]["name"] if bpk else eng.get("BlueprintName"),
+                                 "level": eng.get("Level"), "quality": eng.get("Quality"), "experimental": eng.get("ExperimentalEffect"),
+                                 "experimental_name": gd.EXPERIMENTAL_BY_KEY[exk]["name"] if exk else eng.get("ExperimentalEffect"),
+                                 "engineer": eng.get("Engineer")} if eng else None)}
+
     def __init__(self, core):
         self.core = core
         self.st = {
             "cmdr": None, "credits": None, "ship": None, "ship_name": None, "ship_ident": None,
-            "cargo_capacity": None, "jump_range": None, "system": None, "star_pos": None,
+            "cargo_capacity": None, "jump_range": None, "jump_range_now": None, "jump_range_laden": None, "system": None, "star_pos": None,
             "station": None, "station_type": None, "docked": False,
             "system_power": None, "system_power_state": None, "system_powers": [],
             "carrier": None, "last_event_time": None, "game_version": None, "ship_info": None,
@@ -76,6 +102,8 @@ class Journal:
     def push(self, keys=None):
         data = self.st if keys is None else {k: self.st[k] for k in keys}
         self.core.store.update(NS, data)
+        if keys is None or set(keys) & {"cargo", "system", "docked", "star_pos"}:
+            self.core.bus.emit("state.journal.location", None)
 
     # -- ship names -----------------------------------------------------------
     def _learn(self, internal, display):
@@ -124,9 +152,10 @@ class Journal:
             changed |= {"cmdr", "credits", "ship", "ship_name", "ship_ident"}
         elif e == "Loadout":
             self._learn(ev.get("Ship"), ev.get("Ship_Localised"))
+            st["ship_internal"] = (ev.get("Ship") or "").lower()
             self._ship_internal = ev.get("Ship"); st["ship"] = ev.get("Ship_Localised") or self.ship_name(ev.get("Ship"))
             st["ship_name"] = ev.get("ShipName"); st["ship_ident"] = ev.get("ShipIdent")
-            st["cargo_capacity"] = ev.get("CargoCapacity"); st["jump_range"] = ev.get("MaxJumpRange")
+            st["cargo_capacity"] = ev.get("CargoCapacity"); st["jump_range"] = ev.get("MaxJumpRange"); st["jump_range_now"] = ev.get("MaxJumpRange")
             fuel = ev.get("FuelCapacity") or {}
             mods = ev.get("Modules") or []
             st["ship_info"] = {
@@ -135,12 +164,20 @@ class Journal:
                 "hull_health": ev.get("HullHealth"), "unladen_mass": ev.get("UnladenMass"), "cargo_capacity": ev.get("CargoCapacity"),
                 "max_jump_range": ev.get("MaxJumpRange"), "fuel_main": fuel.get("Main"), "fuel_reserve": fuel.get("Reserve"),
                 "hot": ev.get("Hot"), "module_count": len(mods),
-                "core": [{"slot": m.get("Slot"), "item": m.get("Item"), "engineering": (m.get("Engineering") or {}).get("BlueprintName"),
-                          "level": (m.get("Engineering") or {}).get("Level")} for m in mods
-                         if m.get("Slot") in ("PowerPlant", "MainEngines", "FrameShiftDrive", "LifeSupport", "PowerDistributor", "Radar", "FuelTank", "Armour")],
-                "hardpoints": [{"slot": m.get("Slot"), "item": m.get("Item")} for m in mods if (m.get("Slot") or "").startswith(("Small", "Medium", "Large", "Huge", "Tiny"))],
+                # every functional module with its group and engineering (the ship card and the build module read this);
+                # cosmetics and fixed fittings dropped
+                "modules": [self._module(m) for m in mods if not (m.get("Slot") or "").startswith(COSMETIC_SLOTS)],
             }
-            changed |= {"ship", "ship_name", "ship_ident", "cargo_capacity", "jump_range", "ship_info"}
+            # laden and current jump range (issue 4): FSD stats from the EDSY table, optimal mass from the engineering modifiers
+            fsd = next((m for m in mods if m.get("Slot") == "FrameShiftDrive"), None)
+            optmass = next((x.get("Value") for x in ((fsd or {}).get("Engineering") or {}).get("Modifiers") or [] if x.get("Label") == "FSDOptimalMass"), None)
+            if fsd and not optmass:
+                optmass = (edsy.MODULE_BY_FDNAME.get((fsd.get("Item") or "").lower()) or {}).get("fsdoptmass")
+            self._fsd = {"item": (fsd or {}).get("Item"), "optmass": optmass, "unladen": ev.get("UnladenMass"), "fuel_cap": fuel.get("Main") or 0,
+                         "cargo_cap": ev.get("CargoCapacity") or 0,
+                         "booster": next((m.get("Item") for m in mods if (m.get("Item") or "").lower().startswith("int_guardianfsdbooster")), None)}
+            self._ranges()
+            changed |= {"ship", "ship_name", "ship_ident", "cargo_capacity", "jump_range", "jump_range_now", "jump_range_laden", "ship_info", "ship_internal"}
         elif e in ("Location", "FSDJump", "CarrierJump"):
             st["system"] = ev.get("StarSystem"); st["star_pos"] = ev.get("StarPos")
             st["system_power"] = ev.get("ControllingPower"); st["system_power_state"] = ev.get("PowerplayState")
@@ -193,17 +230,35 @@ class Journal:
             except Exception:
                 continue
 
+    def _ranges(self):
+        """jump_range_laden (full tank, full hold) and jump_range_now (fuel and cargo from Status.json) from the FSD."""
+        f = getattr(self, "_fsd", None) or {}
+        st = self.st
+        laden = now = None
+        if f.get("item") and f.get("unladen"):
+            stt = st.get("status") or {}
+            fuel_now = stt.get("fuel") if stt.get("fuel") is not None else f["fuel_cap"]
+            cargo_now = stt.get("cargo_tons") if stt.get("cargo_tons") is not None else 0
+            laden = edsy.jump_range(f["item"], f["optmass"], f["unladen"] + f["fuel_cap"] + f["cargo_cap"], f["booster"])
+            now = edsy.jump_range(f["item"], f["optmass"], f["unladen"] + fuel_now + cargo_now, f["booster"], fuel=fuel_now)
+        st["jump_range_laden"] = laden
+        st["jump_range_now"] = now if now is not None else st.get("jump_range")     # the one key consumers read; unladen max as fallback
+
     # -- snapshot files ------------------------------------------------------------
     def on_file(self, name, data):
         st = self.st
         if name == "Status":
             flags = data.get("Flags", 0)
+            prev = st.get("status") or {}
+            fuel = (data.get("Fuel") or {}).get("FuelMain")
             st["status"] = {"docked_flag": bool(flags & 1), "landed": bool(flags & 2), "supercruise": bool(flags & 16),
-                            "fsd_charging": bool(flags & (1 << 17)), "fuel": (data.get("Fuel") or {}).get("FuelMain"),
+                            "fsd_charging": bool(flags & (1 << 17)),
+                            "fuel": fuel if fuel is not None else prev.get("fuel"),   # the game omits Fuel in station menus; keep the last reading
                             "cargo_tons": data.get("Cargo"), "legal": data.get("LegalState"), "timestamp": data.get("timestamp")}
             if "Balance" in data:
                 st["credits"] = data["Balance"]
-            self.push({"status", "credits"})
+            self._ranges()
+            self.push({"status", "credits", "jump_range_now"})
         elif name == "Market":
             self._market_rares = {norm(i.get("Name")) for i in (data.get("Items") or []) if i.get("Rare")}
             st["market"] = {"station": data.get("StationName"), "system": data.get("StarSystem"), "timestamp": data.get("timestamp"),

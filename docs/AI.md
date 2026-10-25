@@ -33,21 +33,40 @@ python -m elitelab call set_wishlist items='{"Datamined Wake Exceptions": 15}' l
 | `get_commander_state` | Who, where, what ship, docked where, cargo (rares tagged), carrier, materials totals, recent feed |
 | `get_powerplay_status` | Power, rank, merits, merits this session, cycle end, control of current system |
 | `get_rares_loop`, `select_rares_loop` | Which loop stations are done, tons aboard, next stop |
-| `get_merits_summary` | Merits per hour and per activity this session (rares, trade, bounties, combat zones, hauling...) with a recent log |
+| `get_merits_summary` | Merits per activity this session (rares, trade, bounties, combat zones, hauling...) with a recent log; `per_hour_earning` is the activity's own pace (time between gains, gaps capped at 20 min), `per_hour_active` the rate over time with journal activity, `per_hour` the elapsed-time rate |
 | `find_combat_systems` | Where combat pays merits: contested acquisition systems (combat zones), acquisition (bounties), undermining (power kills), reinforcement |
 | `find_sell_targets` | Acquisition starports for a power from a system, with distance, jumps, market age, and which rares in the hold the station will not buy |
 | `compare_powers` | Which power has the closest acquisition systems to you |
 | `get_system_info` | Spansh summary of any system |
-| `get_materials`, `get_wishlist`, `set_wishlist`, `material_sources` | Inventory vs needs, and where to farm |
+| `get_materials`, `get_wishlist`, `set_wishlist`, `material_sources` | Inventory with caps, a flat per-material wishlist, and where to farm |
+| `list_recipes`, `get_recipe` | Engineering blueprints and experimental effects: materials per grade, engineers, total cost to a grade |
+| `get_engineering_wishlist`, `wishlist_add`, `wishlist_remove` | Track blueprints ("2x g5 fsd increased range"), effects and materials against live inventory |
+| `plan_material_trades`, `find_material_traders` | Which trader exchanges cover the shortfalls from current surplus, and the nearest traders by type |
+| `find_farm_sites` | Where to farm a material: known sites with system, body, surface coordinates and method, nearest first; `for_wishlist=true` for the current shortfalls |
+| `find_hge_systems` | Nearest populated systems in the state or allegiance a High Grade Emissions material needs (Boom, War, Outbreak, Empire...) |
+| `pin_build`, `get_build_progress`, `build_to_wishlist`, `unpin_build` | Pin an EDSY link; what the current ship still needs to match it (buy, engineer, materials, credits); push the engineering to the wishlist |
 | `get_travel_history` | Systems visited, route, star classes |
 | `get_system_coords` | Coordinates |
 | `get_recent_events` | Raw journal events, newest first |
 | `get_state`, `list_modules`, `list_tools`, `health` | Introspection |
 
+## MCP prompts and resources
+
+Besides the tools, the MCP server offers three prompts (`plan_rares_run`, `engineering_plan` with a `goal` argument, `where_am_i`) that tell the model which tools to chain and what to answer, and read-only resources: `elitelab://state` (everything) and `elitelab://state/<namespace>` (one module, e.g. `elitelab://state/wishlist`).
+
 ## Example conversations
 
 **"I want to work on getting materials for an FSD G5 Increased Range roll."**
-The assistant knows the recipe (or looks it up), calls `set_wishlist` with the five materials and quantities, then `get_materials only_short=true` to see what you lack, then `material_sources` for each shortfall. Your dashboard's Materials card now shows the shortfalls and ticks down as you collect.
+The assistant calls `wishlist_add item="g5 fsd increased range"`; the reply already lists have/need/short per material. `plan_material_trades` says which surplus to hand to which trader, `find_material_traders` says where, and `material_sources` covers what trading cannot. The Engineering wishlist card shows the shortfalls and ticks down as you collect. If the text is ambiguous ("shield reinforced" matches a generator and a booster), the reply has `status: ambiguous` with candidates; repeat with a key.
+
+**"Here is my EDSY build, what do I still need?"**
+`pin_build url=...` (EDSY link, Coriolis link or SLEF JSON) then `get_build_progress`: every slot is `ok`, `engineer` (with "Increased Range G3 to G5, apply Mass Manager") or `buy` (with credits), plus every material with have/need/short. `build_to_wishlist` tracks the build as one wishlist entry that follows progress, after which `plan_material_trades` and `find_farm_sites for_wishlist=true` answer "trade or farm what, where".
+
+**"Where do I farm tellurium?"**
+`find_farm_sites material=tellurium` returns HIP 36601 C 3 b with the landing coordinates and how to work the shard site, with the distance from the ship.
+
+**"What does G5 dirty drives cost?"**
+`get_recipe key="dirty drives"` returns the materials per grade, the engineers who offer each grade, and the total from G1 to G5 using the rolls-per-grade hint.
 
 **"Where should I sell these rares?"**
 `get_commander_state` shows the hold and current system; `get_powerplay_status` shows the pledged power; `find_sell_targets min=125 max=165` returns starports with jump counts for your ship. The assistant can rank by jumps and market freshness and tell you the system to plot.

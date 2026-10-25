@@ -6,6 +6,6 @@
   "provides": ["map"],
   "order": 70,
   "cards": [
-    { "id": "map", "title": "Star map", "span": 8, "script": "card.js", "order": 10 }
+    { "id": "map", "title": "Star map", "span": 8, "script": "card.js", "order": 60 }
   ]
 }

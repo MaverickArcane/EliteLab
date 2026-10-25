@@ -34,7 +34,7 @@ Reference docs, most specific first:
 ## How to run and verify
 
 ```
-python -m unittest discover -s tests -v     # 18 tests, offline, ~30 ms
+python -m unittest discover -s tests -v     # 44 tests, offline, a few seconds (the transport tests start a server)
 python -m elitelab modules                   # dependency order and cards
 python -m elitelab serve -v                  # http://localhost:8766, logs to stderr
 python -m elitelab call get_commander_state  # any tool against a running lab
@@ -74,3 +74,5 @@ The watcher emits `journal.<Event>` on the bus for every journal line (replayed 
 ## Current game facts the code relies on
 
 Rates were measured on the owner's commander in October 2026 and are encoded as hints, not rules: rares paid 1 merit per ~667 Cr of sale value with Mahon's bonus; a Medium Powerplay conflict zone paid 14 (assist) / 172 (kill) / 216 (Expert kill) per event. Update `docs/DECISIONS.md` if you measure something different.
+
+Engineering: blueprint costs, experimental effects, technology broker unlocks and the material catalog (with trader families) are the one table `elitelab/core/engineering.json`, read through `gamedata`. Build links are decoded locally: `elitelab/core/edsy.py` (EDSY, tables in `edsy.json`), `coriolis.py` (Coriolis, `coriolis.json`), `builds.py` (dispatch plus SLEF/Loadout JSON); regenerate the tables when new ships appear. Farm sites are `modules/farming/sites.json`. Material trader ratios are 1:3 down and 6:1 up per grade within a family, times 6 across families, never across Raw/Manufactured/Encoded. Rolls per grade default to 1/2/3/4/5 as a planning hint (`rolls_per_grade`); override per wishlist entry with `rolls`.

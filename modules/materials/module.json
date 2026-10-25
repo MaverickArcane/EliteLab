@@ -6,6 +6,6 @@
   "provides": ["materials"],
   "order": 60,
   "cards": [
-    { "id": "materials", "title": "Materials", "span": 4, "script": "card.js", "order": 45 }
+    { "id": "materials", "title": "Materials", "span": 4, "script": "card.js", "order": 26 }
   ]
 }

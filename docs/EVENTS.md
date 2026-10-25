@@ -20,7 +20,7 @@ Replay: at startup the watcher re-emits events from the newest `RECENT_JOURNALS`
 
 | Event | Fields used | Notes |
 |---|---|---|
-| `Loadout` | `Ship, Ship_Localised, ShipID, ShipName, ShipIdent, HullValue, ModulesValue, Rebuy, HullHealth, UnladenMass, CargoCapacity, MaxJumpRange, FuelCapacity{Main,Reserve}, Hot, Modules[{Slot, Item, Engineering{BlueprintName, Level}}]` | `Ship_Localised` is often absent for newer hulls (e.g. `smallcombat01_nx` = Kestrel Mk II, `panthermkii`). `MaxJumpRange` is unladen. |
+| `Loadout` | `Ship, Ship_Localised, ShipID, ShipName, ShipIdent, HullValue, ModulesValue, Rebuy, HullHealth, UnladenMass, CargoCapacity, MaxJumpRange, FuelCapacity{Main,Reserve}, Hot, Modules[{Slot, Item, On, Priority, Health, Engineering{Engineer, BlueprintName, Level, Quality, ExperimentalEffect}}]` | `Ship_Localised` is often absent for newer hulls (e.g. `smallcombat01_nx` = Kestrel Mk II, `panthermkii`). `MaxJumpRange` is unladen. `Item` is lower-cased; cosmetic slots (`PaintJob`, `Decal`, `ShipKit`, `Bobble`, `VesselVoice`...) and fixed fittings (`CargoHatch`, `PlanetaryApproachSuite`...) are dropped from `ship_info.modules`. Core slot names: `Armour, PowerPlant, MainEngines, FrameShiftDrive, LifeSupport, PowerDistributor, Radar, FuelTank`; hardpoints `Small/Medium/Large/HugeHardpointN`, utilities `TinyHardpointN`, internals `SlotNN_SizeS`, `MilitaryNN`. |
 | `ShipyardSwap` | `ShipType, ShipType_Localised, ShipID` | sets the ship name immediately; a `Loadout` follows |
 | `ShipyardNew`, `ShipyardBuy` | `ShipType, ShipType_Localised` | learned names only |
 | `StoredShips` | `ShipsHere[], ShipsRemote[]` each `{ShipType, ShipType_Localised, Name, StarSystem?}` | best source of internal-id -> display-name pairs for the whole fleet |
@@ -48,7 +48,7 @@ Replay: at startup the watcher re-emits events from the newest `RECENT_JOURNALS`
 | `Cargo.json` (snapshot) | `Count, Inventory[{Name, Name_Localised, Count, Stolen}]` | names are plain keys (`alieneggs`) |
 | `Market.json` (snapshot) | `StationName, StarSystem, Items[{Name, Name_Localised, Category, BuyPrice, SellPrice, Stock, Demand, Rare}]` | names are `$alieneggs_name;`; `Rare: true` marks rare goods; a rare absent from the list is not accepted at that station |
 
-Rare goods keys seen so far: `leestianeviljuice`, `bluemilk` (Azure Milk), `lavianbrandy`, `disomacorn`, `orrerianviciousbrew`, `uszaiantreegrub`, `alieneggs` (Leathery Eggs), `zeesszeantgrubglue`. Do not guess keys; add them when observed.
+Rare goods keys are the FDevIDs symbols lower-cased (`gamedata.RARES`, all 142). Keys seen in real journals that confirm the table: `leestianeviljuice`, `bluemilk` (Azure Milk), `lavianbrandy`, `disomacorn`, `orrerianviciousbrew`, `uszaiantreegrub`, `alieneggs` (Leathery Eggs), `zeesszeantglue` (Zeessze Ant Grub Glue; an earlier note here said `zeesszeantgrubglue`, which was wrong).
 
 ## Combat
 

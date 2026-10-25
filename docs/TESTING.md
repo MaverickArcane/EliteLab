@@ -37,11 +37,17 @@ When you add parsing for an event, add a realistic line here (copy a real one fr
 
 ## What is covered
 
-Loader order and missing-dependency error; tool schema completeness; commander state from fixture; ship-name learning; cargo rare tagging across both name formats; market rares; carrier summary and activated services; feed order; Powerplay status; merit attribution (rares, objective bonus, combat zone with target detail, zero unattributed); loop ticking and sorting; materials inventory, caps, wishlist set/clear with unknown names reported; fuzzy source lookup; history route and star class; recent-events filter; store change detection and bus fan-out; bus wildcard matching and handler isolation.
+Loader order and missing-dependency error; tool schema completeness; commander state from fixture; ship-name learning; cargo rare tagging across both name formats; market rares; carrier summary and activated services; feed order; Powerplay status; merit attribution (rares, objective bonus, combat zone with target detail, zero unattributed); loop ticking and sorting; materials inventory, caps, wishlist set/clear with unknown names reported; fuzzy source lookup; recipe search and per-grade cost (FSD Increased Range), trade ratios, engineering wishlist add/ambiguity/material entries, the trade plan preferring the cheapest exchange, live shortfall update on `MaterialCollected`, farm sites by material and by shortfall, grade ranges and tech broker unlocks, EDSY link decoding and the build comparison (verdicts, rolls from the current grade, the live build entry on the wishlist), Coriolis link and SLEF JSON pinning; history route and star class; recent-events filter; store change detection and bus fan-out; bus wildcard matching and handler isolation.
 
 ## What is not covered (yet)
 
 The HTTP transport itself (SSE framing, static path guard), the MCP server, the front end, and anything that needs Spansh (targets, combat). The CI Docker job does an end-to-end check of the HTTP path against the fixture. For Spansh-backed modules, test by hand with `python -m elitelab call find_sell_targets min=125 max=165` and read the result.
+
+## Pinned fleet carriers
+
+`tests/test_carrier.py` uses `tests/fixtures/journals/carriers/` and a separate temporary data directory per test. It checks visited-carrier discovery, persistent pin/unpin, ownership separation, live and replayed location/jump observations, identity matching, remote freshness, missing optional fields, failed lookups, offline behavior, and pin changes during an in-flight request. External reports are mocked; no network is required.
+
+For a manual check, enable the Fleet carrier card in Layout, pin a previously visited carrier, refresh, restart EliteLab, and verify the selection and observation survive. Check that the map marks the reported location and that docking at a different carrier does not change the pin. Unpin to restore owned-carrier details if present. Remote reports are last known observations, not live telemetry.
 
 ## Manual checks before a release
 

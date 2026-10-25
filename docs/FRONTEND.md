@@ -29,7 +29,7 @@
 | `Lab.coords` | `{system: {x,y,z}}` cache |
 | `Lab.toast(msg, kind?)` | bottom-right toast for 2.6 s; `kind='bad'` is red |
 | `Lab.relayout()` | coalesced dispatch of a `lab:relayout` window event; cards that own canvases listen to it instead of `resize` |
-| `Lab.util` | `esc, fmt, ls{get,set}, inaraSys, inaraSt, spanshSys, copy, dist3` |
+| `Lab.util` | `esc, fmt, ls{get,set}, inaraSys, inaraSt, spanshSys, copy, dist3, bar(label, pct, text, colour?)` (the labelled segmented gauge the ship and build cards use) |
 
 Global click handler: any element with `data-copy="text"` copies that text and flashes "copied".
 
@@ -52,11 +52,13 @@ Lifecycle (`buildCard` / `unmountCard` in app.js): header -> mount -> subscribe 
 
 Render errors are caught and shown as a `.render-error` banner at the top of the body; the body is not replaced, so a mounted canvas survives a bad render.
 
-Cards are `section.card` with classes `cN` for grid span (N = 2..12 of a 12-column grid). Below 1200 px small cards snap to 6 columns and wide ones to 12; below 760 px everything is 12 and the drag/resize handles are hidden.
+Cards are `section.card`; their span is an inline `grid-column` (see the layout engine). Below 760 px there is one column, so everything is full width and the drag/resize handles are hidden.
 
 ## Layout engine
 
-State: `layout = {order[], spans{}, hidden[], collapsed[], locked}` in `localStorage.layout.v1`. `orderedCards()` = saved order first (ignoring unknown ids), then any new cards in manifest order. `spanOf(c)` = saved span or manifest span or 3.
+State: `layout = {order[], spans{}, hidden[], collapsed[], locked, pack}` in `localStorage.layout.v1`. `orderedCards()` = saved order first (ignoring unknown ids), then any new cards in manifest order. `spanOf(c)` = saved span or manifest span or 3.
+
+The grid always fills the window: `computeCols()` sets `cols` = 12 from 1100 px up, 6 below that, 1 on a phone, as `--cols` on `main` (no max-width), and a `ResizeObserver` on the grid re-applies every card's span when the count changes. Spans are nominal (designed for 12) and `applySpan()` writes `grid-column: span min(n, cols)` inline, so rows that sum to 12 are always full width and cards scale with the window; at 6 columns a span-4 card is two thirds and 6 or more is full width. Resizing by hand allows up to `cols`. Dragging the corner downwards caps the card's body height (`layout.heights[id]` px, applied as `max-height` + `overflow-y: auto` on `.body` by `applyHeight()`); dragging past the content's bottom removes the cap. Double-click the corner resets a capped card to its nominal width and no cap, otherwise toggles full width. `layout.pack` (default true, "fill gaps" in the menu) adds `main.dense`, i.e. `grid-auto-flow: row dense`, so small cards fill holes left by wide ones; it can move a small card visually ahead of a wider one that precedes it in `order`.
 
 Gestures share one `gesture` object (`{move(e), end()}`) and window-level listeners:
 
@@ -77,6 +79,10 @@ Menu (`renderMenu`): lock checkbox, export (layout JSON to clipboard), import (p
 Presets are plain objects `{order, spans, hidden}` in `PRESETS` in app.js. Cards not in `order` follow in manifest order; cards in `hidden` are not mounted.
 
 UI health: a `requestAnimationFrame` loop records the worst frame gap every 2 s; above 120 ms the footer shows "UI stalled N ms" in red. Note Chrome throttles rAF to 1 Hz in background tabs, so a stall right after switching back to the tab is expected.
+
+## Notifications
+
+A block at the end of app.js subscribes to `journal`, `powerplay` and `loop` and toasts on transitions only (the first render arms it without replaying history): new feed entries for `Interdicted`, `Died`, `CarrierJumpRequest`, `CarrierJump`, `CarrierJumpCancelled`; `powerplay.session_merits` increasing ("+N merits"); `loop.complete` going false to true; fuel (`journal.status.fuel` over `ship_info.fuel_main`) crossing below 25 percent. The "sound" checkbox in the layout menu (`localStorage.notify.sound`) adds a short Web Audio beep; the audio context is created on that click because browsers require a gesture.
 
 ## Map layers
 
@@ -102,6 +108,8 @@ History fetch: `loadHistory()` refetches when the range selector or `history.ver
 
 ## Styling
 
-`web/style.css` defines tokens on `:root` (`--bg, --card, --line, --fg, --muted, --accent (HUD orange), --accent-2 (cyan), --ok, --warn, --bad, --link`). Reusable classes: `.big, .muted, .ok/.warn/.bad/.accent, .grid2 (.k/.v), .note, table/.num, .tag(.rare/.ok/.bad/.warn), .bar > i, .row, .mini, .primary, .feed, label.chk, .links`.
+The look is a cockpit instrument panel: near-black blue background with a faint scanline texture, HUD orange for titles, labels of record and anything that needs attention, cyan for secondary readings, angular panels (3 px radius) with orange corner brackets, uppercase letter-spaced micro-labels, tabular numbers, segmented gauge bars. The header is a readout strip (label above value). Bahnschrift when present, Segoe UI otherwise.
+
+`web/style.css` defines tokens on `:root` (`--bg, --bg-2, --card, --card-2, --line, --line-2, --fg, --muted, --dim, --accent (HUD orange), --accent-soft, --accent-2 (cyan), --ok, --warn, --bad, --link, --radius, --gap, --font, --mono`). Reusable classes: `.big, .muted, .ok/.warn/.bad/.accent, .k (micro-label), .grid2 / .grid3 (.k/.v), .note, table/.num, .tag(.rare/.ok/.bad/.warn), .bar > i, .row, .mini, .primary, .feed, label.chk, .links, .chips > .chip(.eng/.off, .lbl, .sub), .ship-head/.ship-range/.ship-bar/.ship-sec`.
 
 Dark theme only. No light theme is planned; it is a cockpit tool.

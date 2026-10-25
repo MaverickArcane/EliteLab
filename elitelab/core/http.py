@@ -2,6 +2,10 @@
 Server-Sent Events for live state, and static files for the shell and modules.
 """
 import json
+import hashlib
+import hmac
+import secrets
+from http.cookies import SimpleCookie
 import mimetypes
 import os
 import queue
@@ -63,7 +67,7 @@ def make_handler(core):
             pass
 
         # -- helpers -------------------------------------------------------
-        def _send(self, code, body, ctype="application/json; charset=utf-8"):
+        def _send(self, code, body, ctype="application/json; charset=utf-8", headers=None):
             if isinstance(body, (dict, list)) or body is None:
                 body = json.dumps(body).encode("utf-8")
             elif isinstance(body, str):
@@ -72,9 +76,10 @@ def make_handler(core):
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
-            # No CORS headers on purpose: the dashboard is same-origin and the API has no auth, so a random web page
-            # must not be able to read game state or change the wishlist from the user's browser. MCP and the CLI are
-            # not browsers and are unaffected.
+            for key, value in (headers or {}).items():
+                self.send_header(key, value)
+            # No CORS headers: cross-origin reads are disabled. POSTs also
+            # enforce Origin and JSON content type before invoking handlers.
             self.end_headers()
             self.wfile.write(body)
 
@@ -93,15 +98,52 @@ def make_handler(core):
         def _body(self):
             """Read the request body (always, so keep-alive connections stay in sync) and parse JSON if possible."""
             n = int(self.headers.get("Content-Length") or 0)
-            if n > MAX_BODY:
+            if n < 0 or n > MAX_BODY:
+                self.close_connection = True
                 raise ValueError(f"request body too large ({n} bytes, max {MAX_BODY})")
             if not n:
                 return None
             raw = self.rfile.read(n)
             try:
                 return json.loads(raw.decode("utf-8"))
-            except Exception:
-                return {"_raw": raw.decode("utf-8", "replace")}
+            except (ValueError, UnicodeError):
+                raise ValueError("request body must be valid JSON") from None
+
+        def _check_mutation(self):
+            origin = self.headers.get("Origin")
+            host = self.headers.get("Host", "")
+            # same host over http or https (a reverse proxy may terminate TLS in front of us)
+            if ((origin is not None and origin not in ("http://" + host, "https://" + host))
+                    or self.headers.get("Sec-Fetch-Site") == "cross-site"):
+                return 403, "cross-origin mutations are not allowed"
+            if self.headers.get_content_type() != "application/json":
+                return 415, "Content-Type must be application/json"
+            return None
+
+        def _authorized(self):
+            if not config.AUTH_TOKEN:
+                return True
+            authorization = self.headers.get("Authorization", "")
+            if authorization.startswith("Bearer ") and hmac.compare_digest(
+                    authorization[7:].encode(), config.AUTH_TOKEN.encode()):
+                return True
+            try:
+                cookie = SimpleCookie(self.headers.get("Cookie", ""))
+                value = cookie["elitelab_session"].value
+                expires, nonce, signature = value.split(".")
+                expected = hmac.new(config.AUTH_TOKEN.encode(), f"{expires}.{nonce}".encode(), hashlib.sha256).hexdigest()
+                return int(expires) > time.time() and hmac.compare_digest(signature, expected)
+            except Exception:                       # no/invalid cookie, or SimpleCookie's CookieError on a junk Cookie header
+                return False
+
+        def _login(self, body):
+            token = body.get("token", "") if isinstance(body, dict) else ""
+            if not isinstance(token, str) or not config.AUTH_TOKEN or not hmac.compare_digest(token.encode(), config.AUTH_TOKEN.encode()):
+                return self._send(401, {"error": "invalid token"})
+            value = f"{int(time.time()) + 43200}.{secrets.token_hex(16)}"
+            signature = hmac.new(config.AUTH_TOKEN.encode(), value.encode(), hashlib.sha256).hexdigest()
+            return self._send(200, {"ok": True}, headers={
+                "Set-Cookie": f"elitelab_session={value}.{signature}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200"})
 
         def _dispatch(self, method):
             u = urllib.parse.urlparse(self.path)
@@ -109,8 +151,19 @@ def make_handler(core):
             q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
             body = None
             try:
+                if (path.startswith("/api/") or path == "/events") and path != "/api/login" and not self._authorized():
+                    self.close_connection = True
+                    return self._send(401, {"error": "authentication required"})
                 if method == "POST":
+                    error = self._check_mutation()
+                    if error:
+                        self.close_connection = True  # rejected body has not been consumed
+                        return self._send(error[0], {"error": error[1]})
                     body = self._body()       # read before any reply, even a 404, or the next request on this connection breaks
+                    if body is not None and not isinstance(body, dict):
+                        raise ValueError("request body must be a JSON object")
+                    if path == "/api/login":
+                        return self._login(body)
                 if path == "/events" and method == "GET":
                     return self._sse()
                 r = router.routes.get((method, path))

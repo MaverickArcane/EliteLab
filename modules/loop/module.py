@@ -9,6 +9,8 @@ import math
 import os
 import threading
 
+from elitelab.core.coords import CoordCache
+
 NS = "loop"
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -21,21 +23,15 @@ class Loop:
         self.selected = (core.read_data("loop.json", default={}) or {}).get("selected")
         if self.selected not in self.loops:          # stale or missing selection must never stop the server
             self.selected = next(iter(self.loops))
-        self.coords = {}
         self._lock = threading.Lock()
-        for key in ("cargo", "system", "docked", "star_pos"):
-            core.bus.on(f"state.journal.{key}", lambda n, v: self.recompute())
+        self.coords = CoordCache(core, "loop", on_update=self.recompute)      # EDSM lookups off the watcher thread
+        core.bus.on("state.journal.location", lambda n, v: self.recompute())
         core.bus.on("journal.replay.done", lambda n, v: self.recompute())
-        threading.Thread(target=self._fetch_coords, daemon=True).start()
+        self._request_coords()
         self.recompute()
 
-    def _fetch_coords(self):
-        names = {s["system"] for lp in self.loops.values() for s in lp["stations"]}
-        try:
-            self.coords.update(self.core.services.edsm_coords(sorted(names)))
-        except Exception as ex:
-            self.core.log.warning("loop: coords fetch failed: %s", ex)
-        self.recompute()
+    def _request_coords(self):
+        self.coords.request({s["system"] for lp in self.loops.values() for s in lp["stations"]})
 
     def select(self, loop_id):
         if loop_id not in self.loops:
@@ -43,11 +39,12 @@ class Loop:
         self.selected = loop_id
         self.core.write_data({"selected": loop_id}, "loop.json")
         self.recompute()
+        self._request_coords()
         return self.core.store.get(NS)
 
     def recompute(self):
         with self._lock:
-            j = self.core.store.get("journal")
+            j = {k: self.core.store.get("journal", k) for k in ("cargo", "system", "docked", "star_pos")}
             items = (j.get("cargo") or {}).get("items") or []
             ship = j.get("star_pos")
             lp = self.loops[self.selected]

@@ -1,0 +1,11 @@
+{
+  "name": "recipes",
+  "version": "1.0.0",
+  "description": "Engineering blueprints (G1-G5), experimental effects and technology broker unlocks with their material costs, searchable by module, name or engineer. Read-only; the wishlist module tracks them against inventory.",
+  "requires": [],
+  "provides": ["recipes"],
+  "order": 62,
+  "cards": [
+    { "id": "recipes", "title": "Engineering recipes", "span": 4, "script": "card.js", "order": 25 }
+  ]
+}
