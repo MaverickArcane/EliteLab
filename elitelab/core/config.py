@@ -1,6 +1,8 @@
 """Runtime configuration. Everything can be overridden with environment variables."""
 import os
 
+from .. import __version__      # elitelab/__init__.py has no imports, so this is safe
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(_HERE))
 
@@ -21,7 +23,7 @@ JOURNAL_DIR = _default_journal_dir()
 WEB_DIR = os.environ.get("ELITELAB_WEB_DIR", os.path.join(ROOT, "web"))
 MODULES_DIR = os.environ.get("ELITELAB_MODULES_DIR", os.path.join(ROOT, "modules"))
 DATA_DIR = os.environ.get("ELITELAB_DATA_DIR", os.path.join(ROOT, "data"))     # persistent per-user files (wishlists...)
-USER_AGENT = "EliteLab/0.4 (+https://github.com/MaverickArcane/EliteLab)"
+USER_AGENT = f"EliteLab/{__version__} (+https://github.com/MaverickArcane/EliteLab)"
 
 RECENT_JOURNALS = int(os.environ.get("ELITELAB_RECENT_JOURNALS", "3"))   # files replayed at startup
 CACHE_TTL = int(os.environ.get("ELITELAB_CACHE_TTL", "600"))             # seconds for Spansh/EDSM responses
