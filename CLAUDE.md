@@ -1,6 +1,6 @@
 # Agent guide to this repository
 
-Read this first. It is written for an AI assistant (or a human) landing in this repo cold. Everything here is current as of 0.4.0.
+Read this first. It is written for an AI assistant (or a human) landing in this repo cold. Everything here is current as of 0.5.0.
 
 ## What this is
 
@@ -12,7 +12,7 @@ The owner plays Elite and builds this while testing things in game. The code is 
 
 | Path | What | Read when |
 |---|---|---|
-| `elitelab/core/` | bus, store, services, http, loader, watcher, Core | changing plumbing |
+| `elitelab/core/` | bus, store, services, http, loader, watcher, Core; `gamedata` (shared game tables), `coords` (EDSM cache), `edsy` / `coriolis` / `builds` (build link decoders) | changing plumbing or shared game data |
 | `elitelab/mcp.py` | MCP stdio server (proxies the HTTP tools) | AI integration |
 | `elitelab/__main__.py` | CLI: serve, mcp, modules, tools, call | |
 | `modules/<name>/` | one feature each: `module.json` + `module.py` + `web/*.js` | adding or changing a feature |
