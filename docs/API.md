@@ -31,22 +31,6 @@ Most recent raw journal events (newest first). Useful to see exactly what the ga
 
 Live commander state from the journal: name, credits, ship (with loadout summary), cargo capacity and jump range, current system/station, docked flag, Powerplay control of the current system, cargo with rare goods tagged, rares in stock at the last market opened, fleet carrier summary, and the recent event feed. Materials live in get_materials.
 
-## `get_followed_carrier` - `GET /api/carrier` - module: carrier
-
-Returns `pinned`, up to 50 `visited` carriers, `checked_at`, `error`, `refreshing` and `offline`. Pinned information is last reported, not guaranteed current. See STATE.md for fields. Owner-only details remain in `get_commander_state`.
-
-## `pin_fleet_carrier` - `POST /api/carrier/pin` - module: carrier
-
-Persistently follow one visited carrier, replacing the previous pin. Requires integer `market_id` from `get_followed_carrier.visited`. Unknown IDs return a validation error. Returns the carrier state.
-
-## `unpin_fleet_carrier` - `POST /api/carrier/unpin` - module: carrier
-
-Remove the pin while retaining visited carriers. The card returns to owned-carrier details if available. No parameters. Returns the carrier state.
-
-## `refresh_followed_carrier` - `POST /api/carrier/refresh` - module: carrier
-
-Check the pinned carrier's Spansh station record, cached for five minutes. No parameters. Returns the carrier state, with `error` on a failed remote check; retains previous observations. Older or equally dated remote reports do not replace journal evidence. No external request in offline mode or without a pin.
-
 ## `get_travel_history`  -  `GET /api/history`  -  module: history
 
 Systems visited and the chronological route, with star class, visit counts, coordinates, total jumps and light-years.
@@ -55,13 +39,33 @@ Systems visited and the chronological route, with star class, visit counts, coor
 |---|---|---|
 | `days` | integer | Look back this many days; 0 = all time (default `30`) |
 
+## `get_followed_carrier`  -  `GET /api/carrier`  -  module: carrier
+
+Pinned fleet carrier's last reported system, services, source and observation time; also up to 50 visited carriers available to pin. Remote reports may be stale. Owner-only fuel and finance remain in get_commander_state.
+
+## `pin_fleet_carrier`  -  `POST /api/carrier/pin`  -  module: carrier
+
+Persistently follow one visited fleet carrier. Choose its market_id from get_followed_carrier.visited. Replaces the previous pin; does not imply ownership.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `market_id` | integer | Market ID of a visited fleet carrier. (**required**) |
+
+## `unpin_fleet_carrier`  -  `POST /api/carrier/unpin`  -  module: carrier
+
+Remove the pinned fleet carrier. Keeps visited carriers and restores the owned-carrier card if available.
+
+## `refresh_followed_carrier`  -  `POST /api/carrier/refresh`  -  module: carrier
+
+Check Spansh for the pinned carrier's last reported location and services. Cached for five minutes; older reports never replace newer journal observations. Offline mode keeps cached data.
+
 ## `get_powerplay_status`  -  `GET /api/powerplay`  -  module: powerplay
 
 Pledged power, rank, total merits, merits earned this session with a log of recent gains, days pledged, when the weekly cycle ends, and who controls the current system.
 
 ## `get_merits_summary`  -  `GET /api/merits`  -  module: merits
 
-Where this session's Powerplay merits came from (rares, trade, bounty hunting, combat zone bonds, hauling, exploration, missions, objective bonuses), merits per hour overall and in the last hour, merits per event, and a recent log. Use it to compare activities with real numbers.
+Where this session's Powerplay merits came from (rares, trade, bounty hunting, combat zone bonds, hauling, exploration, missions, objective bonuses), merits per event, and a recent log. Rates: per_hour_earning is the activity's own pace (time between merit gains, a gap over 20 min counts as 20 min), per_hour_active is over time with any journal activity (a silence over 10 min is a break), per_hour is over elapsed time since login, last_hour is the last 60 minutes; breaks and idle say why they differ.
 
 ## `find_sell_targets`  -  `GET /api/targets`  -  module: targets
 

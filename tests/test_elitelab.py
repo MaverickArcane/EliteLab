@@ -434,6 +434,30 @@ class JournalDockingTests(unittest.TestCase):
                 self.assertEqual((j["docked"], j["station"], j["station_type"]), (False, None, None))
 
 
+class MeritRateTests(unittest.TestCase):
+    """The headline merit rate counts time with journal activity; a silence longer than 10 min is a break."""
+    def test_merit_rate_ignores_breaks(self):
+        import time as _time
+        core = make_core(); call = lambda n, **q: core.http.tools[n].fn(q)
+        now = int(_time.time()); t0 = now - 4 * 3600 - 600
+        iso = lambda t: _time.strftime("%Y-%m-%dT%H:%M:%SZ", _time.gmtime(t))
+        core.bus.emit("journal.LoadGame", {"event": "LoadGame", "timestamp": iso(t0), "Commander": "Testpilot"})
+        core.bus.emit("journal.FSDJump", {"event": "FSDJump", "timestamp": iso(t0 + 300), "StarSystem": "Lave", "StarPos": [0, 0, 0]})
+        gain = lambda t: core.bus.emit("journal.PowerplayMerits", {"event": "PowerplayMerits", "timestamp": iso(t), "Power": "Edmund Mahon", "MeritsGained": 100, "TotalMerits": 100})
+        dock = lambda t: core.bus.emit("journal.Docked", {"event": "Docked", "timestamp": iso(t), "StationName": "X", "StarSystem": "Lave"})
+        gain(t0 + 600); gain(t0 + 900)                                   # two gains 5 min apart
+        dock(t0 + 3600); dock(t0 + 7200)                                 # outfitting during the four-hour silence: playing, not earning
+        gain(now - 60)
+        core.bus.emit("journal.Docked", {"event": "Docked", "timestamp": iso(now - 30), "StationName": "X", "StarSystem": "Lave"})
+        m = call("get_merits_summary")
+        self.assertEqual((m["session_merits"], m["breaks"], m["idle"]), (300, 3, False))
+        self.assertLess(m["per_hour"], 100)                               # elapsed rate is dragged down by the break
+        self.assertTrue(0.7 < m["active_hours"] < 0.85)                   # 15 min of play, three capped 10 min silences, a minute at the end
+        self.assertTrue(0.4 < m["earning_hours"] < 0.5)                   # 5 min between gains, one capped 20 min gap, a minute at the end
+        self.assertGreater(m["per_hour_active"], 5 * m["per_hour"])
+        self.assertGreater(m["per_hour_earning"], m["per_hour_active"])         # the earning clock skips the silent four hours entirely
+
+
 class StoreTests(unittest.TestCase):
     def test_store_change_detection_and_subscribers(self):
         from elitelab.core.bus import EventBus
