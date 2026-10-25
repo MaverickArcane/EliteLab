@@ -29,7 +29,7 @@
 | `Lab.coords` | `{system: {x,y,z}}` cache |
 | `Lab.toast(msg, kind?)` | bottom-right toast for 2.6 s; `kind='bad'` is red |
 | `Lab.relayout()` | coalesced dispatch of a `lab:relayout` window event; cards that own canvases listen to it instead of `resize` |
-| `Lab.util` | `esc, fmt, ls{get,set}, inaraSys, inaraSt, spanshSys, copy, dist3` |
+| `Lab.util` | `esc, fmt, ls{get,set}, inaraSys, inaraSt, spanshSys, copy, dist3, bar(label, pct, text, colour?)` (the labelled segmented gauge the ship and build cards use) |
 
 Global click handler: any element with `data-copy="text"` copies that text and flashes "copied".
 
@@ -108,6 +108,8 @@ History fetch: `loadHistory()` refetches when the range selector or `history.ver
 
 ## Styling
 
-`web/style.css` defines tokens on `:root` (`--bg, --card, --line, --fg, --muted, --accent (HUD orange), --accent-2 (cyan), --ok, --warn, --bad, --link`). Reusable classes: `.big, .muted, .ok/.warn/.bad/.accent, .grid2 (.k/.v), .note, table/.num, .tag(.rare/.ok/.bad/.warn), .bar > i, .row, .mini, .primary, .feed, label.chk, .links`.
+The look is a cockpit instrument panel: near-black blue background with a faint scanline texture, HUD orange for titles, labels of record and anything that needs attention, cyan for secondary readings, angular panels (3 px radius) with orange corner brackets, uppercase letter-spaced micro-labels, tabular numbers, segmented gauge bars. The header is a readout strip (label above value). Bahnschrift when present, Segoe UI otherwise.
+
+`web/style.css` defines tokens on `:root` (`--bg, --bg-2, --card, --card-2, --line, --line-2, --fg, --muted, --dim, --accent (HUD orange), --accent-soft, --accent-2 (cyan), --ok, --warn, --bad, --link, --radius, --gap, --font, --mono`). Reusable classes: `.big, .muted, .ok/.warn/.bad/.accent, .k (micro-label), .grid2 / .grid3 (.k/.v), .note, table/.num, .tag(.rare/.ok/.bad/.warn), .bar > i, .row, .mini, .primary, .feed, label.chk, .links, .chips > .chip(.eng/.off, .lbl, .sub), .ship-head/.ship-range/.ship-bar/.ship-sec`.
 
 Dark theme only. No light theme is planned; it is a cockpit tool.

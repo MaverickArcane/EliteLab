@@ -10,7 +10,7 @@ import re
 from elitelab.core import coriolis, edsy
 from elitelab.core import gamedata as gd
 
-COSMETIC = ("PaintJob", "Decal", "ShipKit", "Bobble", "VesselVoice", "ShipName", "ShipID", "WeaponColour", "EngineColour",
+COSMETIC = ("PaintJob", "Decal", "ShipKit", "Bobble", "VesselVoice", "ShipName", "ShipID", "WeaponColour", "EngineColour", "Hologram",
             "ShipCockpit", "CargoHatch", "PlanetaryApproachSuite", "DataLinkScanner", "CodexScanner", "DiscoveryScanner", "StringLights")
 
 

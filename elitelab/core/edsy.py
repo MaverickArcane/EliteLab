@@ -20,7 +20,8 @@ for _s in SHIPS.values():                                                       
     for _k, _m in (_s.get("module") or {}).items():
         if _m.get("fdname"):
             MODULE_BY_FDNAME.setdefault(_m["fdname"].lower(), {"fdname": _m["fdname"], "name": MODULES.get(_k, {}).get("name") or "Bulkheads",
-                                                                "class": 1, "rating": None, "cost": _m.get("cost") or 0, "id": int(_k)})
+                                                                "class": None, "rating": MODULES.get(_k, {}).get("rating"),   # bulkheads have no size
+                                                                "cost": _m.get("cost") or 0, "id": int(_k)})
 SHIP_BY_FDNAME = {s["fdname"].lower(): {**s, "id": int(k)} for k, s in SHIPS.items() if s.get("fdname")}
 
 ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_-"
