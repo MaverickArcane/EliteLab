@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 (2026-10-25)
 
 - Merit rate: three rates instead of one. The headline is the pace while earning (time between merit gains, gaps capped at 20 min), beside the rate while playing (any journal activity; a 10 min silence is a break) and the elapsed-session rate, plus the break count and an idle flag. A three-hour engineering stop used to halve the only figure shown.
 - Jump range now and laden (issue 4): computed from the FSD, its engineered optimal mass, fuel and cargo; the ship card shows now / laden / max and every jump estimate (targets, combat, farm sites, traders) uses the current range.
@@ -10,7 +10,6 @@
 - Ship card redesigned: jump range up front, fuel and hull bars, a stats grid, and the whole loadout as chips (core, hardpoints, utility, internals) with class/rating, mount, blueprint grade and effect; engineered modules outlined, powered-off ones dimmed. `ship_info.modules` now carries display names.
 - Farm sites: "find systems" on each High Grade Emissions entry asks Spansh for the nearest populated systems in that state or allegiance (`find_hge_systems`).
 - MCP prompts and resources (issue 8): `plan_rares_run`, `engineering_plan`, `where_am_i`; live state readable as `elitelab://state` and per namespace.
-
 - New `recipes` module: 81 engineering blueprints (materials per grade G1-G5, engineers per grade) and 87 experimental effects, searchable by free text; `list_recipes`, `get_recipe`.
 - New `wishlist` module: an engineering wishlist that takes "2x g5 fsd increased range", "mass manager" or "50 tellurium", tracks have/need/short against the live inventory, plans material trader exchanges for the shortfalls (same-family 1:3 down, 6:1 up, cross-family x6), and finds the nearest traders by type on Spansh; `get_engineering_wishlist`, `wishlist_add`, `wishlist_remove`, `plan_material_trades`, `find_material_traders`.
 - New `farming` module: curated material farm sites (crystal shards, brain trees, Dav's Hope, Jameson Crash Site, Guardian structures, crashed ships) and methods (High Grade Emissions by state, wake and ship scans), nearest first with EDSM distances, flagged when they cover a wishlist shortfall; map layer; `find_farm_sites`.
@@ -23,7 +22,9 @@
 - Wishlist: structured picker instead of free text (kind, module, blueprint, from/to grade, quantity); grade ranges ("2-5") for modules that already have some grades; tech broker unlock entries; `wishlist_options`.
 - Journal: `ship_info.modules` now carries every functional module with full engineering (blueprint, level, quality, experimental effect) and `ship_internal` the hull id.
 - Core: the material catalog (with trader families and caps, now including Thargoid and Guardian materials), blueprints, effects and unlocks live in `elitelab/core/engineering.json` and are exposed by `gamedata`; the materials module reads the catalog from there and now publishes `materials.inventory`.
-- docs/API.md regenerated (34 tools).
+- New `carrier` module (Tbehrends4587, #31): pin a visited fleet carrier and follow its last reported location and services on its own card and map layer; `get_followed_carrier`, `pin_fleet_carrier`, `unpin_fleet_carrier`, `refresh_followed_carrier`.
+- Fix (Tbehrends4587, #26): an undocked `Location` snapshot clears stale docking state.
+- docs/API.md regenerated (40 tools).
 
 ## 0.4.0 (2026-10-23)
 

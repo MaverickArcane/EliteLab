@@ -1,6 +1,6 @@
 # API / AI tools
 
-Generated from `GET /api/schema` (EliteLab 0.4.0). Every tool is an HTTP route: `GET` with query parameters or `POST` with a JSON body. Responses are JSON; errors are `{"error": "..."}`. `GET /events` streams state changes as Server-Sent Events (`snapshot` then `state` events).
+Generated from `GET /api/schema` (EliteLab 0.5.0). Every tool is an HTTP route: `GET` with query parameters or `POST` with a JSON body. Responses are JSON; errors are `{"error": "..."}`. `GET /events` streams state changes as Server-Sent Events (`snapshot` then `state` events).
 
 ## `health`  -  `GET /api/health`  -  module: core
 

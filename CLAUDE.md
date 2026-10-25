@@ -1,6 +1,6 @@
 # Agent guide to this repository
 
-Read this first. It is written for an AI assistant (or a human) landing in this repo cold. Everything here is current as of 0.4.0.
+Read this first. It is written for an AI assistant (or a human) landing in this repo cold. Everything here is current as of 0.5.0.
 
 ## What this is
 
@@ -12,7 +12,7 @@ The owner plays Elite and builds this while testing things in game. The code is 
 
 | Path | What | Read when |
 |---|---|---|
-| `elitelab/core/` | bus, store, services, http, loader, watcher, Core | changing plumbing |
+| `elitelab/core/` | bus, store, services, http, loader, watcher, Core; `gamedata` (shared game tables), `coords` (EDSM cache), `edsy` / `coriolis` / `builds` (build link decoders) | changing plumbing or shared game data |
 | `elitelab/mcp.py` | MCP stdio server (proxies the HTTP tools) | AI integration |
 | `elitelab/__main__.py` | CLI: serve, mcp, modules, tools, call | |
 | `modules/<name>/` | one feature each: `module.json` + `module.py` + `web/*.js` | adding or changing a feature |
@@ -34,7 +34,7 @@ Reference docs, most specific first:
 ## How to run and verify
 
 ```
-python -m unittest discover -s tests -v     # 44 tests, offline, a few seconds (the transport tests start a server)
+python -m unittest discover -s tests -v     # 65 tests, offline, a few seconds (the transport tests start a server)
 python -m elitelab modules                   # dependency order and cards
 python -m elitelab serve -v                  # http://localhost:8766, logs to stderr
 python -m elitelab call get_commander_state  # any tool against a running lab
