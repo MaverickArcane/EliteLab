@@ -6,7 +6,24 @@ This project is vibe coded. I built it with an AI assistant while playing, to te
 
 No accounts, no uploads, no dependencies: Python standard library, one web page, no build step.
 
-![EliteLab dashboard](docs/screenshot.jpg)
+![EliteLab desktop dashboard with the cockpit theme, ship readouts, and engineering panels](docs/screenshot.jpg)
+
+The current desktop layout. Screenshots use the bundled sample journals; live market data and personal builds depend on your session.
+
+### Engineering workspace
+
+Switch to the Engineering preset to bring build planning, the wishlist, recipes, and material farming together.
+
+![Engineering preset showing build planning, the engineering wishlist, recipes, and material farm sites](docs/engineering.jpg)
+
+<details>
+<summary>See the mobile layout</summary>
+
+Cards stack vertically on narrow screens, keeping commander, location, and ship information readable.
+
+<img src="docs/mobile.jpg" alt="EliteLab at a 390-pixel mobile width, with location and ship cards stacked vertically" width="300">
+
+</details>
 
 ## What it does
 
