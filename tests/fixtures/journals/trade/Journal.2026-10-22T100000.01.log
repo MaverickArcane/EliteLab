@@ -1,0 +1,7 @@
+{"timestamp":"2026-10-22T10:00:00Z","event":"CarrierStats","CarrierID":3700000001,"Name":"Test carrier","Callsign":"TST-001","SpaceUsage":{"FreeSpace":20000,"Cargo":500}}
+{"timestamp":"2026-10-22T10:01:00Z","event":"CarrierTradeOrder","CarrierID":3700000001,"BlackMarket":false,"Commodity":"tritium","PurchaseOrder":1000,"Price":50000}
+{"timestamp":"2026-10-22T10:02:00Z","event":"CarrierTradeOrder","CarrierID":3700000001,"BlackMarket":false,"Commodity":"gold","SaleOrder":500,"Price":60000}
+{"timestamp":"2026-10-22T10:03:00Z","event":"Docked","MarketID":3700000001,"StationType":"FleetCarrier","StationName":"TST-001","StarSystem":"Sol"}
+{"timestamp":"2026-10-22T10:04:00Z","event":"CargoTransfer","Transfers":[{"Type":"gold","Count":50,"Direction":"toship"},{"Type":"tritium","Count":30,"Direction":"tocarrier"}]}
+{"timestamp":"2026-10-22T10:05:00Z","event":"MarketBuy","MarketID":3700000001,"Type":"gold","Count":10,"BuyPrice":60000}
+{"timestamp":"2026-10-22T10:06:00Z","event":"MarketSell","MarketID":3700000001,"Type":"tritium","Count":20,"SellPrice":50000}

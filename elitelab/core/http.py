@@ -2,6 +2,7 @@
 Server-Sent Events for live state, and static files for the shell and modules.
 """
 import json
+import logging
 import hashlib
 import hmac
 import secrets
@@ -12,6 +13,7 @@ import queue
 import threading
 import time
 import urllib.parse
+import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import config
@@ -236,10 +238,21 @@ class HttpServer:
         self.core = core
         self.srv = None
 
-    def serve(self, host, port):
+    def serve(self, host, port, *, open_browser=False):
         self.srv = ThreadingHTTPServer((host, port), make_handler(self.core))
         self.srv.daemon_threads = True
         try:
+            if open_browser:
+                browser_host = "127.0.0.1" if host == "0.0.0.0" else host
+                url = f"http://{browser_host}:{self.srv.server_address[1]}/"
+
+                def launch_browser():
+                    try:
+                        webbrowser.open(url)
+                    except Exception:
+                        logging.getLogger(__name__).warning("Could not open browser; visit %s", url, exc_info=True)
+
+                threading.Thread(target=launch_browser, name="open-browser", daemon=True).start()
             self.srv.serve_forever()
         finally:
             self.srv.server_close()

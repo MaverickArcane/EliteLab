@@ -31,6 +31,8 @@ Cards stack vertically on narrow screens, keeping commander, location, and ship 
 |---|---|---|
 | journal | Location, Ship, Cargo, Rares at this market, Live feed | `get_commander_state` |
 | carrier | Fleet carrier: owned details or one pinned visitor carrier | `get_followed_carrier`, `pin_fleet_carrier`, `unpin_fleet_carrier`, `refresh_followed_carrier` |
+| trade | Carrier stock ledger, loading/unloading plan, margins, run counts and buy/sell stops | `get_carrier_trade`, `plan_carrier_trade`, `reconcile_carrier_stock`, `get_trade_profiles`, `find_carrier_opportunities`, `select_carrier_opportunity` |
+| party | Private LAN/tailnet hauling party: member cargo and location, shared leader plan | `get_hauling_party`, `host_hauling_party`, `join_hauling_party`, `leave_hauling_party` |
 | powerplay | Power, rank, merits, merits this session, cycle countdown | `get_powerplay_status` |
 | merits | Merits per hour and per activity, worked out from the journal | `get_merits_summary` |
 | combat | Where combat pays merits: contested systems with combat zones, acquisition, undermining, reinforcement | `find_combat_systems` |
@@ -51,7 +53,162 @@ You do not need to own a fleet carrier to use the Fleet carrier card. Choose a c
 
 ## Quick start
 
-### Windows, no Docker
+### Windows bundle (Python included)
+
+Download the **EliteLab-windows-x64** artifact from the successful GitHub Actions
+CI run for your branch. Inside the artifact is `EliteLab-windows-x64.zip`:
+extract it fully and double-click **Start EliteLab.cmd** in the EliteLab folder.
+Leave the terminal open while using the dashboard; Ctrl+C stops the server.
+No separate Python installation or PATH setup is needed. The browser opens
+after the server binds, and startup errors remain visible in the terminal.
+
+The bundle includes the official CPython 3.13.17 x64 embedded runtime and its
+license. The GitHub **Download ZIP** source archive does not include Python;
+running from source still requires Python 3.10 or newer.
+
+To build a bundle yourself, run `python scripts/build_windows.py`. The output
+is `dist/EliteLab-windows-x64.zip`, with a SHA-256 checksum alongside it. The
+build downloads a pinned runtime from python.org and verifies its published
+checksum. It copies only application code/assets, the launcher and docs;
+personal journals, `.env` and saved `data/` are excluded. Updates should retain
+your existing `data/` folder after closing the old server.
+
+### Carrier operations and hauling parties
+
+Choose **Layout > Carrier ops**. **Carrier trades** finds paired buy/sell routes
+inside the dashboard. For each high-paying buyer, it picks the cheapest
+qualifying supplier within the chosen **Buy to sell** distance. Results are
+ranked by spread per ton, then lower buy price and shorter route distance.
+Both stops, prices, supply/demand, observation times and distance between stops
+appear together. No PTN missions or external route tabs.
+
+Reports come from **Ardent / EDDN**, not Inara. Defaults: 100 Ly between stops,
+both stops within 100 Ly of your carrier, reports within six hours, large pads,
+supply and demand sufficient to fill all reported carrier free space, station
+approaches within 10,000 Ls, and
+sell prices at least 80% of the highest qualifying reported sell price for that
+commodity. Adjust these in **Search settings**. Unknown inter-stop distances
+are excluded. The carrier radius applies to both stops; buy-to-sell distance has a separate visible limit.
+
+**Bulk shortlist** screens 24 commodities ranked by catalog spread; expand to
+48 or 96, or select any individual commodity from the catalog/carrier list.
+Catalog figures only choose candidates: fresh station reports determine prices.
+Up to 100 quotes per side are paired before selecting the top eighteen results.
+This is a bounded search, not a guarantee of the galaxy's best route. Reports
+refresh every five minutes while the card is visible and can change on arrival.
+
+Carrier free space and reported supply/demand size the new load. Each result
+shows purchase cost, gross spread, loading and unloading run counts, existing
+stock and orders. Spread excludes fuel, fees, hauler payments and Powerplay
+bonuses. Stock and orders do not restrict which commodities can be searched.
+**Use route** saves both stops/prices into a loading operation. Unknown or
+conflicting stock needs reconciliation to establish its target; this does not
+hide routes. The supply/demand minimum follows carrier free space automatically; untick
+**Fill carrier free space** to override it. Buy-order-reserved space is included when sizing a replacement load; cancel or resize those orders in game first. Clearing an EliteLab trade does not cancel game orders. Unknown/full capacity still allows browsing routes without an executable loading quantity. **Adjust operation** exposes target stock, prices,
+ship capacity and optional personal bonuses. Physical stock, ship cargo and
+orders stay separate. Plans do not place orders in game.
+
+**Crew profit split** starts at 25% for loading and 25% for unloading, leaving
+50% to the carrier. Edit either crew share to recalculate every result without
+querying markets again. **Total route profit** is the full station-to-station
+spread; **Your carrier profit** deducts both crew payments. Both exclude fuel
+and fees. Each leg shows the carrier order price, hauler earnings per tonne and
+the total paid for that leg, with a copy-price button.
+
+Carrier buy price = station buy price + loading reward. Carrier sell price =
+station sell price - unloading reward. Rewards are rounded down to whole credits
+per tonne; the remainder stays with the carrier. These are aggregate crew shares,
+paid by tonnage hauled, not equal payments per connected member. **Use route**
+saves the chosen split and full operation quantity. In **Adjust operation**,
+auto crew pricing chooses the corresponding order price for Load or Unload.
+Both prices are shared with the hauling party; game orders still require manual
+entry. Legacy/manual plans retain their prices unless auto crew pricing is enabled.
+
+**Personal Powerplay bonus** shows journal-reported power and rank. Enter a
+verified additional bonus in Cr/t and confirm its applicability to your rank,
+commodity and destination. The bonus stays separate from carrier-market profit;
+"Sell price already includes bonus" prevents double counting. Changing the
+route clears confirmation, and pledge/rank changes invalidate it.
+
+The inventory ledger reads older journals once at startup to recover carrier
+orders and locally observed trades/transfers. Sale orders establish stock;
+purchase orders never do. Manual counts are replay baselines, so later transfers
+still apply. Other commanders' trades can be missing. Historical counts are
+partial evidence; reconcile against the carrier in game. Saved counts and plans
+survive restarts. Party cargo never becomes delivered carrier stock automatically.
+
+**Clear inventory & orders** discards stale ledger rows and starts tracking from
+now. Older journals cannot recreate cleared counts/orders. The optional tritium
+row keeps its quantity unknown until checked. A pre-reset ledger backup is saved
+locally; this changes no in-game cargo, saved trade plans or operation reports.
+
+**Manage trade** separates the selected job from route searches. **Prepare trade**
+saves the route and asks for current physical stock inline if it is unknown.
+Set the carrier buy order in game, then choose **Start loading**. The owner can
+pause/resume new runs, confirm loading finished and depart, open unloading, and
+finish or cancel. Moving to unloading sets the saved carrier sell price and
+retains the starting stock as the final target. The active route/prices are
+locked until the operation ends. Stage transitions do not invent delivery counts.
+
+Crew see the current task, carrier, price and owner instructions. Each commander
+can mark themselves Ready/Hauling/Away. While joined to an active leg, matching
+journal sales automatically record deliveries: sales to the carrier count as
+loading; sales at the chosen destination count as unloading. Owner transfers
+to the carrier also count as loading when its docking market ID matches.
+Loading and unloading progress and the per-commander totals are crew reports,
+separate from journal inventory and cargo in transit. Cumulative totals and
+local identity survive restart; reconnects and repeated heartbeats do not add
+the same delivery again. Journal event fingerprints also survive restart. The
+watcher performs no network calls; heartbeats send the saved totals. Replays,
+purchases, cargo snapshots and unrelated markets/commodities do not count.
+**Manual delivery fallback** is only for missing journal evidence or plans
+without verified market IDs; never enter an already auto-recorded delivery.
+Failed sends are retained locally for retry. Completed deliveries can still be reported during a
+pause. Final profit remains an estimate, not a payout ledger.
+
+For multiplayer on a LAN or your Tailscale tailnet:
+
+1. Everyone runs their own EliteLab and joins the same tailnet.
+2. The leader selects **Create party as leader**. Prefer the leader's Tailscale
+   IPv4 as the listen address; `0.0.0.0` listens on all local interfaces. The
+   party port defaults to `8767`, separate from the dashboard's `8766`.
+3. Share `http://LEADER-TAILSCALE-IP:8767` and the generated party code.
+4. Members enter that URL/code under **Join a leader** on their own dashboard.
+   Surrounding pasted whitespace is ignored; the address also works without
+   `http://`. Failed joins retain the fields and show a specific error beside them.
+   They share commander name, location, ship, cargo and flight telemetry every second.
+   Members also receive the leader's saved plan and the party roster.
+5. The owner starts the saved trade in **Manage trade**. Crew journals update progress automatically;
+   the owner advances the shared stages.
+6. **Leave party** stops sharing; on the leader it closes the listener and
+   invalidates the code. Parties do not reconnect automatically after restart.
+
+Allow the party port through Windows Firewall and tailnet access rules if needed.
+Keep the main dashboard bound to localhost; friends do not need its controls.
+The party listener accepts only authenticated telemetry, not dashboard routes.
+
+The crew roster shows shield up/down state, main-tank fuel and reservoir,
+last-reported ship hull, cargo, current system/station, navigation target and
+flight mode. Low fuel, overheating, interdiction and danger flags stand out.
+Status.json is checked every second and party reports are sent every second;
+game writes and network latency set the actual delay. The roster distinguishes
+report receipt from the last game status/fuel observation. An old status file
+does not by itself prove disconnection, and a connected client does not prove
+the game is running. Known game shutdowns show last-reported values. Shields
+are up/down only; hull is event-based, not continuous. Old clients without
+telemetry remain compatible and show unknown readings.
+
+HTTP is for private LAN/Tailscale connections (Tailscale supplies encryption);
+this is not a public internet hosting setup. Reports become stale after 30 seconds
+without a heartbeat and expire after 5 minutes. Cargo observation times remain
+visible even while a client is connected; an open EliteLab is not proof that the
+game is currently running. Party codes and member data are kept in memory.
+
+Market lookup uses the [Ardent API](https://github.com/iaincollins/ardent-api).
+Journal accounting follows Frontier's
+[Player Journal manual](https://hosting.zaonce.net/community/journal/v37/Journal_Manual_v37.pdf).
+
+### Windows from source, no Docker
 
 Requires Python 3.10 or newer (python.org, tick "Add to PATH").
 
@@ -152,3 +309,20 @@ Spansh (https://spansh.co.uk) for station and system search, EDSM (https://www.e
 ## License
 
 MIT. See LICENSE.
+
+### Crew load suggestions
+
+The hauling party recommends a total that fits whole rounds across participating
+ships, plus each commander's next pickup. It subtracts matching cargo already
+aboard, leaves space for unrelated cargo, and splits a final partial round in
+proportion to free holds using whole tonnes. Ship swaps, cargo updates and
+Ready/Hauling/Away status recalculate the advice live. Stale, away, offline,
+non-ship and unknown-capacity reports are excluded and named. Suggestions do
+not reserve cargo or change an active trade. Confirm the latest amounts before
+buying; paused and transit phases request no pickups.
+
+Owners transfer into their own carrier to load; those journal transfers count
+as deliveries. For unloading, transfer to the ship and sell at the destination;
+only the station sale counts as delivered. Crew use the carrier market as usual.
+Buy, sell and carrier stops have separate system/station/callsign copy buttons,
+and the next pickup amount can be copied too.

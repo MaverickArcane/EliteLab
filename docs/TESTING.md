@@ -51,6 +51,16 @@ For a manual check, enable the Fleet carrier card in Layout, pin a previously vi
 
 ## Manual checks before a release
 
+The Windows CI job builds `dist/EliteLab-windows-x64.zip` with a checksum-pinned
+CPython 3.13.17 embedded runtime. `python scripts/smoke_windows_bundle.py` extracts
+it to a path containing spaces and invokes the actual CMD launcher with system
+Python removed from PATH and invalid PYTHONHOME/PYTHONPATH values. It checks the
+dashboard, trade/party assets, module loading and fixture journal state, then
+stops its own process tree. Only a passing bundle is uploaded as a CI artifact.
+Run `python scripts/build_windows.py` first to perform the same check locally
+on Windows. `tests/test_startup.py` covers browser launch after successful
+binding, custom ports, and no browser launch on bind failure.
+
 1. `python -m elitelab serve -v` against real journals; open the dashboard; drag, resize, hide and show cards; switch presets; watch the footer for stalls.
 2. `python -m elitelab call get_commander_state` while the game is running and confirm the ship, system and cargo match the HUD.
 3. `docker compose up --build` and hit `/api/health`.

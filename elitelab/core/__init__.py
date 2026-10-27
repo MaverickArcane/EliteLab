@@ -93,7 +93,7 @@ class Core:
         return [{k: v for k, v in e.items() if k != "_replay"} for e in evs[:limit]]
 
     # -- lifecycle -----------------------------------------------------------
-    def start(self, host=None, port=None):
+    def start(self, host=None, port=None, *, open_browser=False):
         from .. import __version__
         load_all(self)
         self.watcher.start()
@@ -103,7 +103,7 @@ class Core:
         print(f"Modules: {', '.join(self.modules) or 'none'}")
         print("Ctrl+C to stop.")
         try:
-            self._server.serve(host, port)
+            self._server.serve(host, port, open_browser=open_browser)
         except KeyboardInterrupt:
             pass
         finally:

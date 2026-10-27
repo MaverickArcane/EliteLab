@@ -249,6 +249,9 @@
   const ALL = () => allCards.map(c => c.id);
   const ENG = ['recipes', 'wishlist', 'farming', 'build'];       // engineering cards, hidden by the non-engineering presets
   const PRESETS = {
+    'Carrier ops': () => ({ order: ['trade', 'party', 'carrier', 'cargo', 'location', 'ship', 'map', 'feed'],
+      spans: { trade: 8, party: 4, carrier: 4, cargo: 4, location: 4, ship: 4, map: 8, feed: 4 },
+      hidden: ALL().filter(id => !['trade', 'party', 'carrier', 'cargo', 'location', 'ship', 'map', 'feed'].includes(id)) }),
     'Default': () => ({ order: ['location', 'ship', 'build', 'wishlist', 'farming', 'recipes', 'materials', 'powerplay', 'merits', 'targets', 'combat', 'feed', 'cargo', 'market', 'carrier', 'loop', 'map'],
       spans: { location: 4, ship: 4, build: 4, wishlist: 6, farming: 6, recipes: 4, materials: 4, powerplay: 4, merits: 4, targets: 12, combat: 12, feed: 4, cargo: 4, market: 4, carrier: 4, loop: 4, map: 12 }, hidden: [] }),
     'Powerplay': () => ({ order: ['map', 'powerplay', 'merits', 'targets', 'combat', 'location', 'loop', 'cargo', 'ship', 'feed'],
@@ -257,8 +260,8 @@
       spans: { loop: 4, cargo: 4, market: 4, map: 8, location: 4, targets: 12, merits: 4, ship: 4, feed: 4 }, hidden: ['combat', 'materials', 'carrier', 'powerplay', ...ENG] }),
     'Combat': () => ({ order: ['merits', 'ship', 'location', 'combat', 'map', 'feed', 'powerplay'],
       spans: { merits: 4, ship: 4, location: 4, combat: 12, map: 8, feed: 4, powerplay: 4 }, hidden: ['loop', 'targets', 'materials', 'market', 'cargo', 'carrier', ...ENG] }),
-    'Mining & trade': () => ({ order: ['cargo', 'market', 'ship', 'targets', 'map', 'location', 'merits', 'feed'],
-      spans: { cargo: 4, market: 4, ship: 4, targets: 12, map: 8, location: 4, merits: 4, feed: 4 }, hidden: ['loop', 'combat', 'materials', 'powerplay', 'carrier', ...ENG] }),
+    'Mining & trade': () => ({ order: ['trade', 'party', 'cargo', 'carrier', 'market', 'ship', 'targets', 'map', 'location', 'merits', 'feed'],
+      spans: { trade: 8, party: 4, cargo: 4, carrier: 4, market: 4, ship: 4, targets: 12, map: 8, location: 4, merits: 4, feed: 4 }, hidden: ['loop', 'combat', 'materials', 'powerplay', ...ENG] }),
     'Engineering': () => ({ order: ['build', 'wishlist', 'farming', 'recipes', 'materials', 'ship', 'location', 'map', 'feed'],
       spans: { build: 6, wishlist: 6, farming: 6, recipes: 6, materials: 4, ship: 4, location: 4, map: 12, feed: 4 },
       hidden: ['loop', 'targets', 'combat', 'market', 'powerplay', 'merits', 'carrier', 'cargo'] }),
