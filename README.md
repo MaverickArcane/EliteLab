@@ -53,6 +53,26 @@ You do not need to own a fleet carrier to use the Fleet carrier card. Choose a c
 
 ## Quick start
 
+### Windows bundle (Python included)
+
+Download the **EliteLab-windows-x64** artifact from the successful GitHub Actions
+CI run for your branch. Inside the artifact is `EliteLab-windows-x64.zip`:
+extract it fully and double-click **Start EliteLab.cmd** in the EliteLab folder.
+Leave the terminal open while using the dashboard; Ctrl+C stops the server.
+No separate Python installation or PATH setup is needed. The browser opens
+after the server binds, and startup errors remain visible in the terminal.
+
+The bundle includes the official CPython 3.13.17 x64 embedded runtime and its
+license. The GitHub **Download ZIP** source archive does not include Python;
+running from source still requires Python 3.10 or newer.
+
+To build a bundle yourself, run `python scripts/build_windows.py`. The output
+is `dist/EliteLab-windows-x64.zip`, with a SHA-256 checksum alongside it. The
+build downloads a pinned runtime from python.org and verifies its published
+checksum. It copies only application code/assets, the launcher and docs;
+personal journals, `.env` and saved `data/` are excluded. Updates should retain
+your existing `data/` folder after closing the old server.
+
 ### Carrier operations and hauling parties
 
 Choose **Layout > Carrier ops**. **Carrier trades** finds paired buy/sell routes
@@ -175,7 +195,7 @@ Market lookup uses the [Ardent API](https://github.com/iaincollins/ardent-api).
 Journal accounting follows Frontier's
 [Player Journal manual](https://hosting.zaonce.net/community/journal/v37/Journal_Manual_v37.pdf).
 
-### Windows, no Docker
+### Windows from source, no Docker
 
 Requires Python 3.10 or newer (python.org, tick "Add to PATH").
 
