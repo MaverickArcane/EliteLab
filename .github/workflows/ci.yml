@@ -4,6 +4,7 @@ on:
   push:
     branches: [ main, master, development ]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -35,7 +36,27 @@ jobs:
       - name: node --check every script
         run: |
           set -e
-          for f in web/*.js modules/*/web/*.js; do node --check "$f"; done
+          for f in web/*.js modules/*/web/*.js; do node --input-type=module --check < "$f"; done
+
+  windows-bundle:
+    name: Portable Windows bundle
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build with checksum-verified embedded Python
+        run: python scripts/build_windows.py
+      - name: Launch extracted bundle without system Python on PATH
+        run: python scripts/smoke_windows_bundle.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EliteLab-windows-x64
+          path: |
+            dist/EliteLab-windows-x64.zip
+            dist/EliteLab-windows-x64.zip.sha256
+          if-no-files-found: error
 
   docker:
     name: Docker image

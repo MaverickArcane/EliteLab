@@ -51,6 +51,34 @@ For a manual check, enable the Fleet carrier card in Layout, pin a previously vi
 
 ## Manual checks before a release
 
+The hauling redesign adds `test_hauling_desk.py` (cargo vs deliveries, owner vs
+crew, prices, pending work, unknowns, pause/stale/end states) and
+`test_hauling_session.py` (three independent data directories and real HTTP,
+full loading/unloading, reconnect, restart, ship changes, retry idempotency,
+phase changes and repeated journal events). These fixtures never use live data.
+`node tests/browser.mjs` also starts a separate member application, joins a real
+leader, checks clipboard values, selection/input preservation across live
+updates, individual progress and margin, and desktop/mobile layouts.
+Set `ELITELAB_SCREENSHOT_DIR` to retain the owner and member screenshots.
+
+`test_workload.py` checks equal tonnes for different ships, custom weights,
+integer conservation, owner participation, order funding, fixed quotas after
+disconnect/ship changes, rebalancing after deliveries, and the final partial
+load with cargo already aboard. Session tests exercise shared quotas over real
+HTTP, persisted assignments, stale preview rejection and owner-only writes.
+The browser suite verifies owner order previews, persistent custom inputs,
+rebalancing for a joining commander, and the member's resulting pickup amount.
+
+The Windows CI job builds `dist/EliteLab-windows-x64.zip` with a checksum-pinned
+CPython 3.13.17 embedded runtime. `python scripts/smoke_windows_bundle.py` extracts
+it to a path containing spaces and invokes the actual CMD launcher with system
+Python removed from PATH and invalid PYTHONHOME/PYTHONPATH values. It checks the
+dashboard, trade/party assets, module loading and fixture journal state, then
+stops its own process tree. Only a passing bundle is uploaded as a CI artifact.
+Run `python scripts/build_windows.py` first to perform the same check locally
+on Windows. `tests/test_startup.py` covers browser launch after successful
+binding, custom ports, and no browser launch on bind failure.
+
 1. `python -m elitelab serve -v` against real journals; open the dashboard; drag, resize, hide and show cards; switch presets; watch the footer for stalls.
 2. `python -m elitelab call get_commander_state` while the game is running and confirm the ship, system and cargo match the HUD.
 3. `docker compose up --build` and hit `/api/health`.
