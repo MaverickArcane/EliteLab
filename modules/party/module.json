@@ -1,0 +1,6 @@
+{
+  "name": "party", "version": "1.0.0",
+  "description": "Private LAN and tailnet cargo reporting for a carrier leader.",
+  "requires": ["journal", "trade"], "provides": ["party"], "order": 27,
+  "cards": [{"id": "party", "title": "Hauling party", "span": 4, "script": "card.js", "order": 45}]
+}

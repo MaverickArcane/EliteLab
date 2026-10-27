@@ -189,3 +189,96 @@ Recomputed on `state.journal.star_pos` (distances) and `state.wishlist.needs` (`
 - `farming_ui` (client-only): `{systems{site id: 'loading' | find_hge_systems result | {error}}}`.
 - `localStorage.layouts.v1`: `{name: layout}` saved layouts.
 - `localStorage.loopManual`: see loop.
+
+## Carrier trade and party additions
+
+`trade` owns `carrier_id`, `inventory` (commodity -> stock or null, evidence and
+timestamp), `orders` (side, active, remaining quantity, price and timestamp),
+`plan`, `calculation`, `market_count`, `inventory_scan`, and `buy_commitment`. `trade.json` also
+persists up to 100 observed markets and 10,000 event fingerprints for replay
+deduplication. Physical counts and orders are separate. Carrier ownership is
+established by CarrierStats/CarrierTradeOrder, never by pinning a visitor carrier.
+Counts are partial evidence; unreported external trades require reconciliation.
+Private `baselines` preserve manual counts during the chronological archive scan.
+`inventory_scan` reports reading/ready/unavailable/carrier changed. Archive rows
+only replace older evidence. Historical totals exceeding a newer CarrierStats
+cargo total require reconciliation before a selected opportunity can become a plan.
+
+`plan.price_basis` is known/unknown acquisition/unknown resale;
+`carrier_price_known` prevents treating an absent carrier price as zero cost.
+Unknown margins and estimated profits remain null. Personal Powerplay bonuses
+store their confirmed pledge/rank context and never inflate carrier profit.
+
+`trade/market.py` caches at most twelve paired-route queries for five minutes. Query
+IDs bind prices to the inventory, orders, capacity and Powerplay context;
+selection rejects changed context or queries older than ten minutes. Reports
+are Ardent/EDDN observations, filtered by age, pad and radius, not Inara data.
+`localStorage.trade.routes.v1` retains route search settings. The mounted
+card preserves unsaved operation fields during live updates and clears its
+refresh timer on unmount.
+
+`party` owns mode (`idle`, `leader`, `member`), local member identity, listener
+port, leader-only invitation code, remote URL, last error, shared plan and member
+reports. Connections and invitation codes are memory-only; local identity and
+cumulative delivery reports persist in `party-local.json`. The remote listener exposes only `/report`; the
+management routes remain on the local dashboard. Reports older than 30 seconds
+are stale, and members expire after 300 seconds. Client disconnects retain the
+last evidence marked stale rather than turning cargo into zero. Party reports
+never modify the trade ledger.
+
+Route results pair the cheapest eligible supplier with each buyer above the
+configured reported-high threshold, rank by spread per ton, and expose
+`route_distance`, `reported_high`, `sell_percent`, `purchase_cost`, and `order`.
+Unknown inter-stop coordinates are excluded. `radius` applies only to buy stops;
+`route_distance` caps the buy-to-sell leg. Catalog spread chooses a bounded
+24/48/96-commodity shortlist; fresh quotes determine all displayed prices.
+`min_volume=0` (default) derives the supply/demand minimum from reported free
+space on every query; `settings.volume_mode` identifies carrier/manual mode.
+Unknown/full free capacity requires an explicit positive minimum to browse;
+`quantity` then stays null/zero, respectively. Selection requires known stock and positive capacity. Runs are per leg.
+
+Crew profit accounting:
+`plan.crew_enabled`, `crew_load_percent`, `crew_unload_percent` and
+`planned_quantity` persist with the plan. `crew_split` contains both suggested
+order prices and per-ton rewards, recomputed server-side on save. Selection
+uses the route quantity; manually supplied quantity 0 uses remaining hauling
+quantity for calculated totals. `calculation.profit_split` includes gross,
+carrier, loading and unloading profit totals. Carrier profit deducts BOTH legs.
+Unknown quantity remains null; personal Powerplay bonuses are excluded.
+Legacy plans default to crew disabled. Switching phase on an enabled plan sets
+carrier_price to its buy/sell order price. Party snapshots include the saved split.
+`localStorage.trade.crew.v1` stores preview percentages independently of search
+filters. Preview changes do not requery markets or alter the saved operation.
+
+Team operation lifecycle:
+`trade.operation` persists id, stage (loading/transit/unloading/complete/cancelled),
+paused, quantity, baseline_stock, notes, timestamps and reports keyed by stable
+party identity. Public views add loaded/unloaded and remaining totals. The
+owner-only manage_carrier_operation route controls stages; active operation
+plans are frozen. Unloading sets target to baseline_stock and switches price.
+Manual stage confirmation never synthesises inventory or crew deliveries.
+`party.operation` and `party.carrier` are the leader's shared snapshot. Reports
+include activity and cumulative `work{operation_id,loading,unloading}`. Party
+emits `party.work`; trade validates operation/phase/bounds and merges monotonic
+per-member totals into its own namespace. Delivery reports never modify inventory.
+`party-local.json` holds only identity and cumulative work (no invitation code).
+Heartbeat retries and reconnects deduplicate by identity and cumulative counters.
+Late loading reports can arrive after departure; unloading cannot be reported
+before that phase. Cancelled/other-operation reports are ignored. Crew UI marks
+unacknowledged local counts as pending and disables delivery entry on stale links.
+
+Inventory reset and journal delivery tracking:
+`trade.history_since` is the persistent reset cutoff. CarrierTradeOrder, local
+trades and transfers at/before it cannot modify the ledger. Carrier ownership
+and docking context still replay. Archive scans capture the cutoff and discard
+results if it changes mid-scan. `trade-ledger-before-reset.json` saves the prior
+ledger. Kept tritium is an unknown-count baseline; plans/operations are unchanged.
+Saved route plans now include source_market_id, destination_market_id and
+carrier_market_id. The party journal listener matches MarketSell commodity and
+market ID against the active loading/unloading leg; owner CargoTransfer to the
+correct docked carrier can record loading. No cargo-delta inference. Replays and
+events predating the operation are ignored. `party-local.json` persists auto_seen
+fingerprints and last_auto with cumulative totals atomically. Heartbeats send
+those totals, including after a temporary disconnect. `party.auto_tracking`
+reports whether each leg has its required market ID; missing IDs require manual
+fallback. Manual entry of an already detected delivery would count twice.

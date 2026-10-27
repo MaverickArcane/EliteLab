@@ -145,6 +145,40 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 .chip .sub { display: block; color: var(--accent); font-size: 11px; }
 
 /* map */
+.trade-intro { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: 12px; }
+.trade-toolbar { margin-bottom: 8px; }
+.trade-toolbar select { max-width: 100%; }
+.trade-filters { margin: 8px 0; font-size: 12px; color: var(--muted); }
+.trade-filters summary { cursor: pointer; }
+.trade-filters .row { margin-top: 6px; }
+.trade-active { border: 1px solid var(--line); border-left: 3px solid var(--accent); padding: 10px; margin-top: 12px; }
+.trade-active .row { gap: 12px; }
+.trade-empty { padding: 12px 0; }
+.trade-loading { opacity: .45; pointer-events: none; }
+[data-opportunities] td { vertical-align: top; }
+[data-opportunities] .note { font-size: 11px; }
+.trade-intro .big { font-size: 21px; }
+.trade-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: 10px; margin: 14px 0; }
+.trade-form label, [data-trade-count] label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 12px; min-width: 0; }
+.trade-form input, .trade-form select { width: 100%; min-width: 0; }
+.trade-form label.chk { flex-direction: row; align-items: center; }
+.trade-form label.chk input { width: auto; }
+.trade-wide { grid-column: 1 / -1; }
+.trade-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.trade-metric { padding: 10px; border-left: 2px solid var(--accent); background: var(--bg-2); min-width: 0; }
+.trade-metric .v { font-size: 21px; color: var(--accent-2); overflow-wrap: anywhere; }
+.trade-metric .note { margin-top: 4px; font-size: 11px; }
+.trade-route { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 0; }
+.trade-route b { color: var(--accent); font-size: 11px; }
+.trade-details { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; }
+.trade-details summary { color: var(--accent); cursor: pointer; }
+.trade-table { overflow-x: auto; margin: 10px 0; }
+.trade-stops { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px; }
+.trade-stop, .party-member { padding: 10px; border: 1px solid var(--line); background: var(--bg-2); margin-top: 10px; overflow-wrap: anywhere; }
+.party-code { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.party-code code { overflow-wrap: anywhere; color: var(--accent-2); }
+[data-party-members] { max-height: 650px; overflow-y: auto; }
+[data-party-connected][hidden], [data-party-controls][hidden] { display: none; }
 .map-wrap { position: relative; height: 520px; overflow: hidden; background: #060910; border: 1px solid var(--line); }
 .map-wrap canvas { display: block; width: 100%; height: 100%; cursor: grab; } .map-wrap canvas.drag { cursor: grabbing; }
 .map-legend { position: absolute; left: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: var(--muted); background: rgba(6, 9, 16, .85); padding: 6px 10px; border: 1px solid var(--line); max-width: 70%; }
@@ -158,3 +192,40 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 
 @media (max-width: 760px) { main { padding: 12px 14px; gap: 10px; } .map-wrap { height: 380px; } .pill { margin-left: 0; } .card .resize, .card h2 .grip { display: none; } header { gap: 8px 16px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* Paired commodity routes */
+.trade-pairs { max-height: 650px; overflow-y: auto; margin-top: 10px; }
+.trade-pair { padding: 12px 0; border-top: 1px solid var(--line); }
+.trade-pair-heading, .trade-pair-footer { justify-content: space-between; gap: 8px; }
+.trade-pair-stops { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin: 10px 0; }
+.trade-pair-stop { padding-left: 10px; border-left: 2px solid var(--line); overflow-wrap: anywhere; }
+.trade-pair-stop .row { margin-bottom: 5px; }
+.trade-pair-footer { margin-top: 10px; }
+.trade-filters input { width: 100px; }
+@media (max-width: 600px) { .trade-pair-stops { grid-template-columns: minmax(0, 1fr); } }
+
+.trade-crew-controls { padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 10px 0; }
+.trade-crew-controls input { width: 60px; }
+.trade-profit-totals, .trade-crew-prices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.trade-profit-totals > div { background: var(--bg-2); border-left: 2px solid var(--accent); padding: 8px 10px; }
+.trade-profit-totals strong { display: block; font-size: 21px; color: var(--accent-2); overflow-wrap: anywhere; }
+.trade-crew-prices > div { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .trade-profit-totals, .trade-crew-prices { grid-template-columns: minmax(0, 1fr); } }
+
+.trade-nav { margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+[data-search-view][hidden], [data-operation-view][hidden], [data-crew-work][hidden], [data-operation-notes][hidden] { display: none; }
+.trade-instruction { font-size: 16px; line-height: 1.6; color: var(--fg); }
+.trade-operation-progress { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin: 18px 0 8px; }
+.trade-operation-progress progress { width: 100%; accent-color: var(--accent); }
+.trade-operation-controls { margin: 16px 0; }
+[data-operation-notes] { margin-top: 16px; }
+[data-operation-notes] label { display: block; }
+[data-operation-notes] textarea { display: block; width: 100%; margin: 6px 0; color: var(--fg); background: var(--bg-2); border: 1px solid var(--line); padding: 8px; }
+[data-delivery] { margin: 10px 0; }
+[data-delivery] input { width: 140px; }
+@media(max-width:600px) { .trade-operation-progress { grid-template-columns: minmax(0,1fr); } }
+
+.trade-active h3 { margin: 0; }
+.trade-owner-order { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px; border: 1px solid var(--line); margin: 10px 0; }
+.trade-owner-order .note { flex-basis: 100%; }
+.trade-summary-money { display: block; font-size: 20px; color: var(--accent-2); }
