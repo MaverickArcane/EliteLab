@@ -189,6 +189,10 @@ class HaulingSessionTests(unittest.TestCase):
         member = next(m for m in roster if m["id"]==party.member_id)
         self.assertFalse(member["connected"])
         self.assertEqual(member["loading"],50)
+        exported = self.crew.http.tools["export_hauling_diagnostics"].fn({})
+        self.assertEqual(exported["client"]["saved_work"]["operation_id"],self.op["id"])
+        self.assertEqual(exported["client"]["saved_work"]["reported"]["loading"],50)
+        self.assertIsNone(exported["client"]["pending"])
 
     def test_owner_restart_recovers_work_saved_before_ledger_write_failed(self):
         write = self.owner.write_data
@@ -236,3 +240,58 @@ class HaulingSessionTests(unittest.TestCase):
         after = self.sync(self.crew)
         self.assertEqual(after["desk"]["assignment"]["loading_target"],200)
         self.assertEqual((after["desk"]["action"],after["desk"]["quantity"]),("deliver",200))
+
+    def test_owner_correction_does_not_create_pending_work_or_block_later_deliveries(self):
+        self.report(self.crew,350,"a")
+        mid = self.crew.modules["party"].party.member_id
+        self.owner.http.tools["correct_hauling_delivery"].fn({"id":self.op["id"],"member":mid,"phase":"loading",
+            "tonnes":100,"expected":350,"expected_reported":350,"reason":"Duplicate manual report","request_id":"correction-a"*3})
+        state = self.sync(self.crew)
+        self.assertEqual(state["desk"]["progress"]["loading"],100)
+        self.assertEqual(state["desk"]["pending"]["loading"],0)
+        self.assertEqual(state["desk"]["adjustments"]["loading"],-250)
+        state = self.report(self.crew,200,"b")
+        self.assertEqual(state["operation"]["loaded"],300)
+        self.assertEqual(state["work"]["loading"],550)
+        count = state["operation"]["history_count"]
+        self.crew.modules["party"].party.leave()
+        self.crew = self.client("crew")
+        self.crew.modules["party"].party.join(self.invite)
+        state = self.sync(self.crew)
+        self.assertEqual(state["desk"]["progress"]["loading"],300)
+        self.assertEqual(state["desk"]["pending"]["loading"],0)
+        self.assertEqual(state["operation"]["history_count"],count)
+        exported = self.crew.http.tools["export_hauling_diagnostics"].fn({})
+        self.assertEqual(exported["history_scope"],"latest shared entries")
+        self.assertEqual(exported["client"]["local_totals"]["loading"],550)
+        self.assertEqual(exported["client"]["pending"]["loading"],0)
+        owner_export = self.owner.http.tools["export_hauling_diagnostics"].fn({})
+        self.assertEqual(exported["reports"][0]["member"],owner_export["reports"][0]["member"])
+
+    def test_journal_delivery_is_kept_before_client_receives_owner_correction(self):
+        self.report(self.crew,350,"a")
+        mid = self.crew.modules["party"].party.member_id
+        api = self.crew.modules["party"].instance
+        with patch.object(api,"exchange",side_effect=OSError("offline")):
+            self.owner.http.tools["correct_hauling_delivery"].fn({"id":self.op["id"],"member":mid,"phase":"loading",
+                "tonnes":100,"expected":350,"expected_reported":350,"reason":"Duplicate entry","request_id":"late-correction"*2})
+            self.crew.bus.emit("journal.MarketSell",{"event":"MarketSell","timestamp":datetime.now(timezone.utc).isoformat(),
+                "MarketID":123,"Type":"gold","Count":100})
+        self.assertEqual(self.crew.modules["party"].party.work["loading"],450)
+        state = self.sync(self.crew)
+        self.assertEqual(state["desk"]["progress"]["loading"],200)
+        self.assertEqual(state["desk"]["pending"]["loading"],0)
+
+    def test_owner_can_reconcile_a_report_above_the_target_in_one_correction(self):
+        self.report(self.crew,350,"a")
+        mid = self.crew.modules["party"].party.member_id
+        self.crew.bus.emit("journal.MarketSell",{"event":"MarketSell","timestamp":datetime.now(timezone.utc).isoformat(),
+            "MarketID":123,"Type":"gold","Count":100})
+        state = self.sync(self.crew)
+        self.assertEqual(state["desk"]["pending"]["loading"],100)
+        corrected = self.owner.http.tools["correct_hauling_delivery"].fn({"id":self.op["id"],"member":mid,"phase":"loading",
+            "tonnes":400,"expected":350,"expected_reported":450,"reason":"50 t belonged to another job","request_id":"over-target-correction"})
+        self.assertEqual(corrected["loaded"],400)
+        state = self.sync(self.crew)
+        self.assertEqual(state["desk"]["pending"]["loading"],0)
+        self.assertEqual(state["operation"]["loaded"],400)

@@ -322,3 +322,5 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
   .haul-personal { gap: 8px; }
   .haul-personal strong { font-size: 16px; }
 }
+[data-haul-history-list] { max-height: 320px; overflow: auto; overflow-wrap: anywhere; }
+[data-haul-history-list] li { margin-bottom: 10px; }

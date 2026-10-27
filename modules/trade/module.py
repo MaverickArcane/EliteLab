@@ -18,6 +18,7 @@ from modules.trade.market import MarketProfiles, PROFILES, stamp as timestamp_se
 from modules.trade.profit import split_profit, preview
 from modules.trade.operations import Operations, operation_view, ACTIVE
 from modules.trade.workload import Workloads
+from modules.trade.audit import Diagnostics
 
 NS = "trade"
 
@@ -76,6 +77,8 @@ class Trade:
             state = {k: copy.deepcopy(v) for k, v in self.data.items() if k not in ("seen", "markets", "baselines")}
             state["market_count"] = len(self.data["markets"])
             state["operation"] = operation_view(self.data.get("operation"))
+            if state.get("previous_operation"):
+                state["previous_operation"]["operation"] = operation_view(self.data["previous_operation"]["operation"])
             state["calculation"] = self.calculate()
             state["buy_commitment"] = sum(o["quantity"] * o["price"] for o in self.data["orders"].values() if o["side"] == "buy")
             state["inventory_scan"] = self.inventory_scan
@@ -465,6 +468,15 @@ def setup(core, module):
     profiles = MarketProfiles(core, desk)
     operations = Operations(core, desk)
     module.operations = operations
+    diagnostics = Diagnostics(core, desk)
+    core.http.route("/api/trade/correct", operations.correct, method="POST", tool="correct_hauling_delivery", module=module.name,
+        description="Owner corrects a commander's credited loading/unloading total with a reason. Preserves raw cumulative reports, survives retries/reconnects, and records a visible audit entry. Requires current credited and reported totals; stale edits are rejected. Does not change in-game cargo.",
+        params={"id":{"type":"string","required":True}, "member":{"type":"string","required":True},
+                "phase":{"type":"string","required":True}, "tonnes":{"type":"integer","required":True},
+                "expected":{"type":"integer","required":True}, "expected_reported":{"type":"integer","required":True},
+                "reason":{"type":"string","required":True}, "request_id":{"type":"string","required":True}})
+    core.http.route("/api/trade/diagnostics", diagnostics.export, tool="export_hauling_diagnostics", module=module.name,
+        description="Export local hauling diagnostics for the current or most recent job. Includes credited/raw totals, corrections, quotas and retained history; anonymizes commanders and omits credentials, addresses, notes, reasons, full journals, credits and file paths. Members export only their latest shared history. Nothing is uploaded.")
     workloads = Workloads(core, desk)
     core.http.route("/api/trade/workload", workloads.configure, method="POST", tool="configure_trade_workload", module=module.name,
         description="Owner previews or applies equal-tonnage/custom-weight quotas per commander. Owner participation excludes direct transfers from carrier market orders. Rebalancing distributes remaining work without deleting deliveries. Apply requires the basis returned by preview. No in-game orders are placed.",

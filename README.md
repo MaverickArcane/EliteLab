@@ -96,12 +96,31 @@ prices, excludes expenses/bonuses, and is not a verified credit balance.
 The roster also includes compact ship/flight, cargo, fuel and shield readings;
 critical alerts are highlighted and disconnected readings are marked stale.
 
+**Delivery history & corrections**, under **Carrier job > Current job**, shows
+accepted reports, their latest local journal/manual evidence, stage changes and
+owner corrections. To fix a mistaken report, the owner chooses a commander and
+leg, enters the **correct total delivered** and a reason, then saves. This changes
+credited progress without changing physical cargo or deleting the original report.
+New reports cannot silently overwrite the correction. If progress changes while
+the form is being edited, refresh its totals before saving.
+
+Use **Export test data** after each test job, before starting another. It downloads
+a JSON file containing quantities, assignments, corrections and retained history;
+nothing is uploaded. Commander aliases match across clients for the same job.
+Names, connection secrets/addresses, free-text notes/reasons, credit balances and
+full journals are omitted. The owner export contains up to 2,000 history entries;
+member exports contain the latest 20 shared entries plus their pending local totals.
+For troubleshooting, keep the owner's export and an affected member's export.
+
 **Carrier job** finds paired buy/sell routes
 inside the dashboard. For each high-paying buyer, it picks the cheapest
 qualifying supplier within the chosen **Buy to sell** distance. Results are
 ranked by spread per ton, then lower buy price and shorter route distance.
 Both stops, prices, supply/demand, observation times and distance between stops
-appear together. No PTN missions or external route tabs.
+appear together. Copy system and station names independently, or open **Inara market**
+in a new tab beside either stop. The same links appear in **My next run** and
+**Current job**. Station lookups include the system; carrier links use the
+callsign so they remain useful after a jump. Inara must have a listing for the stop.
 
 Reports come from **Ardent / EDDN**, not Inara. Defaults: 100 Ly between stops,
 both stops within 100 Ly of your carrier, reports within six hours, large pads,

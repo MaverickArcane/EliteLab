@@ -44,7 +44,7 @@ try {
   // Exercise the carrier desk and real party listener through the browser.
   await evaluate(`document.querySelector('[data-preset="Carrier ops"]').click();true`);
   await sleep(200);
-  assert.equal(await evaluate("document.querySelector('#card-trade [data-ptn-missions]')===null && document.querySelector('#card-trade a[target=_blank]')===null"),true);
+  assert.equal(await evaluate("document.querySelector('#card-trade [data-ptn-missions]')===null"),true);
   await evaluate("document.querySelector('[data-edit-operation]').open=true;document.querySelector('[data-inventory]').open=true;true");
   await evaluate(`(() => {const f=document.querySelector('[data-trade-plan]'); f.elements.commodity.value='gold';f.elements.target.value='1000';f.elements.ship_capacity.value='100';f.elements.source_price.value='100';f.elements.carrier_price.value='200';f.elements.destination_price.value='300';f.requestSubmit();return true;})()`);
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade?.plan?.commodity==='gold'"))break;}
@@ -86,6 +86,16 @@ try {
   assert.equal(await evaluate("document.querySelector('[data-profile]')===null"),true);
   assert.ok(await evaluate("document.querySelector('[data-opportunities]').textContent.includes('Source Port') && document.querySelector('[data-opportunities]').textContent.includes('Destination Port') && document.querySelector('[data-opportunities]').textContent.includes('25 Ly between stops')"));
   assert.equal(await evaluate("window.__routeQueries.at(-1).route_distance"),100);
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('[data-opportunities] [data-inara-market]')].map(a=>({search:new URL(a.href).searchParams.get('search'),path:new URL(a.href).pathname,target:a.target,rel:a.rel}))"),[
+    {search:'Source Port [Lave]',path:'/elite/station-market/',target:'_blank',rel:'noopener noreferrer'},
+    {search:'Destination Port [Sol]',path:'/elite/station-market/',target:'_blank',rel:'noopener noreferrer'}]);
+  assert.ok(await evaluate("[...document.querySelectorAll('[data-opportunities] [data-copy]')].some(b=>b.dataset.copy==='Source Port')"));
+  const specialStation='Port "A&B" #1', specialSystem='Test + Sector';
+  const specialURL=new URL(await evaluate(`Lab.util.inaraMarket(${JSON.stringify(specialStation)},${JSON.stringify(specialSystem)})`));
+  assert.equal(specialURL.searchParams.get('search'),specialStation+' ['+specialSystem+']');
+  assert.equal([...specialURL.searchParams].length,1);assert.equal(specialURL.hash,'');
+  assert.equal(await evaluate("Lab.util.inaraMarket('Unknown stop', 'Sol')"),null);
+  assert.equal(await evaluate("Lab.util.inaraMarket('', '')"),null);
   assert.equal(await evaluate("document.querySelector('[data-opportunities] [data-total-profit]').textContent"),'40,000 Cr');
   assert.equal(await evaluate("document.querySelector('[data-opportunities] [data-owner-profit]').textContent"),'20,000 Cr');
   assert.equal(await evaluate("document.querySelector('[data-opportunities] [data-carrier-buy]').textContent"),'150 Cr/t');
@@ -157,6 +167,7 @@ try {
   await evaluate("document.querySelector('[data-op-action=start]').click();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.party?.operation?.stage==='loading'"))break;}
   assert.equal(await evaluate('Lab.state.trade.operation.stage'),'loading');
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('[data-operation] [data-inara-market]')].map(a=>new URL(a.href).searchParams.get('search'))"),['Source Port [Lave]','TST-001','Destination Port [Sol]']);
   assert.ok(await evaluate("document.querySelector('#card-haul [data-copy=\"Lave\"]') !== null && document.querySelector('#card-haul [data-copy=\"Source Port\"]') !== null"));
   assert.ok(await evaluate("document.querySelector('#card-haul').textContent.includes('Transfer to carrier')"));
   assert.equal(await evaluate('Lab.state.party.load_suggestion.next_buy'),400);
@@ -208,12 +219,19 @@ try {
   assert.equal(await evaluate("document.querySelector('[data-value=quantity]').textContent"),'200 t');
   assert.equal(await evaluate("document.querySelector('[data-value=rate]').textContent"),'50 Cr');
   assert.equal(await evaluate("document.querySelector('[data-value=run-pay]').textContent"),'10,000 Cr');
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('[data-haul-inara]')].map(a=>({search:new URL(a.href).searchParams.get('search'),hidden:a.hidden,target:a.target,rel:a.rel}))"),[
+    {search:'Source Port [Lave]',hidden:false,target:'_blank',rel:'noopener noreferrer'},
+    {search:'TST-001',hidden:false,target:'_blank',rel:'noopener noreferrer'}]);
   await send('Browser.grantPermissions',{origin:`http://127.0.0.1:${memberPort}`,permissions:['clipboardReadWrite','clipboardSanitizedWrite']});
   await send('Emulation.setFocusEmulationEnabled',{enabled:true});
   await evaluate("document.querySelector('[data-haul-copy=pickup-system]').click();true");await sleep(150);
   assert.equal(await evaluate('navigator.clipboard.readText()'),'Lave');
+  await evaluate("document.querySelector('[data-haul-copy=pickup-station]').click();true");await sleep(150);
+  assert.equal(await evaluate('navigator.clipboard.readText()'),'Source Port');
   await evaluate("document.querySelector('[data-haul-copy=quantity]').click();true");await sleep(150);
   assert.equal(await evaluate('navigator.clipboard.readText()'),'200');
+  // Missing stops remove stale links, and live rendering restores them without replacing nodes.
+  assert.ok(await evaluate("(() => {const el=document.querySelector('#card-haul .body'),card=Lab.cards.haul,S=structuredClone(Lab.state);S.party.desk.pickup={station:'Unknown stop',system:null};card.render(el,S);const link=el.querySelector('[data-haul-inara=pickup]');const hidden=link.hidden && !link.hasAttribute('href');card.render(el,Lab.state);return hidden && !link.hidden && link===el.querySelector('[data-haul-inara=pickup]');})()"));
   // Persistent destination nodes preserve text selection during live cargo changes.
   await evaluate("window.__pickupNode=document.querySelector('[data-value=pickup-system]');const range=document.createRange();range.selectNodeContents(window.__pickupNode);getSelection().removeAllRanges();getSelection().addRange(range);true");
   await postMember('/audit/ship',{cmdr:'CMDR Crew',capacity:200,count:80});
@@ -250,6 +268,28 @@ try {
   await evaluate("document.querySelector('[data-op-action=complete]').click();true");
   for(let i=0;i<30;i++){await sleep(100);if(await evaluate("Lab.state.trade.operation.stage==='complete'"))break;}
   assert.equal(await evaluate('Lab.state.trade.operation.stage'),'complete');
+  // Review a correction against live progress, then download anonymized evidence.
+  const auditMember=await evaluate("Object.entries(Lab.state.trade.operation.reports).find(([,r])=>r.cmdr==='CMDR Crew')[0]");
+  const auditJob=await evaluate('Lab.state.trade.operation.id');
+  await evaluate(`document.querySelector('[data-haul-history]').open=true;var f=document.querySelector('[data-haul-correction]');f.elements.member.value='${auditMember}';f.elements.member.dispatchEvent(new Event('change'));f.elements.tonnes.value='70';f.elements.reason.value='<audit-correction> duplicate report';f.elements.tonnes.dispatchEvent(new Event('input',{bubbles:true}));true`);
+  const lateReport=await fetch(`http://127.0.0.1:${partyPort}/report`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+partyCode},body:JSON.stringify({id:auditMember,report:{cmdr:'CMDR Crew',capacity:200,cargo_count:0,cargo:[],work:{operation_id:auditJob,loading:90,unloading:0}}})});
+  assert.equal(lateReport.status,200);
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[data-correction-status]').textContent.includes('New progress')"))break;}
+  assert.equal(await evaluate("document.querySelector('[data-haul-correction] [name=tonnes]').value"),'70');
+  assert.equal(await evaluate("document.querySelector('[data-haul-correction] [type=submit]').disabled"),true);
+  await evaluate("document.querySelector('[data-correction-refresh]').click();var f=document.querySelector('[data-haul-correction]');f.elements.tonnes.value='70';f.elements.reason.value='<audit-correction> duplicate report';f.elements.reason.dispatchEvent(new Event('input',{bubbles:true}));f.requestSubmit();true");
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate(`Lab.state.trade.operation.reports['${auditMember}'].loading===70`))break;}
+  assert.equal(await evaluate(`Lab.state.trade.operation.reports['${auditMember}'].loading`),70);
+  assert.equal(await evaluate("document.querySelector('[data-haul-history-list] audit-correction')===null"),true);
+  assert.ok(await evaluate("document.querySelector('[data-haul-history-list]').textContent.includes('<audit-correction> duplicate report')"));
+  await evaluate("window.__objectURL=URL.createObjectURL.bind(URL);URL.createObjectURL=function(blob){blob.text().then(text=>window.__exportText=text);return window.__objectURL(blob)};document.querySelector('[data-haul-export]').click();true");
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!!window.__exportText"))break;}
+  const exportedText=await evaluate('window.__exportText');
+  const exported=JSON.parse(exportedText);
+  assert.equal(exported.format,'elitelab-hauling-diagnostics-v1');
+  for(const secret of [partyCode,auditMember,'CMDR Crew','<Hauler>','<audit-correction>'])assert.ok(!exportedText.includes(secret));
+  assert.ok(exported.reports.some(r=>r.reported.loading===90 && r.credited.loading===70 && r.adjustments.loading===-20));
+  assert.equal(await evaluate('document.body.scrollWidth'),390);
   // Preparing another plan clears an ended operation, then starting it gets a new id.
   const endedOperation=await evaluate('Lab.state.trade.operation.id');
   await evaluate("document.querySelector('[data-edit-operation]').open=true;true");

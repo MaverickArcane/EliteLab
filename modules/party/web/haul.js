@@ -22,13 +22,13 @@
           <div class="haul-quantity"><div><span class="k" data-value="quantity-label">This run</span><strong data-value="quantity"></strong></div><button class="mini" data-haul-copy="quantity">Copy tonnes</button><span class="note" data-value="hold"></span></div>
           <div class="haul-assignment" data-assignment hidden><div><span class="k">My share this leg</span><b data-value="assigned"></b></div><div><span class="k">Still to deliver</span><b data-value="remaining"></b></div><div><span class="k">Est. loads left</span><b data-value="runs-left"></b></div><div class="note" data-value="load-breakdown"></div></div>
           <div class="haul-stops">
-            <section data-stop="pickup"><div class="row"><span class="tag">1</span><b data-value="pickup-label">Pick up</b><span class="muted" data-value="buy-price"></span></div><strong data-value="pickup-system"></strong><div data-value="pickup-station"></div><div class="row"><button class="mini" data-haul-copy="pickup-system">Copy system</button><button class="mini" data-haul-copy="pickup-station">Copy station</button></div></section>
-            <section data-stop="delivery"><div class="row"><span class="tag">2</span><b data-value="delivery-label">Deliver</b><span class="muted" data-value="sell-price"></span></div><strong data-value="delivery-system"></strong><div data-value="delivery-station"></div><div class="row"><button class="mini" data-haul-copy="delivery-system">Copy system</button><button class="mini" data-haul-copy="delivery-station">Copy station</button></div></section>
+            <section data-stop="pickup"><div class="row"><span class="tag">1</span><b data-value="pickup-label">Pick up</b><span class="muted" data-value="buy-price"></span></div><strong data-value="pickup-system"></strong><div data-value="pickup-station"></div><div class="row"><button class="mini" data-haul-copy="pickup-system">Copy system</button><button class="mini" data-haul-copy="pickup-station">Copy station</button><a class="mini" data-haul-inara="pickup" target="_blank" rel="noopener noreferrer" hidden>Inara market</a></div></section>
+            <section data-stop="delivery"><div class="row"><span class="tag">2</span><b data-value="delivery-label">Deliver</b><span class="muted" data-value="sell-price"></span></div><strong data-value="delivery-system"></strong><div data-value="delivery-station"></div><div class="row"><button class="mini" data-haul-copy="delivery-system">Copy system</button><button class="mini" data-haul-copy="delivery-station">Copy station</button><a class="mini" data-haul-inara="delivery" target="_blank" rel="noopener noreferrer" hidden>Inara market</a></div></section>
           </div>
           <div class="haul-pay"><div><span class="k">Margin per tonne</span><b data-value="rate"></b></div><div><span class="k">This run, estimated</span><b data-value="run-pay"></b></div></div>
           <div class="ship-sec">My progress</div>
           <div class="haul-personal"><div><span class="k">Loaded</span><strong data-value="loaded"></strong><progress data-progress="loading" aria-label="Your contribution to the loading target"></progress></div><div><span class="k">Unloaded</span><strong data-value="unloaded"></strong><progress data-progress="unloading" aria-label="Your contribution to the unloading target"></progress></div><div><span class="k">Recorded margin</span><strong data-value="earned"></strong></div></div>
-          <div class="note" data-value="earnings-note"></div><div class="note warn" data-value="pending" role="status"></div>
+          <div class="note" data-value="earnings-note"></div><div class="note" data-value="adjustments"></div><div class="note warn" data-value="pending" role="status"></div>
           <div class="haul-notes" data-haul-notes hidden><span class="k">Owner instructions</span><div data-value="notes"></div></div>
           <div class="row haul-activity"><label>My status <select data-activity><option value="ready">Ready</option><option value="hauling">Hauling</option><option value="away">Away</option></select></label><span class="note" data-auto-tracking></span></div>
           <details class="trade-details" data-manual-details><summary>Record a missed delivery</summary><p class="note">Journal deliveries are automatic. Only add a delivery that was missed; adding an already tracked delivery would count it twice.</p><form data-delivery class="row"><label>Delivered tonnes<input name="tonnes" type="number" min="1" max="1000000" required></label><button class="mini" type="submit">Record delivery</button></form><div data-delivery-status class="note" role="status"></div></details>
@@ -90,6 +90,12 @@
       for (const key of ['pickup', 'delivery']) {
         set(key+'-system', d[key].system || 'System unknown'); set(key+'-station', d[key].station);
         copy(key+'-system', d[key].system); copy(key+'-station', d[key].copy_name || d[key].station);
+        const link = el.querySelector(`[data-haul-inara="${key}"]`);
+        // Carrier callsigns remain searchable after a jump; their reported system can lag.
+        const url = Lab.util.inaraMarket(d[key].copy_name || d[key].station, d[key].copy_name ? null : d[key].system);
+        link.hidden = !url;
+        if (url) { link.href = url; link.title = `Open ${d[key].copy_name || d[key].station} market on Inara (new tab)`; }
+        else { link.removeAttribute('href'); link.removeAttribute('title'); }
         el.querySelector(`[data-stop="${key}"]`).classList.toggle('is-next', d.action !== 'wait' && (key === 'pickup' ? ['buy','transfer_out'].includes(d.action) : ['deliver','transfer_in'].includes(d.action)));
       }
       set('pickup-label', d.owner && d.phase === 'unloading' ? 'Transfer from carrier' : 'Buy here');
@@ -105,6 +111,8 @@
       for (const phase of ['loading','unloading']) { const bar = el.querySelector(`[data-progress="${phase}"]`); const target=assignment ? assignment[phase+'_target'] : d.target; bar.max = target || 1; bar.value = Math.min(target || 1, d.progress[phase]);bar.setAttribute('aria-label',assignment ? `Your assigned ${phase} progress` : `Your contribution to the ${phase} target`); }
       const pending = Object.entries(d.pending).filter(([,n])=>n).map(([phase,n])=>`${tons(n)} ${phase}`).join(', ');
       set('pending', pending ? `${pending} saved locally, awaiting leader acknowledgement. Do not report again.` : '');
+      const adjustments=Object.entries(d.adjustments || {}).filter(([,n])=>n).map(([phase,n])=>`${phase}: ${n>0?'+':''}${fmt(n)} t`).join(', ');
+      set('adjustments',adjustments ? `Owner corrections included in your progress (${adjustments}). See Delivery history in Carrier job.` : '');
       set('notes', d.notes); el.querySelector('[data-haul-notes]').hidden = !d.notes;
       const activity = el.querySelector('[data-activity]'); if (document.activeElement !== activity) activity.value = p.activity || 'ready';
       const working = ['loading','unloading'].includes(d.phase), tracking = p.auto_tracking?.[d.phase];

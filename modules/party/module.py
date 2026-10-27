@@ -42,10 +42,10 @@ def clean_text(value, limit=160):
     return value
 
 
-def amount(value):
+def amount(value, maximum=1000000):
     if value is None:
         return None
-    if type(value) is not int or not 0 <= value <= 1000000:
+    if type(value) is not int or not 0 <= value <= maximum:
         raise ValueError("Invalid cargo amount.")
     return value
 
@@ -72,7 +72,15 @@ def sanitize(raw):
     if work is not None:
         if not isinstance(work, dict) or not isinstance(work.get("operation_id"), str) or len(work["operation_id"]) != 32:
             raise ValueError("Invalid operation report.")
-        out["work"] = {"operation_id": work["operation_id"], "loading": amount(work.get("loading", 0)), "unloading": amount(work.get("unloading", 0))}
+        out["work"] = {"operation_id": work["operation_id"], "loading": amount(work.get("loading", 0), 1000000000), "unloading": amount(work.get("unloading", 0), 1000000000)}
+        if any(out["work"][k] is None for k in ("loading", "unloading")):
+            raise ValueError("Delivery totals must be whole numbers.")
+        entry = work.get("last_entry")
+        if entry is not None:
+            if not isinstance(entry, dict) or entry.get("kind") not in ("manual", "MarketSell", "CargoTransfer") or entry.get("phase") not in ("loading", "unloading"):
+                raise ValueError("Invalid delivery evidence.")
+            out["work"]["last_entry"] = {"kind":entry["kind"], "phase":entry["phase"],
+                                         "tonnes":amount(entry.get("tonnes")), "at":clean_text(entry.get("at"))}
     return out
 
 
@@ -426,11 +434,15 @@ class Party:
             if digest in self.auto_seen:
                 return
             work = copy.deepcopy(self.work) if self.work and self.work["operation_id"] == op["id"] else {"operation_id":op["id"], "loading":0, "unloading":0}
-            if work[phase] + tonnes > op["quantity"]:
-                self.error = "Journal delivery exceeds the planned quantity. Check the operation size and any manual entries."
+            # Keep observed evidence even if this client's view predates an
+            # owner correction. The leader validates credited totals; a report
+            # above the target stays pending until the owner reconciles it.
+            if work[phase] + tonnes > 1000000000:
+                self.error = "Journal delivery counter is out of range. Check the operation and manual entries."
                 self.publish()
                 return
             work[phase] += tonnes
+            work["last_entry"] = {"kind":kind, "phase":phase, "tonnes":tonnes, "at":event["timestamp"]}
             self.save_work(work, (self.auto_seen + [digest])[-10000:], {"operation_id":op["id"],"phase":phase,"tonnes":tonnes,"at":event["timestamp"]})
             self.activity = "hauling"
             if self.mode != "member":
@@ -460,9 +472,11 @@ class Party:
                 if not receipt:
                     work = copy.deepcopy(self.work) if self.work and self.work["operation_id"] == op["id"] else {"operation_id": op["id"], "loading": 0, "unloading": 0}
                     phase = op["stage"]
-                    if work[phase] + tonnes > op["quantity"]:
+                    adjustment = op.get("reports", {}).get(self.member_id, {}).get("adjustments", {}).get(phase, 0)
+                    if work[phase] + tonnes > 1000000000 or work[phase] + tonnes + adjustment > op["quantity"]:
                         raise ValueError("Your reported deliveries exceed the operation size.")
                     work[phase] += tonnes
+                    work["last_entry"] = {"kind":"manual", "phase":phase, "tonnes":tonnes, "at":utc()}
                     receipts = dict(self.receipts)
                     if request_id:
                         if len(receipts) >= 10000:

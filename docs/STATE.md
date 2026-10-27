@@ -373,3 +373,42 @@ The Leave message includes the final cumulative work report, so locally saved
 deliveries can be acknowledged even when the previous heartbeat failed. At
 startup, the owner reconciles saved local work into the matching operation;
 repeated starts use cumulative counts and do not double-credit deliveries.
+
+Delivery audit and corrections:
+`operation.reports[id].reported` stores acknowledged raw cumulative totals;
+`adjustments` stores signed owner corrections. Existing loading/unloading fields
+remain credited totals (raw + adjustment), so quotas and margins share one basis.
+Legacy reports without `reported` use their existing totals as the raw baseline.
+`party.desk.pending` compares local raw work to acknowledged raw work, never to
+adjusted credit. The personal panel exposes signed adjustments separately.
+
+`POST /api/trade/correct` requires owner mode, the current operation ID, member,
+phase, corrected total, expected credited and latest reported totals, a reason,
+and a unique request ID. It rejects stale edits and mismatched retry payloads.
+Correction receipts are persisted atomically with the ledger (up to 1,000 per
+job). An above-target pending report can be explicitly reconciled by correcting
+against the latest raw report; the resulting raw baseline prevents re-crediting
+it on the next heartbeat. Credited totals cannot be corrected outside 0..job size.
+Local journal observations are retained even if the client's correction view is
+outdated. Above-target counts remain pending until reconciled. Raw work counters
+are bounded at 1,000,000,000; cargo and each manual delivery remain bounded at
+1,000,000. Manual additions still enforce the known credited job limit.
+
+`work.last_entry` records the latest local entry's kind (manual, MarketSell or
+CargoTransfer), phase, tonnes and timestamp. This is reported context, not proof
+that every tonne in a batched cumulative report came from that one entry.
+The persisted operation audit logs accepted raw increments, credited changes,
+corrections, stage actions and workload changes. It retains the latest 2,000
+entries with a monotonic count. Public operation views share only the latest 20
+and omit correction retry receipts. Starting a replacement job retains the
+previous operation, as does replacing the plan.
+
+`GET /api/trade/diagnostics` exports an allowlisted snapshot of the current job
+(or the previous job when there is no current operation). Owner exports use the
+retained local audit; member exports use the shared tail and local pending totals.
+Commander aliases are salted by operation ID so owner/member exports correlate
+within a job. Names/identities, credentials, addresses, free-text notes/reasons,
+unrelated journals, credit balances and filesystem paths are not exported.
+Saved local raw work remains exportable after leaving. If its job is unavailable
+or differs from the exported job, pending acknowledgement is null (unknown),
+not a claim that those deliveries were accepted.

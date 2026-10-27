@@ -81,6 +81,21 @@ setting, without requiring a separate Apply click.
 Slow workload saves lock their controls; invalid previews remove the old order
 and its copy actions. The browser checks both paths with controlled responses.
 
+`test_hauling_audit.py` covers correction retry IDs, stale edits, permissions,
+raw-versus-adjusted counters across restarts, bounded history, export redaction
+and a seeded two-leg session with delayed/duplicate reports, missed updates,
+corrections and restarts. Session tests exercise corrections over real party
+HTTP, including journal delivery before a new correction reaches the member,
+reconciliation of an above-target pending report, and matching anonymous aliases
+across owner/member exports. Browser checks exercise the real correction form,
+preserved drafts on a stale edit, escaped reasons, and the downloaded JSON.
+
+The browser suite also checks Inara market links on both route stops, the current
+job and the personal panel, query encoding, carrier callsign lookup, missing-stop
+link removal, and independent system/station clipboard actions. It does not
+contact Inara; a live Chrome check confirmed `station-market/?search=Galileo%20%5BSol%5D`
+opens Galileo in Sol with the Market tab selected.
+
 The Windows CI job builds `dist/EliteLab-windows-x64.zip` with a checksum-pinned
 CPython 3.13.17 embedded runtime. `python scripts/smoke_windows_bundle.py` extracts
 it to a path containing spaces and invokes the actual CMD launcher with system

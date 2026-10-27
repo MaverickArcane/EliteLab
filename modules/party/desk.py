@@ -47,7 +47,7 @@ def project(shared, local_id, local, work=None, stale=False):
     accepted = reports.get(local_id, {})
     own = work if work and work.get("operation_id") == op.get("id") else {}
     progress = {key: accepted.get(key, 0) for key in ("loading", "unloading")}
-    pending = {key: max(0, own.get(key, 0) - progress[key]) for key in progress}
+    pending = {key: max(0, own.get(key, 0) - accepted.get("reported", accepted).get(key, 0)) for key in progress}
     total = op.get("quantity") or plan.get("planned_quantity") or None
     carrier = shared.get("carrier") or {}
     carrier_stop = {"station": " / ".join(filter(None, [carrier.get("name"), carrier.get("callsign")])) or "Carrier",
@@ -144,7 +144,7 @@ def project(shared, local_id, local, work=None, stale=False):
             "pickup": pickup, "delivery": delivery, "buy_price": buy_price, "sell_price": sell_price,
             "per_ton": per_ton, "load_earnings": (quantity + (aboard or 0) if action in ("buy", "transfer_out") else quantity) * per_ton if quantity is not None and per_ton is not None else None,
             "earnings": None if owner else earnings(progress, prices),
-            "progress": progress, "pending": pending, "target": total,
+            "progress": progress, "pending": pending, "adjustments": accepted.get("adjustments", {}), "target": total,
             "assignment": assigned,
             "loaded": op.get("loaded", 0), "unloaded": op.get("unloaded", 0),
             "notes": op.get("notes", ""), "crew": roster,

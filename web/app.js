@@ -13,6 +13,11 @@
       esc, fmt, ls,
       inaraSys: n => `https://inara.cz/elite/starsystem/?search=${encodeURIComponent(n)}`,
       inaraSt: n => `https://inara.cz/elite/station/?search=${encodeURIComponent(n)}`,
+      inaraMarket: (station, system) => {
+        const name = String(station || '').trim(), place = String(system || '').trim();
+        if (!name || ['Unknown stop', 'Carrier'].includes(name)) return null;
+        return `https://inara.cz/elite/station-market/?search=${encodeURIComponent(place ? `${name} [${place}]` : name)}`;
+      },
       spanshSys: n => `https://spansh.co.uk/search/${encodeURIComponent(n)}`,
       copy: t => navigator.clipboard && navigator.clipboard.writeText(t),
       dist3: (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z),

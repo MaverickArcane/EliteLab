@@ -2,6 +2,14 @@
 (() => {
   const { esc, fmt, ls } = Lab.util;
   const KEY = 'trade.routes.v1';
+  const marketLink = (station, system, label='Inara market') => {
+    const url = Lab.util.inaraMarket(station, system);
+    return url ? `<a class="mini" data-inara-market href="${esc(url)}" target="_blank" rel="noopener noreferrer" title="Open ${esc(station)} market on Inara (new tab)">${esc(label)}</a>` : '';
+  };
+  const planMarketLink = (value, label) => {
+    const text = value || '', split = text.lastIndexOf(' / ');
+    return marketLink(split < 0 ? text : text.slice(0, split), split < 0 ? null : text.slice(split + 3), label);
+  };
   const when = s => s ? new Date(s).toLocaleString() : 'Unknown';
   const tons = n => n == null ? 'Unknown' : fmt(n) + ' t';
   const money = n => n == null ? 'Unknown' : fmt(n) + ' Cr';
@@ -34,7 +42,7 @@
           <label>Unloading <input data-crew-unload type="number" min="0" max="100" step="1" required value="25"> %</label>
           <span data-crew-owner></span></div><div class="note">Shares of route profit, paid through carrier prices per tonne hauled. Whole-credit rounding stays with the carrier.</div><div data-crew-error class="warn" role="status"></div></div>
         <div data-results-status class="note" role="status"></div><div data-opportunities class="trade-pairs"></div>
-        </section><section data-operation-view><div data-workload-host></div><div data-operation></div>
+        </section><section data-operation-view><div data-workload-host></div><div data-operation></div><div data-history-host></div>
         <form data-operation-notes hidden><label>Crew instructions<textarea name="notes" maxlength="500" rows="2" placeholder="Docking location, departure timing, or other instructions"></textarea></label><button class="mini" type="submit">Update instructions</button><span data-notes-status class="note"></span></form>
         <details data-edit-operation class="trade-details"><summary>Adjust operation</summary><form data-trade-plan class="trade-form">
           ${["source_market_id", "destination_market_id", "carrier_market_id"].map(k=>`<input type="hidden" name="${k}" value="0">`).join('')}
@@ -67,6 +75,10 @@
         if (u.destroyed) return;
         el._workload=mount($('[data-workload-host]')); Lab.emit('trade_ui');
       }).catch(error=>Lab.toast('Workload panel: '+error.message,'bad'));
+      import('/modules/trade/history.js').then(({mount})=>{
+        if(u.destroyed)return;
+        el._history=mount($('[data-history-host]'));Lab.emit('trade_ui');
+      }).catch(error=>Lab.toast('Delivery history: '+error.message,'bad'));
 
       u.tab = Lab.state.trade?.plan ? 'operation' : 'search';
       const showTab = el._showTab = tab => { u.tab = tab; if (tab === 'search') u.signature = ''; Lab.emit('trade_ui'); };
@@ -183,10 +195,11 @@
         if (rec) { count.elements.commodity.value = rec.dataset.countKey; count.elements.stock.value = ''; count.elements.stock.focus(); }
       });
     },
-    unmount(el) { const u = el._trade; u.destroyed = true; ++u.generation; clearTimeout(u.debounce); clearInterval(u.timer); el._workload?.destroy(); },
+    unmount(el) { const u = el._trade; u.destroyed = true; ++u.generation; clearTimeout(u.debounce); clearInterval(u.timer); el._workload?.destroy(); el._history?.destroy(); },
     render(el, S) {
       const u = el._trade, t = S.trade || {}, j = S.journal || {}, carrier = j.carrier || {}, p = t.plan, c = t.calculation, $ = s => el.querySelector(s);
       el._workload?.render(S);
+      el._history?.render(S);
       const member = S.party?.mode === 'member', op = member ? S.party.operation : t.operation, plan = member ? S.party.plan : p;
       const active = op && ['loading', 'transit', 'unloading'].includes(op.stage);
       if (member) u.tab = 'operation';
@@ -221,7 +234,7 @@
         $('[data-results-status]').innerHTML = u.error ? `<span class="warn">${esc(u.error)}</span>` : result ? `<span>${esc(result.source)} | Checked ${esc(when(result.queried_at))} | ${result.screened} of ${result.available} commodities checked</span><div class="muted">Up to 100 reported quotes per side; best matches in this search.</div>${result.outdated ? '<div class="warn">Carrier context changed. Refresh before using a route.</div>' : ''}${result.warnings.map(w => `<div class="muted">${esc(w)}</div>`).join('')}` : '';
         $('[data-opportunities]').innerHTML = result?.rows.length ? result.rows.map((r, index) => {
           const split = u.splits?.[index];
-          const market = (m, side) => `<div class="trade-pair-stop"><div class="row"><span class="tag">${side}</span><b>${money(m.price)}/t</b></div><b>${esc(m.station)}</b><div>${esc(m.system)} <button class="mini" data-copy="${esc(m.system)}">copy</button></div><div class="note">${tons(m.volume)} ${side === 'Buy' ? 'supply' : 'demand'} | ${esc(m.pad)} pad | ${m.arrival_ls == null ? 'Approach unknown' : fmt(m.arrival_ls)+' Ls'} | ${m.distance == null ? 'Origin distance unknown' : fmt(m.distance)+' Ly from carrier'}<br>Observed ${esc(when(m.observed_at))}</div></div>`;
+          const market = (m, side) => `<div class="trade-pair-stop"><div class="row"><span class="tag">${side}</span><b>${money(m.price)}/t</b></div><b>${esc(m.station)}</b><div>${esc(m.system)}</div><div class="row"><button class="mini" data-copy="${esc(m.system)}">Copy system</button><button class="mini" data-copy="${esc(m.station)}">Copy station</button>${marketLink(m.station, m.system)}</div><div class="note">${tons(m.volume)} ${side === 'Buy' ? 'supply' : 'demand'} | ${esc(m.pad)} pad | ${m.arrival_ls == null ? 'Approach unknown' : fmt(m.arrival_ls)+' Ls'} | ${m.distance == null ? 'Origin distance unknown' : fmt(m.distance)+' Ly from carrier'}<br>Observed ${esc(when(m.observed_at))}</div></div>`;
           return `<article class="trade-pair"><div class="row trade-pair-heading"><b>${esc(r.name)}</b><span class="ok">${money(r.per_ton)}/t spread</span><span>${fmt(r.route_distance)} Ly between stops</span></div><div class="trade-pair-stops">${market(r.buy, 'Buy')}${market(r.sell, 'Sell')}</div><div class="note">${r.buy.distance == null ? 'Carrier to buy distance unknown' : fmt(r.buy.distance)+' Ly carrier to buy'} | Sell: ${fmt(r.sell_percent)}% of reported high (${money(r.reported_high)}/t)</div>${profitView(split, r.value)}<div class="row trade-pair-footer"><span>${tons(r.quantity)} load</span><button class="mini primary" data-select-op="${esc(r.id)}" ${result.outdated || !r.quantity || !crew || !split || active ? 'disabled' : ''}>Prepare trade</button></div><div class="note">${r.runs == null ? 'Runs unknown' : fmt(r.runs)+' loading + '+fmt(r.runs)+' unloading runs'} | ${money(r.purchase_cost)} purchase cost | ${tons(r.stock)} aboard${r.stock_needs_check ? ' (needs reconciliation)' : ''}${r.order?.quantity ? ' | '+esc(r.order.side)+' order: '+tons(r.order.quantity) : ''}${!r.quantity ? ' | Check carrier free capacity before planning.' : ''}</div></article>`;
         }).join('') : result ? '<div class="muted trade-empty">No paired routes match. Increase the distance between stops, widen the search, or lower the minimum volume.</div>' : '';
       }
@@ -243,7 +256,7 @@
       const reports = Object.values(op?.reports || {});
       const roster = reports.length ? `<details class="trade-details"><summary>Delivered by crew</summary><table><thead><tr><th>Commander</th><th>Loaded</th><th>Unloaded</th></tr></thead><tbody>${reports.map(r=>`<tr><td>${esc(r.cmdr)}</td><td>${tons(r.loading)}</td><td>${tons(r.unloading)}</td></tr>`).join('')}</tbody></table></details>` : '';
       const draft = u.pendingRoute;
-      const operationHtml = draft && !active ? `<div class="trade-active"><h3>Prepare ${esc(draft.name)} trade</h3><div>${esc(draft.buy.station)} / ${esc(draft.buy.system)} &gt; ${esc(draft.sell.station)} / ${esc(draft.sell.system)}</div><p>${tons(draft.quantity)} to move. Check current carrier stock so this load gets the right target.</p><form data-prepare-route class="row"><label>Currently aboard (t)<input data-prepare-stock type="number" min="0" max="1000000" required value="${esc(u.pendingStock)}"></label><button class="mini primary" type="submit">Save route</button><button class="mini" type="button" data-back-search>Back to routes</button></form></div>` : `<div class="trade-active"><div class="row"><span class="tag">${esc(op?.paused ? 'Paused' : stageName)}</span><h3>${esc(plan?.commodity || 'No trade selected')}</h3></div>${plan ? `<div class="note">${esc(plan.source)} &gt; ${esc(carrierName)} &gt; ${esc(plan.destination)}</div>` : ''}<div class="k">Crew task</div><p class="trade-instruction">${esc(instruction)}</p>${ownerOrder}${!member && S.party?.mode !== 'leader' ? '<div class="note">Not shared yet. Create a hauling party to give your crew this job.</div>' : ''}${member && S.party.stale ? '<div class="warn">Leader connection is stale. Confirm instructions before continuing.</div>' : ''}${opCarrier.system ? `<div class="note">Carrier last reported in ${esc(opCarrier.system)}</div>` : ''}${op?.notes ? `<p><b>Owner instructions:</b> ${esc(op.notes)}</p>` : ''}${reported}${profitSummary}<div class="trade-operation-controls">${controls}</div>${!member && plan ? `<div class="note">Carrier orders and jumps are set in game. This controls the team's instructions.</div>` : ''}${roster}${!member && c?.profit_split ? `<details class="trade-details"><summary>Prices and estimated profit</summary>${profitView(jobSplit, jobSplit.gross_profit)}</details>` : ''}</div>`;
+      const operationHtml = draft && !active ? `<div class="trade-active"><h3>Prepare ${esc(draft.name)} trade</h3><div>${esc(draft.buy.station)} / ${esc(draft.buy.system)} &gt; ${esc(draft.sell.station)} / ${esc(draft.sell.system)}</div><p>${tons(draft.quantity)} to move. Check current carrier stock so this load gets the right target.</p><form data-prepare-route class="row"><label>Currently aboard (t)<input data-prepare-stock type="number" min="0" max="1000000" required value="${esc(u.pendingStock)}"></label><button class="mini primary" type="submit">Save route</button><button class="mini" type="button" data-back-search>Back to routes</button></form></div>` : `<div class="trade-active"><div class="row"><span class="tag">${esc(op?.paused ? 'Paused' : stageName)}</span><h3>${esc(plan?.commodity || 'No trade selected')}</h3></div>${plan ? `<div class="note">${esc(plan.source)} &gt; ${esc(carrierName)} &gt; ${esc(plan.destination)}</div><div class="row">${planMarketLink(plan.source, "Buy market")}${marketLink(opCarrier.callsign || opCarrier.name, null, "Carrier market")}${planMarketLink(plan.destination, "Sell market")}</div>` : ''}<div class="k">Crew task</div><p class="trade-instruction">${esc(instruction)}</p>${ownerOrder}${!member && S.party?.mode !== 'leader' ? '<div class="note">Not shared yet. Create a hauling party to give your crew this job.</div>' : ''}${member && S.party.stale ? '<div class="warn">Leader connection is stale. Confirm instructions before continuing.</div>' : ''}${opCarrier.system ? `<div class="note">Carrier last reported in ${esc(opCarrier.system)}</div>` : ''}${op?.notes ? `<p><b>Owner instructions:</b> ${esc(op.notes)}</p>` : ''}${reported}${profitSummary}<div class="trade-operation-controls">${controls}</div>${!member && plan ? `<div class="note">Carrier orders and jumps are set in game. This controls the team's instructions.</div>` : ''}${roster}${!member && c?.profit_split ? `<details class="trade-details"><summary>Prices and estimated profit</summary>${profitView(jobSplit, jobSplit.gross_profit)}</details>` : ''}</div>`;
       if (!draft || active || u.renderedDraft !== draft.id) { $('[data-operation]').innerHTML = operationHtml; u.renderedDraft = draft?.id; }
       const notes = $('[data-operation-notes]'); notes.hidden = member || !active;
       if (op && !u.notesDirty) notes.elements.notes.value = op.notes || '';

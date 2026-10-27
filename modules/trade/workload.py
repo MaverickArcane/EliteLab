@@ -1,6 +1,7 @@
 """Owner-only workload preview and persistence routes."""
 import copy
 from elitelab.core.hauling import build, view
+from modules.trade.audit import record
 
 
 class Workloads:
@@ -25,5 +26,7 @@ class Workloads:
                     raise ValueError("The job or crew changed. Preview the current split before applying it.")
                 candidate = copy.deepcopy(data)
                 candidate["workload"] = saved
+                if candidate.get("operation"):
+                    record(candidate["operation"], "workload", mode=saved["mode"], owner_hauls=saved["owner_hauls"])
                 self.desk.commit(candidate)
             return view(saved, op, members, plan)
