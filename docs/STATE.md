@@ -241,7 +241,7 @@ times are distinct, since Status.json only changes when the game writes it.
 Route results pair the cheapest eligible supplier with each buyer above the
 configured reported-high threshold, rank by spread per ton, and expose
 `route_distance`, `reported_high`, `sell_percent`, `purchase_cost`, and `order`.
-Unknown inter-stop coordinates are excluded. `radius` applies only to buy stops;
+Unknown inter-stop coordinates are excluded. `radius` applies to both stops;
 `route_distance` caps the buy-to-sell leg. Catalog spread chooses a bounded
 24/48/96-commodity shortlist; fresh quotes determine all displayed prices.
 `min_volume=0` (default) derives the supply/demand minimum from reported free
@@ -294,3 +294,13 @@ fingerprints and last_auto with cumulative totals atomically. Heartbeats send
 those totals, including after a temporary disconnect. `party.auto_tracking`
 reports whether each leg has its required market ID; missing IDs require manual
 fallback. Manual entry of an already detected delivery would count twice.
+
+`journal.carrier.reserved_space` reads CargoSpaceReserved. Market planning capacity
+is unreserved plus reserved space, explicitly conditional on replacing existing
+buy orders in game. Raw free_space remains unchanged. Unknown/full capacity
+allows browsing with a 1 t minimum and no executable load.
+
+`party.load_suggestion` carries remaining tonnes, eligible onboard tonnes, full
+crew-round capacity, an advisory rounded total and proportional next-pickup
+amounts. It is recomputed from shared member reports, never persisted to plans
+or interpreted as a reservation/delivery. Stale leader connections suppress it.

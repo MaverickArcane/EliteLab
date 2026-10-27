@@ -214,7 +214,7 @@ class Journal:
     def _carrier(self, ev, prev):
         su = ev.get("SpaceUsage") or {}; fin = ev.get("Finance") or {}
         return {"name": ev.get("Name"), "callsign": ev.get("Callsign"), "fuel": ev.get("FuelLevel"),
-                "balance": fin.get("CarrierBalance"), "free_space": su.get("FreeSpace"), "cargo": su.get("Cargo"),
+                "balance": fin.get("CarrierBalance"), "free_space": su.get("FreeSpace"), "reserved_space": su.get("CargoSpaceReserved", 0), "cargo": su.get("Cargo"),
                 "docking": ev.get("DockingAccess"), "system": (prev or {}).get("system"), "stats_time": ev.get("timestamp"),
                 "services": [c.get("CrewRole") for c in (ev.get("Crew") or []) if c.get("Activated")]}
 

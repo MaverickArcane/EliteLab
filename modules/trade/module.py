@@ -462,9 +462,9 @@ def setup(core, module):
     core.http.route("/api/trade/profiles", lambda q: {"profiles": PROFILES, "context": profiles.context()}, tool="get_trade_profiles", module=module.name,
         description="Trade profiles and their live carrier context: observed inventory, buy orders, free space, ship capacity and reference system. Inventory is partial journal evidence.")
     core.http.route("/api/trade/opportunities", profiles.query, tool="find_carrier_opportunities", module=module.name,
-        description="Find paired buy/sell routes from Ardent/EDDN reports. For each high-paying buyer, choose the cheapest supplier within route_distance Ly, then rank by spread per ton. Radius limits carrier-to-buy distance only. Unknown route distances are excluded. Broad search screens up to breadth catalog candidates; commodity selects one. Reports are capped at 100 quotes per side, not an exhaustive galaxy search. Carrier free space sizes each load. Cached five minutes.",
+        description="Find paired buy/sell routes from Ardent/EDDN reports. For each high-paying buyer, choose the cheapest supplier within route_distance Ly, then rank by spread per ton. Radius limits BOTH stops from the carrier reference system. Unknown route distances are excluded. Broad search screens up to breadth catalog candidates; commodity selects one. Reports are capped at 100 quotes per side, not an exhaustive galaxy search. Unreserved plus buy-order-reserved capacity sizes replacement loads; cancel old orders in game. Unknown/full capacity still permits browsing. Cached five minutes.",
         params={"commodity": {"type": "string"}, "hours": {"type": "integer", "default": 6},
-                "radius": {"type": "integer", "default": 500}, "route_distance": {"type": "integer", "default": 100},
+                "radius": {"type": "integer", "default": 100}, "route_distance": {"type": "integer", "default": 100},
                 "min_volume": {"type": "integer", "default": 0, "description": "0 automatically requires supply and demand for all reported carrier free space; a positive value overrides the minimum tons."}, "sell_percent": {"type": "integer", "default": 80},
                 "breadth": {"type": "integer", "default": 24}, "arrival": {"type": "integer", "default": 10000},
                 "pad": {"type": "string", "default": "L"}})

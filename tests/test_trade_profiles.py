@@ -111,12 +111,21 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(row["buy"]["market_id"], 3)
         self.assertEqual(row["route_distance"], 10)
 
-    def test_buy_radius_does_not_filter_sell_stop(self):
+    def test_radius_filters_both_stops(self):
         self.buys[0]["systemX"] = 490
         self.sells[0]["systemX"] = 550
-        row = self.query(radius=500, route_distance=100)["rows"][0]
-        self.assertEqual(row["route_distance"], 60)
-        self.assertEqual(row["sell"]["distance"], 550)
+        self.assertEqual(self.query(radius=500, route_distance=100)["rows"], [])
+        self.buys[0]["systemX"] = 140
+        self.sells[0]["systemX"] = 150
+        self.assertEqual(self.query(radius=25, route_distance=25)["rows"], [])
+        self.buys[0]["systemX"] = 10
+        self.sells[0]["systemX"] = 25
+        self.profiles.results.clear()
+        row = self.query(radius=25, route_distance=25)["rows"][0]
+        self.assertEqual(row["sell"]["distance"], 25)
+        self.sells[0]["systemX"] = 25.01
+        self.profiles.results.clear()
+        self.assertEqual(self.query(radius=25, route_distance=25)["rows"], [])
 
     def test_all_returned_quotes_are_paired_before_truncation(self):
         self.buys = [{**self.report, "marketId": i+1, "buyPrice": i+1, "systemX": -200} for i in range(15)]
@@ -171,12 +180,24 @@ class RouteTests(unittest.TestCase):
             carrier = self.core.store.get("journal", "carrier")
             carrier["free_space"] = capacity
             self.core.store.set("journal", "carrier", carrier)
-            with self.assertRaisesRegex(ValueError, "capacity|free space"):
-                self.query()
+            result = self.query()
+            self.assertTrue(result["rows"])
+            self.assertTrue(result["warnings"])
             row = self.query(min_volume=1000)["rows"][0]
             self.assertEqual(row["quantity"], capacity)
             with self.assertRaisesRegex(ValueError, "capacity"):
                 self.call("select_carrier_opportunity", id=row["id"])
+
+    def test_buy_order_reservations_size_a_replacement_load(self):
+        self.core.bus.emit("journal.CarrierStats", {"event":"CarrierStats", "timestamp":"2026-10-27T03:51:10Z", "Name":"Test carrier", "Callsign":"TST-001",
+            "SpaceUsage":{"TotalCapacity":25000,"Crew":4270,"Cargo":854,"CargoSpaceReserved":19876,"FreeSpace":0}})
+        self.buys[0]["stock"] = 25000
+        self.sells[0]["demand"] = 25000
+        result=self.query(commodity="gold")
+        self.assertEqual(result["settings"]["min_volume"],19876)
+        self.assertEqual(result["rows"][0]["quantity"],19876)
+        self.assertTrue(any("reserved" in w for w in result["warnings"]))
+        self.assertEqual(self.core.store.get("journal","carrier")["free_space"],0)
 
     def test_reconciliation_conflict_blocks_plan_not_search(self):
         carrier = self.core.store.get("journal", "carrier")

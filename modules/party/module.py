@@ -19,6 +19,7 @@ import time
 from urllib.parse import urlsplit
 
 from elitelab.core.gamedata import norm
+from modules.party.loads import recommend
 
 NS = "party"
 STALE_SECONDS = 30
@@ -184,7 +185,9 @@ class Party:
             self.members = {k: m for k, m in self.members.items() if clock - m["received"] < 300}
             members = [{"id": self.member_id, **self.local(), "leader": True, "stale": False, "last_seen": utc()}]
             members += [{k: v for k, v in m.items() if k != "received"} | {"id": mid, "stale": clock - m["received"] > STALE_SECONDS} for mid, m in self.members.items()]
-            return {"members": members, "plan": self.core.store.get("trade", "plan"), "operation": self.core.store.get("trade", "operation"), "carrier": self.core.store.get("journal", "carrier"), "leader": self.local().get("cmdr"), "updated_at": utc()}
+            plan, operation = self.core.store.get("trade", "plan"), self.core.store.get("trade", "operation")
+            suggestion = recommend(plan, operation, members, (self.core.store.get("trade", "calculation") or {}).get("to_haul"))
+            return {"members": members, "plan": plan, "operation": operation, "load_suggestion": suggestion, "carrier": self.core.store.get("journal", "carrier"), "leader": self.local().get("cmdr"), "updated_at": utc()}
 
     def publish(self):
         with self.lock:
@@ -197,6 +200,7 @@ class Party:
                 "port": self.server.server_port if self.server else None, "url": self.url, "error": self.error,
                 "members": shared.get("members", []), "plan": shared.get("plan"), "stale": stale,
                 "operation": shared.get("operation"), "carrier": shared.get("carrier"), "activity": self.activity, "work": copy.deepcopy(self.work),
+                "load_suggestion": None if stale else shared.get("load_suggestion"),
                 "auto_tracking": {"loading": bool((shared.get("plan") or {}).get("carrier_market_id")), "unloading": bool((shared.get("plan") or {}).get("destination_market_id"))}, "last_auto_delivery": copy.deepcopy(self.last_auto),
                 "updated_at": shared.get("updated_at"), "local_id": self.member_id})
 

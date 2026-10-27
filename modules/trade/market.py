@@ -37,8 +37,10 @@ class MarketProfiles:
             orders = self.desk.data["orders"].copy()
         historical_total = sum(r.get("stock") or 0 for r in inventory.values() if stamp(r.get("updated_at")) <= stamp(carrier.get("stats_time")))
         conflict = carrier.get("cargo") is not None and historical_total > carrier["cargo"]
+        free = carrier.get("free_space")
+        reserved = carrier.get("reserved_space") or 0
         return {"carrier": carrier.get("name"), "callsign": carrier.get("callsign"), "system": carrier.get("system") or j.get("system"),
-                "free_space": carrier.get("free_space"), "reported_cargo": carrier.get("cargo"), "stats_time": carrier.get("stats_time"),
+                "free_space": free + reserved if free is not None else None, "unreserved_space": free, "reserved_space": reserved, "reported_cargo": carrier.get("cargo"), "stats_time": carrier.get("stats_time"),
                 "ship_capacity": j.get("cargo_capacity"), "inventory": inventory, "orders": orders, "inventory_conflict": conflict,
                 "power": self.core.store.get("powerplay", "power"), "rank": self.core.store.get("powerplay", "rank")}
 
@@ -65,7 +67,7 @@ class MarketProfiles:
             pos = [r.get("system" + axis) for axis in "XYZ"]
             pos = pos if all(isinstance(n, (int, float)) and math.isfinite(n) for n in pos) else None
             distance = math.dist(reference, pos) if reference and pos else None
-            if side == "buy" and settings["radius"] and (distance is None or distance > settings["radius"]):
+            if settings["radius"] and (distance is None or distance > settings["radius"]):
                 continue
             out.append({"market_id": r.get("marketId"), "station": r.get("stationName"), "system": r.get("systemName"),
                         "price": price, "volume": volume, "observed_at": r.get("updatedAt"), "distance": round(distance, 1) if distance is not None else None,
@@ -80,13 +82,13 @@ class MarketProfiles:
             raise ValueError("Use the buy/sell route search. Refresh the dashboard to update old profiles.")
         try:
             hours = int(q.get("hours", 6))
-            radius = int(q.get("radius", 500))
+            radius = int(q.get("radius", 100))
             route_distance = int(q.get("route_distance", 100))
             min_volume = int(q.get("min_volume", 0))
             sell_percent = int(q.get("sell_percent", 80))
             breadth = int(q.get("breadth", 24))
             arrival = int(q.get("arrival", 10000))
-            if (hours not in (3, 6, 12, 24, 72) or radius not in (0, 50, 100, 250, 500, 1000)
+            if (hours not in (3, 6, 12, 24, 72) or radius not in (0, 25, 50, 100, 250, 500, 1000)
                     or route_distance not in (25, 50, 100, 250, 500) or not 0 <= min_volume <= 1000000
                     or sell_percent not in (0, 80, 90, 95) or breadth not in (24, 48, 96)
                     or arrival not in (0, 2000, 10000, 50000)):
@@ -103,11 +105,7 @@ class MarketProfiles:
         volume_mode = "carrier" if min_volume == 0 else "manual"
         if volume_mode == "carrier":
             capacity = ctx["free_space"]
-            if capacity is None:
-                raise ValueError("Carrier free capacity is unknown. Read Carrier Management in game or set supply and demand manually.")
-            if capacity <= 0:
-                raise ValueError("The carrier has no reported free space for a new load. Set supply and demand manually to browse routes.")
-            min_volume = math.ceil(capacity)
+            min_volume = max(1, math.ceil(capacity or 0))
         signature = self.signature(ctx)
         settings = {"hours": hours, "radius": radius, "route_distance": route_distance,
                     "min_volume": min_volume, "volume_mode": volume_mode, "sell_percent": sell_percent, "breadth": breadth,
@@ -153,6 +151,10 @@ class MarketProfiles:
             raise ValueError("Choose a commodity from the market list or your carrier inventory.")
         candidates = [selected] if selected else list(names)[:settings["breadth"]]
         warnings = []
+        if ctx.get("reserved_space"):
+            warnings.append(f"Load sizing includes {ctx['reserved_space']:,} t reserved by existing buy orders. Cancel or resize those orders in game before placing a replacement order; clearing an EliteLab trade does not release them.")
+        if not ctx["free_space"]:
+            warnings.append("Browsing routes without a load size: carrier capacity is unknown or full. Update Carrier Management in game before preparing a new load.")
         meta = {"commodities": commodities, "available": len(names), "screened": len(candidates)}
         reference = None
         j = self.core.store.get("journal")
@@ -165,7 +167,7 @@ class MarketProfiles:
             except Exception:
                 pass
         if settings["radius"] and reference is None:
-            return {**meta, "rows": [], "warnings": ["Carrier coordinates are unavailable. Set buy distance to Any to search without a starting radius."]}
+            return {**meta, "rows": [], "warnings": ["Carrier coordinates are unavailable. Set search distance to Any to browse without a radius."]}
         jobs = [(k, side) for k in candidates for side in ("buy", "sell")]
         reports = {}
         with ThreadPoolExecutor(max_workers=4) as pool:

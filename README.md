@@ -83,12 +83,12 @@ Both stops, prices, supply/demand, observation times and distance between stops
 appear together. No PTN missions or external route tabs.
 
 Reports come from **Ardent / EDDN**, not Inara. Defaults: 100 Ly between stops,
-buy stops within 500 Ly of your carrier, reports within six hours, large pads,
+both stops within 100 Ly of your carrier, reports within six hours, large pads,
 supply and demand sufficient to fill all reported carrier free space, station
 approaches within 10,000 Ls, and
 sell prices at least 80% of the highest qualifying reported sell price for that
 commodity. Adjust these in **Search settings**. Unknown inter-stop distances
-are excluded. The carrier radius applies to buy stops, not to sell stops.
+are excluded. The carrier radius applies to both stops; buy-to-sell distance has a separate visible limit.
 
 **Bulk shortlist** screens 24 commodities ranked by catalog spread; expand to
 48 or 96, or select any individual commodity from the catalog/carrier list.
@@ -104,8 +104,7 @@ bonuses. Stock and orders do not restrict which commodities can be searched.
 **Use route** saves both stops/prices into a loading operation. Unknown or
 conflicting stock needs reconciliation to establish its target; this does not
 hide routes. The supply/demand minimum follows carrier free space automatically; untick
-**Fill carrier free space** to override it. Unknown/full capacity requires a
-manual minimum to browse routes without an executable loading quantity. **Adjust operation** exposes target stock, prices,
+**Fill carrier free space** to override it. Buy-order-reserved space is included when sizing a replacement load; cancel or resize those orders in game first. Clearing an EliteLab trade does not cancel game orders. Unknown/full capacity still allows browsing routes without an executable loading quantity. **Adjust operation** exposes target stock, prices,
 ship capacity and optional personal bonuses. Physical stock, ship cargo and
 orders stay separate. Plans do not place orders in game.
 
@@ -308,3 +307,20 @@ Spansh (https://spansh.co.uk) for station and system search, EDSM (https://www.e
 ## License
 
 MIT. See LICENSE.
+
+### Crew load suggestions
+
+The hauling party recommends a total that fits whole rounds across participating
+ships, plus each commander's next pickup. It subtracts matching cargo already
+aboard, leaves space for unrelated cargo, and splits a final partial round in
+proportion to free holds using whole tonnes. Ship swaps, cargo updates and
+Ready/Hauling/Away status recalculate the advice live. Stale, away, offline,
+non-ship and unknown-capacity reports are excluded and named. Suggestions do
+not reserve cargo or change an active trade. Confirm the latest amounts before
+buying; paused and transit phases request no pickups.
+
+Owners transfer into their own carrier to load; those journal transfers count
+as deliveries. For unloading, transfer to the ship and sell at the destination;
+only the station sale counts as delivered. Crew use the carrier market as usual.
+Buy, sell and carrier stops have separate system/station/callsign copy buttons,
+and the next pickup amount can be copied too.

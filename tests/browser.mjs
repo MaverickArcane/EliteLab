@@ -120,6 +120,10 @@ try {
   await evaluate("document.querySelector('[data-route-distance]').value='50';document.querySelector('[data-route-distance]').dispatchEvent(new Event('change'));true");
   await sleep(800);
   assert.equal(await evaluate("window.__routeQueries.at(-1).route_distance"),50);
+  await evaluate("document.querySelector('[data-radius]').value='25';document.querySelector('[data-radius]').dispatchEvent(new Event('change'));true");
+  await sleep(800);
+  assert.equal(await evaluate("window.__routeQueries.at(-1).radius"),25);
+  assert.ok(await evaluate("document.querySelector('.trade-toolbar [data-radius]') !== null && document.querySelector('[data-context]').textContent.includes('Both stops: within 25 Ly')"));
   // Manage the trade through owner controls and report actual delivered tonnage.
   await evaluate("document.querySelector('[data-trade-tab=operation]').click();document.querySelector('[data-edit-operation]').open=true;true");
   await evaluate(`(() => {const f=document.querySelector('[data-trade-plan]');f.elements.source.value='Source Port / Lave';f.elements.destination.value='Destination Port / Sol';f.elements.target.value='1300';f.elements.planned_quantity.value='1000';f.elements.crew_enabled.checked=true;f.requestSubmit();return true;})()`);
@@ -127,6 +131,12 @@ try {
   await evaluate("document.querySelector('[data-op-action=start]').click();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.party?.operation?.stage==='loading'"))break;}
   assert.equal(await evaluate('Lab.state.trade.operation.stage'),'loading');
+  assert.ok(await evaluate("document.querySelector('[data-party-stops] [data-copy=\"Lave\"]') !== null && document.querySelector('[data-party-stops] [data-copy=\"Source Port\"]') !== null && document.querySelector('[data-party-stops] [data-copy=\"Sol\"]') !== null"));
+  assert.ok(await evaluate("document.querySelector('[data-party-plan]').textContent.includes('transfer cargo directly')"));
+  assert.equal(await evaluate('Lab.state.party.load_suggestion.next_buy'),690);
+  guestReport.capacity=450;await reportGuest();await sleep(250);
+  assert.equal(await evaluate('Lab.state.party.load_suggestion.next_buy'),350);
+  assert.ok(await evaluate("document.querySelector('[data-load-suggestion]').textContent.includes('450 t per full crew round')"));
   assert.ok(await evaluate("document.querySelector('[data-operation]').textContent.includes('Buy gold at Source Port / Lave')"));
   await evaluate("document.querySelector('[data-operation-notes] textarea').value='Dock at the carrier; wait for departure.';document.querySelector('[data-operation-notes]').requestSubmit();true");
   await sleep(200);

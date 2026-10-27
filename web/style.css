@@ -187,6 +187,9 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 .party-alerts { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
 .party-old .party-telemetry { opacity: .65; }
 .party-freshness { margin-top: 8px; }
+.party-route-stop { padding: 8px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.party-route-stop .row { margin-top: 6px; }
+.party-next-load { margin: 10px 0; }
 [data-party-members] { max-height: 650px; overflow-y: auto; }
 [data-party-connected][hidden], [data-party-controls][hidden] { display: none; }
 .map-wrap { position: relative; height: 520px; overflow: hidden; background: #060910; border: 1px solid var(--line); }
