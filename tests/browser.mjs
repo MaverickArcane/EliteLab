@@ -13,7 +13,7 @@ const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'elitelab-chrome-'));
 const chrome = spawn(process.env.CHROME_BIN || (process.platform === 'win32' ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : 'google-chrome'), ['--headless=new', '--no-sandbox', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], {windowsHide:true, stdio:'ignore'});
 const attacker = http.createServer((req,res) => {res.writeHead(200, {'Content-Type':'text/html'}); res.end('<!doctype html><title>Audit cross-origin test</title>');});
 await new Promise(r => attacker.listen(0,'127.0.0.1',r));
-let ws;
+let ws, joinServer;
 try {
   for(let i=0;i<100 && (!serverText.trim() || !fs.existsSync(path.join(profile, 'DevToolsActivePort')));i++) await sleep(100);
   const port = Number(serverText.trim());
@@ -182,6 +182,32 @@ try {
   await evaluate("document.querySelector('[data-party-leave]').click();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.party?.mode==='idle'"))break;}
   assert.equal(await evaluate('Lab.state.party.mode'),'idle');
+  // Submit the real join form to a loopback leader, including pasted whitespace.
+  const joinCode='test_party_code_0123456789abcdef';let acceptJoin=false, receivedJoin=false;
+  joinServer=http.createServer((req,res)=>{
+    const chunks=[];req.on('data',chunk=>chunks.push(chunk));req.on('end',()=>{
+      const valid=req.url==='/report' && req.headers.authorization==='Bearer '+joinCode;
+      receivedJoin=valid;
+      res.writeHead(valid && acceptJoin ? 200 : 403,{'Content-Type':'application/json'});
+      res.end(JSON.stringify(valid && acceptJoin ? {members:[],plan:null,operation:null} : {error:'invalid party code'}));
+    });
+  });
+  await new Promise(r=>joinServer.listen(0,'127.0.0.1',r));
+  const joinAddress='127.0.0.1:'+joinServer.address().port;
+  await evaluate(`(() => {const f=document.querySelector('[data-party-join]');f.closest('details').open=true;f.elements.url.value='  ${joinAddress}  ';f.elements.code.value='  ${joinCode}  ';Lab.emit('journal');return true;})()`);
+  assert.equal(await evaluate("document.querySelector('[data-party-join] [name=code]').value"),'  '+joinCode+'  ');
+  await evaluate("document.querySelector('[data-party-join]').requestSubmit();true");
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[data-party-join-error]').textContent.includes('Party code rejected')"))break;}
+  assert.equal(receivedJoin,true);
+  assert.ok(await evaluate("document.querySelector('[data-party-join-error]').textContent.includes('Party code rejected')"));
+  assert.equal(await evaluate("document.querySelector('[data-party-join] [name=code]').value"),joinCode);
+  acceptJoin=true;
+  await evaluate("document.querySelector('[data-party-join]').requestSubmit();true");
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.party.mode==='member'"))break;}
+  assert.equal(await evaluate('Lab.state.party.mode'),'member');
+  assert.equal(await evaluate("document.querySelector('[data-party-join] [name=code]').value"),'');
+  await evaluate("document.querySelector('[data-party-leave]').click();true");
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.party.mode==='idle'"))break;}
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   // Confirm a preset and restoration both mount cleanly.
   await evaluate("document.querySelector('[data-preset=Engineering]').click();true");
@@ -200,4 +226,4 @@ try {
   const results={desktop:before,inputAfter,engineeringCards,mobile,crossOrigin,wishlistAfter,browserExceptions:errors};
   assert.equal(inputAfter.name,'arsenic'); assert.equal(inputAfter.qty,'5'); assert.equal(inputAfter.focus,'mat-q'); assert.equal(mobile.bodyWidth,390); assert.equal(wishlistAfter.wishlist[0].need,10); assert.deepEqual(errors,[]); assert.deepEqual(before.renderErrors,[]);console.log(JSON.stringify(results,null,2));
   await send('Browser.close').catch(()=>{});
-} finally {ws?.close();server.kill();chrome.kill();attacker.close();}
+} finally {ws?.close();server.kill();chrome.kill();attacker.close();joinServer?.close();}

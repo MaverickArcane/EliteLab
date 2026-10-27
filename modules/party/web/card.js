@@ -49,9 +49,9 @@
         <form data-party-host class="trade-form"><label>Listen address<input name="bind" value="0.0.0.0" placeholder="Your Tailscale IPv4" required></label><label>Party port<input name="port" type="number" min="1024" max="65535" value="8767" required></label><button class="primary trade-wide" type="submit">Create party as leader</button></form>
         <div class="note">Use your Tailscale IPv4 to listen only on the tailnet. 0.0.0.0 listens on all local network interfaces. Friends use their own EliteLab to join.</div>
         <details class="trade-details"><summary>Join a leader</summary><form data-party-join class="trade-form">
-          <label class="trade-wide">Leader party URL<input name="url" type="url" placeholder="http://100.x.x.x:8767" required></label>
+          <label class="trade-wide">Leader party URL<input name="url" type="text" inputmode="url" spellcheck="false" autocapitalize="off" placeholder="100.x.x.x:8767" required></label>
           <label class="trade-wide">Party code<input name="code" type="password" autocomplete="off" required></label><button type="submit" class="primary trade-wide">Join &amp; share my status</button>
-        </form></details></div>
+        <div data-party-join-error class="note warn trade-wide" role="status"></div></form></details></div>
         <div data-party-connected hidden><details class="trade-filters"><summary>Connection &amp; invitation</summary><div data-party-invite></div></details><button class="mini" data-party-leave>Close party</button></div>
         <div data-party-plan></div>
         <div data-party-stops></div><div data-load-suggestion></div>
@@ -63,8 +63,14 @@
         form.onsubmit = async e => {
           e.preventDefault(); const button = form.querySelector('button'); button.disabled = true;
           const body = Object.fromEntries(new FormData(form)); if (action === 'host') body.port = Number(body.port);
+          if (action === 'join') {
+            body.url = body.url.trim(); body.code = body.code.trim();
+            if (body.url && !body.url.includes('://')) body.url = 'http://' + body.url;
+            form.elements.url.value = body.url; form.elements.code.value = body.code;
+            el.querySelector('[data-party-join-error]').textContent = '';
+          }
           try { await Lab.post('/api/party/' + action, body); if (action === 'join') form.elements.code.value = ''; }
-          catch (error) { Lab.toast(error.message, 'bad'); }
+          catch (error) { if (action === 'join') el.querySelector('[data-party-join-error]').textContent = error.message; Lab.toast(error.message, 'bad'); }
           finally { button.disabled = false; }
         };
       }

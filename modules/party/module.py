@@ -122,8 +122,12 @@ def exchange(url, token, body):
         connection.request("POST", "/report", json.dumps(body), {"Content-Type": "application/json", "Authorization": "Bearer " + token})
         response = connection.getresponse()
         data = response.read(256001)
+        if response.status == 403:
+            raise ValueError("Party code rejected. Copy the current code from the leader; restarting or recreating a party changes it.")
+        if response.status == 404:
+            raise ValueError("No party listener at that address. Use the leader's party port (usually 8767), not the dashboard port.")
         if response.status != 200:
-            raise ValueError("Party rejected the report. Check the party code and leader address.")
+            raise ValueError(f"Leader returned HTTP {response.status}. Check the party address and matching EliteLab versions.")
         if len(data) > 256000:
             raise ValueError("Party response too large.")
         result = json.loads(data)
@@ -314,8 +318,17 @@ class Party:
 
     def join(self, q):
         url, token = q.get("url", ""), q.get("code", "")
-        if not isinstance(url, str) or len(url) > 240 or not isinstance(token, str) or not 16 <= len(token) <= 128 or not token.isascii() or any(c.isspace() for c in token):
-            raise ValueError("Enter the leader's party URL and code.")
+        if not isinstance(url, str) or not url.strip():
+            raise ValueError("Enter the leader's party address.")
+        if not isinstance(token, str) or not token.strip():
+            raise ValueError("Enter the party code copied from the leader.")
+        url, token = url.strip(), token.strip()
+        if "://" not in url:
+            url = "http://" + url
+        if len(url) > 240:
+            raise ValueError("The party address is too long. Use the leader's LAN/Tailscale address and party port.")
+        if not 16 <= len(token) <= 128 or not token.isascii() or any(not (c.isalnum() or c in "-_") for c in token):
+            raise ValueError("Invalid party code format. Copy the complete code without quotes or spaces inside it.")
         with self.operations:
             with self.lock:
                 if self.mode != "idle":

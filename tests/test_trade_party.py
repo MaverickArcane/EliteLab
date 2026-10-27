@@ -190,6 +190,23 @@ class PartyTests(unittest.TestCase):
         self.member.leave()
         self.assertEqual(len(self.leader.shared()["members"]), 1)
 
+    def test_join_accepts_pasted_whitespace_and_address_without_scheme(self):
+        joined = self.member.join({"url":"  " + self.url.removeprefix("http://") + "\n", "code":" \t" + self.state["code"] + "\r\n"})
+        self.assertEqual(joined["mode"], "member")
+        self.assertEqual(self.member.url, self.url)
+        self.assertEqual(self.member.token, self.state["code"])
+        self.assertEqual(len(self.leader.shared()["members"]), 2)
+
+    def test_join_distinguishes_missing_malformed_and_rejected_codes(self):
+        for fields, message in (({"url":" ","code":self.state["code"]}, "party address"),
+                                ({"url":self.url,"code":" "}, "party code copied"),
+                                ({"url":self.url,"code":"short"}, "Invalid party code format"),
+                                ({"url":self.url,"code":"a"*16+" "+"b"*16}, "Invalid party code format"),
+                                ({"url":self.url,"code":"x"*32}, "Party code rejected")):
+            with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
+                self.member.join(fields)
+        self.assertEqual(self.member.mode, "idle")
+
     def test_live_telemetry_changes_arrive_without_manual_reporting(self):
         fixture = os.path.join(FIXTURES, "telemetry")
         with patch.object(config, "JOURNAL_DIR", fixture):

@@ -174,6 +174,8 @@ For multiplayer on a LAN or your Tailscale tailnet:
    party port defaults to `8767`, separate from the dashboard's `8766`.
 3. Share `http://LEADER-TAILSCALE-IP:8767` and the generated party code.
 4. Members enter that URL/code under **Join a leader** on their own dashboard.
+   Surrounding pasted whitespace is ignored; the address also works without
+   `http://`. Failed joins retain the fields and show a specific error beside them.
    They share commander name, location, ship, cargo and flight telemetry every second.
    Members also receive the leader's saved plan and the party roster.
 5. The owner starts the saved trade in **Manage trade**. Crew journals update progress automatically;
