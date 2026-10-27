@@ -304,3 +304,8 @@ allows browsing with a 1 t minimum and no executable load.
 crew-round capacity, an advisory rounded total and proportional next-pickup
 amounts. It is recomputed from shared member reports, never persisted to plans
 or interpreted as a reservation/delivery. Stale leader connections suppress it.
+
+Saving a plan after cancellation/completion moves the ended operation and its
+plan into `trade.previous_operation` (one retained snapshot) and clears the
+current operation. The new plan is ready to start with a fresh operation id;
+late reports for the previous id cannot enter its totals. Physical stock is unchanged.

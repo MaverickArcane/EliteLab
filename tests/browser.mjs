@@ -166,6 +166,19 @@ try {
   await evaluate("document.querySelector('[data-op-action=complete]').click();true");
   for(let i=0;i<30;i++){await sleep(100);if(await evaluate("Lab.state.trade.operation.stage==='complete'"))break;}
   assert.equal(await evaluate('Lab.state.trade.operation.stage'),'complete');
+  // Preparing another plan clears an ended operation, then starting it gets a new id.
+  const endedOperation=await evaluate('Lab.state.trade.operation.id');
+  await evaluate("document.querySelector('[data-edit-operation]').open=true;true");
+  await evaluate(`(() => {const f=document.querySelector('[data-trade-plan]');f.elements.mode.value='load';f.elements.target.value='1300';f.elements.planned_quantity.value='1000';f.requestSubmit();return true;})()`);
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate('Lab.state.trade.operation===null'))break;}
+  assert.equal(await evaluate('Lab.state.trade.operation'),null);
+  assert.equal(await evaluate("document.querySelector('[data-op-action=start]').textContent"),'Start loading');
+  await evaluate("document.querySelector('[data-op-action=start]').click();true");
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade.operation?.stage==='loading'"))break;}
+  assert.notEqual(await evaluate('Lab.state.trade.operation.id'),endedOperation);
+  await evaluate("document.querySelector('[data-op-action=cancel]').click();true");
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade.operation?.stage==='cancelled'"))break;}
+  assert.equal(await evaluate("document.querySelector('[data-op-action=start]').textContent"),'Start new loading');
   await evaluate("document.querySelector('[data-party-leave]').click();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.party?.mode==='idle'"))break;}
   assert.equal(await evaluate('Lab.state.party.mode'),'idle');

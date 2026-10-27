@@ -68,6 +68,30 @@ class OperationTests(unittest.TestCase):
         self.assertEqual((saved["id"], saved["loaded"], saved["stage"]), (op["id"], 100, "transit"))
         self.assertIn("Wait", saved["notes"])
 
+    def test_replacing_cancelled_or_completed_trade_returns_to_ready(self):
+        for ending in ("cancel", "complete"):
+            with self.subTest(ending=ending):
+                old = self.control("start")["operation"]
+                self.report(old, 100)
+                if ending == "complete":
+                    self.control("depart"); self.control("unload")
+                self.control(ending)
+                before = copy.deepcopy(self.desk.data["inventory"])
+                state = self.call("plan_carrier_trade", commodity="silver", source="Buy / Sol", destination="Sell / Lave",
+                                  target=500, planned_quantity=500, source_price=100, destination_price=200)
+                self.assertIsNone(state["operation"])
+                self.assertEqual(state["previous_operation"]["operation"]["id"], old["id"])
+                self.assertEqual(state["previous_operation"]["operation"]["reports"]["a"*32]["loading"], 100)
+                self.assertEqual(state["inventory"], before)
+                restarted = Core(); loader.load_all(restarted)
+                self.assertIsNone(restarted.store.get("trade", "operation"))
+                self.report(old, 200)
+                self.assertIsNone(self.core.store.get("trade", "operation"))
+                new = self.control("start")["operation"]
+                self.assertNotEqual(new["id"], old["id"])
+                self.assertEqual(new["loaded"], 0)
+                self.control("cancel")
+
     def test_member_cannot_control_the_leader_or_replace_plan(self):
         self.core.store.set("party", "mode", "member")
         with self.assertRaises(ValueError): self.control("start")

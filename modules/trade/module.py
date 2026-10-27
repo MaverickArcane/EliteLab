@@ -257,6 +257,9 @@ class Trade:
             d = copy.deepcopy(self.data)
             if (d.get("operation") or {}).get("stage") in ACTIVE:
                 raise ValueError("Finish or cancel the active trade before changing its route or prices.")
+            if d.get("operation"):
+                d["previous_operation"] = {"operation": d["operation"], "plan": d.get("plan")}
+                d["operation"] = None
             d["plan"] = p
             self.commit(d)
             return self.core.store.get(NS)
