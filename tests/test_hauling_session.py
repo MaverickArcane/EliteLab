@@ -176,3 +176,63 @@ class HaulingSessionTests(unittest.TestCase):
         self.sync(self.crew)
         with self.assertRaises(ValueError):
             configure({"mode":"equal","action":"apply","basis":draft["basis"]})
+
+    def test_leaving_flushes_a_delivery_saved_during_network_loss(self):
+        party = self.crew.modules["party"].party
+        api = self.crew.modules["party"].instance
+        with patch.object(api,"exchange",side_effect=OSError("offline")):
+            self.report(self.crew,50,"l")
+        party.leave()
+        self.assertEqual(self.owner.store.get("trade","operation")["loaded"],50)
+        self.assertEqual(party.mode,"idle")
+        roster = self.owner.store.get("party","desk")["crew"]
+        member = next(m for m in roster if m["id"]==party.member_id)
+        self.assertFalse(member["connected"])
+        self.assertEqual(member["loading"],50)
+
+    def test_owner_restart_recovers_work_saved_before_ledger_write_failed(self):
+        write = self.owner.write_data
+
+        def fail_ledger(value, *parts):
+            if parts == ("trade.json",):
+                raise OSError("simulated interrupted ledger write")
+            return write(value,*parts)
+
+        with patch.object(self.owner,"write_data",side_effect=fail_ledger):
+            state = self.report(self.owner,50,"f")
+        self.assertEqual(state["desk"]["pending"]["loading"],50)
+        self.owner.modules["party"].party.leave()
+        self.owner = self.client("owner")
+        self.assertEqual(self.owner.store.get("trade","operation")["loaded"],50)
+        self.assertEqual(self.owner.store.get("party","desk")["pending"]["loading"],0)
+        self.owner = self.client("owner")
+        self.assertEqual(self.owner.store.get("trade","operation")["loaded"],50)
+
+    def test_pending_loading_report_survives_owner_stage_change_and_reconnect(self):
+        api = self.crew.modules["party"].instance
+        with patch.object(api,"exchange",side_effect=OSError("offline")):
+            self.report(self.crew,75,"t")
+        self.control("depart")
+        self.control("unload")
+        state = self.sync(self.crew)
+        self.assertEqual((state["operation"]["loaded"],state["operation"]["unloaded"]),(75,0))
+        self.assertEqual(state["desk"]["pending"]["loading"],0)
+        self.sync(self.crew)
+        self.assertEqual(self.owner.store.get("trade","operation")["loaded"],75)
+
+    def test_full_ship_rejoins_with_same_assignment_and_no_duplicate_pickup(self):
+        configure = self.owner.http.tools["configure_trade_workload"].fn
+        q = {"mode":"equal","owner_hauls":False}
+        draft = configure(q)
+        configure({**q,"action":"apply","basis":draft["basis"]})
+        cargo = {"count":200,"items":[{"key":"gold","count":200}]}
+        self.crew.store.set("journal","cargo",cargo)
+        before = self.sync(self.crew)
+        self.assertEqual((before["desk"]["action"],before["desk"]["quantity"]),("deliver",200))
+        self.crew.modules["party"].party.leave()
+        self.crew = self.client("crew")
+        self.crew.store.set("journal","cargo",cargo)
+        self.crew.modules["party"].party.join(self.invite)
+        after = self.sync(self.crew)
+        self.assertEqual(after["desk"]["assignment"]["loading_target"],200)
+        self.assertEqual((after["desk"]["action"],after["desk"]["quantity"]),("deliver",200))

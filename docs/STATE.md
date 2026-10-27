@@ -369,3 +369,7 @@ Member heartbeats and manual report exchanges are serialized through response
 application. Queued sends capture fresh local state; network I/O never holds the
 party state lock. Leave follows any in-flight report, and its generation change
 prevents that report's response from restoring the departed party.
+The Leave message includes the final cumulative work report, so locally saved
+deliveries can be acknowledged even when the previous heartbeat failed. At
+startup, the owner reconciles saved local work into the matching operation;
+repeated starts use cumulative counts and do not double-credit deliveries.

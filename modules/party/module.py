@@ -177,6 +177,11 @@ class Party:
         core.bus.on("state.journal.cargo", self.refresh)
         core.bus.on("state.journal.cargo_capacity", self.refresh)
         self.publish()
+        # The local receipt is written before the owner's operation ledger.
+        # Reconcile that durable cumulative count after an interrupted second
+        # write. Unrelated member jobs are ignored by the operation ID guard.
+        if self.work:
+            core.bus.emit("party.work", {"id": self.member_id, "report": self.local()})
 
     def refresh(self, name, value):
         # Trade publishes while holding its ledger lock; party reports acquire
@@ -289,6 +294,7 @@ class Party:
     def _leave(self):
         with self.lock:
             old_mode, old_url, old_token = self.mode, self.url, self.token
+            final_report = self.local() if old_mode == "member" else None
             self.stop.set()
             self.generation += 1
             server, self.server = self.server, None
@@ -304,7 +310,7 @@ class Party:
                 # Finish any in-flight report before Leave, so it cannot re-add
                 # this commander to the leader after the departure request.
                 with self.exchange_lock:
-                    exchange(old_url, old_token, {"id": self.member_id, "leave": True})
+                    exchange(old_url, old_token, {"id": self.member_id, "leave": True, "report": final_report})
             except (OSError, ValueError, http.client.HTTPException):
                 pass  # the leader expires this report if it could not be removed
 

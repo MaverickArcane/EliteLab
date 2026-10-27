@@ -61,6 +61,9 @@ rebalancing with assigned cargo aboard, automatic operation sizing with existing
 ship cargo, and personal bonuses excluded from shared crew margins.
 `test_party_sync.py` uses controlled concurrent requests to check heartbeat/manual
 report ordering, responsive local edits during slow requests, and Leave ordering.
+Session recovery tests inject a failed owner ledger write, flush pending work
+when leaving, acknowledge loading reports after the stage changes to unloading,
+and reconnect a full ship without assigning another pickup.
 `node tests/browser.mjs` also starts a separate member application, joins a real
 leader, checks clipboard values, selection/input preservation across live
 updates, individual progress and margin, and desktop/mobile layouts.
