@@ -5,8 +5,34 @@ from math import ceil
 from elitelab.core.gamedata import norm
 
 
-def divide(total, weights):
+def matching_cargo(member, commodity):
+    count = member.get("cargo_count")
+    if type(count) is not int or count < 0:
+        return 0
+    return min(count, sum(i.get("count") or 0 for i in member.get("cargo", [])
+                          if norm(i.get("key") or "") == norm(commodity)))
+
+
+def divide(total, weights, minimums=None):
     """Conserve whole tonnes; use stable identity to break remainder ties."""
+    if minimums:
+        if sum(minimums.values()) > total:
+            raise ValueError("Cargo already in flight exceeds the remaining job. Check deliveries before rebalancing.")
+        fixed, pending = {}, dict(weights)
+        while pending:
+            left = total - sum(fixed.values())
+            if not sum(pending.values()):
+                if left:
+                    raise ValueError("Choose at least one commander to haul.")
+                return {**fixed, **dict.fromkeys(pending, 0)}
+            portions = divide(left, pending)
+            constrained = [mid for mid in pending if portions[mid] < minimums.get(mid, 0)]
+            if not constrained:
+                return {**fixed, **portions}
+            for mid in constrained:
+                fixed[mid] = minimums[mid]
+                del pending[mid]
+        return fixed
     denominator = sum(weights.values())
     if denominator <= 0:
         raise ValueError("Choose at least one commander to haul.")
@@ -17,10 +43,10 @@ def divide(total, weights):
     return result
 
 
-def build(plan, operation, members, settings, previous=None):
+def build(plan, operation, members, settings, previous=None, fallback_quantity=None):
     if not plan:
         raise ValueError("Choose a route before splitting the workload.")
-    total = (operation or {}).get("quantity") or plan.get("planned_quantity")
+    total = (operation or {}).get("quantity") or plan.get("planned_quantity") or fallback_quantity
     if type(total) is not int or not 0 < total <= 1000000:
         raise ValueError("Set a positive operation size before splitting the workload.")
     mode, owner_hauls = settings.get("mode", "equal"), settings.get("owner_hauls", True)
@@ -43,19 +69,25 @@ def build(plan, operation, members, settings, previous=None):
         eligible = (owner_hauls or not m.get("leader")) and not m.get("stale") and m.get("activity") != "away"
         weights[mid] = (shares.get(mid, 0) if mode == "custom" else 1) if eligible else 0
     targets = {}
+    old_targets = {r["id"]: r for r in (previous or {}).get("members", [])}
+    cargo = {mid: matching_cargo(m, plan["commodity"]) for mid, m in known.items()}
     for phase in ("loading", "unloading"):
         delivered = {mid: reports.get(mid, {}).get(phase, 0) for mid in known}
         remaining = total - sum(delivered.values())
         if remaining < 0:
             raise ValueError("Reported deliveries exceed the job size. Resolve that before rebalancing.")
-        portions = divide(remaining, weights)
+        # Changing future participation must not strand an assigned load already
+        # aboard. Keep weighted shares where possible, with those loads as floors.
+        committed = {mid: min(cargo[mid], max(0, old_targets.get(mid, {}).get(phase + "_target", 0) - delivered[mid]))
+                     if (operation or {}).get("stage") == phase else 0 for mid in known}
+        portions = divide(remaining, weights, committed)
         targets[phase] = {mid: delivered[mid] + portions[mid] for mid in known}
     rows = [{"id": mid, "cmdr": m.get("cmdr") or "Unknown commander", "owner": bool(m.get("leader")),
              "capacity": m.get("capacity"), "weight": weights[mid],
              "loading_target": targets["loading"][mid], "unloading_target": targets["unloading"][mid]}
             for mid, m in known.items()]
     basis = {"plan": plan, "operation_id": (operation or {}).get("id"), "stage": (operation or {}).get("stage"),
-             "reports": reports, "rows": rows, "mode": mode, "owner_hauls": owner_hauls}
+             "reports": reports, "rows": rows, "cargo": cargo, "mode": mode, "owner_hauls": owner_hauls}
     token = hashlib.sha256(json.dumps(basis, sort_keys=True).encode()).hexdigest()
     return {"mode": mode, "owner_hauls": owner_hauls, "shares": shares, "quantity": total, "members": rows, "basis": token}
 

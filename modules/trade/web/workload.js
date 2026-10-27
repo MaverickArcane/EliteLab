@@ -8,10 +8,21 @@ export function mount(el) {
     <div class="row"><label>Split <select data-wl-mode><option value="equal">Equal tonnes per commander</option><option value="custom">Custom shares</option></select></label><label class="chk"><input type="checkbox" data-wl-owner checked>I haul too (direct transfers)</label></div>
     <div data-wl-custom hidden><div class="note">Share weights: 1 each is equal tonnes; 2 gets twice as much as 1. Use 0 to sit out. Only connected, ready/hauling commanders receive new work.</div><div data-wl-inputs class="workload-shares"></div></div>
     <div data-wl-preview></div><div class="row"><button type="button" class="mini primary" data-wl-apply>Apply split</button><button type="button" class="mini" data-wl-refresh>Recalculate</button><span data-wl-message class="note" role="status"></span></div>
-    <div class="note">Saved shares stay fixed through ship changes and disconnects. Rebalancing divides only unfinished tonnes; completed deliveries stay credited. Orders are placed in game.</div></section>`;
+    <div class="note">Saved shares stay fixed through ship changes and disconnects. Rebalancing keeps completed deliveries and assigned cargo already aboard, then splits the remaining work. Orders are placed in game.</div></section>`;
   const $ = selector => el.querySelector(selector);
   const settings = () => ({mode:$('[data-wl-mode]').value, owner_hauls:$('[data-wl-owner]').checked,
     shares:Object.fromEntries([...el.querySelectorAll('[data-wl-share]')].map(input=>[input.dataset.wlShare,Number(input.value)]))});
+  const busy = value => {
+    u.busy=value;
+    if(value) {++u.generation;clearTimeout(u.timer);}
+    for(const control of el.querySelectorAll('[data-wl-mode], [data-wl-owner], [data-wl-refresh]')) control.disabled=value;
+    if(value) for(const input of el.querySelectorAll('[data-wl-share]')) input.disabled=true;
+    Lab.emit('trade_ui');
+  };
+  const invalidate = () => {
+    u.preview=null; $('[data-wl-apply]').disabled=true;
+    for(const button of el.querySelectorAll('[data-wl-preview] [data-copy]')) button.disabled=true;
+  };
   const draw = w => {
     const op = u.state?.party?.operation || u.state?.trade?.operation;
     const phase = ['transit','unloading'].includes(op?.stage) ? 'unloading' : 'loading', loading = phase === 'loading';
@@ -22,51 +33,56 @@ export function mount(el) {
       <div class="table-scroll"><table class="workload-table"><thead><tr><th>Commander</th><th class="num">Assigned ${loading ? 'loading' : 'unloading'}</th><th class="num">Delivered</th><th class="num">Left</th><th class="num">Est. loads left</th></tr></thead><tbody>${w.members.map(r=>`<tr><td>${esc(r.cmdr)}${r.owner ? ' (you)' : ''}${r.connected ? '' : '<div class="note warn">Disconnected / stale</div>'}</td><td class="num">${tons(r[phase+'_target'])}</td><td class="num">${tons(r[phase+'_done'])}</td><td class="num">${tons(r[phase+'_remaining'])}</td><td class="num">${r[phase+'_runs_left'] == null ? 'Ship capacity unknown' : fmt(r[phase+'_runs_left'])}${r[phase+'_partial_load'] ? `<div class="note">Last load ${tons(r[phase+'_partial_load'])}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
   };
   const preview = async () => {
-    if (u.destroyed || el.hidden || !u.state) return;
+    if (u.destroyed || el.hidden || !u.state || u.busy) return;
     const generation = ++u.generation;
-    $('[data-wl-apply]').disabled = true;
+    invalidate();
     $('[data-wl-message]').textContent = 'Calculating shares...';
     try {
       const w = await Lab.post('/api/trade/workload', {action:'preview', ...settings()});
       if (u.destroyed || generation !== u.generation) return;
       u.preview = w; draw(w); $('[data-wl-message]').textContent = '';
       $('[data-wl-apply]').disabled = false;
-    } catch(error) {if (!u.destroyed && generation === u.generation) {u.preview=null; $('[data-wl-message]').textContent=error.message;}}
+    } catch(error) {if (!u.destroyed && generation === u.generation) {u.preview=null; $('[data-wl-preview]').replaceChildren(); $('[data-wl-message]').textContent=error.message;}}
   };
   const schedule = () => {clearTimeout(u.timer); u.timer=setTimeout(preview,250);};
   el.addEventListener('input', e => {
     if (!e.target.matches('[data-wl-mode], [data-wl-owner], [data-wl-share]')) return;
-    u.dirty = true; ++u.generation; $('[data-wl-apply]').disabled = true;
+    u.dirty = true; ++u.generation; invalidate();
     $('[data-wl-custom]').hidden = $('[data-wl-mode]').value !== 'custom';
     $('[data-wl-status]').textContent = 'Unsaved preview'; schedule();
   });
   $('[data-wl-refresh]').onclick = () => {u.dirty=true; $('[data-wl-status]').textContent='Rebalance preview'; preview();};
   $('[data-wl-apply]').onclick = async () => {
     if (!u.preview || u.busy) return;
-    u.busy=true; $('[data-wl-apply]').disabled=true;
+    busy(true); $('[data-wl-apply]').disabled=true;
     try {
       await Lab.post('/api/trade/workload',{action:'apply',...settings(),basis:u.preview.basis});
       u.dirty=false; u.key=''; $('[data-wl-message]').textContent='Workload shared with crew'; Lab.emit('trade_ui');
     } catch(error) { $('[data-wl-message]').textContent=error.message; u.preview=null; }
-    finally {u.busy=false; if(u.preview) $('[data-wl-apply]').disabled=false;}
+    finally {busy(false); if(u.preview) $('[data-wl-apply]').disabled=false;}
   };
   return {
     async beforeStart() {
       const trade=u.state?.trade;
-      if(!trade?.plan?.planned_quantity || ['complete','cancelled'].includes(trade.operation?.stage)) return;
+      if(u.busy) throw new Error('Wait for the workload update to finish before starting.');
+      if(!trade?.plan || ['complete','cancelled'].includes(trade.operation?.stage)) return;
       if(!u.dirty && trade.workload) return;
       // Starting uses the controls the owner can see, even if they have not
       // pressed Apply separately. Never silently start with different shares.
       const q=settings();
-      const draft=await Lab.post('/api/trade/workload',{action:'preview',...q});
-      await Lab.post('/api/trade/workload',{action:'apply',...q,basis:draft.basis});
-      u.dirty=false;u.key='';
+      busy(true);
+      try {
+        const draft=await Lab.post('/api/trade/workload',{action:'preview',...q});
+        await Lab.post('/api/trade/workload',{action:'apply',...q,basis:draft.basis});
+        u.dirty=false;u.key='';
+      } finally {busy(false);}
     },
     render(S) {
       u.state=S;
       const p=S.party || {}, plan=S.trade?.plan, op=S.trade?.operation, saved=S.trade?.workload;
       el.hidden = p.mode === 'member' || !plan || ['complete','cancelled'].includes(op?.stage);
       if (el.hidden) return;
+      for(const control of el.querySelectorAll('[data-wl-mode], [data-wl-owner], [data-wl-refresh]')) control.disabled=!!u.busy;
       const members=p.members || [];
       if (!u.dirty && u.savedBasis !== saved?.basis) {
         $('[data-wl-mode]').value=saved?.mode || 'equal'; $('[data-wl-owner]').checked=saved?.owner_hauls ?? true;
@@ -74,12 +90,12 @@ export function mount(el) {
         u.savedBasis=saved?.basis;
       }
       const container=$('[data-wl-inputs]'), known=new Set(members.map(m=>m.id));
-      for (const row of container.children) if (!known.has(row.dataset.member)) row.remove();
+      for (const row of [...container.children]) if (!known.has(row.dataset.member)) row.remove();
       for (const m of members) {
         let row=[...container.children].find(r=>r.dataset.member===m.id);
         if(!row) {row=document.createElement('label');row.dataset.member=m.id;row.innerHTML='<span></span><input type="number" min="0" max="10000" step="1">';const input=row.querySelector('input');input.dataset.wlShare=m.id;input.value=saved?.shares?.[m.id] ?? 1;container.append(row);}
         row.querySelector('span').textContent=(m.cmdr || 'Unknown')+(m.leader ? ' (you)' : '');
-        row.querySelector('input').disabled=!!m.stale || m.activity==='away' || (m.leader && !$('[data-wl-owner]').checked);
+        row.querySelector('input').disabled=!!u.busy || !!m.stale || m.activity==='away' || (m.leader && !$('[data-wl-owner]').checked);
       }
       $('[data-wl-custom]').hidden=$('[data-wl-mode]').value!=='custom';
       if (!u.dirty) $('[data-wl-status]').textContent=saved ? 'Saved split' : 'Preview';

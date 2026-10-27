@@ -168,3 +168,11 @@ class HaulingSessionTests(unittest.TestCase):
         self.assertEqual((w["loading"]["owner_remaining"],w["loading"]["order_remaining"]),(100,200))
         self.report(self.crew,50,"p")
         self.assertEqual(self.owner.store.get("party","workload")["loading"]["order_remaining"],150)
+
+    def test_cargo_change_invalidates_rebalance_preview(self):
+        configure = self.owner.http.tools["configure_trade_workload"].fn
+        draft = configure({"mode":"equal"})
+        self.crew.store.set("journal","cargo",{"count":50,"items":[{"key":"gold","count":50}]})
+        self.sync(self.crew)
+        with self.assertRaises(ValueError):
+            configure({"mode":"equal","action":"apply","basis":draft["basis"]})

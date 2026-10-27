@@ -1,8 +1,9 @@
 """Crew quotas conserve tonnes and remove owner transfers from market orders."""
 import copy
+import random
 import unittest
 
-from elitelab.core.hauling import build, view
+from elitelab.core.hauling import build, divide, view
 from modules.party.loads import recommend
 from modules.party.desk import project
 from modules.trade.operations import operation_view
@@ -45,6 +46,24 @@ class WorkloadTests(unittest.TestCase):
             assigned=[r["loading_target"] for r in s["members"]]
             self.assertEqual(sum(assigned),quantity)
             self.assertLessEqual(max(assigned)-min(assigned),1)
+
+    def test_committed_loads_conserve_tonnes_across_weighted_remainders(self):
+        self.assertEqual(divide(12,{"a":2,"b":1,"c":1},{"a":0,"b":0,"c":7}),{"a":3,"b":2,"c":7})
+        rng = random.Random(71)
+        for _ in range(200):
+            total = rng.randrange(1,1001)
+            weights = {mid:rng.randrange(5) for mid in "abcde"}
+            weights["a"] += 1
+            left, minimums = total, {}
+            for mid in weights:
+                minimums[mid] = rng.randrange(left+1)
+                left -= minimums[mid]
+            amounts = divide(total,weights,minimums)
+            self.assertEqual(sum(amounts.values()),total)
+            for mid in weights:
+                self.assertGreaterEqual(amounts[mid],minimums[mid])
+                if not weights[mid]:
+                    self.assertEqual(amounts[mid],minimums[mid])
 
     def test_ship_changes_and_disconnects_do_not_shift_saved_targets(self):
         s=build(self.plan,None,self.members,{})
@@ -118,6 +137,58 @@ class WorkloadTests(unittest.TestCase):
         w=view(build(self.plan,None,self.members,{}),None,self.members,self.plan)
         self.assertEqual(w["members"][1]["loading_target"],4000)
         self.assertIsNone(w["members"][1]["loading_runs_left"])
+
+    def test_local_pickup_consumes_old_shared_allowance_on_both_legs(self):
+        self.plan["planned_quantity"] = 350
+        self.members[1]["capacity"] = 500
+        saved = build(self.plan, None, self.members, {"mode":"custom", "shares":{"b":1}})
+        for phase in ("loading", "unloading"):
+            op = operation_view({"id":"job", "stage":phase, "quantity":350, "reports":{}})
+            w = view(saved, op, self.members, self.plan)
+            shared = {"plan":self.plan, "operation":op, "members":self.members, "workload":w,
+                      "load_suggestion":recommend(self.plan, op, self.members, workload=w)}
+            for aboard, expected in ((100, ("buy",250)), (350, ("deliver",350)), (400, ("deliver",350))):
+                with self.subTest(phase=phase, aboard=aboard):
+                    local = {**self.members[1], "cargo_count":aboard, "cargo":[{"key":"gold", "count":aboard}]}
+                    d = project(shared, "b", local)
+                    self.assertEqual((d["action"],d["quantity"]), expected)
+
+    def test_rebalance_keeps_assigned_cargo_when_owner_stops_new_runs(self):
+        self.plan["planned_quantity"] = 400
+        saved = build(self.plan, None, self.members, {"mode":"custom", "shares":{"a":1}})
+        self.members[0].update(cargo_count=400, cargo=[{"key":"gold", "count":400}])
+        for phase in ("loading", "unloading"):
+            op = operation_view({"id":"job", "stage":phase, "quantity":400, "reports":{}})
+            revised = build(self.plan, op, self.members, {"owner_hauls":False}, saved)
+            w = view(revised, op, self.members, self.plan)
+            self.assertEqual(w["members"][0][phase+"_remaining"],400)
+            self.assertEqual(w[phase]["order_remaining"],0)
+            shared = {"plan":self.plan, "operation":op, "members":self.members, "workload":w,
+                      "load_suggestion":recommend(self.plan, op, self.members, workload=w)}
+            d = project(shared,"a",self.members[0])
+            self.assertEqual((d["action"],d["quantity"]),("transfer_in" if phase=="loading" else "deliver",400))
+            self.assertEqual(sum(r[phase+"_target"] for r in revised["members"]),400)
+            # Opting out keeps only this in-flight load, not future purchases.
+            empty = [{**m,"cargo_count":0,"cargo":[]} if m["id"]=="a" else m for m in self.members]
+            suggestion = recommend(self.plan,op,empty,workload=view(revised,op,empty,self.plan))
+            self.assertEqual(next(r["next_buy"] for r in suggestion["members"] if r["id"]=="a"),0)
+
+    def test_rebalance_keeps_equal_shares_when_current_loads_fit(self):
+        saved = build(self.plan,None,self.members,{})
+        self.members[0].update(cargo_count=200,cargo=[{"key":"gold","count":200}])
+        op = {"id":"job","stage":"loading","quantity":12000,"reports":{}}
+        revised = build(self.plan,op,self.members,{},saved)
+        self.assertEqual([r["loading_target"] for r in revised["members"]],[4000]*3)
+        self.assertNotEqual(revised["basis"], saved["basis"])
+
+    def test_unassigned_cargo_does_not_block_assigned_pickups(self):
+        self.plan["planned_quantity"] = 100
+        saved = build(self.plan,None,self.members,{"mode":"custom","shares":{"b":1}})
+        self.members[0].update(cargo_count=100,cargo=[{"key":"gold","count":100}])
+        op = operation_view({"id":"job","stage":"loading","quantity":100,"reports":{}})
+        w = view(saved,op,self.members,self.plan)
+        suggestion = recommend(self.plan,op,self.members,workload=w)
+        self.assertEqual(next(r["next_buy"] for r in suggestion["members"] if r["id"]=="b"),100)
 
     def test_invalid_inputs_do_not_produce_work(self):
         for settings in ({"mode":"capacity"},{"owner_hauls":"yes"},{"mode":"custom","shares":{"a":-1}},

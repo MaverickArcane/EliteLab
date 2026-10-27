@@ -19,7 +19,7 @@ class Workloads:
             if op and op["stage"] in ("complete", "cancelled"):
                 raise ValueError("Prepare a new job before splitting its workload.")
             members = self.core.store.get("party", "members", [])
-            saved = build(plan, op, members, q, data.get("workload"))
+            saved = build(plan, op, members, q, data.get("workload"), (self.desk.calculate() or {}).get("remaining"))
             if action == "apply":
                 if q.get("basis") != saved["basis"]:
                     raise ValueError("The job or crew changed. Preview the current split before applying it.")

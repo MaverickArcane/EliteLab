@@ -89,3 +89,11 @@ class HaulingDeskTests(unittest.TestCase):
         self.assertEqual(d["action"], "wait")
         self.op["reports"]["crew"] = {"loading": 100}
         self.assertIsNone(self.view()["earnings"])
+
+    def test_personal_bonus_is_not_promised_to_every_crew_member(self):
+        self.op["stage"] = "unloading"
+        self.op["reports"]["crew"] = {"unloading":100}
+        self.plan.update(mode="unload", crew_enabled=False, carrier_price_known=True,
+                         carrier_price=150, destination_price=300, price_includes_bonus=True, bonus_per_ton=50)
+        d = self.view()
+        self.assertEqual((d["sell_price"],d["per_ton"],d["earnings"]),(250,100,10000))

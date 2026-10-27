@@ -41,13 +41,13 @@ class Operations:
                     raise ValueError("Finish or cancel the current trade first.")
                 if not plan or plan["mode"] != "load" or not plan.get("source") or not plan.get("destination"):
                     raise ValueError("Choose a complete buy/sell route and loading plan first.")
-                qty = plan.get("planned_quantity") or (self.desk.calculate() or {}).get("to_haul")
+                qty = plan.get("planned_quantity") or (self.desk.calculate() or {}).get("remaining")
                 if not qty or qty < 1 or qty > plan["target"]:
                     raise ValueError("Set a positive operation size and a valid carrier target first.")
                 plan["planned_quantity"] = qty
                 # Freeze per-commander tonnes when loading starts. Ship changes
                 # and disconnects change estimates, never these commitments.
-                if not data.get("workload") or op:
+                if not data.get("workload") or op or data["workload"]["quantity"] != qty:
                     data["workload"] = build_workload(plan, None, self.core.store.get("party", "members", []), data.get("workload") or {})
                 if plan.get("crew_enabled"):
                     plan["crew_split"] = split_profit(plan["source_price"],

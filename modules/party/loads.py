@@ -41,6 +41,11 @@ def recommend(plan, operation, members, fallback_quantity=None, workload=None):
             assigned = assignments.get(row["id"], {})
             row["remaining"] = assigned.get(leg + "_remaining", 0)
             row["free"] = min(row["free"], max(0, row["remaining"] - row["aboard"]))
+            if assigned.get("weight") == 0:
+                row["free"] = 0  # Finish a preserved load, but do not start new pickups.
+        # Unassigned/surplus cargo is not promised toward this job.
+        aboard = sum(min(r["aboard"], r["remaining"]) for r in rows)
+        to_buy = max(0, remaining - aboard)
         free = sum(r["free"] for r in rows)
         next_buy = min(free, to_buy) if enabled else 0
     # Largest remainders divide the last partial round proportionally to each

@@ -22,7 +22,7 @@ def rates(plan):
         if plan.get("mode") == "load" and plan.get("price_basis", "known") != "unknown acquisition":
             result["loading"] = plan["carrier_price"] - plan["source_price"]
         if plan.get("mode") == "unload" and plan.get("price_basis", "known") != "unknown resale":
-            result["unloading"] = plan["destination_price"] - plan["carrier_price"]
+            result["unloading"] = plan["destination_price"] - (plan.get("bonus_per_ton", 0) if plan.get("price_includes_bonus") else 0) - plan["carrier_price"]
     return result
 
 
@@ -70,6 +70,13 @@ def project(shared, local_id, local, work=None, stale=False):
     if workload and phase in ("loading", "unloading"):
         quota_remaining = (assigned or {}).get(phase + "_remaining", 0)
         remaining = min(remaining, quota_remaining) if remaining is not None else quota_remaining
+    # Local journal snapshots can be newer than the leader's last heartbeat.
+    # Consume the previous pickup allowance as matching cargo arrives locally.
+    capacity = member.get("capacity")
+    free = max(0, capacity - cargo) if type(capacity) is int and type(cargo) is int else 0
+    pickup_quantity = min(free, max(0, allocation["next_buy"] - max(0, (aboard or 0) - allocation.get("aboard", 0)))) if allocation else 0
+    if remaining is not None:
+        pickup_quantity = min(pickup_quantity, max(0, remaining - (aboard or 0)))
     per_ton = prices.get(phase) if not owner else None
     quantity, action, reason = None, "wait", "Waiting for the owner to start loading."
     if phase == "cancelled":
@@ -95,25 +102,23 @@ def project(shared, local_id, local, work=None, stale=False):
                       else "This leg's target is met. Wait for the owner to advance the trade.")
         elif aboard is None:
             reason = "Waiting for your ship's cargo report."
-        elif allocation and allocation["next_buy"] > 0:
+        elif pickup_quantity > 0:
             action = "transfer_out" if owner and not loading else "buy"
-            capacity = member.get("capacity")
-            free = max(0, capacity - cargo) if type(capacity) is int and type(cargo) is int else 0
-            quantity = min(allocation["next_buy"], free)
+            quantity = pickup_quantity
             reason = "Transfer cargo from your carrier into your ship." if owner and not loading else "Buy the suggested load, then deliver it."
             if aboard and quantity:
                 reason = f"You have {aboard:,} t aboard. Pick up {quantity:,} t more, then deliver {aboard + quantity:,} t."
-            if not quantity:
-                action, quantity, reason = "wait", None, "No free cargo space. Check your ship's hold."
         elif aboard > 0:
             action = "transfer_in" if owner and loading else "deliver"
             quantity = min(aboard, remaining) if remaining is not None else aboard
             reason = "Transfer cargo directly into your carrier." if owner and loading else "Deliver the cargo already aboard your ship."
         else:
             reason = "No pickup needed from you right now. Check crew progress below."
-    split = plan.get("crew_split") or {}
+    split = (plan.get("crew_split") if plan.get("crew_enabled") else None) or {}
     buy_price = plan.get("source_price") if loading or phase == "ready" else split.get("carrier_sell_price", plan.get("carrier_price") if plan.get("carrier_price_known") else None)
     sell_price = split.get("carrier_buy_price", plan.get("carrier_price") if plan.get("carrier_price_known") else None) if loading or phase == "ready" else plan.get("destination_price")
+    if sell_price is not None and not (loading or phase == "ready") and plan.get("price_includes_bonus"):
+        sell_price -= plan.get("bonus_per_ton", 0)
     if plan.get("price_basis") == "unknown acquisition" and (loading or phase == "ready"):
         buy_price = None
     if plan.get("price_basis") == "unknown resale" and phase == "unloading":

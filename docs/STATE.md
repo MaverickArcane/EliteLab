@@ -342,11 +342,15 @@ Workload quotas:
 and stable-identity member loading_target/unloading_target quantities. Equal
 means tonnes, using largest remainders for whole-tonne conservation. Capacity
 never weights quotas. Applying a split requires the preview basis hash to match
-the current plan, phase, deliveries and roster. Rebalancing adds portions of
-remaining work to each member's existing credited deliveries. Zero-weight,
-away or stale members receive no new work. The owner flag is preserved.
+the current plan, phase, deliveries, cargo and roster. Rebalancing adds portions
+of remaining work to each member's existing credited deliveries. Assigned cargo
+already aboard sets a minimum for that member's current leg, even if they opt out
+of future runs. Other shares stay proportional where those minimums allow.
+Zero-weight, away or stale members receive no new pickups. The owner flag is preserved.
 Starting an operation creates a default equal split if none is saved. Replacing
 the plan clears its split; previous_operation retains the previous workload.
+Automatic sizing uses tonnes still to deliver to the carrier, including existing
+ship cargo. Only the new-purchase calculation deducts matching ship cargo.
 
 `trade.job.workload` shares the saved quotas coherently with the job. Party
 projects them into `party.workload`: live run estimates, full/partial remaining
@@ -357,3 +361,11 @@ figures. `load_suggestion` caps each pickup at that member's remaining quota,
 less matching onboard cargo, and also applies the overall job bound. The desk
 can recommend topping up a partial hold before delivery. Estimated runs include
 the current load; they are not a count of observed docking visits.
+Local cargo updates consume any pickup allowance from an older leader snapshot;
+they never authorize buying beyond the remaining assignment. Unassigned surplus
+cargo does not block other members' assigned pickups.
+
+Member heartbeats and manual report exchanges are serialized through response
+application. Queued sends capture fresh local state; network I/O never holds the
+party state lock. Leave follows any in-flight report, and its generation change
+prevents that report's response from restoring the departed party.

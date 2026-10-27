@@ -49,6 +49,19 @@ class OperationTests(unittest.TestCase):
         self.report(op, 200, 100)
         self.assertEqual(self.core.store.get("trade", "operation")["unloaded"], 100)
 
+    def test_automatic_size_counts_cargo_as_delivery_not_carrier_stock(self):
+        self.call("reconcile_carrier_stock", commodity="gold", stock=0)
+        self.core.store.set("journal", "cargo", {"count":200,"items":[{"key":"gold","count":200}]})
+        self.call("plan_carrier_trade", commodity="gold", source="Buy / Sol", destination="Sell / Lave",
+                  target=1000, planned_quantity=0, source_price=100, destination_price=300, use_ship_cargo=True)
+        preview = self.call("configure_trade_workload", mode="equal")
+        self.assertEqual(preview["quantity"],1000)
+        self.call("configure_trade_workload", action="apply", mode="equal", basis=preview["basis"])
+        state = self.control("start")
+        self.assertEqual((state["operation"]["quantity"],state["operation"]["baseline_stock"]),(1000,0))
+        self.assertEqual(state["workload"]["quantity"],1000)
+        self.assertEqual(state["calculation"]["to_haul"],800)
+
     def test_active_plan_is_frozen_and_old_operation_ids_rejected(self):
         self.control("start")
         with self.assertRaises(ValueError): self.call("plan_carrier_trade", commodity="silver", target=500)

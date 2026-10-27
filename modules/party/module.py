@@ -145,6 +145,7 @@ class Party:
         self.core = core
         self.lock = threading.RLock()
         self.operations = threading.Lock()
+        self.exchange_lock = threading.Lock()
         self.mode = "idle"
         self.token = ""
         saved = core.read_data("party-local.json", default={}) or {}
@@ -300,7 +301,10 @@ class Party:
             server.server_close()
         if old_mode == "member":
             try:
-                exchange(old_url, old_token, {"id": self.member_id, "leave": True})
+                # Finish any in-flight report before Leave, so it cannot re-add
+                # this commander to the leader after the departure request.
+                with self.exchange_lock:
+                    exchange(old_url, old_token, {"id": self.member_id, "leave": True})
             except (OSError, ValueError, http.client.HTTPException):
                 pass  # the leader expires this report if it could not be removed
 
@@ -459,24 +463,38 @@ class Party:
                             raise ValueError("Manual report history is full. Use automatic journal tracking.")
                         receipts[request_id] = {"operation_id": op["id"], "phase": phase, "tonnes": tonnes}
                     self.save_work(work, receipts=receipts)
-            mode, url, token, generation = self.mode, self.url, self.token, self.generation
+            mode, generation = self.mode, self.generation
             body = {"id": self.member_id, "report": self.local()}
             if mode != "member":
                 self.core.bus.emit("party.work", body)
                 self.publish()
         if mode == "member":
+            self.synchronize(generation, "Delivery saved locally; waiting to reach the leader. Do not submit it again.")
+        return self.core.store.get(NS)
+
+    def synchronize(self, generation, failure_message):
+        # Serialize the request AND its application. A delayed heartbeat must
+        # never replace a newer manual acknowledgement or operation stage.
+        # Take the snapshot after acquiring the exchange lock, so queued sends
+        # contain current cumulative work and cargo. Never hold the party lock
+        # during network I/O; journal events must remain responsive.
+        with self.exchange_lock:
+            with self.lock:
+                if generation != self.generation or self.mode != "member":
+                    return
+                url, token = self.url, self.token
+                body = {"id": self.member_id, "report": self.local()}
             try:
                 shared = exchange(url, token, body)
                 error = None
             except Exception:
-                shared, error = None, "Delivery saved locally; waiting to reach the leader. Do not submit it again."
+                shared, error = None, failure_message
             with self.lock:
                 if generation == self.generation:
                     if shared:
                         self.remote, self.last_success = shared, time.time()
                     self.error = error
                     self.publish()
-        return self.core.store.get(NS)
 
     def start_worker(self):
         stop, generation = self.stop, self.generation
@@ -486,20 +504,11 @@ class Party:
                 with self.lock:
                     if generation != self.generation:
                         return
-                    mode, url, token = self.mode, self.url, self.token
+                    mode = self.mode
                 if mode == "member":
-                    try:
-                        shared = exchange(url, token, {"id": self.member_id, "report": self.local()})
-                        error = None
-                    except Exception:
-                        shared, error = None, "Leader unavailable. Retrying; last reports may be stale."
-                    with self.lock:
-                        if generation != self.generation:
-                            return
-                        self.error = error
-                        if shared:
-                            self.remote, self.last_success = shared, time.time()
-                self.publish()
+                    self.synchronize(generation, "Leader unavailable. Retrying; last reports may be stale.")
+                else:
+                    self.publish()
 
         threading.Thread(target=run, name="party-reporter", daemon=True).start()
 

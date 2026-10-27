@@ -140,6 +140,19 @@ try {
   assert.equal(await evaluate(`document.querySelector('[data-wl-share="${'b'.repeat(32)}"]').value`),'3');
   assert.equal(await evaluate("document.activeElement.hasAttribute('data-wl-share')"),true);
   assert.equal(await evaluate("document.querySelector('[data-wl-order]').textContent"),'750 t');
+  // A slow save cannot accept edits that would be overwritten by its response.
+  await evaluate("window.__wlPost=Lab.post;Lab.post=async function(path,body){if(path==='/api/trade/workload' && body.action==='apply')await new Promise(resolve=>window.__releaseApply=resolve);return window.__wlPost.call(this,path,body)};document.querySelector('[data-wl-apply]').click();true");
+  for(let i=0;i<50;i++){await sleep(50);if(await evaluate("typeof window.__releaseApply==='function'"))break;}
+  await reportGuest();await sleep(150);
+  assert.equal(await evaluate("[...document.querySelectorAll('[data-wl-mode], [data-wl-owner], [data-wl-share]')].every(input=>input.disabled)"),true);
+  await evaluate("Lab.post=window.__wlPost;window.__releaseApply();true");
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade.workload?.mode==='custom' && !document.querySelector('[data-wl-mode]').disabled"))break;}
+  assert.equal(await evaluate("Lab.state.trade.workload.mode"),'custom');
+  // Invalid settings must not leave a copyable order from the previous preview.
+  await evaluate("for(const input of document.querySelectorAll('[data-wl-share]'))input.value='0';document.querySelector('[data-wl-share]').dispatchEvent(new Event('input',{bubbles:true}));true");
+  assert.equal(await evaluate("[...document.querySelectorAll('[data-wl-preview] [data-copy]')].every(button=>button.disabled)"),true);
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[data-wl-message]').textContent.includes('Choose at least one')"))break;}
+  assert.equal(await evaluate("document.querySelector('[data-wl-order]')===null"),true);
   await evaluate("var mode=document.querySelector('[data-wl-mode]');mode.value='equal';mode.dispatchEvent(new Event('input',{bubbles:true}));true");
   await evaluate("document.querySelector('[data-op-action=start]').click();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.party?.operation?.stage==='loading'"))break;}
@@ -240,13 +253,16 @@ try {
   // Preparing another plan clears an ended operation, then starting it gets a new id.
   const endedOperation=await evaluate('Lab.state.trade.operation.id');
   await evaluate("document.querySelector('[data-edit-operation]').open=true;true");
-  await evaluate(`(() => {const f=document.querySelector('[data-trade-plan]');f.elements.mode.value='load';f.elements.target.value='1300';f.elements.planned_quantity.value='1000';f.requestSubmit();return true;})()`);
+  await evaluate(`(() => {const f=document.querySelector('[data-trade-plan]');f.elements.mode.value='load';f.elements.target.value='1300';f.elements.planned_quantity.value='0';f.requestSubmit();return true;})()`);
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate('Lab.state.trade.operation===null'))break;}
   assert.equal(await evaluate('Lab.state.trade.operation'),null);
   assert.equal(await evaluate("document.querySelector('[data-op-action=start]').textContent"),'Start loading');
+  await evaluate("const ownerToggle=document.querySelector('[data-wl-owner]');if(ownerToggle.checked)ownerToggle.click();true");
   await evaluate("document.querySelector('[data-op-action=start]').click();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade.operation?.stage==='loading'"))break;}
   assert.notEqual(await evaluate('Lab.state.trade.operation.id'),endedOperation);
+  assert.equal(await evaluate('Lab.state.trade.operation.quantity'),1000);
+  assert.equal(await evaluate('Lab.state.trade.workload.owner_hauls'),false);
   await evaluate("document.querySelector('[data-op-action=cancel]').click();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade.operation?.stage==='cancelled'"))break;}
   assert.equal(await evaluate("document.querySelector('[data-op-action=start]').textContent"),'Start new loading');

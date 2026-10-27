@@ -56,6 +56,11 @@ crew, prices, pending work, unknowns, pause/stale/end states) and
 `test_hauling_session.py` (three independent data directories and real HTTP,
 full loading/unloading, reconnect, restart, ship changes, retry idempotency,
 phase changes and repeated journal events). These fixtures never use live data.
+Review regressions cover fresh local cargo against an older shared instruction,
+rebalancing with assigned cargo aboard, automatic operation sizing with existing
+ship cargo, and personal bonuses excluded from shared crew margins.
+`test_party_sync.py` uses controlled concurrent requests to check heartbeat/manual
+report ordering, responsive local edits during slow requests, and Leave ordering.
 `node tests/browser.mjs` also starts a separate member application, joins a real
 leader, checks clipboard values, selection/input preservation across live
 updates, individual progress and margin, and desktop/mobile layouts.
@@ -68,6 +73,10 @@ load with cargo already aboard. Session tests exercise shared quotas over real
 HTTP, persisted assignments, stale preview rejection and owner-only writes.
 The browser suite verifies owner order previews, persistent custom inputs,
 rebalancing for a joining commander, and the member's resulting pickup amount.
+It also starts an automatically sized job with the owner's visible participation
+setting, without requiring a separate Apply click.
+Slow workload saves lock their controls; invalid previews remove the old order
+and its copy actions. The browser checks both paths with controlled responses.
 
 The Windows CI job builds `dist/EliteLab-windows-x64.zip` with a checksum-pinned
 CPython 3.13.17 embedded runtime. `python scripts/smoke_windows_bundle.py` extracts
