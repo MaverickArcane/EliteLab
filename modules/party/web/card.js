@@ -1,16 +1,45 @@
 (() => {
   const { esc, fmt } = Lab.util;
   const when = s => s ? esc(new Date(s).toLocaleString()) : 'Unknown';
+  const number = n => Number.isFinite(n) ? n.toLocaleString(undefined, {maximumFractionDigits:2}) : 'Unknown';
+  const age = s => {
+    const seconds = Math.max(0, Math.floor((Date.now() - Date.parse(s)) / 1000));
+    return !Number.isFinite(seconds) ? 'unknown' : seconds < 60 ? `${seconds}s ago` : seconds < 3600 ? `${Math.floor(seconds/60)}m ago` : `${Math.floor(seconds/3600)}h ago`;
+  };
+  const flight = (t, m) => t.game_running === false ? 'Game closed' : t.vehicle === 'foot' ? 'On foot' : t.vehicle === 'taxi' ? 'In taxi' : t.vehicle === 'crew' ? 'Multicrew' : t.vehicle === 'srv' ? 'In SRV' : t.vehicle === 'fighter' ? 'In fighter' : t.fsd_jump ? 'Hyperspace' : t.fsd_charging ? 'FSD charging' : t.supercruise ? 'Supercruise' : (t.docked ?? m.docked) ? 'Docked' : t.landed ? 'Landed' : t.status_at ? 'Normal space' : 'Flight status unknown';
+  const meter = (value, capacity, label) => Number.isFinite(value) && Number.isFinite(capacity) && capacity > 0 ? `<progress max="${capacity}" value="${Math.min(value, capacity)}" aria-label="${label}"></progress>` : '';
+  function memberPanel(m) {
+    const t=m.telemetry || {}, ship=t.vehicle === 'ship', old=m.stale || t.game_running === false;
+    const alerts=[['low_fuel','Low fuel'],['overheating','Overheating'],['interdicted','Being interdicted'],['in_danger','In danger'],['silent_running','Silent running'],['hardpoints','Hardpoints deployed'],['scooping','Fuel scooping']].filter(([k])=>t[k]);
+    const shields=t.vehicle === 'foot' ? 'Not in ship' : t.shields_up == null ? 'Unknown' : t.shields_up ? 'Up' : 'Down';
+    return `<article class="party-member ${old ? 'party-old' : ''}">
+      <div class="row"><b>${esc(m.cmdr || 'Unknown commander')}</b><span class="tag ${m.stale ? 'warn' : 'ok'}">${m.stale ? 'Connection stale' : 'Connected'}</span>${m.leader ? '<span class="tag">Leader</span>' : ''}<span class="muted">${esc(m.activity || 'ready')}</span></div>
+      <div class="party-location"><b>${esc(m.system || 'Unknown system')}</b>${m.station ? ' / '+esc(m.station) : ''}${t.body && t.body !== m.station ? `<div class="note">Near ${esc(t.body)}</div>` : ''}</div>
+      <div class="row"><span class="tag">${flight(t,m)}</span><span>${esc(m.ship || 'Unknown ship')}</span></div>
+      ${m.ship_name || m.ship_ident ? `<div class="note">${esc([m.ship_name,m.ship_ident].filter(Boolean).join(' / '))}</div>` : ''}
+      ${t.destination ? `<div class="note">Target: ${esc(t.destination)}</div>` : ''}
+      ${old ? '<div class="note warn">Last reported values</div>' : ''}
+      <div class="party-telemetry">
+        <div><span class="k">Shields</span><b class="${t.shields_up === false && t.vehicle !== 'foot' ? 'warn' : ''}">${shields}</b><small>Up/down only</small></div>
+        <div><span class="k">Fuel</span><b class="${t.low_fuel ? 'warn' : ''}">${number(t.fuel)}${Number.isFinite(t.fuel) ? (Number.isFinite(t.fuel_capacity) ? ' / '+number(t.fuel_capacity) : '')+' t' : ''}</b>${meter(t.fuel,t.fuel_capacity,'Fuel remaining')}<small>${Number.isFinite(t.fuel_reservoir) ? number(t.fuel_reservoir)+' t reservoir' : 'Reservoir unknown'}</small></div>
+        <div><span class="k">Cargo</span><b>${number(m.cargo_count)} / ${number(m.capacity)} t</b>${meter(m.cargo_count,m.capacity,'Cargo capacity used')}</div>
+        <div title="Hull observed ${when(t.hull_at)}"><span class="k">Ship hull</span><b>${ship && Number.isFinite(t.hull_health) ? number(t.hull_health*100)+'%' : 'Unknown'}</b><small>Last reported${ship && t.hull_at ? ' '+age(t.hull_at) : ''}</small></div>
+      </div>
+      ${alerts.length ? `<div class="party-alerts">${alerts.map(([,label])=>`<span class="tag warn">${label}</span>`).join('')}</div>` : ''}
+      <div class="note">${(m.cargo || []).filter(i=>i.count).map(i=>`${fmt(i.count)} t ${esc(i.name || i.key)}`).join(', ') || 'No cargo reported'}${t.legal ? ' | '+esc(t.legal) : ''}</div>
+      <div class="party-freshness">Report ${age(m.last_seen)} | Status change ${age(t.status_at)}${t.fuel_at && t.fuel_at !== t.status_at ? ' | Fuel reading '+age(t.fuel_at) : ''}<br>Cargo observed ${when(m.cargo_at)}</div>
+    </article>`;
+  }
   Lab.card({
     id: 'party', requires: ['party', 'journal'],
     mount(el) {
       el.innerHTML = `<div data-party-status></div><div data-party-controls>
-        <div class="note">Connect your EliteLab clients over LAN or Tailscale. Share commander name, location, ship and cargo every three seconds while joined.</div>
+        <div class="note">Connect your EliteLab clients over LAN or Tailscale. Share location, ship, cargo, shields, fuel and flight status every second while joined.</div>
         <form data-party-host class="trade-form"><label>Listen address<input name="bind" value="0.0.0.0" placeholder="Your Tailscale IPv4" required></label><label>Party port<input name="port" type="number" min="1024" max="65535" value="8767" required></label><button class="primary trade-wide" type="submit">Create party as leader</button></form>
         <div class="note">Use your Tailscale IPv4 to listen only on the tailnet. 0.0.0.0 listens on all local network interfaces. Friends use their own EliteLab to join.</div>
         <details class="trade-details"><summary>Join a leader</summary><form data-party-join class="trade-form">
           <label class="trade-wide">Leader party URL<input name="url" type="url" placeholder="http://100.x.x.x:8767" required></label>
-          <label class="trade-wide">Party code<input name="code" type="password" autocomplete="off" required></label><button type="submit" class="primary trade-wide">Join &amp; share my cargo</button>
+          <label class="trade-wide">Party code<input name="code" type="password" autocomplete="off" required></label><button type="submit" class="primary trade-wide">Join &amp; share my status</button>
         </form></details></div>
         <div data-party-connected hidden><details class="trade-filters"><summary>Connection &amp; invitation</summary><div data-party-invite></div></details><button class="mini" data-party-leave>Close party</button></div>
         <div data-party-plan></div>
@@ -69,7 +98,7 @@
       el.querySelector('[data-my-deliveries]').textContent = own ? `Recorded ${fmt(own.loading)} t loaded / ${fmt(own.unloading)} t unloaded.${pending ? ' Waiting for leader acknowledgement; do not submit again.' : ''}` : 'Matching journal sales update progress automatically. Cargo aboard your ship is not a delivery.';
       const members = p.members || [];
       const matching = members.filter(m => !m.stale).reduce((sum, m) => sum + (m.cargo || []).filter(i => i.key === plan?.commodity).reduce((s, i) => s + (i.count || 0), 0), 0);
-      el.querySelector('[data-party-members]').innerHTML = active ? `${plan ? `<div class="ship-sec">${fmt(matching)} t ${esc(plan.commodity)} reported aboard connected ships</div><div class="note">Ship cargo is not confirmed delivery and is never added to carrier stock automatically.</div>` : ''}${members.map(m => `<div class="party-member"><div class="row"><b>${esc(m.cmdr || 'Unknown commander')}</b><span class="tag ${m.stale ? 'warn' : 'ok'}">${m.stale ? 'Stale' : m.leader ? 'Leader' : esc(m.activity || 'ready')}</span></div><div>${esc(m.system || 'Unknown system')}${m.station ? ' / ' + esc(m.station) : ''}</div><div class="note">${esc(m.ship || 'Unknown ship')} | ${fmt(m.cargo_count)} / ${fmt(m.capacity)} t | ${m.docked ? 'Docked' : 'In flight'}</div><div>${(m.cargo || []).filter(i => i.count).map(i => `${fmt(i.count)} t ${esc(i.name || i.key)}`).join(', ') || 'No cargo reported'}</div><div class="note">Cargo observed ${when(m.cargo_at)} | Report received ${when(m.last_seen)}</div></div>`).join('')}` : '';
+      el.querySelector('[data-party-members]').innerHTML = active ? `<div class="note">Reports every second. Status changes when the game writes it; connection activity alone does not confirm fresh game data.</div>${plan ? `<div class="ship-sec">${fmt(matching)} t ${esc(plan.commodity)} reported aboard connected ships</div><div class="note">Ship cargo is not confirmed delivery and is never added to carrier stock automatically.</div>` : ''}${members.map(memberPanel).join('')}` : '';
     },
   });
 })();

@@ -29,7 +29,8 @@ Conventions: `null` means unknown/not yet seen. Timestamps are the journal's ISO
 | `carrier.*` | `name, callsign, fuel (tritium), balance, free_space, cargo, docking, system, stats_time, services[str]` | | |
 | `cargo` | `{count, items[{name, key, count, stolen, rare}], timestamp}` | `Cargo.json` | cargo card, loop, targets refusal check, merits |
 | `market` | `{station, system, timestamp, rares_in_stock[{name, buy, stock}]}` | `Market.json` | market card |
-| `status` | `{docked_flag, landed, supercruise, fsd_charging, fuel, cargo_tons, legal, timestamp}` | `Status.json` | location, ship |
+| `status` | Docking/flight flags, vehicle, shield up/down, fuel/reservoir/fuel_at, body/destination, low fuel/heat/danger/interdiction flags, cargo_tons, legal, timestamp | `Status.json`; omitted fuel retains its own observation time, reset on vehicle changes | location, ship, party |
+| `game_running`, `hull_health`, `hull_at` | bool/null, fraction/null, timestamp/null | LoadGame/Shutdown; Loadout and player-piloted non-fighter HullDamage. Hull is last-reported, not continuous | party |
 | `feed` | `[{ts, event, text}]` newest first, max 40 | `FEED` table in the module | feed card |
 | `last_event_time` | str | every event | header live pill |
 | `game_version` | str | `Fileheader` | header |
@@ -225,6 +226,17 @@ management routes remain on the local dashboard. Reports older than 30 seconds
 are stale, and members expire after 300 seconds. Client disconnects retain the
 last evidence marked stale rather than turning cargo into zero. Party reports
 never modify the trade ledger.
+
+Reports now include optional `telemetry`: bounded fuel/fuel_reservoir/fuel_capacity
+and hull_health numbers; nullable booleans for shield, flight and warning flags;
+vehicle, body, destination, legal, game_running and status_at/fuel_at/hull_at.
+Old reports without telemetry remain valid. No credits, raw journal or loadout
+modules cross the party connection. Fuel capacity is only applied in the main
+ship, never to SRV/fighter readings. Hull values describe the main ship and are
+hidden in other vehicles. Fuel omitted in station menus keeps its original
+observation time. One-second worker reports keep network I/O off journal callbacks;
+leader status changes publish immediately. Receipt freshness and game observation
+times are distinct, since Status.json only changes when the game writes it.
 
 Route results pair the cheapest eligible supplier with each buyer above the
 configured reported-high threshold, rank by spread per ton, and expose

@@ -190,6 +190,82 @@ class PartyTests(unittest.TestCase):
         self.member.leave()
         self.assertEqual(len(self.leader.shared()["members"]), 1)
 
+    def test_live_telemetry_changes_arrive_without_manual_reporting(self):
+        fixture = os.path.join(FIXTURES, "telemetry")
+        with patch.object(config, "JOURNAL_DIR", fixture):
+            self.member_core.watcher.replay()
+        self.member.join({"url": self.url, "code": self.state["code"]})
+        first = self.leader.shared()["members"][1]
+        self.assertEqual(first["ship_name"], "Cargo Runner")
+        self.assertEqual(first["telemetry"]["fuel"], 7.5)
+        self.assertEqual(first["telemetry"]["fuel_capacity"], 64)
+        self.assertEqual(first["telemetry"]["hull_health"], .8)
+        self.assertTrue(first["telemetry"]["shields_up"])
+        self.assertTrue(first["telemetry"]["supercruise"])
+        self.assertTrue(first["telemetry"]["low_fuel"])
+        self.assertEqual(first["telemetry"]["destination"], "Galileo")
+        self.member_core.bus.emit("journal.file.Status", {"event":"Status", "timestamp":"2026-10-26T18:00:01Z", "Flags":(1<<24)|(1<<20)|(1<<23), "Fuel":{"FuelMain":5.25,"FuelReservoir":.3}})
+        self.member_core.bus.emit("journal.FSDJump", {"event":"FSDJump", "timestamp":"2026-10-26T18:00:01Z", "StarSystem":"Lave"})
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            report = self.leader.shared()["members"][1]
+            if report["telemetry"]["fuel"] == 5.25 and report["system"] == "Lave":
+                break
+            time.sleep(.05)
+        self.assertEqual(report["telemetry"]["fuel"], 5.25)
+        self.assertEqual(report["system"], "Lave")
+        self.assertFalse(report["telemetry"]["shields_up"])
+        self.assertTrue(report["telemetry"]["interdicted"])
+        self.assertTrue(report["telemetry"]["overheating"])
+        self.assertFalse(report["telemetry"]["low_fuel"])
+        self.assertNotIn("credits", report)
+
+    def test_telemetry_keeps_fuel_timestamp_and_resets_for_other_vehicles(self):
+        bus = self.member_core.bus
+        bus.emit("journal.file.Status", {"Flags":1<<24,"timestamp":"2026-10-26T18:00:00Z","Fuel":{"FuelMain":10}})
+        bus.emit("journal.file.Status", {"Flags":(1<<24)|1,"timestamp":"2026-10-26T18:00:05Z"})
+        t = self.member.local()["telemetry"]
+        self.assertEqual(t["fuel"], 10)
+        self.assertEqual(t["fuel_at"], "2026-10-26T18:00:00Z")
+        self.assertEqual(t["status_at"], "2026-10-26T18:00:05Z")
+        bus.emit("journal.file.Status", {"Flags":0,"Flags2":1,"timestamp":"2026-10-26T18:00:06Z"})
+        t = self.member.local()["telemetry"]
+        self.assertEqual(t["vehicle"], "foot")
+        self.assertIsNone(t["fuel"])
+        self.assertIsNone(t["fuel_capacity"])
+        bus.emit("journal.Shutdown", {"event":"Shutdown","timestamp":"2026-10-26T18:00:07Z"})
+        self.assertFalse(self.member.local()["telemetry"]["game_running"])
+        bus.emit("journal.LoadGame", {"event":"LoadGame","timestamp":"2026-10-26T18:01:00Z"})
+        self.assertTrue(self.member.local()["telemetry"]["game_running"])
+        self.assertIsNone(self.member.local()["telemetry"]["shields_up"])
+
+    def test_other_ship_hull_and_target_health_are_not_ours(self):
+        bus = self.member_core.bus
+        bus.emit("journal.Loadout", {"event":"Loadout","HullHealth":.9,"timestamp":"2026-10-26T18:00:00Z"})
+        for event in ({"event":"HullDamage","Health":.2,"PlayerPilot":True,"Fighter":True},
+                      {"event":"HullDamage","Health":.2,"PlayerPilot":False,"Fighter":False},
+                      {"event":"ShipTargetted","HullHealth":.2,"ShieldHealth":.1}):
+            bus.emit("journal."+event["event"], event)
+        self.assertEqual(self.member.local()["telemetry"]["hull_health"], .9)
+
+    def test_telemetry_rejects_invalid_values_and_supports_old_clients(self):
+        for field, bad in (("fuel",float("nan")),("fuel",-1),("fuel",True),("fuel",float("inf")),("shields_up",1),("hull_health",2),("vehicle","bad")):
+            with self.subTest(field=field,bad=bad), self.assertRaises(ValueError):
+                self.api.sanitize({"telemetry":{field:bad}})
+        self.assertIsNone(self.api.sanitize({})["telemetry"])
+        t = self.api.sanitize({"telemetry":{"fuel":0,"shields_up":False,"credits":123}})["telemetry"]
+        self.assertEqual(t["fuel"], 0)
+        self.assertFalse(t["shields_up"])
+        self.assertNotIn("credits", t)
+
+    def test_leader_status_updates_publish_immediately_and_disconnect_stays_stale(self):
+        self.leader_core.bus.emit("journal.file.Status", {"Flags":(1<<24)|8,"timestamp":"2026-10-26T18:00:00Z","Fuel":{"FuelMain":12}})
+        self.assertEqual(self.leader_core.store.get("party","members")[0]["telemetry"]["fuel"], 12)
+        self.leader.receive({"id":self.member.member_id,"report":self.member.local()})
+        with self.leader.lock:
+            self.leader.members[self.member.member_id]["received"] -= 31
+        self.assertTrue(self.leader.shared()["members"][1]["stale"])
+
     def test_shared_operation_deliveries_status_and_reconnect(self):
         tools = self.leader_core.http.tools
         tools["plan_carrier_trade"].fn({"commodity":"gold", "source":"Buy / Sol", "destination":"Sell / Lave",

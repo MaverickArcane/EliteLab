@@ -11,6 +11,7 @@ import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import ipaddress
 import json
+import math
 import secrets
 import socket
 import threading
@@ -21,6 +22,7 @@ from elitelab.core.gamedata import norm
 
 NS = "party"
 STALE_SECONDS = 30
+REPORT_SECONDS = 1
 MAX_MEMBERS = 32
 MAX_BODY = 64000
 
@@ -48,8 +50,9 @@ def amount(value):
 def sanitize(raw):
     if not isinstance(raw, dict):
         raise ValueError("A commander report is required.")
-    out = {k: clean_text(raw.get(k)) for k in ("cmdr", "ship", "system", "station", "observed_at", "cargo_at")}
+    out = {k: clean_text(raw.get(k)) for k in ("cmdr", "ship", "ship_name", "ship_ident", "system", "station", "observed_at", "cargo_at")}
     out.update(capacity=amount(raw.get("capacity")), cargo_count=amount(raw.get("cargo_count")), docked=raw.get("docked") is True)
+    out["telemetry"] = sanitize_telemetry(raw.get("telemetry"))
     cargo = raw.get("cargo", [])
     if not isinstance(cargo, list) or len(cargo) > 256:
         raise ValueError("Too many cargo entries.")
@@ -67,6 +70,31 @@ def sanitize(raw):
         if not isinstance(work, dict) or not isinstance(work.get("operation_id"), str) or len(work["operation_id"]) != 32:
             raise ValueError("Invalid operation report.")
         out["work"] = {"operation_id": work["operation_id"], "loading": amount(work.get("loading", 0)), "unloading": amount(work.get("unloading", 0))}
+    return out
+
+
+def sanitize_telemetry(raw):
+    """Optional, bounded fields keep old clients compatible and reports scoped."""
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("Invalid telemetry report.")
+    out = {k: clean_text(raw.get(k)) for k in ("status_at", "fuel_at", "hull_at", "body", "destination", "legal")}
+    vehicle = raw.get("vehicle")
+    if vehicle not in (None, "ship", "fighter", "srv", "foot", "taxi", "crew"):
+        raise ValueError("Invalid vehicle.")
+    out["vehicle"] = vehicle
+    for key in ("game_running", "shields_up", "docked", "landed", "supercruise", "fsd_charging", "fsd_jump", "scooping", "low_fuel", "overheating", "in_danger", "interdicted", "silent_running", "hardpoints"):
+        value = raw.get(key)
+        if value is not None and type(value) is not bool:
+            raise ValueError("Invalid telemetry flag.")
+        out[key] = value
+    for key in ("fuel", "fuel_reservoir", "fuel_capacity", "hull_health"):
+        value = raw.get(key)
+        limit = 1 if key == "hull_health" else 1000000
+        if value is not None and (type(value) not in (int, float) or not 0 <= value <= limit or not math.isfinite(value)):
+            raise ValueError("Invalid telemetry value.")
+        out[key] = value
     return out
 
 
@@ -134,12 +162,19 @@ class Party:
         self.last_success = None
         core.bus.on("journal.*", self.journal_delivery)
         core.bus.on("state.journal.location", lambda n, v: self.publish())
+        core.bus.on("state.journal.status", lambda n, v: self.publish())
+        core.bus.on("state.journal.game_running", lambda n, v: self.publish())
         self.publish()
 
     def local(self):
         j = self.core.store.get("journal")
         c = j.get("cargo") or {}
-        return sanitize({"cmdr": j.get("cmdr"), "ship": j.get("ship"), "system": j.get("system"), "station": j.get("station"),
+        status = j.get("status") or {}
+        telemetry = {k: status.get(k) for k in ("vehicle", "body", "destination", "legal", "fuel", "fuel_reservoir", "fuel_at", "shields_up", "landed", "supercruise", "fsd_charging", "fsd_jump", "scooping", "low_fuel", "overheating", "in_danger", "interdicted", "silent_running", "hardpoints")}
+        telemetry.update(status_at=status.get("timestamp"), docked=status.get("docked_flag"), game_running=j.get("game_running"),
+                         fuel_capacity=(j.get("ship_info") or {}).get("fuel_main") if status.get("vehicle") == "ship" else None,
+                         hull_health=j.get("hull_health"), hull_at=j.get("hull_at"))
+        return sanitize({"cmdr": j.get("cmdr"), "ship": j.get("ship"), "ship_name": j.get("ship_name"), "ship_ident": j.get("ship_ident"), "system": j.get("system"), "station": j.get("station"), "telemetry": telemetry,
             "docked": j.get("docked"), "capacity": j.get("cargo_capacity"), "cargo_count": c.get("count"), "cargo": c.get("items", []),
             "observed_at": j.get("last_event_time"), "cargo_at": c.get("timestamp"), "activity": self.activity, "work": copy.deepcopy(self.work)})
 
@@ -397,7 +432,7 @@ class Party:
         stop, generation = self.stop, self.generation
 
         def run():
-            while not stop.wait(3):
+            while not stop.wait(REPORT_SECONDS):
                 with self.lock:
                     if generation != self.generation:
                         return
@@ -423,12 +458,12 @@ def setup(core, module):
     party = Party(core)
     module.party = party
     core.http.route("/api/party", lambda q: core.store.get(NS), tool="get_hauling_party", module=module.name,
-        description="Local hauling party status, last-reported commander cargo/location, freshness and shared leader plan. Party codes appear only on the leader's local dashboard.")
+        description="Local hauling party status, commander cargo/location and telemetry (shield up/down, fuel, flight mode, alerts, last-reported hull), observation timestamps and shared leader plan. Party codes appear only on the leader's local dashboard.")
     core.http.route("/api/party/host", party.host, method="POST", tool="host_hauling_party", module=module.name,
-        description="Start an opt-in private LAN/tailnet party listener, separate from the dashboard. Returns a random party code. Members share location, ship and cargo; restart or Leave stops sharing.",
+        description="Start an opt-in private LAN/tailnet party listener, separate from the dashboard. Returns a random party code. Members share location, ship, cargo and status telemetry; restart or Leave stops sharing.",
         params={"port": {"type": "integer", "default": 8767}, "bind": {"type": "string", "default": "0.0.0.0", "description": "Local IPv4 address to listen on; use your Tailscale IPv4 to restrict the listener to the tailnet."}})
     core.http.route("/api/party/join", party.join, method="POST", tool="join_hauling_party", module=module.name,
-        description="Connect this EliteLab to a leader over LAN/Tailscale. Reports commander name, location, ship capacity and cargo every three seconds until Leave or shutdown; never sends credits or the full journal.",
+        description="Connect this EliteLab to a leader over LAN/Tailscale. Reports commander name, location, ship, cargo and status telemetry every second until Leave or shutdown; never sends credits or the full journal. Shields are up/down; hull is last-reported, not continuous.",
         params={"url": {"type": "string", "required": True}, "code": {"type": "string", "required": True}})
     core.http.route("/api/party/work", party.report_work, method="POST", tool="report_hauling_work", module=module.name,
         description="Set your crew activity (ready/hauling/away) or add actually delivered tonnes for the current shared operation id. Cumulative local totals survive reconnect/restart and are retried without double counting. Delivery reports do not change physical inventory.",

@@ -88,6 +88,7 @@ class Journal:
             "carrier": None, "last_event_time": None, "game_version": None, "ship_info": None,
             "cargo": {"count": None, "items": []}, "market": {"station": None, "system": None, "rares_in_stock": []},
             "status": {},
+            "game_running": None, "hull_health": None, "hull_at": None,
         }
         self.feed = []
         self._market_rares = set()
@@ -145,12 +146,16 @@ class Journal:
             if e == "ShipyardSwap":
                 self._ship_internal = ev.get("ShipType"); st["ship"] = self.ship_name(ev.get("ShipType")); changed.add("ship")
         elif e == "LoadGame":
+            st["game_running"] = True; st["status"] = {}; st["hull_health"] = None; st["hull_at"] = None
+            changed |= {"game_running", "status", "hull_health", "hull_at"}
             st["cmdr"] = ev.get("Commander"); st["credits"] = ev.get("Credits")
             self._learn(ev.get("Ship"), ev.get("Ship_Localised"))
             self._ship_internal = ev.get("Ship"); st["ship"] = ev.get("Ship_Localised") or self.ship_name(ev.get("Ship"))
             st["ship_name"] = ev.get("ShipName"); st["ship_ident"] = ev.get("ShipIdent")
             changed |= {"cmdr", "credits", "ship", "ship_name", "ship_ident"}
         elif e == "Loadout":
+            st["hull_health"] = ev.get("HullHealth"); st["hull_at"] = ev.get("timestamp")
+            changed |= {"hull_health", "hull_at"}
             self._learn(ev.get("Ship"), ev.get("Ship_Localised"))
             st["ship_internal"] = (ev.get("Ship") or "").lower()
             self._ship_internal = ev.get("Ship"); st["ship"] = ev.get("Ship_Localised") or self.ship_name(ev.get("Ship"))
@@ -195,6 +200,11 @@ class Journal:
             st["system"] = ev.get("StarSystem") or st["system"]; changed |= {"docked", "station", "station_type", "system"}
         elif e == "Undocked":
             st["docked"] = False; st["station"] = None; st["station_type"] = None; changed |= {"docked", "station", "station_type"}
+        elif e == "HullDamage" and ev.get("PlayerPilot") is True and ev.get("Fighter") is False:
+            st["hull_health"] = ev.get("Health"); st["hull_at"] = ev.get("timestamp")
+            changed |= {"hull_health", "hull_at"}
+        elif e == "Shutdown":
+            st["game_running"] = False; changed.add("game_running")
         elif e == "CarrierStats":
             st["carrier"] = self._carrier(ev, st.get("carrier")); changed.add("carrier")
         elif e == "CarrierLocation":
@@ -249,11 +259,25 @@ class Journal:
         st = self.st
         if name == "Status":
             flags = data.get("Flags", 0)
+            flags2 = data.get("Flags2", 0)
+            vehicle = "foot" if flags2 & 1 else "taxi" if flags2 & 2 else "crew" if flags2 & 4 else "srv" if flags & (1 << 26) else "fighter" if flags & (1 << 25) else "ship" if flags & (1 << 24) else None
             prev = st.get("status") or {}
-            fuel = (data.get("Fuel") or {}).get("FuelMain")
+            if prev.get("vehicle") != vehicle:
+                prev = {}  # Never carry ship fuel into a fighter, SRV or on-foot reading.
+            fuel_data = data.get("Fuel") or {}
+            fuel = fuel_data.get("FuelMain")
             st["status"] = {"docked_flag": bool(flags & 1), "landed": bool(flags & 2), "supercruise": bool(flags & 16),
                             "fsd_charging": bool(flags & (1 << 17)),
                             "fuel": fuel if fuel is not None else prev.get("fuel"),   # the game omits Fuel in station menus; keep the last reading
+                            "fuel_reservoir": fuel_data.get("FuelReservoir", prev.get("fuel_reservoir")),
+                            "fuel_at": data.get("timestamp") if fuel is not None else prev.get("fuel_at"),
+                            "vehicle": vehicle, "body": data.get("BodyName"),
+                            "destination": (data.get("Destination") or {}).get("Name_Localised") or (data.get("Destination") or {}).get("Name"),
+                            "shields_up": bool(flags & 8) if "Flags" in data else None,
+                            "fsd_jump": bool(flags & (1 << 30)), "scooping": bool(flags & (1 << 11)),
+                            "low_fuel": bool(flags & (1 << 19)), "overheating": bool(flags & (1 << 20)),
+                            "in_danger": bool(flags & (1 << 22)), "interdicted": bool(flags & (1 << 23)),
+                            "silent_running": bool(flags & (1 << 10)), "hardpoints": bool(flags & (1 << 6)),
                             "cargo_tons": data.get("Cargo"), "legal": data.get("LegalState"), "timestamp": data.get("timestamp")}
             if "Balance" in data:
                 st["credits"] = data["Balance"]

@@ -175,7 +175,7 @@ For multiplayer on a LAN or your Tailscale tailnet:
    party port defaults to `8767`, separate from the dashboard's `8766`.
 3. Share `http://LEADER-TAILSCALE-IP:8767` and the generated party code.
 4. Members enter that URL/code under **Join a leader** on their own dashboard.
-   They share commander name, location, ship, capacity and cargo every 3 seconds.
+   They share commander name, location, ship, cargo and flight telemetry every second.
    Members also receive the leader's saved plan and the party roster.
 5. The owner starts the saved trade in **Manage trade**. Crew journals update progress automatically;
    the owner advances the shared stages.
@@ -185,6 +185,18 @@ For multiplayer on a LAN or your Tailscale tailnet:
 Allow the party port through Windows Firewall and tailnet access rules if needed.
 Keep the main dashboard bound to localhost; friends do not need its controls.
 The party listener accepts only authenticated telemetry, not dashboard routes.
+
+The crew roster shows shield up/down state, main-tank fuel and reservoir,
+last-reported ship hull, cargo, current system/station, navigation target and
+flight mode. Low fuel, overheating, interdiction and danger flags stand out.
+Status.json is checked every second and party reports are sent every second;
+game writes and network latency set the actual delay. The roster distinguishes
+report receipt from the last game status/fuel observation. An old status file
+does not by itself prove disconnection, and a connected client does not prove
+the game is running. Known game shutdowns show last-reported values. Shields
+are up/down only; hull is event-based, not continuous. Old clients without
+telemetry remain compatible and show unknown readings.
+
 HTTP is for private LAN/Tailscale connections (Tailscale supplies encryption);
 this is not a public internet hosting setup. Reports become stale after 30 seconds
 without a heartbeat and expire after 5 minutes. Cargo observation times remain

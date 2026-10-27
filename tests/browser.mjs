@@ -59,11 +59,27 @@ try {
   await evaluate(`(() => {const f=document.querySelector('[data-party-host]');f.elements.bind.value='127.0.0.1';f.elements.port.value='${partyPort}';f.requestSubmit();return true;})()`);
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.party?.mode==='leader'"))break;}
   const partyCode=await evaluate('Lab.state.party.code');assert.ok(partyCode);
-  const guest=await fetch(`http://127.0.0.1:${partyPort}/report`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+partyCode},body:JSON.stringify({id:'b'.repeat(32),report:{cmdr:'<Hauler>',ship:'Type-9',system:'Sol',capacity:790,cargo_count:100,cargo:[{key:'gold',name:'Gold',count:100}]}})});
+  const guestReport={cmdr:'<Hauler>',ship:'Type-9',ship_name:'Cargo Runner',system:'Sol',capacity:790,cargo_count:100,cargo:[{key:'gold',name:'Gold',count:100}],telemetry:{vehicle:'ship',game_running:true,shields_up:true,fuel:7.5,fuel_capacity:64,fuel_reservoir:.42,hull_health:.8,supercruise:true,low_fuel:true,destination:'<Galileo>',status_at:new Date().toISOString(),fuel_at:new Date().toISOString()}};
+  const reportGuest=()=>fetch(`http://127.0.0.1:${partyPort}/report`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+partyCode},body:JSON.stringify({id:'b'.repeat(32),report:guestReport})});
+  const guest=await reportGuest();
   assert.equal(guest.status,200);
   await sleep(250);
   assert.ok(await evaluate("document.querySelector('[data-party-members]').textContent.includes('<Hauler>')"));
   assert.equal(await evaluate("document.querySelector('[data-party-members] hauler')===null"),true);
+  assert.ok(await evaluate("document.querySelector('[data-party-members]').textContent.includes('7.5 / 64 t') && document.querySelector('[data-party-members]').textContent.includes('Low fuel') && document.querySelector('[data-party-members]').textContent.includes('Supercruise')"));
+  assert.equal(await evaluate("document.querySelector('[data-party-members] galileo')===null"),true);
+  guestReport.system='Lave';guestReport.telemetry={...guestReport.telemetry,shields_up:false,fuel:5.25,low_fuel:false,supercruise:false,interdicted:true};
+  await reportGuest();await sleep(250);
+  assert.ok(await evaluate("document.querySelector('[data-party-members]').textContent.includes('5.25 / 64 t') && document.querySelector('[data-party-members]').textContent.includes('Being interdicted') && document.querySelector('[data-party-members]').textContent.includes('Down') && document.querySelector('[data-party-members]').textContent.includes('Lave')"));
+  // Inspect the expanded telemetry itself, including at mobile width.
+  await evaluate("document.querySelector('#card-party').scrollIntoView();true");
+  const partyDesktop=await send('Page.captureScreenshot',{format:'png'});
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await sleep(200);
+  await evaluate("document.querySelector('#card-party').scrollIntoView();true");
+  assert.equal(await evaluate('document.body.scrollWidth'),390);
+  const partyMobile=await send('Page.captureScreenshot',{format:'png'});
+  if(process.env.ELITELAB_SCREENSHOT_DIR){fs.mkdirSync(process.env.ELITELAB_SCREENSHOT_DIR,{recursive:true});fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'party-desktop.png'),Buffer.from(partyDesktop.data,'base64'));fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'party-mobile.png'),Buffer.from(partyMobile.data,'base64'));}
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   // A route is one paired result, with both prices and the distance between stops.
   await evaluate(`window.__realApi=Lab.api;window.__routeQueries=[];Lab.api=async(path,q)=>{if(path!=='/api/trade/opportunities')return window.__realApi.call(Lab,path,q);window.__routeQueries.push(q);return {source:'Ardent / EDDN (fixture)',queried_at:new Date().toISOString(),screened:1,available:1,commodities:[{key:'gold',name:'Gold'}],warnings:[],outdated:false,rows:[{id:'test-op',commodity:'gold',name:'Gold',stock:300,stock_needs_check:false,quantity:200,runs:2,value:40000,value_label:'Gross spread',per_ton:200,route_distance:25,reported_high:300,sell_percent:100,purchase_cost:20000,buy:{station:'Source Port',system:'Lave',price:100,volume:400,observed_at:new Date().toISOString(),distance:12,arrival_ls:300,pad:'L'},sell:{station:'Destination Port',system:'Sol',price:300,volume:200,observed_at:new Date().toISOString(),distance:30,arrival_ls:400,pad:'L'}}]}};document.querySelector('[data-edit-operation]').open=false;document.querySelector('[data-inventory]').open=false;document.querySelector('[data-refresh]').click();true`);
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!!document.querySelector('[data-select-op]')"))break;}
