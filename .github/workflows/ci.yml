@@ -37,6 +37,8 @@ jobs:
         run: |
           set -e
           for f in web/*.js modules/*/web/*.js; do node --input-type=module --check < "$f"; done
+      - name: Individual profit estimates
+        run: node tests/profits.mjs
 
   windows-bundle:
     name: Portable Windows bundle

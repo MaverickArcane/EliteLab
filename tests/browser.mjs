@@ -4,6 +4,7 @@ import path from 'node:path';
 import http from 'node:http';
 import assert from 'node:assert/strict';
 import os from 'node:os';
+import './profits.mjs';
 const dir = path.dirname(new URL(import.meta.url).pathname.replace(/^\/(\w:)/, '$1'));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const server = spawn(process.env.PYTHON || 'python', ['-u', path.join(dir, 'browser_server.py')], {windowsHide:true});
@@ -230,6 +231,10 @@ try {
   assert.equal(await evaluate("document.querySelector('[data-value=quantity]').textContent"),'200 t');
   assert.equal(await evaluate("document.querySelector('[data-value=rate]').textContent"),'50 Cr');
   assert.equal(await evaluate("document.querySelector('[data-value=run-pay]').textContent"),'10,000 Cr');
+  for(let i=0;i<30;i++){await sleep(100);if(await evaluate("document.querySelector('[data-value=profit-estimated]')?.textContent.endsWith(' Cr')"))break;}
+  const expectedPersonalProfit=await evaluate("document.querySelector('[data-value=profit-estimated]').textContent");
+  assert.ok(['31,650 Cr','31,700 Cr'].includes(expectedPersonalProfit));
+  assert.equal(await evaluate("document.querySelector('[data-value=profit-remaining]').textContent"),expectedPersonalProfit);
   assert.deepEqual(await evaluate("[...document.querySelectorAll('[data-haul-inara]')].map(a=>({search:new URL(a.href).searchParams.get('search'),hidden:a.hidden,target:a.target,rel:a.rel}))"),[
     {search:'Source Port [Lave]',hidden:false,target:'_blank',rel:'noopener noreferrer'},
     {search:'TST-001',hidden:false,target:'_blank',rel:'noopener noreferrer'}]);
@@ -258,6 +263,9 @@ try {
   for(let i=0;i<30;i++){await sleep(100);if(await evaluate("document.querySelector('[data-value=loaded]')?.textContent==='80 / 300 t'"))break;}
   assert.equal(await evaluate("document.querySelector('[data-value=loaded]').textContent"),'80 / 300 t');
   assert.equal(await evaluate("document.querySelector('[data-value=earned]').textContent"),'4,000 Cr');
+  assert.equal(await evaluate("document.querySelector('[data-value=profit-estimated]').textContent"),expectedPersonalProfit);
+  assert.ok(await evaluate("document.querySelector('[data-value=profit-breakdown]').textContent.includes('loading 4,000 Cr | unloading 0 Cr')"));
+  assert.ok(await evaluate("[...document.querySelectorAll('[data-crew-roster] tr')].some(r=>r.textContent.includes('CMDR Crew') && r.querySelector('[data-profit-recorded]')?.textContent==='4,000 Cr')"));
   await postMember('/audit/ship',{cmdr:'CMDR Crew',capacity:200,count:0});
   await evaluate("document.querySelector('[data-manual-details]').open=false;true");
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});await evaluate('scrollTo(0,0);true');await sleep(300);
@@ -270,6 +278,8 @@ try {
   await send('Page.navigate',{url:`http://127.0.0.1:${port}`});
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!!document.querySelector('[data-op-action=depart]')"))break;}
   assert.ok(await evaluate("document.querySelector('[data-crew-roster]').textContent.includes('CMDR Crew')"));
+  for(let i=0;i<30;i++){await sleep(100);if(await evaluate("!!document.querySelector('[data-op-details=reports] [data-profit-recorded]')"))break;}
+  assert.ok(await evaluate("[...document.querySelectorAll('[data-op-details=reports] tr')].some(r=>r.textContent.includes('CMDR Crew') && r.querySelector('[data-profit-recorded]')?.textContent==='4,000 Cr')"));
   await evaluate("document.querySelector('[data-op-action=depart]').click();true");
   for(let i=0;i<30;i++){await sleep(100);if(await evaluate("Lab.state.trade.operation.stage==='transit'"))break;}
   await evaluate("document.querySelector('[data-op-action=unload]').click();true");

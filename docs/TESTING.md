@@ -134,3 +134,8 @@ weights, away-to-ready transitions, ended jobs, failed persistence/retry, and
 reconnection without repeat allocation. The browser test joins an independent
 client and verifies assigned tonnes, personal loads, and updated carrier orders
 without clicking the owner's rebalance controls.
+
+`node tests/profits.mjs` checks individual loading/unloading profit, corrected
+deliveries, unknown prices/quotas, overshoots, ended legs, and personal bonus
+exclusion. The browser suite runs it too, then checks personal and crew earnings
+after a delivery and after a commander leaves, plus narrow-screen layout.

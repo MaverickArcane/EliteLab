@@ -102,6 +102,16 @@ Custom splits keep the owner's chosen weights: choose the newcomer's share, then
 use **Recalculate** and **Rebalance remaining work**. These controls also let the
 owner redistribute work when someone leaves or changes participation.
 
+**Individual profits** appear in Crew progress and **Delivered by crew & individual
+profits** in Carrier job. Each commander sees recorded loading/unloading profit,
+estimated profit on their remaining assignment, and estimated total profit.
+The personal panel shows the same figures. Only acknowledged deliveries count;
+pending reports and cargo aboard are not earnings. Figures use agreed prices,
+exclude fuel, fees and personal bonuses, and follow corrections and rebalancing.
+Unknown prices or unassigned future work stay unknown. Ended jobs show recorded
+profit without projecting unfinished work. Carrier profit is a separate job
+estimate; the owner's direct transfers are not counted as crew payments.
+
 **Crew progress** shows both job targets and each commander's acknowledged
 contribution. A departing commander's deliveries remain in the roster. Telemetry
 is available under **Ship status and telemetry**. Reported margin uses agreed

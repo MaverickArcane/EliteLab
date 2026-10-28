@@ -1,6 +1,8 @@
 /* A persistent personal panel: live reports update values, never rebuild inputs. */
 (() => {
   const { fmt, ls } = Lab.util;
+  let profits;
+  import('/modules/trade/earnings.js').then(module=>{profits=module;Lab.emit('party');}).catch(error=>console.error('Individual profits',error));
   let compact = ls.get('haul.compact.v1', true);
   const tons = n => n == null ? 'Unknown' : `${fmt(n)} t`;
   const money = n => n == null ? 'Unknown' : `${fmt(n)} Cr`;
@@ -27,7 +29,8 @@
           </div>
           <div class="haul-pay"><div><span class="k">Margin per tonne</span><b data-value="rate"></b></div><div><span class="k">This run, estimated</span><b data-value="run-pay"></b></div></div>
           <div class="ship-sec">My progress</div>
-          <div class="haul-personal"><div><span class="k">Loaded</span><strong data-value="loaded"></strong><progress data-progress="loading" aria-label="Your contribution to the loading target"></progress></div><div><span class="k">Unloaded</span><strong data-value="unloaded"></strong><progress data-progress="unloading" aria-label="Your contribution to the unloading target"></progress></div><div><span class="k">Recorded margin</span><strong data-value="earned"></strong></div></div>
+          <div class="haul-personal"><div><span class="k">Loaded</span><strong data-value="loaded"></strong><progress data-progress="loading" aria-label="Your contribution to the loading target"></progress></div><div><span class="k">Unloaded</span><strong data-value="unloaded"></strong><progress data-progress="unloading" aria-label="Your contribution to the unloading target"></progress></div><div><span class="k">Recorded profit*</span><strong data-value="earned"></strong></div></div>
+          <div data-personal-profit><div class="haul-pay"><div><span class="k">Remaining profit, estimated</span><b data-value="profit-remaining"></b></div><div><span class="k">My total profit, estimated</span><b data-value="profit-estimated"></b></div></div><div class="note" data-value="profit-breakdown"></div></div>
           <div class="note" data-value="earnings-note"></div><div class="note" data-value="adjustments"></div><div class="note warn" data-value="pending" role="status"></div>
           <div class="haul-notes" data-haul-notes hidden><span class="k">Owner instructions</span><div data-value="notes"></div></div>
           <div class="row haul-activity"><label>My status <select data-activity><option value="ready">Ready</option><option value="hauling">Hauling</option><option value="away">Away</option></select></label><span class="note" data-auto-tracking></span></div>
@@ -104,6 +107,12 @@
       set('sell-price', d.owner && d.phase === 'loading' ? 'Direct transfer' : `${money(d.sell_price)}/t`);
       set('rate', d.owner ? 'Owner' : money(d.per_ton)); set('run-pay', d.owner ? 'See job totals' : money(d.load_earnings));
       set('loaded', assignment ? `${fmt(d.progress.loading)} / ${tons(assignment.loading_target)}` : tons(d.progress.loading)); set('unloaded', assignment ? `${fmt(d.progress.unloading)} / ${tons(assignment.unloading_target)}` : tons(d.progress.unloading)); set('earned', d.owner ? 'See job totals' : money(d.earnings));
+      el.querySelector('[data-personal-profit]').hidden=d.owner;
+      if(!d.owner && profits) {
+        const income=profits.profit(p.plan,d.progress,assignment,d.phase);
+        set('profit-remaining',money(income.remaining));set('profit-estimated',money(income.estimated));
+        set('profit-breakdown',`Recorded: loading ${money(income.loading.recorded)} | unloading ${money(income.unloading.recorded)}. Estimates follow your assigned work.`);
+      }
       set('earnings-note', d.owner ? 'Your direct transfers count toward progress. Owner profit estimates are in Carrier job.' : 'Margin at agreed prices on acknowledged deliveries; excludes fuel, fees and personal bonuses. '+(assignment ? 'Bars show progress against your assigned tonnes.' : 'Bars show your contribution to the job target.'));
       el.querySelector('.haul-personal').title = el.querySelector('[data-value=earnings-note]').textContent;
       el.querySelector('.haul-pay').title = 'Estimated margin at agreed prices, before fuel, fees and personal bonuses.';
