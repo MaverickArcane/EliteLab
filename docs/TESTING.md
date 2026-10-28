@@ -139,3 +139,10 @@ without clicking the owner's rebalance controls.
 deliveries, unknown prices/quotas, overshoots, ended legs, and personal bonus
 exclusion. The browser suite runs it too, then checks personal and crew earnings
 after a delivery and after a commander leaves, plus narrow-screen layout.
+
+`test_live_hauling.py` covers the 1,160 t/1,200 t last ship, split final loads,
+the observed 1,188 - 1,136 = 52 t tail, faster commanders, absent cargo, delayed
+cargo snapshots, automatic quantity previews, pauses and unavailable ships.
+Session tests compare leader next-pickup rows with member instructions and check
+that unchanged heartbeats do not rewrite the ledger. Browser tests exercise live
+mode on independent clients, leaving/reallocation, and all three crew Inara links.

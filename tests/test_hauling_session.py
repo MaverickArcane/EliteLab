@@ -189,6 +189,47 @@ class HaulingSessionTests(unittest.TestCase):
         self.assertEqual(state["desk"]["assignment"]["loading_remaining"],150)
         self.assertEqual(self.owner.read_data("trade.json")["workload"]["owner_hauls"],False)
 
+    def test_live_next_pickup_matches_owner_and_member_without_inventory_baseline(self):
+        self.control("cancel")
+        plan=self.owner.store.get("trade","plan")
+        self.owner.http.tools["plan_carrier_trade"].fn({**plan,"target":19876,"planned_quantity":19876})
+        self.other.modules["party"].party.leave()
+        self.owner.store.update("journal",{"cargo_capacity":1136,"cargo":{"count":0,"items":[]}})
+        self.crew.store.update("journal",{"cargo_capacity":1200,"cargo":{"count":0,"items":[]}})
+        self.sync(self.crew)
+        configure=self.owner.http.tools["configure_trade_workload"].fn
+        settings={"mode":"live","owner_hauls":True}
+        preview=configure(settings)
+        configure({**settings,"action":"apply","basis":preview["basis"]})
+        self.op=self.control("start")
+        self.report(self.owner,10224,"x")
+        self.sync(self.crew)
+        self.report(self.crew,8464,"y")
+        self.owner.store.set("journal","cargo",{"count":1136,"items":[{"key":"gold","count":1136}]})
+        state=self.sync(self.crew)
+        self.assertEqual(state["desk"]["quantity"],52)
+        self.assertEqual(state["desk"]["allocation_mode"],"live")
+        owner=self.owner.store.get("party")
+        row=next(r for r in owner["workload"]["members"] if not r["owner"])
+        self.assertEqual(row["next_pickup"],state["desk"]["quantity"])
+        self.assertEqual(owner["workload"]["loading"]["order_remaining"],52)
+        # The physical inventory ledger is a different source, not the job balance.
+        self.assertNotEqual((self.owner.store.get("trade","calculation") or {}).get("remaining"),1188)
+
+    def test_live_leave_reallocates_unpicked_work_and_heartbeat_keeps_disk_stable(self):
+        configure=self.owner.http.tools["configure_trade_workload"].fn
+        q={"mode":"live","owner_hauls":True}
+        draft=configure(q);configure({**q,"action":"apply","basis":draft["basis"]})
+        self.crew.modules["party"].party.leave()
+        self.other.modules["party"].party.leave()
+        state=self.owner.store.get("party")
+        owner=next(r for r in state["workload"]["members"] if r["owner"])
+        self.assertEqual(owner["loading_remaining"],400)
+        self.assertEqual(owner["next_pickup"],200)
+        with patch.object(self.owner,"write_data",wraps=self.owner.write_data) as write:
+            for _ in range(3):self.owner.bus.emit("party.roster",state["members"])
+            self.assertFalse(write.called)
+
     def test_new_join_gets_remaining_share_and_reconnect_does_not_rebalance(self):
         self.report(self.crew,50,"j")
         self.owner.store.set("journal","cargo",{"count":120,"items":[{"key":"gold","count":120}]})

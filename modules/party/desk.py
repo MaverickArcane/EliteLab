@@ -97,7 +97,8 @@ def project(shared, local_id, local, work=None, stale=False):
         elif pending[phase]:
             reason = "Delivery saved locally. Waiting for leader acknowledgement; do not report it again."
         elif remaining == 0:
-            reason = ("No workload assigned to you. The owner can rebalance the crew split." if workload and not assigned
+            reason = ("The remaining load is assigned to another ship. Wait for the next live update." if workload and workload.get("mode") == "live"
+                      else "No workload assigned to you. The owner can rebalance the crew split." if workload and not assigned
                       else "Your share of this leg is done. Wait for the crew or ask the owner to rebalance." if workload
                       else "This leg's target is met. Wait for the owner to advance the trade.")
         elif aboard is None:
@@ -146,6 +147,7 @@ def project(shared, local_id, local, work=None, stale=False):
             "earnings": None if owner else earnings(progress, prices),
             "progress": progress, "pending": pending, "adjustments": accepted.get("adjustments", {}), "target": total,
             "assignment": assigned,
+            "allocation_mode": (workload or {}).get("mode"),
             "loaded": op.get("loaded", 0), "unloaded": op.get("unloaded", 0),
             "notes": op.get("notes", ""), "crew": roster,
             "over_target": bool(total and (op.get("loaded", 0) > total or op.get("unloaded", 0) > total))}

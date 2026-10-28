@@ -16,6 +16,20 @@ class Workloads:
         with self.desk.lock:
             data = self.desk.data
             op, saved = data.get("operation"), data.get("workload")
+            if op and op["stage"] in ("loading", "transit", "unloading") and saved and saved["mode"] == "live":
+                # Save material cargo/roster changes, never heartbeat timestamps.
+                # Absent crew retain observed cargo but release unpicked work.
+                try:
+                    updated = build(data["plan"],op,members,saved,saved)
+                    if updated != saved:
+                        candidate = copy.deepcopy(data)
+                        candidate["workload"] = updated
+                        self.desk.commit(candidate)
+                except (ValueError, OSError) as error:
+                    self.core.store.set("trade","workload_join_error","Could not save live cargo allocation: "+str(error))
+                    return
+                self.core.store.set("trade","workload_join_error",None)
+                return
             if not op or op["stage"] not in ("loading", "transit", "unloading") or not saved or saved["mode"] != "equal":
                 self.core.store.set("trade", "workload_join_error", None)
                 return

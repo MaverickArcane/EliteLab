@@ -86,7 +86,7 @@
         set('assigned',tons(assignment[leg+'_target']));set('remaining',tons(assignment[leg+'_remaining']));
         set('runs-left',assignment[leg+'_runs_left'] ?? 'Unknown');
         const full=assignment[leg+'_full_loads'], tail=assignment[leg+'_partial_load'];
-        set('load-breakdown',full==null ? 'Waiting for ship capacity to estimate loads.' : (full ? `${fmt(full)} full load${full===1?'':'s'} of ${tons(assignment.usable)}` : '')+(tail ? `${full ? ' + ' : ''}1 final load of ${tons(tail)}` : '')+(!full && !tail ? 'Your share is complete.' : '. Includes cargo already aboard; pickup amounts exclude it.'));
+        set('load-breakdown',(d.allocation_mode==='live' ? 'Live estimate; updates as the crew hauls. ' : '')+(full==null ? 'Waiting for ship capacity to estimate loads.' : (full ? `${fmt(full)} full load${full===1?'':'s'} of ${tons(assignment.usable)}` : '')+(tail ? `${full ? ' + ' : ''}1 final load of ${tons(tail)}` : '')+(!full && !tail ? 'No further load currently assigned.' : '. Includes cargo already aboard; pickup amounts exclude it.')));
       }
       copy('quantity', d.action === 'wait' ? null : d.quantity);
       set('hold', `${tons(d.aboard)} ${d.commodity} aboard | ${tons(d.cargo_count)} / ${tons(d.capacity)} hold`);

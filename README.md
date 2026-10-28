@@ -73,20 +73,36 @@ are labelled pending. The panel keeps inputs and destination text mounted during
 live updates. Unknown quantities and prices remain unknown. Owners can use it
 solo before hosting a party. The Compact button reduces explanatory text.
 
-**Crew workload**, inside **Carrier job > Current job**, splits the operation
-into equal tonnes per commander by default. Ship capacity determines estimated
-loads, not the assigned share. Choose **Custom shares** for relative weights
-(2 receives twice the unfinished tonnes of 1; 0 sits out). **I haul too** includes
-the owner's direct transfers. Preview the split, then apply it; starting loading
-also saves the displayed choices if they have not been applied. The default is
-equal tonnes with owner participation.
+**Crew workload**, inside **Carrier job > Current job**, defaults new dashboard
+plans to **Live loads**. It updates from acknowledged deliveries, available cargo
+space and connected crew throughout the haul. A faster commander can keep hauling
+past the initial estimate. For a final 1,160 t pickup with 1,136 t and 1,200 t ships,
+the larger ship gets the whole pickup. If one ship cannot carry the remainder,
+the pickup is split across the fewest available ships. Cargo already aboard is
+deducted first: 1,188 t remaining with 1,136 t aboard leaves 52 t to pick up.
+
+Unpicked work moves to available crew when someone leaves or goes away. Observed
+cargo aboard absent ships stays accounted for until delivered; it is not assigned
+again as new purchases. The owner table and each personal panel use the same
+next-pickup data. Total tonnes and loads per commander are changing estimates.
+Existing jobs keep their selected mode; choose **Live loads > Use live loads** to
+switch an active job on the updated backend.
+
+Choose **Equal tonnes per commander** for fixed equal shares, independent of ship
+capacity, or **Custom shares** for relative weights (2 gets twice the unfinished
+tonnes of 1; 0 sits out). **I haul too** includes the owner's direct transfers.
+Starting loading also applies the displayed allocation choices.
 
 The carrier buy-order quantity excludes the owner's remaining direct-transfer
-share. For 12,000 t divided among an owner and two friends, each gets 4,000 t and
+share. In equal mode, for 12,000 t divided among an owner and two friends, each gets 4,000 t and
 the initial buy order is 8,000 t. Crew deliveries reduce that order quantity;
 owner transfers reduce their separate balance. The calculator provides copyable
 order tonnes and price, plus the funding needed at that price. Owner profit
 estimates exclude crew payouts on tonnes the owner hauls directly.
+In live mode the owner's future share and order quantity are estimates that update
+as the crew works; update the actual carrier order in game. The active operation
+uses its target minus acknowledged deliveries, not the separate inventory ledger,
+which can lag purchases made by other commanders.
 
 Each personal panel shows assigned/delivered/remaining tonnes and estimated
 loads left, including the final partial load. Pickup suggestions deduct cargo
@@ -118,6 +134,8 @@ is available under **Ship status and telemetry**. Reported margin uses agreed
 prices, excludes expenses/bonuses, and is not a verified credit balance.
 The roster also includes compact ship/flight, cargo, fuel and shield readings;
 critical alerts are highlighted and disconnected readings are marked stale.
+Buy, carrier and sell locations in Crew progress have Inara market links alongside
+the copy buttons. Carrier links use the callsign so they remain useful after jumps.
 
 Closing a party sends a terminal response to connected clients before releasing
 its listener (up to three seconds). Members return to the join screen and keep

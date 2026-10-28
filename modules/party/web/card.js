@@ -11,6 +11,14 @@
   const flight = (t, m) => t.game_running === false ? 'Game closed' : t.vehicle === 'foot' ? 'On foot' : t.vehicle === 'taxi' ? 'In taxi' : t.vehicle === 'crew' ? 'Multicrew' : t.vehicle === 'srv' ? 'In SRV' : t.vehicle === 'fighter' ? 'In fighter' : t.fsd_jump ? 'Hyperspace' : t.fsd_charging ? 'FSD charging' : t.supercruise ? 'Supercruise' : (t.docked ?? m.docked) ? 'Docked' : t.landed ? 'Landed' : t.status_at ? 'Normal space' : 'Flight status unknown';
   const meter = (value, capacity, label) => Number.isFinite(value) && Number.isFinite(capacity) && capacity > 0 ? `<progress max="${capacity}" value="${Math.min(value, capacity)}" aria-label="${label}"></progress>` : '';
   const copyButton = (value, label) => value ? `<button class="mini" data-copy="${esc(value)}">${label}</button>` : '';
+  function routeStop(label, station, system, carrier=false) {
+    const url=Lab.util.inaraMarket(station,carrier ? null : system);
+    return `<div class="party-route-stop"><b>${label}</b><div>${esc(station || 'Unknown stop')}${system ? ' / '+esc(system) : ''}</div><div class="row">${copyButton(system,'Copy system')}${copyButton(station,'Copy station')}${url ? `<a class="mini" data-party-inara href="${esc(url)}" target="_blank" rel="noopener noreferrer">Inara market</a>` : ''}</div></div>`;
+  }
+  function planStop(label, value) {
+    const split=(value || '').lastIndexOf(' / ');
+    return routeStop(label,split<0 ? value : value.slice(0,split),split<0 ? null : value.slice(split+3));
+  }
   function crewReadings(m) {
     const t=m.telemetry || {};
     const fuel=Number.isFinite(t.fuel) ? (Number.isFinite(t.fuel_capacity) && t.fuel_capacity>0 ? Math.round(t.fuel/t.fuel_capacity*100)+'%' : number(t.fuel)+' t') : '?';
@@ -20,7 +28,7 @@
   }
   function assignedProgress(m, phase) {
     const a=m.assignment;
-    return `<div>${fmt(m[phase])}${a ? ' / '+fmt(a[phase+'_target']) : ''} t</div>${a ? `<div class="note">${a[phase+'_runs_left']==null ? 'Loads unknown' : fmt(a[phase+'_runs_left'])+(a[phase+'_runs_left']===1 ? ' load left' : ' loads left')}</div>` : ''}`;
+    return `<div>${fmt(m[phase])}${a ? ' / '+fmt(a[phase+'_target']) : ''} t</div>${a ? `<div class="note">${a[phase+'_runs_left']==null ? 'Loads unknown' : fmt(a[phase+'_runs_left'])+(a[phase+'_runs_left']===1 ? ' load left' : ' loads left')}</div>${a.pickup_phase===phase ? `<div class="note" data-crew-next-pickup>Next pickup: ${fmt(a.next_pickup)} t</div>` : ''}` : ''}`;
   }
   function memberPanel(m) {
     const t=m.telemetry || {}, ship=t.vehicle === 'ship', old=m.stale || t.game_running === false;
@@ -57,6 +65,7 @@
         <div data-party-join-error class="note warn trade-wide" role="status"></div></form></details></div>
         <div data-party-connected hidden><details class="trade-filters"><summary>Connection &amp; invitation</summary><div data-party-invite></div></details></div>
         <div data-crew-summary></div>
+        <div data-party-stops></div>
         <div data-crew-roster></div>
         <details class="trade-details" data-telemetry><summary>Ship status and telemetry</summary><div data-party-members></div></details>`;
       for (const action of ['host', 'join']) {
@@ -100,6 +109,8 @@
         if (node._html !== html) {node.innerHTML = html; node._html = html;}
       };
       const tons = n => n == null ? 'Unknown' : fmt(n)+' t';
+      const carrier=p.carrier || {};
+      update('[data-party-stops]',active && p.plan ? `<div class="party-route">${planStop('Buy',p.plan.source)}${routeStop('Carrier',carrier.callsign || carrier.name,carrier.system,true)}${planStop('Sell',p.plan.destination)}</div>` : '');
       const progress = (label, value, target) => `<div class="crew-progress-leg"><div class="row"><b>${label}</b><span>${tons(value)} / ${tons(target)}</span></div><progress max="${target || 1}" value="${Math.min(value, target || 1)}" aria-label="Crew ${label.toLowerCase()}"></progress><div class="note">${target == null ? 'Target unknown' : tons(Math.max(0,target-value))+' remaining'}</div></div>`;
       update('[data-crew-summary]', active && running ? `<div class="crew-job"><div class="row"><h3>${esc(d.commodity)}</h3><span class="tag ${d.stale ? 'warn' : 'ok'}">${esc(d.paused ? 'Paused' : d.phase)}</span></div><div class="note">${esc(p.plan.source)} &gt; ${esc(p.plan.destination)}</div><div class="crew-progress">${progress('Loading',d.loaded,d.target)}${progress('Unloading',d.unloaded,d.target)}</div>${d.over_target ? '<div class="warn">Reports exceed the job target. Check deliveries before advancing.</div>' : ''}${d.stale ? '<div class="warn">Leader unavailable. Showing last acknowledged progress.</div>' : ''}<div class="note">Acknowledged deliveries. Cargo aboard ships is counted separately.</div></div>` : active && d?.phase==='ready' ? `<p class="note"><b>Route prepared - not started.</b> ${esc(d.commodity)}: ${esc(p.plan.source)} &gt; ${esc(p.plan.destination)}. Wait for the owner to start loading.</p>` : active && ['cancelled','complete'].includes(d?.phase) ? `<p class="note"><b>${d.phase==='cancelled' ? 'Trade cancelled' : 'Trade complete'}.</b> No active haul. Previous totals remain in Carrier job.</p>` : active ? '<p class="muted">Waiting for the owner to choose a route in Carrier job.</p>' : '');
       update('[data-crew-roster]', active && running ? `<div class="ship-sec">Crew contributions</div><div class="table-scroll"><table class="crew-roster"><thead><tr><th>Commander</th><th class="num">Loaded</th><th class="num">Unloaded</th><th class="num">Individual profit*</th></tr></thead><tbody>${d.crew.map(m=>`<tr class="${m.you ? 'crew-you' : ''}"><td><b>${esc(m.cmdr)}</b>${m.you ? ' <span class="tag">You</span>' : ''}${m.owner ? ' <span class="tag">Owner</span>' : ''}<div class="note ${m.connected ? '' : 'warn'}">${esc(m.connected ? m.activity : 'Disconnected / stale')}${m.system ? ' | '+esc(m.system) : ''}</div>${crewReadings(m)}</td><td class="num">${assignedProgress(m,'loading')}</td><td class="num">${assignedProgress(m,'unloading')}</td><td class="num">${profits ? profits.profitSummary(p.plan,m,m.assignment,d.phase,m.owner,p.workload?.economics?.owner_profit ?? p.plan?.crew_split?.owner_profit) : m.owner ? 'Carrier owner' : m.earnings == null ? 'Unknown' : fmt(m.earnings)+' Cr'}</td></tr>`).join('')}</tbody></table></div><div class="note">*At agreed prices on recorded deliveries, before expenses. Contributions stay visible after a player leaves.</div>` : '');

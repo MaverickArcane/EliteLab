@@ -338,10 +338,10 @@ Python calculation as saved plans. The browser discards outdated preview replies
 when the route results or crew shares change.
 
 Workload quotas:
-`trade.workload` persists mode (equal/custom), owner_hauls, custom share weights,
+`trade.workload` persists mode (live/equal/custom), owner_hauls, custom share weights,
 and stable-identity member loading_target/unloading_target quantities. Equal
 means tonnes, using largest remainders for whole-tonne conservation. Capacity
-never weights quotas. Applying a split requires the preview basis hash to match
+never weights equal-mode quotas. Applying a split requires the preview basis hash to match
 the current plan, phase, deliveries, cargo and roster. Rebalancing adds portions
 of remaining work to each member's existing credited deliveries. Assigned cargo
 already aboard sets a minimum for that member's current leg, even if they opt out
@@ -364,7 +364,7 @@ ship cargo. Only the new-purchase calculation deducts matching ship cargo.
 projects them into `party.workload`: live run estimates, full/partial remaining
 loads, separate owner-transfer and market-order balances, buy-order budget and
 profit adjusted for owner participation. Disconnects and ship swaps do not
-rewrite targets. `party.desk.assignment` supplies personal target/remaining/run
+rewrite fixed-mode targets. `party.desk.assignment` supplies personal target/remaining/run
 figures. `load_suggestion` caps each pickup at that member's remaining quota,
 less matching onboard cargo, and also applies the overall job bound. The desk
 can recommend topping up a partial hold before delivery. Estimated runs include
@@ -372,6 +372,22 @@ the current load; they are not a count of observed docking visits.
 Local cargo updates consume any pickup allowance from an older leader snapshot;
 they never authorize buying beyond the remaining assignment. Unassigned surplus
 cargo does not block other members' assigned pickups.
+
+Live allocation uses `core.live_hauling`: it reserves observed commodity cargo,
+then fills current free holds, minimizing ships used for a partial final pickup.
+Later rounds are estimates using usable ship capacities. A full ship can retain
+future work; a faster returning ship can pick up more without a fixed quota cap.
+`unassigned` records work with no eligible ship; `reserved` records cargo held by
+unavailable commanders. Per-member `cargo_snapshot` retains the last material
+cargo observation and corresponding delivery counters. Later deliveries consume
+that observation until a new cargo snapshot arrives, including on disconnect.
+`party.roster` also fires on leader heartbeats and explicitly carries a leaving
+member's last report. Only material changes write the saved live workload.
+`party.workload.members[].next_pickup` and `pickup_phase` come from the shared
+load suggestion used by personal instructions. `party.desk.allocation_mode`
+distinguishes live estimates from fixed shares. Completed jobs keep saved targets.
+New dashboard plans default to live; existing/API default equal settings remain
+compatible. Active operation totals use acknowledged work, not inventory estimates.
 
 Member heartbeats and manual report exchanges are serialized through response
 application. Queued sends capture fresh local state; network I/O never holds the

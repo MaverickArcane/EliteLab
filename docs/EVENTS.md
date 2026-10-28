@@ -104,6 +104,8 @@ timestamp until the vehicle changes. See the Player Journal manual, section 14.
 ## Internal crew events
 
 `party.roster` carries the leader's current sanitized member list after accepting
-a party report and emitting `party.work`. Trade uses it to include new eligible
-commanders in active equal splits before party publishes its response. It does
+a party report and emitting `party.work`, and on leader heartbeats. Leaving reports
+carry the departing ship's last cargo observation. Trade uses the roster to update
+live allocation and include new eligible commanders in active equal splits before
+party publishes its response. It does
 not fire from store publication, avoiding recursive allocation updates.

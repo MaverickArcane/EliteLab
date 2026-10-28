@@ -6,10 +6,10 @@ export function mount(el) {
   const money = n => n == null ? 'Unknown' : `${fmt(n)} Cr`;
   const u = {generation:0, dirty:false, state:null, preview:null, key:'', destroyed:false};
   el.innerHTML = `<section class="workload-panel"><div class="row workload-heading"><h3>Crew workload</h3><span class="tag" data-wl-status>Preview</span></div>
-    <div class="row"><label>Split <select data-wl-mode><option value="equal">Equal tonnes per commander</option><option value="custom">Custom shares</option></select></label><label class="chk"><input type="checkbox" data-wl-owner checked>I haul too (direct transfers)</label></div>
+    <div class="row"><label>Allocation <select data-wl-mode><option value="live">Live loads (recommended)</option><option value="equal">Equal tonnes per commander</option><option value="custom">Custom shares</option></select></label><label class="chk"><input type="checkbox" data-wl-owner checked>I haul too (direct transfers)</label></div>
     <div data-wl-custom hidden><div class="note">Share weights: 1 each is equal tonnes; 2 gets twice as much as 1. Use 0 to sit out. Only connected, ready/hauling commanders receive new work.</div><div data-wl-inputs class="workload-shares"></div></div>
     <div data-wl-preview></div><div class="row"><button type="button" class="mini primary" data-wl-apply>Apply split</button><button type="button" class="mini" data-wl-refresh>Recalculate</button><span data-wl-message class="note" role="status"></span></div>
-    <div class="note">Equal splits include new crew automatically. Completed deliveries, assigned cargo aboard, and absent crew's remaining shares are kept. Custom splits need your approval. Ship changes and reconnects keep existing assignments. Update carrier orders in game when the suggested tonnes change.</div></section>`;
+    <div class="note">Live loads adapt to deliveries, free cargo space and available crew. The final pickup goes to one ship when it fits; larger loads are split. Unpicked work moves when someone leaves; cargo already aboard stays accounted for. Equal/custom modes keep fixed shares. Update carrier orders in game when the suggested tonnes change.</div></section>`;
   const $ = selector => el.querySelector(selector);
   const settings = () => ({mode:$('[data-wl-mode]').value, owner_hauls:$('[data-wl-owner]').checked,
     shares:Object.fromEntries([...el.querySelectorAll('[data-wl-share]')].map(input=>[input.dataset.wlShare,Number(input.value)]))});
@@ -32,7 +32,8 @@ export function mount(el) {
     const percentage=loading ? w.buy_percent : w.sell_percent;
     $('[data-wl-preview]').innerHTML = `<div class="workload-orders"><div><span class="k">Carrier ${loading ? 'buy' : 'sell'} order</span><strong data-wl-order>${tons(total.order_remaining)}</strong><button class="mini" data-copy="${total.order_remaining}">Copy order tonnes</button></div><div><span class="k">Price per tonne</span><strong>${percentage == null ? (w.prices_valid ? "" : "Target ") : fmt(percentage)+"% | "}${money(price)}</strong>${percentage == null ? '' : `<button class="mini" data-copy="${percentage}">Copy %</button>`}</div><div><span class="k">${loading ? 'Buy-order budget' : 'Order proceeds'}</span><strong>${price == null ? 'Unknown' : money(value)}</strong></div></div>
       <div class="note" data-wl-equation>${tons(total.remaining)} left ${loading ? 'to load' : 'to unload'} - ${tons(total.owner_remaining)} your direct transfers = ${tons(total.order_remaining)} for crew ${loading ? 'sales to' : 'purchases from'} the carrier.</div>
-      <div class="table-scroll"><table class="workload-table"><thead><tr><th>Commander</th><th class="num">Assigned ${loading ? 'loading' : 'unloading'}</th><th class="num">Delivered</th><th class="num">Left</th><th class="num">Est. loads left</th></tr></thead><tbody>${w.members.map(r=>`<tr><td>${esc(r.cmdr)}${r.owner ? ' (you)' : ''}${r.connected ? '' : '<div class="note warn">Disconnected / stale</div>'}</td><td class="num">${tons(r[phase+'_target'])}</td><td class="num">${tons(r[phase+'_done'])}</td><td class="num">${tons(r[phase+'_remaining'])}</td><td class="num">${r[phase+'_runs_left'] == null ? 'Ship capacity unknown' : fmt(r[phase+'_runs_left'])}${r[phase+'_partial_load'] ? `<div class="note">Last load ${tons(r[phase+'_partial_load'])}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
+      ${w.mode==='live' && w.unassigned?.[phase] ? `<div class="note warn">${tons(w.unassigned[phase])} awaiting available cargo space.</div>` : ''}${w.mode==='live' && w.reserved?.[phase] ? `<div class="note">${tons(w.reserved[phase])} already aboard unavailable ships; not reassigned as new pickups.</div>` : ''}
+      <div class="table-scroll"><table class="workload-table"><thead><tr><th>Commander</th><th class="num">${w.mode==='live' ? 'Est. total' : 'Assigned'}</th><th class="num">Delivered</th><th class="num">Left</th><th class="num">Next pickup</th><th class="num">Est. loads left</th></tr></thead><tbody>${w.members.map(r=>`<tr><td>${esc(r.cmdr)}${r.owner ? ' (you)' : ''}${r.connected ? '' : '<div class="note warn">Disconnected / stale</div>'}</td><td class="num">${tons(r[phase+'_target'])}</td><td class="num">${tons(r[phase+'_done'])}</td><td class="num">${tons(r[phase+'_remaining'])}</td><td class="num">${tons(r.next_pickup)}</td><td class="num">${r[phase+'_runs_left'] == null ? 'Ship capacity unknown' : fmt(r[phase+'_runs_left'])}${r[phase+'_partial_load'] ? `<div class="note">Last load ${tons(r[phase+'_partial_load'])}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
   };
   const preview = async () => {
     if (u.destroyed || el.hidden || !u.state || u.busy) return;
@@ -87,7 +88,7 @@ export function mount(el) {
       for(const control of el.querySelectorAll('[data-wl-mode], [data-wl-owner], [data-wl-refresh]')) control.disabled=!!u.busy;
       const members=p.members || [];
       if (!u.dirty && u.savedBasis !== saved?.basis) {
-        $('[data-wl-mode]').value=saved?.mode || 'equal'; $('[data-wl-owner]').checked=saved?.owner_hauls ?? true;
+        $('[data-wl-mode]').value=saved?.mode || 'live'; $('[data-wl-owner]').checked=saved?.owner_hauls ?? true;
         for(const input of el.querySelectorAll('[data-wl-share]')) input.value=saved?.shares?.[input.dataset.wlShare] ?? 1;
         u.savedBasis=saved?.basis;
       }
@@ -100,8 +101,8 @@ export function mount(el) {
         row.querySelector('input').disabled=!!u.busy || !!m.stale || m.activity==='away' || (m.leader && !$('[data-wl-owner]').checked);
       }
       $('[data-wl-custom]').hidden=$('[data-wl-mode]').value!=='custom';
-      if (!u.dirty) $('[data-wl-status]').textContent=saved ? 'Saved split' : 'Preview';
-      $('[data-wl-apply]').textContent=op ? 'Rebalance remaining work' : 'Apply split';
+      if (!u.dirty) $('[data-wl-status]').textContent=saved?.mode==='live' ? 'Live allocation' : saved ? 'Saved split' : 'Preview';
+      $('[data-wl-apply]').textContent=$('[data-wl-mode]').value==='live' ? 'Use live loads' : op ? 'Rebalance remaining work' : 'Apply split';
       const key=JSON.stringify([plan,op?.id,op?.stage,op?.reports,saved?.basis,members.map(m=>[m.id,m.cmdr,m.leader,m.stale,m.activity,m.capacity,m.cargo_count,m.cargo])]);
       if(key!==u.key){u.key=key;++u.generation;u.preview=null;$('[data-wl-apply]').disabled=true;if(!u.busy)schedule();}
       // Once applied, show stable quotas as deliveries arrive. Rebalance previews
@@ -112,7 +113,7 @@ export function mount(el) {
         const newcomers=members.filter(m=>!assigned.has(m.id) && !m.stale && m.activity!=='away');
         const latest=[...(op?.history || [])].reverse().find(e=>e.kind==='workload');
         const joined=latest?.action==='join' ? latest : null;
-        if(!u.busy) $('[data-wl-message]').textContent=S.trade?.workload_join_error || (newcomers.length
+        if(!u.busy) $('[data-wl-message]').textContent=S.trade?.workload_join_error || (saved.mode==='live' ? 'Next pickups update automatically. Remaining tonnes and loads are live estimates, not fixed quotas.' : newcomers.length
           ? saved.mode==='custom' ? `${newcomers.map(m=>m.cmdr || 'A commander').join(', ')} joined. Choose their custom share, then rebalance.` : 'Including new crew in the equal split...'
           : joined ? `${joined.cmdr || 'A commander'} joined: remaining work was split automatically. Check the updated carrier order tonnes.` : '');
       }

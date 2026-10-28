@@ -1,4 +1,4 @@
-"""Saved commander quotas. Equal means equal tonnes, independent of ship size."""
+"""Live allocation and saved quotas. Equal mode means equal tonnes, not trips."""
 import hashlib
 import json
 from math import ceil
@@ -50,8 +50,11 @@ def build(plan, operation, members, settings, previous=None, fallback_quantity=N
     if type(total) is not int or not 0 < total <= 1000000:
         raise ValueError("Set a positive operation size before splitting the workload.")
     mode, owner_hauls = settings.get("mode", "equal"), settings.get("owner_hauls", True)
-    if mode not in ("equal", "custom") or type(owner_hauls) is not bool:
-        raise ValueError("Choose equal tonnes or custom shares, and whether the owner hauls.")
+    if mode not in ("live", "equal", "custom") or type(owner_hauls) is not bool:
+        raise ValueError("Choose live loads, equal tonnes or custom shares, and whether the owner hauls.")
+    if mode == "live":
+        from .live_hauling import build_live
+        return build_live(plan, operation, members, settings, previous, total)
     shares = settings.get("shares", {})
     if not isinstance(shares, dict) or len(shares) > 128 or any(type(v) is not int or not 0 <= v <= 10000 for v in shares.values()):
         raise ValueError("Custom share weights must be whole numbers from 0 to 10000.")
@@ -110,6 +113,8 @@ def build(plan, operation, members, settings, previous=None, fallback_quantity=N
 def view(saved, operation, members, plan):
     if not saved:
         return None
+    if saved["mode"] == "live" and (operation or {}).get("stage") not in ("complete", "cancelled"):
+        saved = build(plan, operation, members, saved, saved, saved["quantity"])
     live = {m["id"]: m for m in members}
     reports = (operation or {}).get("reports", {})
     rows = []

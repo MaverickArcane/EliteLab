@@ -60,8 +60,8 @@ class Operations:
                 if op:
                     data["previous_operation"] = {"operation": copy.deepcopy(op), "plan": copy.deepcopy(plan), "workload": copy.deepcopy(data.get("workload"))}
                 plan["planned_quantity"] = qty
-                # Freeze per-commander tonnes when loading starts. Ship changes
-                # and disconnects change estimates, never these commitments.
+                # Save the selected mode when loading starts. Fixed shares keep
+                # their quotas; live mode refreshes estimates from crew reports.
                 if not data.get("workload") or op or data["workload"]["quantity"] != qty:
                     data["workload"] = build_workload(plan, None, self.core.store.get("party", "members", []), data.get("workload") or {})
                 if plan.get("crew_enabled"):

@@ -140,6 +140,8 @@ try {
   await evaluate(`(() => {const f=document.querySelector('[data-trade-plan]');f.elements.source.value='Source Port / Lave';f.elements.destination.value='Destination Port / Sol';f.elements.target.value='1300';f.elements.planned_quantity.value='1000';f.elements.crew_enabled.checked=true;f.elements.carrier_mean_price.value='100';f.requestSubmit();return true;})()`);
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade?.plan?.planned_quantity===1000"))break;}
   // Workload previews exclude the owner's direct-transfer share and preserve typed weights.
+  assert.equal(await evaluate("document.querySelector('[data-wl-mode]').value"),'live');
+  await evaluate("{const mode=document.querySelector('[data-wl-mode]');mode.value='equal';mode.dispatchEvent(new Event('input',{bubbles:true}));}true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[data-wl-order]')?.textContent==='500 t'"))break;}
   assert.equal(await evaluate("document.querySelector('[data-wl-order]').textContent"),'500 t');
   await evaluate("document.querySelector('[data-wl-owner]').click();true");
@@ -320,8 +322,10 @@ try {
   assert.equal(await evaluate("document.querySelector('[data-op-action=start]').textContent"),'Start loading');
   assert.ok(await evaluate("document.querySelector('[data-crew-summary]').textContent.includes('not started') && !document.querySelector('[data-crew-summary] progress')"));
   await evaluate("const ownerToggle=document.querySelector('[data-wl-owner]');if(ownerToggle.checked)ownerToggle.click();true");
+  await reportGuest();
   await evaluate("document.querySelector('[data-op-action=start]').click();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade.operation?.stage==='loading'"))break;}
+  assert.equal(await evaluate('Lab.state.trade.operation?.stage'),'loading',await evaluate("document.querySelector('#toasts').textContent+' '+document.querySelector('[data-wl-message]').textContent"));
   assert.notEqual(await evaluate('Lab.state.trade.operation.id'),endedOperation);
   assert.equal(await evaluate('Lab.state.trade.operation.quantity'),1000);
   assert.equal(await evaluate('Lab.state.trade.workload.owner_hauls'),false);
@@ -332,6 +336,29 @@ try {
   assert.ok(await evaluate("document.querySelector('[data-crew-summary]').textContent.includes('Trade cancelled') && !document.querySelector('[data-crew-summary] progress')"));
   assert.equal(await evaluate("document.querySelector('[data-crew-roster]').textContent"),'');
   await evaluate("getSelection().removeAllRanges();true");
+  // Live mode sends the final 1,160 t to the 1,200 t ship, then reallocates on leave.
+  await fetch(`http://127.0.0.1:${partyPort}/report`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+partyCode},body:JSON.stringify({id:'b'.repeat(32),report:guestReport,leave:true})});
+  await fetch(`http://127.0.0.1:${port}/audit/ship`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmdr:'Owner',capacity:1136,count:0})});
+  await postMember('/audit/ship',{cmdr:'CMDR Crew',capacity:1200,count:0});
+  await postMember('/api/party/join',{url:`http://127.0.0.1:${partyPort}`,code:partyCode});
+  await evaluate("Lab.post('/api/trade/plan',{...Lab.state.trade.plan,target:1160,planned_quantity:1160})");
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade.operation===null && document.querySelector('[data-wl-mode]').value==='live'"))break;}
+  await evaluate("const toggle=document.querySelector('[data-wl-owner]');if(!toggle.checked)toggle.click();document.querySelector('[data-op-action=start]').click();true");
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.party.load_suggestion?.members.some(m=>m.cmdr==='CMDR Crew' && m.next_buy===1160)"))break;}
+  assert.equal(await evaluate("Lab.state.trade.workload.mode"),'live');
+  assert.equal(await evaluate("document.querySelector('[data-wl-order]').textContent"),'1,160 t');
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('[data-party-inara]')].map(a=>new URL(a.href).searchParams.get('search'))"),['Source Port [Lave]','TST-001','Destination Port [Sol]']);
+  await send('Page.navigate',{url:`http://127.0.0.1:${memberPort}`});
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[data-value=quantity]')?.textContent==='1,160 t'"))break;}
+  assert.equal(await evaluate("document.querySelector('[data-value=quantity]').textContent"),'1,160 t');
+  assert.ok(await evaluate("document.querySelector('[data-crew-roster]').textContent.includes('Next pickup: 1,160 t')"));
+  assert.equal(await evaluate("document.querySelectorAll('[data-party-inara]').length"),3);
+  await postMember('/api/party/leave',{});
+  await send('Page.navigate',{url:`http://127.0.0.1:${port}`});
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[data-value=quantity]')?.textContent==='1,136 t'"))break;}
+  assert.equal(await evaluate("document.querySelector('[data-value=quantity]').textContent"),'1,136 t');
+  assert.equal(await evaluate("document.querySelector('[data-wl-order]').textContent"),'0 t');
+  await evaluate("Lab.post('/api/trade/operation',{action:'cancel',id:Lab.state.trade.operation.id})");
   await evaluate("document.querySelector('[data-party-leave]').click();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.party?.mode==='idle'"))break;}
   assert.equal(await evaluate('Lab.state.party.mode'),'idle');

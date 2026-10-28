@@ -238,6 +238,11 @@ class Party:
             plan, operation = job.get("plan"), job.get("operation")
             workload = workload_view(job.get("workload"), operation, members, plan) if plan else None
             suggestion = recommend(plan, operation, members, (job.get("calculation") or {}).get("to_haul"), workload)
+            if workload and suggestion:
+                pickups = {r["id"]:r["next_buy"] for r in suggestion["members"]}
+                for row in workload["members"]:
+                    row["next_pickup"] = pickups.get(row["id"],0)
+                    row["pickup_phase"] = suggestion["phase"]
             return {"members": members, "plan": plan, "operation": operation, "workload": workload, "load_suggestion": suggestion, "carrier": self.core.store.get("journal", "carrier"), "leader": self.local().get("cmdr"), "updated_at": utc()}
 
     def publish(self):
@@ -284,7 +289,10 @@ class Party:
             self.core.bus.emit("party.work", {"id": mid, "report": report})
             # Reconcile deliveries first, then let trade assign new crew using
             # this report's roster and cargo before replying with shared work.
-            self.core.bus.emit("party.roster", self.shared()["members"])
+            roster = self.shared()["members"]
+            if body.get("leave") is True:
+                roster.append({"id":mid, **report, "leader":False, "stale":True, "departed":True})
+            self.core.bus.emit("party.roster", roster)
             self.publish()
             return self.shared()
 
@@ -581,7 +589,10 @@ class Party:
                 if mode == "member":
                     self.synchronize(generation, "Leader unavailable. Retrying; last reports may be stale.")
                 else:
-                    self.publish()
+                    with self.lock:
+                        if self.mode == "leader":
+                            self.core.bus.emit("party.roster", self.shared()["members"])
+                        self.publish()
 
         threading.Thread(target=run, name="party-reporter", daemon=True).start()
 

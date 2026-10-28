@@ -485,7 +485,7 @@ def setup(core, module):
         description="Export local hauling diagnostics for the current or most recent job. Includes credited/raw totals, corrections, quotas and retained history; anonymizes commanders and omits credentials, addresses, notes, reasons, full journals, credits and file paths. Members export only their latest shared history. Nothing is uploaded.")
     workloads = Workloads(core, desk)
     core.http.route("/api/trade/workload", workloads.configure, method="POST", tool="configure_trade_workload", module=module.name,
-        description="Owner previews or applies equal-tonnage/custom-weight quotas per commander. Owner participation excludes direct transfers from carrier market orders. Rebalancing distributes remaining work without deleting deliveries. Apply requires the basis returned by preview. No in-game orders are placed.",
+        description="Owner chooses live loads, equal-tonnage quotas or custom weights. Live mode updates from acknowledged deliveries, free holds and available crew, with the final pickup assigned to one ship when it fits. Owner participation excludes estimated direct transfers from carrier market orders. Apply requires the current preview basis. No in-game orders are placed.",
         params={"action": {"type": "string", "default": "preview"}, "mode": {"type": "string", "default": "equal"},
                 "owner_hauls": {"type": "boolean", "default": True}, "shares": {"type": "object"}, "basis": {"type": "string"}})
     core.http.route("/api/trade/profit", preview, method="POST", tool="preview_trade_profit", module=module.name,
