@@ -100,3 +100,10 @@ warnings. Balance stays local. Omitted fuel keeps the old value and its original
 timestamp until the vehicle changes. See the Player Journal manual, section 14.
 
 `ModulesInfo.json`, `ShipLocker.json`, `Backpack.json`, `NavRoute.json` (the plotted route; a natural input for a route card), `Shipyard.json`, `Outfitting.json`. The watcher emits `journal.file.<Name>` for each when it changes.
+
+## Internal crew events
+
+`party.roster` carries the leader's current sanitized member list after accepting
+a party report and emitting `party.work`. Trade uses it to include new eligible
+commanders in active equal splits before party publishes its response. It does
+not fire from store publication, avoiding recursive allocation updates.

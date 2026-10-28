@@ -349,6 +349,14 @@ of future runs. Other shares stay proportional where those minimums allow.
 Zero-weight, away or stale members receive no new pickups. The owner flag is preserved.
 Starting an operation creates a default equal split if none is saved. Replacing
 the plan clears its split; previous_operation retains the previous workload.
+During active equal splits, `party.roster` includes ready newcomers once, after
+their incoming delivery report is reconciled and before the shared response.
+The saved split is rebuilt from remaining work, protecting assigned onboard cargo
+and the full outstanding quotas of absent/away members. Loading targets stay fixed
+after departure. New away members wait until ready; reconnects keep assignments.
+Custom splits require the owner to choose newcomer weights. Automatic changes
+record a workload history entry with action `join`; persistence/validation errors
+keep the old split, populate `trade.workload_join_error`, and retry on a later poll.
 Automatic sizing uses tonnes still to deliver to the carrier, including existing
 ship cargo. Only the new-purchase calculation deducts matching ship cargo.
 

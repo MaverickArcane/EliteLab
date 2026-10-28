@@ -208,13 +208,11 @@ try {
   const postMember = async (route, body) => {const response=await fetch(`http://127.0.0.1:${memberPort}${route}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); assert.equal(response.status,200);return response.json();};
   await postMember('/audit/ship', {cmdr:'CMDR Crew',capacity:200,count:0});
   await postMember('/api/party/join',{url:`http://127.0.0.1:${partyPort}`,code:partyCode});
-  // Explicitly rebalance when a new commander joins an already started job.
-  await evaluate("document.querySelector('[data-wl-refresh]').click();true");
-  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!document.querySelector('[data-wl-apply]').disabled && document.querySelector('[data-wl-preview]').textContent.includes('CMDR Crew')"))break;}
-  assert.equal(await evaluate("document.querySelector('[data-wl-order]').textContent"),'600 t');
-  await evaluate("document.querySelector('[data-wl-apply]').click();true");
+  // A mid-haul join receives an equal share without owner interaction.
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade.workload.members.some(m=>m.cmdr==='CMDR Crew' && m.loading_target===300)"))break;}
   assert.ok(await evaluate("Lab.state.trade.workload.members.some(m=>m.cmdr==='CMDR Crew' && m.loading_target===300)"));
+  assert.equal(await evaluate("document.querySelector('[data-wl-order]').textContent"),'600 t');
+  assert.ok(await evaluate("document.querySelector('[data-wl-message]').textContent.includes('split automatically')"));
 
   await send('Page.navigate',{url:`http://127.0.0.1:${memberPort}`});
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!!document.querySelector('[data-preset=\"Carrier ops\"]')"))break;}

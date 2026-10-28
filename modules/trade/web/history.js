@@ -72,7 +72,7 @@ export function mount(el) {
           let text;
           if(entry.kind==='delivery')text=`${entry.cmdr || 'Commander'}: ${entry.phase} ${fmt(entry.before)} -> ${fmt(entry.after)} t. Cumulative report accepted.`;
           else if(entry.kind==='correction')text=`${entry.cmdr || 'Commander'}: ${entry.phase} corrected ${fmt(entry.before)} -> ${fmt(entry.after)} t. ${entry.reason}`;
-          else if(entry.kind==='workload')text=`Workload updated: ${entry.mode}; owner ${entry.owner_hauls ? 'participating' : 'finishing existing cargo only'}.`;
+          else if(entry.kind==='workload')text=entry.action==='join' ? `${entry.cmdr || 'Commander'} joined: remaining work split automatically.` : `Workload updated: ${entry.mode}; owner ${entry.owner_hauls ? 'participating' : 'finishing existing cargo only'}.`;
           else text=`Job: ${entry.action}; ${entry.stage}${entry.paused ? ' (paused)' : ''}.`;
           const evidence=entry.last_entry;
           if(evidence)text+=` Latest local entry: ${evidence.kind==='manual'?'manual report':'journal '+evidence.kind}, ${fmt(evidence.tonnes)} t.`;

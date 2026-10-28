@@ -92,6 +92,33 @@ class WorkloadTests(unittest.TestCase):
         self.assertEqual([r["unloading_target"] for r in revised["members"]],[0,6000,6000])
         self.assertEqual(view(revised,op,self.members,self.plan)["loading"]["order_remaining"],10500)
 
+    def test_join_preserves_absent_shares_and_in_flight_loads(self):
+        saved = build(self.plan, None, self.members, {})
+        self.members[0].update(cargo_count=3500, cargo=[{"key":"gold", "count":3500}])
+        self.members[1]["stale"] = True
+        self.members.append({"id":"d", "cmdr":"New crew", "capacity":500, "cargo_count":0, "cargo":[]})
+        op = {"quantity":12000, "stage":"loading", "reports":{"b":{"loading":1000}}}
+        revised = build(self.plan, op, self.members, saved, saved, joining=True)
+        rows = {r["id"]:r for r in view(revised, op, self.members, self.plan)["members"]}
+        self.assertEqual(rows["b"]["loading_target"],4000)
+        self.assertEqual(rows["a"]["loading_remaining"],3500)
+        self.assertEqual(rows["c"]["loading_remaining"],2250)
+        self.assertEqual(rows["d"]["loading_remaining"],2250)
+        self.assertEqual(rows["d"]["loading_runs_left"],5)
+        self.assertEqual(sum(r["loading_target"] for r in revised["members"]),12000)
+        self.members[1]["stale"] = False
+        suggestion = recommend(self.plan, operation_view(op), self.members, workload=view(revised,op,self.members,self.plan))
+        self.assertGreater(next(r["next_buy"] for r in suggestion["members"] if r["id"]=="b"),0)
+
+    def test_join_after_departure_keeps_loading_targets(self):
+        saved = build(self.plan, None, self.members, {})
+        self.members.append({"id":"d", "cmdr":"New crew", "capacity":500})
+        for stage in ("transit", "unloading"):
+            op = {"quantity":12000,"stage":stage,"reports":{"a":{"loading":3500},"b":{"loading":4500},"c":{"loading":4000}}}
+            revised = build(self.plan, op, self.members, saved, saved, joining=True)
+            self.assertEqual([r["loading_target"] for r in revised["members"]],[4000,4000,4000,0])
+            self.assertEqual([r["unloading_target"] for r in revised["members"]],[3000]*4)
+
     def test_final_partial_load_top_up_and_progress_need_no_arithmetic(self):
         self.members[1]["capacity"]=752
         saved=build(self.plan,None,self.members,{})

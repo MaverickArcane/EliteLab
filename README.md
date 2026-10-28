@@ -79,7 +79,7 @@ loads, not the assigned share. Choose **Custom shares** for relative weights
 (2 receives twice the unfinished tonnes of 1; 0 sits out). **I haul too** includes
 the owner's direct transfers. Preview the split, then apply it; starting loading
 also saves the displayed choices if they have not been applied. The default is
-equal tonnes with owner participation. Join the crew first.
+equal tonnes with owner participation.
 
 The carrier buy-order quantity excludes the owner's remaining direct-transfer
 share. For 12,000 t divided among an owner and two friends, each gets 4,000 t and
@@ -91,9 +91,16 @@ estimates exclude crew payouts on tonnes the owner hauls directly.
 Each personal panel shows assigned/delivered/remaining tonnes and estimated
 loads left, including the final partial load. Pickup suggestions deduct cargo
 already aboard: 350 t left with 100 t aboard requests 250 t more, then delivery
-of 350 t. Saved shares survive disconnects and ship swaps; **Recalculate** and
-**Rebalance remaining work** explicitly redistribute unfinished work when crew
-join, leave or change participation. Completed deliveries remain credited.
+of 350 t. During an active equal split, new ready crew automatically receive a
+share of the remaining work. Completed deliveries, assigned cargo already aboard,
+and absent crew's reserved shares are kept. Arrival after departure only adds
+unloading work. Personal loads and suggested carrier order tonnes update for
+everyone; the owner still updates the order in game. Reconnecting with the same
+identity keeps the saved assignment.
+
+Custom splits keep the owner's chosen weights: choose the newcomer's share, then
+use **Recalculate** and **Rebalance remaining work**. These controls also let the
+owner redistribute work when someone leaves or changes participation.
 
 **Crew progress** shows both job targets and each commander's acknowledged
 contribution. A departing commander's deliveries remain in the roster. Telemetry

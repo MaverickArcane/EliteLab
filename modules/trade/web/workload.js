@@ -9,7 +9,7 @@ export function mount(el) {
     <div class="row"><label>Split <select data-wl-mode><option value="equal">Equal tonnes per commander</option><option value="custom">Custom shares</option></select></label><label class="chk"><input type="checkbox" data-wl-owner checked>I haul too (direct transfers)</label></div>
     <div data-wl-custom hidden><div class="note">Share weights: 1 each is equal tonnes; 2 gets twice as much as 1. Use 0 to sit out. Only connected, ready/hauling commanders receive new work.</div><div data-wl-inputs class="workload-shares"></div></div>
     <div data-wl-preview></div><div class="row"><button type="button" class="mini primary" data-wl-apply>Apply split</button><button type="button" class="mini" data-wl-refresh>Recalculate</button><span data-wl-message class="note" role="status"></span></div>
-    <div class="note">Saved shares stay fixed through ship changes and disconnects. Rebalancing keeps completed deliveries and assigned cargo already aboard, then splits the remaining work. Orders are placed in game.</div></section>`;
+    <div class="note">Equal splits include new crew automatically. Completed deliveries, assigned cargo aboard, and absent crew's remaining shares are kept. Custom splits need your approval. Ship changes and reconnects keep existing assignments. Update carrier orders in game when the suggested tonnes change.</div></section>`;
   const $ = selector => el.querySelector(selector);
   const settings = () => ({mode:$('[data-wl-mode]').value, owner_hauls:$('[data-wl-owner]').checked,
     shares:Object.fromEntries([...el.querySelectorAll('[data-wl-share]')].map(input=>[input.dataset.wlShare,Number(input.value)]))});
@@ -110,7 +110,11 @@ export function mount(el) {
         draw(p.workload); $('[data-wl-apply]').disabled=true; clearTimeout(u.timer);
         const assigned=new Set(saved.members.map(m=>m.id));
         const newcomers=members.filter(m=>!assigned.has(m.id) && !m.stale && m.activity!=='away');
-        if(!u.busy) $('[data-wl-message]').textContent=newcomers.length ? `${newcomers.map(m=>m.cmdr || 'A commander').join(', ')} joined after the split. Recalculate to include them.` : '';
+        const latest=[...(op?.history || [])].reverse().find(e=>e.kind==='workload');
+        const joined=latest?.action==='join' ? latest : null;
+        if(!u.busy) $('[data-wl-message]').textContent=S.trade?.workload_join_error || (newcomers.length
+          ? saved.mode==='custom' ? `${newcomers.map(m=>m.cmdr || 'A commander').join(', ')} joined. Choose their custom share, then rebalance.` : 'Including new crew in the equal split...'
+          : joined ? `${joined.cmdr || 'A commander'} joined: remaining work was split automatically. Check the updated carrier order tonnes.` : '');
       }
     },
     destroy(){u.destroyed=true;++u.generation;clearTimeout(u.timer);},

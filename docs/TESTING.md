@@ -125,3 +125,10 @@ whole-percentage rounding, payout conservation, bounds, impossible quotes,
 automatic meanPrice selection and absent references. Browser checks preserve
 expanded profit details across real job changes and remove cancelled-job progress
 even while its previous text is selected for copying.
+
+Mid-haul joining tests cover automatic equal shares, preserved deliveries and
+onboard cargo, reserved absent-member quotas, arrival during unloading, custom
+weights, away-to-ready transitions, ended jobs, failed persistence/retry, and
+reconnection without repeat allocation. The browser test joins an independent
+client and verifies assigned tonnes, personal loads, and updated carrier orders
+without clicking the owner's rebalance controls.

@@ -189,6 +189,94 @@ class HaulingSessionTests(unittest.TestCase):
         self.assertEqual(state["desk"]["assignment"]["loading_remaining"],150)
         self.assertEqual(self.owner.read_data("trade.json")["workload"]["owner_hauls"],False)
 
+    def test_new_join_gets_remaining_share_and_reconnect_does_not_rebalance(self):
+        self.report(self.crew,50,"j")
+        self.owner.store.set("journal","cargo",{"count":120,"items":[{"key":"gold","count":120}]})
+        newcomer = self.client("late")
+        party = newcomer.modules["party"].party
+        state = party.join(self.invite)
+        assignment = state["desk"]["assignment"]
+        self.assertGreater(assignment["loading_remaining"],0)
+        self.assertEqual(assignment["loading_runs_left"],1)
+        workload = self.owner.store.get("party","workload")
+        owner = next(r for r in workload["members"] if r["owner"])
+        self.assertEqual(owner["loading_remaining"],120)
+        self.assertEqual(workload["loading"]["order_remaining"],230)
+        self.assertEqual(self.owner.store.get("trade","operation")["loaded"],50)
+        saved = self.owner.read_data("trade.json")["workload"]
+        for _ in range(3):self.sync(newcomer)
+        party.leave()
+        newcomer = self.client("late")
+        newcomer.modules["party"].party.join(self.invite)
+        self.assertEqual(self.owner.read_data("trade.json")["workload"],saved)
+        joins = [e for e in self.owner.store.get("trade","operation")["history"] if e.get("action")=="join" and e.get("member_id")==party.member_id]
+        self.assertEqual(len(joins),1)
+
+    def test_new_join_during_unloading_only_adds_unloading_work(self):
+        self.report(self.crew,400,"k")
+        self.control("depart");self.control("unload")
+        self.sync(self.crew)
+        self.report(self.crew,80,"u",phase="unloading")
+        before = self.owner.store.get("trade","workload")
+        newcomer = self.client("late")
+        state = newcomer.modules["party"].party.join(self.invite)
+        self.assertEqual(state["desk"]["assignment"]["loading_target"],0)
+        self.assertEqual(state["desk"]["assignment"]["unloading_remaining"],80)
+        after = self.owner.store.get("trade","workload")
+        self.assertEqual([r["loading_target"] for r in after["members"][:-1]], [r["loading_target"] for r in before["members"]])
+        self.assertEqual(state["operation"]["unloaded"],80)
+
+    def test_custom_split_keeps_owner_weights_when_new_crew_join(self):
+        configure = self.owner.http.tools["configure_trade_workload"].fn
+        q = {"mode":"custom","owner_hauls":False,"shares":{self.crew.modules["party"].party.member_id:1}}
+        draft = configure(q)
+        configure({**q,"action":"apply","basis":draft["basis"]})
+        before = self.owner.read_data("trade.json")["workload"]
+        newcomer = self.client("late")
+        state = newcomer.modules["party"].party.join(self.invite)
+        self.assertIsNone(state["desk"]["assignment"])
+        self.assertEqual(self.owner.read_data("trade.json")["workload"],before)
+
+    def test_absent_crew_resume_reserved_share_after_someone_else_joins(self):
+        party = self.crew.modules["party"].party
+        before = self.sync(self.crew)["desk"]["assignment"]
+        party.leave()
+        self.client("late").modules["party"].party.join(self.invite)
+        state = party.join(self.invite)
+        self.assertEqual(state["desk"]["assignment"]["loading_target"],before["loading_target"])
+        self.assertEqual(state["desk"]["assignment"]["weight"],before["weight"])
+        self.assertEqual(state["desk"]["action"],"buy")
+        self.assertGreater(state["desk"]["quantity"],0)
+
+    def test_away_newcomer_gets_share_when_ready(self):
+        newcomer = self.client("late")
+        party = newcomer.modules["party"].party
+        party.activity = "away"
+        state = party.join(self.invite)
+        self.assertIsNone(state["desk"]["assignment"])
+        # Another arrival must not accidentally enroll the away member at zero.
+        self.client("later").modules["party"].party.join(self.invite)
+        state = self.sync(newcomer)
+        self.assertGreater(state["desk"]["assignment"]["loading_remaining"],0)
+
+    def test_join_after_cancellation_does_not_change_workload(self):
+        self.control("cancel")
+        before = self.owner.read_data("trade.json")["workload"]
+        self.client("late").modules["party"].party.join(self.invite)
+        self.assertEqual(self.owner.read_data("trade.json")["workload"],before)
+
+    def test_failed_automatic_split_keeps_saved_work_and_retries(self):
+        before = self.owner.read_data("trade.json")["workload"]
+        newcomer = self.client("late")
+        with patch.object(self.owner,"write_data",side_effect=OSError("disk unavailable")):
+            state = newcomer.modules["party"].party.join(self.invite)
+            self.assertIsNone(state["desk"]["assignment"])
+            self.assertEqual(self.owner.store.get("trade","workload"),before)
+            self.assertIn("disk unavailable",self.owner.store.get("trade","workload_join_error"))
+        state = self.sync(newcomer)
+        self.assertGreater(state["desk"]["assignment"]["loading_remaining"],0)
+        self.assertIsNone(self.owner.store.get("trade","workload_join_error"))
+
     def test_stale_workload_preview_and_member_mutation_are_rejected(self):
         configure=self.owner.http.tools["configure_trade_workload"].fn
         before=self.owner.store.get("trade","workload")

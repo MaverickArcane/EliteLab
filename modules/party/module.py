@@ -282,6 +282,9 @@ class Party:
                     raise ValueError("Party is full.")
                 self.members[mid] = {**report, "last_seen": utc(), "received": time.time(), "leader": False}
             self.core.bus.emit("party.work", {"id": mid, "report": report})
+            # Reconcile deliveries first, then let trade assign new crew using
+            # this report's roster and cargo before replying with shared work.
+            self.core.bus.emit("party.roster", self.shared()["members"])
             self.publish()
             return self.shared()
 

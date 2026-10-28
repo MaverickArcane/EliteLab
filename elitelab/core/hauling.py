@@ -43,7 +43,7 @@ def divide(total, weights, minimums=None):
     return result
 
 
-def build(plan, operation, members, settings, previous=None, fallback_quantity=None):
+def build(plan, operation, members, settings, previous=None, fallback_quantity=None, *, joining=False):
     if not plan:
         raise ValueError("Choose a route before splitting the workload.")
     total = (operation or {}).get("quantity") or plan.get("planned_quantity") or fallback_quantity
@@ -76,12 +76,27 @@ def build(plan, operation, members, settings, previous=None, fallback_quantity=N
         remaining = total - sum(delivered.values())
         if remaining < 0:
             raise ValueError("Reported deliveries exceed the job size. Resolve that before rebalancing.")
+        if joining and phase == "loading" and (operation or {}).get("stage") != "loading":
+            # A late arrival after departure only joins the unloading work.
+            targets[phase] = {mid: old_targets.get(mid, {}).get(phase + "_target", 0) for mid in known}
+            continue
         # Changing future participation must not strand an assigned load already
         # aboard. Keep weighted shares where possible, with those loads as floors.
         committed = {mid: min(cargo[mid], max(0, old_targets.get(mid, {}).get(phase + "_target", 0) - delivered[mid]))
                      if (operation or {}).get("stage") == phase else 0 for mid in known}
+        if joining:
+            for mid, m in known.items():
+                if m.get("stale") or m.get("activity") == "away":
+                    # Joining is not permission to release absent crew's quotas.
+                    committed[mid] = max(0, old_targets.get(mid, {}).get(phase + "_target", 0) - delivered[mid])
         portions = divide(remaining, weights, committed)
         targets[phase] = {mid: delivered[mid] + portions[mid] for mid in known}
+    if joining:
+        for mid, m in known.items():
+            if mid in old_targets and (m.get("stale") or m.get("activity") == "away"):
+                # Preserve participation too, so returning crew can pick up
+                # their reserved remainder without a manual rebalance.
+                weights[mid] = old_targets[mid]["weight"]
     rows = [{"id": mid, "cmdr": m.get("cmdr") or "Unknown commander", "owner": bool(m.get("leader")),
              "capacity": m.get("capacity"), "weight": weights[mid],
              "loading_target": targets["loading"][mid], "unloading_target": targets["unloading"][mid]}
