@@ -10,6 +10,7 @@ from http.cookies import SimpleCookie
 import mimetypes
 import os
 import queue
+import socket
 import threading
 import time
 import urllib.parse
@@ -233,14 +234,28 @@ def _put(qu, msg):
         pass
 
 
+class ExclusiveHTTPServer(ThreadingHTTPServer):
+    """Never let a second Windows process take over a listening port."""
+    allow_reuse_address = os.name != "nt"
+    daemon_threads = True
+
+    def server_bind(self):
+        if os.name == "nt":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 class HttpServer:
     def __init__(self, core):
         self.core = core
         self.srv = None
 
+    def bind(self, host, port):
+        self.srv = ExclusiveHTTPServer((host, port), make_handler(self.core))
+
     def serve(self, host, port, *, open_browser=False):
-        self.srv = ThreadingHTTPServer((host, port), make_handler(self.core))
-        self.srv.daemon_threads = True
+        if self.srv is None:
+            self.bind(host, port)
         try:
             if open_browser:
                 browser_host = "127.0.0.1" if host == "0.0.0.0" else host

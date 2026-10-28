@@ -55,11 +55,15 @@ def main(argv=None):
 
     logging.basicConfig(level=logging.DEBUG if getattr(args, "verbose", False) else logging.INFO,
                         format="%(asctime)s %(name)s %(levelname)s %(message)s", stream=sys.stderr)
-    from .core import Core, config
-    if getattr(args, "journals", None):
-        config.JOURNAL_DIR = args.journals
-    Core().start(getattr(args, "host", None), getattr(args, "port", None),
-                 open_browser=getattr(args, "open_browser", False))
+    from .instance import serve
+    for key in ("host", "port", "journals", "open_browser"):
+        if not hasattr(args, key):
+            setattr(args, key, False if key == "open_browser" else None)
+    try:
+        serve(args)
+    except (OSError, RuntimeError) as error:
+        print(str(error), file=sys.stderr)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":

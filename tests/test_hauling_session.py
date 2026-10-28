@@ -27,7 +27,7 @@ class HaulingSessionTests(unittest.TestCase):
         state = self.owner.modules["party"].party.host({"bind": "127.0.0.1", "port": port})
         self.invite = {"url": f"http://127.0.0.1:{port}", "code": state["code"]}
         self.owner.http.tools["plan_carrier_trade"].fn({"commodity": "gold", "source": "Buy / Sol", "destination": "Sell / Lave",
-            "target": 400, "planned_quantity": 400, "source_price": 100, "destination_price": 300, "crew_enabled": True,
+            "target": 400, "planned_quantity": 400, "source_price": 100, "destination_price": 300, "crew_enabled": True, "carrier_mean_price":100,
             "carrier_market_id": 123, "source_market_id": 456, "destination_market_id": 789})
         self.op = self.control("start")
         for c in (self.crew, self.other):
@@ -53,6 +53,48 @@ class HaulingSessionTests(unittest.TestCase):
 
     def sync(self, core):
         return core.modules["party"].party.report_work({"activity": "hauling"})
+
+    def test_close_party_notifies_connected_members_and_releases_port(self):
+        self.report(self.crew, 50, "p")
+        leader = self.owner.modules["party"].party
+        leader.leave()
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline and any(c.modules["party"].party.mode != "idle" for c in (self.crew, self.other)):
+            time.sleep(.02)
+        for client in (self.crew, self.other):
+            state = client.store.get("party")
+            self.assertEqual(state["mode"], "idle")
+            self.assertIsNone(state["operation"])
+            self.assertIsNone(state["plan"])
+            self.assertIn("closed the party", state["error"])
+        self.assertEqual(self.crew.store.get("party", "work")["loading"], 50)
+        self.assertIsNone(leader.server)
+        new = leader.host({"bind":"127.0.0.1", "port":int(self.invite["url"].rsplit(":",1)[1])})
+        self.assertNotEqual(new["code"], self.invite["code"])
+        self.crew.modules["party"].party.join({"url":self.invite["url"], "code":new["code"]})
+        self.assertEqual(self.crew.store.get("party", "mode"), "member")
+
+    def test_member_that_misses_closure_detaches_when_room_is_recreated(self):
+        leader = self.owner.modules["party"].party
+        member = self.crew.modules["party"].party
+        member.stop.set()
+        self.other.modules["party"].party.leave()
+        with patch.object(self.owner.modules["party"].instance, "CLOSE_GRACE_SECONDS", .01):
+            leader.leave()
+        leader.host({"bind":"127.0.0.1", "port":int(self.invite["url"].rsplit(":",1)[1])})
+        member.synchronize(member.generation, "temporary failure")
+        self.assertEqual(member.mode, "idle")
+        self.assertIn("no longer valid", self.crew.store.get("party", "error"))
+        self.assertEqual(len(leader.members), 0)
+
+    def test_temporary_network_loss_does_not_end_membership(self):
+        party = self.crew.modules["party"].party
+        with patch.object(self.crew.modules["party"].instance, "exchange", side_effect=OSError("offline")):
+            party.synchronize(party.generation, "temporary failure")
+        self.assertEqual(party.mode, "member")
+        self.assertEqual(self.crew.store.get("party", "operation")["id"], self.op["id"])
+        self.sync(self.crew)
+        self.assertIsNone(self.crew.store.get("party", "error"))
 
     def test_full_session_repeated_requests_ship_change_disconnect_and_restart(self):
         first = self.report(self.crew, 200, "a")

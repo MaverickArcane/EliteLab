@@ -44,6 +44,16 @@ class Operations:
                     raise ValueError("Finish or cancel the current trade first.")
                 if not plan or plan["mode"] != "load" or not plan.get("source") or not plan.get("destination"):
                     raise ValueError("Choose a complete buy/sell route and loading plan first.")
+                if plan.get("crew_enabled") and not plan.get("carrier_mean_price"):
+                    raise ValueError("Refresh the carrier 100% price reference before starting. Crew prices must use in-game percentage settings.")
+                if plan.get("crew_enabled") and plan.get("carrier_mean_source") in ("Ardent / EDDN", "Local market journal"):
+                    try:
+                        reference_time = datetime.fromisoformat(plan.get("carrier_mean_at", "").replace("Z", "+00:00"))
+                        age = (datetime.now(timezone.utc) - reference_time).total_seconds()
+                    except (ValueError, TypeError):
+                        age = float("inf")
+                    if not 0 <= age <= 86400:
+                        raise ValueError("The carrier 100% price reference is stale. Refresh carrier pricing before starting.")
                 qty = plan.get("planned_quantity") or (self.desk.calculate() or {}).get("remaining")
                 if not qty or qty < 1 or qty > plan["target"]:
                     raise ValueError("Set a positive operation size and a valid carrier target first.")
@@ -57,7 +67,7 @@ class Operations:
                 if plan.get("crew_enabled"):
                     plan["crew_split"] = split_profit(plan["source_price"],
                         plan["destination_price"] - (plan["bonus_per_ton"] if plan.get("price_includes_bonus") else 0),
-                        qty, plan["crew_load_percent"], plan["crew_unload_percent"])
+                        qty, plan["crew_load_percent"], plan["crew_unload_percent"], plan.get("carrier_mean_price"))
                 op = {"id": secrets.token_hex(16), "stage": "loading", "paused": False,
                       "quantity": qty, "baseline_stock": plan["target"] - qty, "notes": "",
                       "reports": {}, "started_at": timestamp(), "updated_at": timestamp()}

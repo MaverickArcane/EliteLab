@@ -286,7 +286,7 @@ class PartyTests(unittest.TestCase):
     def test_shared_operation_deliveries_status_and_reconnect(self):
         tools = self.leader_core.http.tools
         tools["plan_carrier_trade"].fn({"commodity":"gold", "source":"Buy / Sol", "destination":"Sell / Lave",
-            "source_price":100, "destination_price":200, "target":1000, "planned_quantity":1000, "crew_enabled":True})
+            "source_price":100, "destination_price":200, "target":1000, "planned_quantity":1000, "crew_enabled":True, "carrier_mean_price":100})
         op = tools["manage_carrier_operation"].fn({"action":"start"})["operation"]
         joined = self.member.join({"url":self.url,"code":self.state["code"]})
         self.assertEqual(joined["operation"]["id"], op["id"])

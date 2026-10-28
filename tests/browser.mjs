@@ -81,7 +81,7 @@ try {
   if(process.env.ELITELAB_SCREENSHOT_DIR){fs.mkdirSync(process.env.ELITELAB_SCREENSHOT_DIR,{recursive:true});fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'party-desktop.png'),Buffer.from(partyDesktop.data,'base64'));fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'party-mobile.png'),Buffer.from(partyMobile.data,'base64'));}
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   // A route is one paired result, with both prices and the distance between stops.
-  await evaluate(`window.__realApi=Lab.api;window.__routeQueries=[];Lab.api=async(path,q)=>{if(path!=='/api/trade/opportunities')return window.__realApi.call(Lab,path,q);window.__routeQueries.push(q);return {source:'Ardent / EDDN (fixture)',queried_at:new Date().toISOString(),screened:1,available:1,commodities:[{key:'gold',name:'Gold'}],warnings:[],outdated:false,rows:[{id:'test-op',commodity:'gold',name:'Gold',stock:300,stock_needs_check:false,quantity:200,runs:2,value:40000,value_label:'Gross spread',per_ton:200,route_distance:25,reported_high:300,sell_percent:100,purchase_cost:20000,buy:{station:'Source Port',system:'Lave',price:100,volume:400,observed_at:new Date().toISOString(),distance:12,arrival_ls:300,pad:'L'},sell:{station:'Destination Port',system:'Sol',price:300,volume:200,observed_at:new Date().toISOString(),distance:30,arrival_ls:400,pad:'L'}}]}};document.querySelector('[data-edit-operation]').open=false;document.querySelector('[data-inventory]').open=false;document.querySelector('[data-refresh]').click();true`);
+  await evaluate(`window.__realApi=Lab.api;window.__routeQueries=[];Lab.api=async(path,q)=>{if(path!=='/api/trade/opportunities')return window.__realApi.call(Lab,path,q);window.__routeQueries.push(q);return {source:'Ardent / EDDN (fixture)',queried_at:new Date().toISOString(),screened:1,available:1,commodities:[{key:'gold',name:'Gold'}],warnings:[],outdated:false,rows:[{id:'test-op',commodity:'gold',name:'Gold',mean_price:100,stock:300,stock_needs_check:false,quantity:200,runs:2,value:40000,value_label:'Gross spread',per_ton:200,route_distance:25,reported_high:300,sell_percent:100,purchase_cost:20000,buy:{station:'Source Port',system:'Lave',price:100,volume:400,observed_at:new Date().toISOString(),distance:12,arrival_ls:300,pad:'L'},sell:{station:'Destination Port',system:'Sol',price:300,volume:200,observed_at:new Date().toISOString(),distance:30,arrival_ls:400,pad:'L'}}]}};document.querySelector('[data-edit-operation]').open=false;document.querySelector('[data-inventory]').open=false;document.querySelector('[data-refresh]').click();true`);
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!!document.querySelector('[data-select-op]:not(:disabled)')"))break;}
   assert.equal(await evaluate("document.querySelector('[data-profile]')===null"),true);
   assert.ok(await evaluate("document.querySelector('[data-opportunities]').textContent.includes('Source Port') && document.querySelector('[data-opportunities]').textContent.includes('Destination Port') && document.querySelector('[data-opportunities]').textContent.includes('25 Ly between stops')"));
@@ -98,14 +98,14 @@ try {
   assert.equal(await evaluate("Lab.util.inaraMarket('', '')"),null);
   assert.equal(await evaluate("document.querySelector('[data-opportunities] [data-total-profit]').textContent"),'40,000 Cr');
   assert.equal(await evaluate("document.querySelector('[data-opportunities] [data-owner-profit]').textContent"),'20,000 Cr');
-  assert.equal(await evaluate("document.querySelector('[data-opportunities] [data-carrier-buy]').textContent"),'150 Cr/t');
-  assert.equal(await evaluate("document.querySelector('[data-opportunities] [data-carrier-sell]').textContent"),'250 Cr/t');
+  assert.equal(await evaluate("document.querySelector('[data-opportunities] [data-carrier-buy]').textContent"),'150% | 150 Cr/t');
+  assert.equal(await evaluate("document.querySelector('[data-opportunities] [data-carrier-sell]').textContent"),'250% | 250 Cr/t');
   const searchesBeforeSplit = await evaluate('window.__routeQueries.length');
   await evaluate("document.querySelector('[data-crew-load]').value='10';document.querySelector('[data-crew-unload]').value='20';document.querySelector('[data-crew-load]').dispatchEvent(new Event('input'));true");
   await sleep(100);
   assert.equal(await evaluate("document.querySelector('[data-opportunities] [data-owner-profit]').textContent"),'28,000 Cr');
-  assert.equal(await evaluate("document.querySelector('[data-opportunities] [data-carrier-buy]').textContent"),'120 Cr/t');
-  assert.equal(await evaluate("document.querySelector('[data-opportunities] [data-carrier-sell]').textContent"),'260 Cr/t');
+  assert.equal(await evaluate("document.querySelector('[data-opportunities] [data-carrier-buy]').textContent"),'120% | 120 Cr/t');
+  assert.equal(await evaluate("document.querySelector('[data-opportunities] [data-carrier-sell]').textContent"),'260% | 260 Cr/t');
   assert.equal(await evaluate('window.__routeQueries.length'),searchesBeforeSplit);
   await evaluate("document.querySelector('[data-crew-load]').value='90';document.querySelector('[data-crew-load]').dispatchEvent(new Event('input'));true");
   await sleep(100);
@@ -136,7 +136,7 @@ try {
   assert.ok(await evaluate("document.querySelector('.trade-toolbar [data-radius]') !== null && document.querySelector('[data-context]').textContent.includes('Both stops: within 25 Ly')"));
   // Manage the trade through owner controls and report actual delivered tonnage.
   await evaluate("document.querySelector('[data-trade-tab=operation]').click();document.querySelector('[data-edit-operation]').open=true;true");
-  await evaluate(`(() => {const f=document.querySelector('[data-trade-plan]');f.elements.source.value='Source Port / Lave';f.elements.destination.value='Destination Port / Sol';f.elements.target.value='1300';f.elements.planned_quantity.value='1000';f.elements.crew_enabled.checked=true;f.requestSubmit();return true;})()`);
+  await evaluate(`(() => {const f=document.querySelector('[data-trade-plan]');f.elements.source.value='Source Port / Lave';f.elements.destination.value='Destination Port / Sol';f.elements.target.value='1300';f.elements.planned_quantity.value='1000';f.elements.crew_enabled.checked=true;f.elements.carrier_mean_price.value='100';f.requestSubmit();return true;})()`);
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade?.plan?.planned_quantity===1000"))break;}
   // Workload previews exclude the owner's direct-transfer share and preserve typed weights.
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[data-wl-order]')?.textContent==='500 t'"))break;}
@@ -180,6 +180,11 @@ try {
   await evaluate("document.querySelector('[data-delivery] [name=tonnes]').value='100';document.querySelector('[data-delivery]').requestSubmit();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade?.operation?.loaded===100"))break;}
   assert.equal(await evaluate('Lab.state.trade.operation.loaded'),100);
+  await evaluate("document.querySelector('[data-op-details=prices]').open=true;document.querySelector('[data-op-details=reports]').open=true;true");
+  await evaluate("Lab.post('/api/trade/operation',{action:'notes',id:Lab.state.trade.operation.id,notes:'Updated while profit details are open.'})");
+  await reportGuest();await sleep(1200);
+  assert.ok(await evaluate("document.querySelector('[data-operation]').textContent.includes('Updated while profit details are open.')"));
+  assert.ok(await evaluate("document.querySelector('[data-op-details=prices]').open && document.querySelector('[data-op-details=reports]').open"));
   assert.equal(await evaluate('Lab.state.trade.inventory.gold.stock'),300);
   await evaluate("document.querySelector('[data-op-action=pause]').click();true");
   for(let i=0;i<30;i++){await sleep(100);if(await evaluate("Lab.state.trade.operation.paused"))break;}
@@ -216,6 +221,7 @@ try {
   await evaluate("document.querySelector('[data-preset=\"Carrier ops\"]').click();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[data-value=action]')?.textContent==='Buy your next load'"))break;}
   assert.equal(await evaluate("document.querySelector('[data-value=action]').textContent"),'Buy your next load');
+  assert.ok(await evaluate("!document.querySelector('[data-party-leave]').hidden && !document.querySelector('[data-party-leave]').closest('details') && document.querySelector('[data-party-leave]').textContent==='Leave party'"));
   assert.equal(await evaluate("document.querySelector('[data-value=quantity]').textContent"),'200 t');
   assert.equal(await evaluate("document.querySelector('[data-value=rate]').textContent"),'50 Cr');
   assert.equal(await evaluate("document.querySelector('[data-value=run-pay]').textContent"),'10,000 Cr');
@@ -297,15 +303,20 @@ try {
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate('Lab.state.trade.operation===null'))break;}
   assert.equal(await evaluate('Lab.state.trade.operation'),null);
   assert.equal(await evaluate("document.querySelector('[data-op-action=start]').textContent"),'Start loading');
+  assert.ok(await evaluate("document.querySelector('[data-crew-summary]').textContent.includes('not started') && !document.querySelector('[data-crew-summary] progress')"));
   await evaluate("const ownerToggle=document.querySelector('[data-wl-owner]');if(ownerToggle.checked)ownerToggle.click();true");
   await evaluate("document.querySelector('[data-op-action=start]').click();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade.operation?.stage==='loading'"))break;}
   assert.notEqual(await evaluate('Lab.state.trade.operation.id'),endedOperation);
   assert.equal(await evaluate('Lab.state.trade.operation.quantity'),1000);
   assert.equal(await evaluate('Lab.state.trade.workload.owner_hauls'),false);
+  await evaluate("const range=document.createRange();range.selectNodeContents(document.querySelector('[data-crew-summary]'));getSelection().removeAllRanges();getSelection().addRange(range);true");
   await evaluate("document.querySelector('[data-op-action=cancel]').click();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade.operation?.stage==='cancelled'"))break;}
   assert.equal(await evaluate("document.querySelector('[data-op-action=start]').textContent"),'Start new loading');
+  assert.ok(await evaluate("document.querySelector('[data-crew-summary]').textContent.includes('Trade cancelled') && !document.querySelector('[data-crew-summary] progress')"));
+  assert.equal(await evaluate("document.querySelector('[data-crew-roster]').textContent"),'');
+  await evaluate("getSelection().removeAllRanges();true");
   await evaluate("document.querySelector('[data-party-leave]').click();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.party?.mode==='idle'"))break;}
   assert.equal(await evaluate('Lab.state.party.mode'),'idle');
@@ -352,5 +363,12 @@ try {
   const wishlistAfter=await (await fetch(`http://127.0.0.1:${port}/api/materials/wishlist`)).json();
   const results={desktop:before,inputAfter,engineeringCards,mobile,crossOrigin,wishlistAfter,browserExceptions:errors};
   assert.equal(inputAfter.name,'arsenic'); assert.equal(inputAfter.qty,'5'); assert.equal(inputAfter.focus,'mat-q'); assert.equal(mobile.bodyWidth,390); assert.equal(wishlistAfter.wishlist[0].need,10); assert.deepEqual(errors,[]); assert.deepEqual(before.renderErrors,[]);console.log(JSON.stringify(results,null,2));
+  await send('Page.navigate',{url:`http://127.0.0.1:${port}`});
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!!document.querySelector('#app-quit') && !!window.Lab?.post && document.querySelectorAll('#grid .card').length>1"))break;}
+  await evaluate("document.querySelector('#app-quit').click();true");
+  for(let i=0;i<30;i++){await sleep(100);if(await evaluate("document.querySelector('#h-live').textContent==='stopped'"))break;}
+  assert.equal(await evaluate("document.querySelector('#h-live').textContent"),'stopped');
+  assert.equal(await evaluate("document.querySelectorAll('#grid .card').length"),1);
+  assert.deepEqual(errors,[]);
   await send('Browser.close').catch(()=>{});
 } finally {ws?.close();server.kill();memberServer?.kill();chrome.kill();attacker.close();joinServer?.close();}

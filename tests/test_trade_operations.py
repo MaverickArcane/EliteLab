@@ -11,7 +11,7 @@ class OperationTests(unittest.TestCase):
     def setUp(self):
         trade_tests.TradeTests.setUp(self)
         self.call("plan_carrier_trade", commodity="gold", source="Buy Port / Sol", destination="Sell Port / Lave",
-                  source_price=100, destination_price=200, target=1440, planned_quantity=1000, crew_enabled=True)
+                  source_price=100, destination_price=200, target=1440, planned_quantity=1000, crew_enabled=True, carrier_mean_price=100)
 
     def control(self, action, **q):
         op = self.core.store.get("trade", "operation")
@@ -19,6 +19,16 @@ class OperationTests(unittest.TestCase):
 
     def report(self, op, loading=0, unloading=0):
         self.core.bus.emit("party.work", {"id": "a"*32, "report": {"cmdr": "Hauler", "work": {"operation_id": op["id"], "loading": loading, "unloading": unloading}}})
+
+    def test_start_requires_carrier_percentage_reference(self):
+        self.desk.data['plan']['carrier_mean_price']=0
+        with self.assertRaisesRegex(ValueError, '100% price reference'):
+            self.call('manage_carrier_operation', action='start')
+
+    def test_start_rejects_stale_online_percentage_reference(self):
+        self.desk.data['plan'].update(carrier_mean_source='Ardent / EDDN',carrier_mean_at='2020-01-01T00:00:00Z')
+        with self.assertRaisesRegex(ValueError, 'reference is stale'):
+            self.control('start')
 
     def test_owner_stages_preserve_baseline_and_order_prices(self):
         state = self.control("start")

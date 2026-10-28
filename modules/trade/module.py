@@ -207,7 +207,7 @@ class Trade:
         split = None
         if p.get("crew_enabled") and basis == "known":
             split = split_profit(p["source_price"], market_sell, p.get("planned_quantity") or hauling,
-                                 p["crew_load_percent"], p["crew_unload_percent"])
+                                 p["crew_load_percent"], p["crew_unload_percent"], p.get("carrier_mean_price"))
             carrier_margin = split["owner_per_ton"]
         return {"profit_split": split, "stock": stock, "own_cargo": own, "own_committed": committed, "remaining": remaining,
                 "to_haul": hauling, "ordered": ordered, "uncovered": max(0, hauling - ordered) if hauling is not None else None,
@@ -252,6 +252,9 @@ class Trade:
         if not isinstance(q.get("crew_enabled", False), bool):
             raise ValueError("crew_enabled must be true or false.")
         p["crew_enabled"] = q.get("crew_enabled", False)
+        p["carrier_mean_price"] = number(q.get("carrier_mean_price", 0) or 0, "100% carrier price")
+        p["carrier_mean_source"] = text(q.get("carrier_mean_source", "manual") or "manual", "Price reference source")
+        p["carrier_mean_at"] = text(q.get("carrier_mean_at", "") or "", "Price reference time")
         p["planned_quantity"] = number(q.get("planned_quantity", 0), "Planned quantity", 1000000)
         p["crew_load_percent"] = number(q.get("crew_load_percent", 25), "Loading share", 100)
         p["crew_unload_percent"] = number(q.get("crew_unload_percent", 25), "Unloading share", 100)
@@ -260,7 +263,7 @@ class Trade:
                 raise ValueError("Both station prices must be known to calculate crew order prices.")
             sell = p["destination_price"] - (p["bonus_per_ton"] if p["price_includes_bonus"] else 0)
             p["crew_split"] = split_profit(p["source_price"], sell, p["planned_quantity"] or None,
-                                          p["crew_load_percent"], p["crew_unload_percent"])
+                                          p["crew_load_percent"], p["crew_unload_percent"], p.get("carrier_mean_price"))
             p["carrier_price"] = p["crew_split"]["carrier_buy_price" if p["mode"] == "load" else "carrier_sell_price"]
             p["carrier_price_known"] = True
         with self.lock:
@@ -338,7 +341,7 @@ class Trade:
                     return
                 d["markets"][mid] = {"market_id": ev["MarketID"], "station": ev.get("StationName"), "system": ev.get("StarSystem"),
                     "timestamp": stamp, "items": [{"key": norm(i.get("Name")), "name": i.get("Name_Localised") or norm(i.get("Name")),
-                    "buy": i.get("BuyPrice", 0), "sell": i.get("SellPrice", 0), "stock": i.get("Stock", 0), "demand": i.get("Demand", 0)} for i in ev.get("Items", [])]}
+                    "mean_price": i.get("MeanPrice"), "buy": i.get("BuyPrice", 0), "sell": i.get("SellPrice", 0), "stock": i.get("Stock", 0), "demand": i.get("Demand", 0)} for i in ev.get("Items", [])]}
                 d["markets"] = dict(sorted(d["markets"].items(), key=lambda kv: kv[1]["timestamp"])[-100:])
             elif e == "CarrierTradeOrder":
                 if ev.get("BlackMarket") or (d["carrier_id"] and ev.get("CarrierID") != d["carrier_id"]):
@@ -466,6 +469,9 @@ class Trade:
 def setup(core, module):
     desk = Trade(core)
     profiles = MarketProfiles(core, desk)
+    core.http.route("/api/trade/price-reference", profiles.price_reference, tool="get_carrier_price_reference", module=module.name,
+        description="Retrieve the newest commodity meanPrice from local journals or Ardent/EDDN reports within 24 hours. This is a reported reference for the carrier 100% setting, not the average of station buy/sell prices. Live in-game prices take precedence.",
+        params={"commodity":{"type":"string","required":True}})
     operations = Operations(core, desk)
     module.operations = operations
     diagnostics = Diagnostics(core, desk)
@@ -510,6 +516,9 @@ def setup(core, module):
         params={**{k: {"type": "string", "description": k, "required": k == "commodity"} for k in ("commodity", "source", "destination", "mode")},
                 **{k: {"type": "integer", "description": k, "default": 0} for k in ("target", "ship_capacity", "source_price", "carrier_price", "destination_price", "bonus_per_ton")},
                 **{k: {"type": "integer", "default": 0, "description": "Verified market ID for automatic crew delivery matching; 0 is unknown."} for k in ("source_market_id", "destination_market_id", "carrier_market_id")},
+                "carrier_mean_price": {"type":"integer", "default":0, "description":"Current commodity price at the carrier's 100% setting; 0 means unknown. Used for whole-percentage carrier prices."},
+                "carrier_mean_source": {"type":"string", "description":"Source of the 100% price reference."},
+                "carrier_mean_at": {"type":"string", "description":"Observation time for the 100% price reference."},
                 "crew_enabled": {"type": "boolean", "default": False, "description": "Derive both carrier order prices from station prices and the crew shares. Excludes personal bonuses."},
                 "crew_load_percent": {"type": "integer", "default": 25, "description": "Percent of route spread paid to loading haulers."},
                 "crew_unload_percent": {"type": "integer", "default": 25, "description": "Percent paid to unloading haulers; both shares together must not exceed 100."},

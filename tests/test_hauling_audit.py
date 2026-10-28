@@ -15,7 +15,7 @@ class HaulingAuditTests(unittest.TestCase):
     def setUp(self):
         trade_tests.TradeTests.setUp(self)
         self.call("plan_carrier_trade", commodity="gold", source="Buy / Sol", destination="Sell / Lave",
-                  source_price=100, destination_price=300, target=10440, planned_quantity=10000, crew_enabled=True)
+                  source_price=100, destination_price=300, target=10440, planned_quantity=10000, crew_enabled=True, carrier_mean_price=100)
         self.op = self.call("manage_carrier_operation", action="start")["operation"]
         self.mid = "a"*32
 

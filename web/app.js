@@ -368,7 +368,7 @@
 
   function connect() {
     const live = document.getElementById('h-live');
-    const es = new EventSource('/events');
+    const es = Lab.events = new EventSource('/events');
     es.addEventListener('snapshot', e => { applySnapshot(JSON.parse(e.data)); live.classList.add('live'); });
     es.addEventListener('state', e => {
       const m = JSON.parse(e.data);
@@ -421,6 +421,16 @@
     }
     banner.textContent = `No journal files found in ${health.journal_dir}. Start Elite Dangerous, or set ELITELAB_JOURNAL_DIR to your journal folder and restart EliteLab. In Docker, mount the folder read-only at /journals.`;
   }
-  setInterval(() => checkHealth().catch(() => {}), 30000);
+  const healthTimer=setInterval(() => checkHealth().catch(() => {}), 30000);
+  document.getElementById('app-quit').onclick=async e=>{
+    const button=e.currentTarget;button.disabled=true;
+    try {
+      await Lab.post('/api/shutdown');
+      Lab.events?.close();clearInterval(healthTimer);Object.keys(mounted).forEach(unmountCard);
+      document.getElementById('h-live').textContent='stopped';
+      document.getElementById('h-live').classList.remove('live');
+      grid.innerHTML='<section class="card" style="grid-column:1/-1"><h2>EliteLab stopped</h2><p>The party is closing. You can close this tab and use Start EliteLab to launch again.</p></section>';
+    } catch(error){Lab.toast(error.message,'bad');button.disabled=false;}
+  };
   boot();
 })();

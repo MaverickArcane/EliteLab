@@ -25,6 +25,12 @@ Cards stack vertically on narrow screens, keeping commander, location, and ship 
 
 </details>
 
+Opening **Start EliteLab** again reuses the running dashboard. Starting a different
+copy or changed build asks you to stop the existing instance first. The startup
+terminal prints the exact app folder. Use **Quit EliteLab** in the dashboard footer
+or Ctrl+C in that terminal to stop the app and close its party; closing a browser
+tab alone does not stop the server. Windows dashboard and party ports are exclusive.
+
 ## What it does
 
 | Module | Dashboard card(s) | AI tools |
@@ -96,6 +102,14 @@ prices, excludes expenses/bonuses, and is not a verified credit balance.
 The roster also includes compact ship/flight, cargo, fuel and shield readings;
 critical alerts are highlighted and disconnected readings are marked stale.
 
+Closing a party sends a terminal response to connected clients before releasing
+its listener (up to three seconds). Members return to the join screen and keep
+saved deliveries. If an offline client misses that response, it retains explicitly
+stale evidence while retrying; an expired invitation detaches it when a new room
+appears. **Leave party** remains at the top of Crew progress. Prepared and ended
+trades have distinct messages, and expanded profit/history sections survive live
+updates.
+
 **Delivery history & corrections**, under **Carrier job > Current job**, shows
 accepted reports, their latest local journal/manual evidence, stage changes and
 owner corrections. To fix a mistaken report, the owner chooses a commander and
@@ -149,16 +163,27 @@ manual minimum to browse routes without an executable loading quantity. **Adjust
 ship capacity and optional personal bonuses. Physical stock, ship cargo and
 orders stay separate. Plans do not place orders in game.
 
+Carrier orders show the **percentage to set in game**, expected Cr/t, and crew-only
+tonnes. Route reports supply the commodity's `meanPrice` reference automatically.
+**Refresh carrier pricing** uses the newest local or Ardent/EDDN reference within
+24 hours. Its source and time are shown. If the in-game 100% price differs, enter
+that value under **Adjust operation** and save before starting. Missing references
+remain target estimates; automatic crew pricing cannot start without a reference.
+The in-game displayed price takes precedence over community reports.
+
 **Crew profit split** starts at 25% for loading and 25% for unloading, leaving
 50% to the carrier. Edit either crew share to recalculate every result without
 querying markets again. **Total route profit** is the full station-to-station
 spread; **Your carrier profit** deducts both crew payments. Both exclude fuel
 and fees. Each leg shows the carrier order price, hauler earnings per tonne and
-the total paid for that leg, with a copy-price button.
+the total paid for that leg, with a Copy % button.
 
 Carrier buy price = station buy price + loading reward. Carrier sell price =
-station sell price - unloading reward. Rewards are rounded down to whole credits
-per tonne; the remainder stays with the carrier. These are aggregate crew shares,
+station sell price - unloading reward. These are target prices. Actual carrier
+orders use the nearest whole percentage
+settings within the planner's 5%-1000% range and within the station-to-station
+spread. The resulting prices determine crew payouts and owner profit; the requested
+split may shift slightly after rounding. These are aggregate crew shares,
 paid by tonnage hauled, not equal payments per connected member. **Use route**
 saves the chosen split and full operation quantity. In **Adjust operation**,
 auto crew pricing chooses the corresponding order price for Load or Unload.

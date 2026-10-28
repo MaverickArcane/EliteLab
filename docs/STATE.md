@@ -412,3 +412,36 @@ unrelated journals, credit balances and filesystem paths are not exported.
 Saved local raw work remains exportable after leaving. If its job is unavailable
 or differs from the exported job, pending acknowledgement is null (unknown),
 not a claim that those deliveries were accepted.
+
+
+Party closure and process ownership:
+`party.closing` is true during the bounded close handshake. Authenticated reports
+then receive `{closed: true, members: [], plan: null, operation: null}`. The leader
+waits for connected members or three seconds before releasing its listener.
+`exchange` raises a terminal exception for closure or a rejected invitation;
+`synchronize` clears membership/remote data and advances the generation, preserving
+local work. Temporary network failures retain retryable stale state. Older clients
+must update to understand the close response.
+
+The CLI holds a user-wide OS file lock under `~/.elitelab/instance.lock` through
+startup and shutdown. Its metadata identifies PID, dashboard URL, source folder
+and source fingerprint. Repeat launches reuse the same ready process; changed
+folders/builds are rejected. `ELITELAB_INSTANCE_DIR` explicitly isolates an
+independent profile, primarily for tests. Legacy dashboard ports are checked for
+the default profile. Windows HTTP listeners use SO_EXCLUSIVEADDRUSE. Core binds
+before module loading or journal replay and runs shutdown callbacks on exit.
+Health includes `application`, `ready`, `pid` and `source_dir` for diagnosis.
+`POST /api/shutdown` stops the dashboard and closes its party; saved data remains.
+
+Carrier percentage pricing:
+Plans persist `carrier_mean_price`, `carrier_mean_source`, `carrier_mean_at`.
+Market snapshots and paired quotes retain `mean_price`; the newest qualifying
+report supplies the route reference. `GET /api/trade/price-reference` considers
+local market snapshots and Ardent/EDDN import/export reports within 24 hours.
+The reference is not an average of station buy/sell quotes.
+`crew_split` includes target carrier prices, actual percentage settings, rounded
+carrier prices, the reference and `carrier_prices_valid`. Percentage settings are
+chosen within 5..1000 and the station spread, preserving nonnegative leg/owner
+margins. Profit totals and quotas use the resulting prices. Without a reference,
+preview values are explicitly targets and starting automatic crew pricing is
+rejected. Active job prices are frozen; refresh/override requires ending the job.

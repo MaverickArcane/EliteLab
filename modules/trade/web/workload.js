@@ -1,6 +1,7 @@
 /* Persistent owner controls; previews never overwrite a typed custom share. */
 export function mount(el) {
   const {esc, fmt} = Lab.util;
+  const failure = error => error.status===404 ? 'Restart EliteLab from the updated trading v2 folder, then refresh this page. The running server does not support crew workload splitting.' : error.message;
   const tons = n => n == null ? 'Unknown' : `${fmt(n)} t`;
   const money = n => n == null ? 'Unknown' : `${fmt(n)} Cr`;
   const u = {generation:0, dirty:false, state:null, preview:null, key:'', destroyed:false};
@@ -27,8 +28,9 @@ export function mount(el) {
     const op = u.state?.party?.operation || u.state?.trade?.operation;
     const phase = ['transit','unloading'].includes(op?.stage) ? 'unloading' : 'loading', loading = phase === 'loading';
     const total = w[phase], price = loading ? w.buy_price : w.sell_price;
-    const value = total.order_remaining * price;
-    $('[data-wl-preview]').innerHTML = `<div class="workload-orders"><div><span class="k">Carrier ${loading ? 'buy' : 'sell'} order</span><strong data-wl-order>${tons(total.order_remaining)}</strong><button class="mini" data-copy="${total.order_remaining}">Copy order tonnes</button></div><div><span class="k">Price per tonne</span><strong>${money(price)}</strong>${price == null ? '' : `<button class="mini" data-copy="${price}">Copy price</button>`}</div><div><span class="k">${loading ? 'Buy-order budget' : 'Order proceeds'}</span><strong>${price == null ? 'Unknown' : money(value)}</strong></div></div>
+    const value = price == null ? null : total.order_remaining * price;
+    const percentage=loading ? w.buy_percent : w.sell_percent;
+    $('[data-wl-preview]').innerHTML = `<div class="workload-orders"><div><span class="k">Carrier ${loading ? 'buy' : 'sell'} order</span><strong data-wl-order>${tons(total.order_remaining)}</strong><button class="mini" data-copy="${total.order_remaining}">Copy order tonnes</button></div><div><span class="k">Price per tonne</span><strong>${percentage == null ? (w.prices_valid ? "" : "Target ") : fmt(percentage)+"% | "}${money(price)}</strong>${percentage == null ? '' : `<button class="mini" data-copy="${percentage}">Copy %</button>`}</div><div><span class="k">${loading ? 'Buy-order budget' : 'Order proceeds'}</span><strong>${price == null ? 'Unknown' : money(value)}</strong></div></div>
       <div class="note" data-wl-equation>${tons(total.remaining)} left ${loading ? 'to load' : 'to unload'} - ${tons(total.owner_remaining)} your direct transfers = ${tons(total.order_remaining)} for crew ${loading ? 'sales to' : 'purchases from'} the carrier.</div>
       <div class="table-scroll"><table class="workload-table"><thead><tr><th>Commander</th><th class="num">Assigned ${loading ? 'loading' : 'unloading'}</th><th class="num">Delivered</th><th class="num">Left</th><th class="num">Est. loads left</th></tr></thead><tbody>${w.members.map(r=>`<tr><td>${esc(r.cmdr)}${r.owner ? ' (you)' : ''}${r.connected ? '' : '<div class="note warn">Disconnected / stale</div>'}</td><td class="num">${tons(r[phase+'_target'])}</td><td class="num">${tons(r[phase+'_done'])}</td><td class="num">${tons(r[phase+'_remaining'])}</td><td class="num">${r[phase+'_runs_left'] == null ? 'Ship capacity unknown' : fmt(r[phase+'_runs_left'])}${r[phase+'_partial_load'] ? `<div class="note">Last load ${tons(r[phase+'_partial_load'])}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
   };
@@ -42,7 +44,7 @@ export function mount(el) {
       if (u.destroyed || generation !== u.generation) return;
       u.preview = w; draw(w); $('[data-wl-message]').textContent = '';
       $('[data-wl-apply]').disabled = false;
-    } catch(error) {if (!u.destroyed && generation === u.generation) {u.preview=null; $('[data-wl-preview]').replaceChildren(); $('[data-wl-message]').textContent=error.message;}}
+    } catch(error) {if (!u.destroyed && generation === u.generation) {u.preview=null; $('[data-wl-preview]').replaceChildren(); $('[data-wl-message]').textContent=failure(error);}}
   };
   const schedule = () => {clearTimeout(u.timer); u.timer=setTimeout(preview,250);};
   el.addEventListener('input', e => {
@@ -58,7 +60,7 @@ export function mount(el) {
     try {
       await Lab.post('/api/trade/workload',{action:'apply',...settings(),basis:u.preview.basis});
       u.dirty=false; u.key=''; $('[data-wl-message]').textContent='Workload shared with crew'; Lab.emit('trade_ui');
-    } catch(error) { $('[data-wl-message]').textContent=error.message; u.preview=null; }
+    } catch(error) { $('[data-wl-message]').textContent=failure(error); u.preview=null; }
     finally {busy(false); if(u.preview) $('[data-wl-apply]').disabled=false;}
   };
   return {
@@ -75,7 +77,7 @@ export function mount(el) {
         const draft=await Lab.post('/api/trade/workload',{action:'preview',...q});
         await Lab.post('/api/trade/workload',{action:'apply',...q,basis:draft.basis});
         u.dirty=false;u.key='';
-      } finally {busy(false);}
+      } catch(error) {throw new Error(failure(error));} finally {busy(false);}
     },
     render(S) {
       u.state=S;

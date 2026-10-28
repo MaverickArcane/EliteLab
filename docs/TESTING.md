@@ -110,3 +110,18 @@ binding, custom ports, and no browser launch on bind failure.
 2. `python -m elitelab call get_commander_state` while the game is running and confirm the ship, system and cargo match the HUD.
 3. `docker compose up --build` and hit `/api/health`.
 4. In Claude Code, open the repo folder and ask for `get_powerplay_status`.
+
+
+`test_instance.py` verifies OS-lock ownership, reuse across requested ports,
+rejection of changed builds/copies, and legacy detection before module loading.
+A real CLI subprocess test launches twice and quits via HTTP, checking process
+exit and lock release. Startup tests cover exclusive port binding, binding before
+journal/module work, and shutdown callbacks. Session tests cover connected-member
+closure, immediate room recreation, an offline member's rejected old invitation,
+and temporary disconnect recovery.
+
+Pricing regressions cover the live test reference (Gold at 47,214 Cr/t for 100%),
+whole-percentage rounding, payout conservation, bounds, impossible quotes,
+automatic meanPrice selection and absent references. Browser checks preserve
+expanded profit details across real job changes and remove cancelled-job progress
+even while its previous text is selected for copying.

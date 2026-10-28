@@ -137,5 +137,8 @@ def view(saved, operation, members, plan):
                      "crew_profit": loading_pay + unloading_pay, "owner_profit": gross - loading_pay - unloading_pay}
     return {**saved, "members": rows, "loading": totals["loading"], "unloading": totals["unloading"],
             "buy_price": buy_price, "sell_price": sell_price,
+            "buy_percent":split.get("carrier_buy_percent") if split else None,
+            "sell_percent":split.get("carrier_sell_percent") if split else None,
+            "prices_valid":split.get("carrier_prices_valid",False) if split else True,
             "buy_budget": totals["loading"]["order_remaining"] * buy_price if buy_price is not None else None,
             "economics": economics}

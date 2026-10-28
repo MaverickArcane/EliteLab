@@ -17,7 +17,7 @@ class RouteTests(unittest.TestCase):
             "carrier": {"name": "Test carrier", "callsign": "TST-001", "system": "Sol", "free_space": 1000}})
         self.report = {"marketId": 12, "stationName": "Port", "systemName": "Destination", "maxLandingPadSize": 3,
             "stationType": "Orbis", "systemX": 10, "systemY": 0, "systemZ": 0, "distanceToArrival": 100,
-            "buyPrice": 100, "sellPrice": 200, "stock": 10000, "demand": 3000, "updatedAt": datetime.now(timezone.utc).isoformat()}
+            "meanPrice": 100, "buyPrice": 100, "sellPrice": 200, "stock": 10000, "demand": 3000, "updatedAt": datetime.now(timezone.utc).isoformat()}
         self.buys = [{**self.report, "marketId": 1}]
         self.sells = [{**self.report, "marketId": 2, "systemX": 50}]
         p = patch.object(config, "OFFLINE", False)
@@ -31,6 +31,20 @@ class RouteTests(unittest.TestCase):
     def query(self, **q):
         with patch.object(self.core.services, "fetch_json", side_effect=self.fetch):
             return self.call("find_carrier_opportunities", **q)
+
+    def test_online_reference_uses_mean_price_not_station_price_average(self):
+        self.sells[0]['meanPrice']=47214
+        self.sells[0]['updatedAt']=datetime.now(timezone.utc).isoformat()
+        with patch.object(self.core.services,'fetch_json',side_effect=self.fetch):
+            result=self.call('get_carrier_price_reference',commodity='gold')
+        self.assertEqual(result['mean_price'],47214)
+        self.assertEqual(result['source'],'Ardent / EDDN')
+
+    def test_missing_reference_has_actionable_error(self):
+        self.buys=[];self.sells=[]
+        with patch.object(self.core.services,'fetch_json',side_effect=self.fetch):
+            with self.assertRaisesRegex(ValueError,'No recent 100%'):
+                self.call('get_carrier_price_reference',commodity='gold')
 
     def test_auto_volume_tracks_free_space_and_filters_both_stops(self):
         from urllib.parse import parse_qs, urlsplit
@@ -56,7 +70,7 @@ class RouteTests(unittest.TestCase):
 
     def test_selected_route_persists_two_crew_prices_and_full_operation_totals(self):
         row = self.query(commodity="gold")["rows"][0]
-        state = self.call("select_carrier_opportunity", id=row["id"], crew_enabled=True, crew_load_percent=25, crew_unload_percent=25)
+        state = self.call("select_carrier_opportunity", id=row["id"], crew_enabled=True, carrier_mean_price=100, crew_load_percent=25, crew_unload_percent=25)
         self.assertEqual(state["plan"]["carrier_price"], 125)
         p = state["calculation"]["profit_split"]
         self.assertEqual((p["gross_profit"], p["owner_profit"], p["crew_profit"]), (100000, 50000, 50000))
@@ -72,7 +86,7 @@ class RouteTests(unittest.TestCase):
 
     def test_crew_split_excludes_personal_bonus_and_rejects_unknown_cost(self):
         args = dict(commodity="gold", source_price=100, destination_price=220, target=1000,
-                    crew_enabled=True, bonus_per_ton=20, price_includes_bonus=True, bonus_confirmed=True)
+                    crew_enabled=True, carrier_mean_price=100, bonus_per_ton=20, price_includes_bonus=True, bonus_confirmed=True)
         state = self.call("plan_carrier_trade", **args)
         self.assertEqual(state["plan"]["crew_split"]["carrier_sell_price"], 175)
         self.assertEqual(state["calculation"]["profit_split"]["owner_per_ton"], 50)
@@ -85,7 +99,7 @@ class RouteTests(unittest.TestCase):
     def test_prepare_route_accepts_explicit_physical_count(self):
         row = self.query(commodity="tritium")["rows"][0]
         self.assertIsNone(row["stock"])
-        state = self.call("select_carrier_opportunity", id=row["id"], stock=0, crew_enabled=True)
+        state = self.call("select_carrier_opportunity", id=row["id"], stock=0, crew_enabled=True, carrier_mean_price=100)
         self.assertEqual(state["inventory"]["tritium"]["stock"], 0)
         self.assertEqual(state["plan"]["target"], row["quantity"])
         self.call("manage_carrier_operation", action="start")

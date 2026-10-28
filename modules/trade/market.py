@@ -29,6 +29,33 @@ class MarketProfiles:
         self.lock = threading.Lock()
         self.results = {}  # bounded query cache, also the IDs accepted by plan selection
 
+    def price_reference(self, q):
+        key = q.get("commodity", "")
+        if not isinstance(key, str) or not key.isascii() or not key.isalnum() or len(key)>100:
+            raise ValueError("Choose a commodity before refreshing carrier pricing.")
+        observed = []
+        now = datetime.now(timezone.utc).timestamp()
+        with self.desk.lock:
+            for market in self.desk.data["markets"].values():
+                for item in market["items"]:
+                    if item["key"] == key and type(item.get("mean_price")) is int and item["mean_price"]>0:
+                        observed.append({"mean_price":item["mean_price"],"observed_at":market["timestamp"],"source":"Local market journal"})
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            pending = [pool.submit(self.core.services.fetch_json,
+                "https://api.ardent-insight.com/v2/commodity/name/"+quote(key,safe="")+"/"+side+"?minVolume=1&maxDaysAgo=1&fleetCarriers=0",ttl=300)
+                for side in ("exports","imports")]
+            for future in pending:
+                try:
+                    for row in future.result():
+                        if type(row.get("meanPrice")) is int and row["meanPrice"]>0:
+                            observed.append({"mean_price":row["meanPrice"],"observed_at":row.get("updatedAt"),"source":"Ardent / EDDN"})
+                except Exception:
+                    pass
+        recent = [r for r in observed if 0 <= now-stamp(r["observed_at"]) <= 86400]
+        if not recent:
+            raise ValueError("No recent 100% price reference is available. Open a commodity market in game or enter its 100% price under Adjust operation.")
+        return {"commodity":key, **max(recent,key=lambda r:stamp(r["observed_at"]))}
+
     def context(self):
         j = self.core.store.get("journal")
         carrier = j.get("carrier") or {}
@@ -70,7 +97,7 @@ class MarketProfiles:
             if settings["radius"] and (distance is None or distance > settings["radius"]):
                 continue
             out.append({"market_id": r.get("marketId"), "station": r.get("stationName"), "system": r.get("systemName"),
-                        "price": price, "volume": volume, "observed_at": r.get("updatedAt"), "distance": round(distance, 1) if distance is not None else None,
+                        "price": price, "volume": volume, "mean_price": r.get("meanPrice"), "observed_at": r.get("updatedAt"), "distance": round(distance, 1) if distance is not None else None,
                         "arrival_ls": arrival, "pad": {1: "S", 2: "M", 3: "L"}.get(r.get("maxLandingPadSize")), "pos": pos})
         return sorted(out, key=lambda r: r["price"] if side == "buy" else -r["price"])
 
@@ -182,6 +209,8 @@ class MarketProfiles:
         for k in candidates:
             buys, sells = reports[k, "buy"], reports[k, "sell"]
             high = max((r["price"] for r in sells), default=0)
+            references = [r for r in buys+sells if type(r.get("mean_price")) is int and r["mean_price"] > 0]
+            reference = max(references, key=lambda r:stamp(r["observed_at"]), default={})
             for sell in sells:
                 if not sell["pos"] or not sell["market_id"] or sell["price"] < high * settings["sell_percent"] / 100:
                     continue
@@ -202,6 +231,7 @@ class MarketProfiles:
                 stock = inv.get(k, {}).get("stock")
                 needs_check = ctx["inventory_conflict"] and stamp(inv.get(k, {}).get("updated_at")) <= stamp(ctx["stats_time"])
                 rows.append({"commodity": k, "name": names[k], "buy": buy, "sell": sell,
+                    "mean_price": reference.get("mean_price"), "mean_price_at": reference.get("observed_at"),
                     "route_distance": round(distance, 1), "reported_high": high, "sell_percent": round(100 * sell["price"] / high, 1),
                     "per_ton": margin, "return_percent": round(100 * margin / buy["price"], 1),
                     "stock": stock, "stock_needs_check": needs_check, "order": orders.get(k),
@@ -238,6 +268,7 @@ class MarketProfiles:
             loading = True
             order = result["context"]["orders"].get(row["commodity"], {})
             return self.desk.plan({"crew_enabled": q.get("crew_enabled", False),
+                "carrier_mean_price": row.get("mean_price") or 0, "carrier_mean_source":"Ardent / EDDN", "carrier_mean_at":row.get("mean_price_at") or "",
                 "crew_load_percent": q.get("crew_load_percent", 25), "crew_unload_percent": q.get("crew_unload_percent", 25),
                 "source_market_id": buy["market_id"], "destination_market_id": sell["market_id"],
                 "carrier_market_id": self.desk.data["carrier_id"], "planned_quantity": row["quantity"], "commodity": row["commodity"], "mode": "load" if loading else "unload",

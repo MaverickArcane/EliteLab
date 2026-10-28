@@ -29,3 +29,28 @@ class ProfitTests(unittest.TestCase):
         for args in ((100, 200, 10, 70, 40), (100, 90, 10), (100, 200, -1), (100, 200, 10, -1, 0), (100, 200, 10, 25.5, 25)):
             with self.assertRaises(ValueError):
                 split_profit(*args)
+
+
+    def test_percentage_prices_use_actual_rounded_margins(self):
+        p=split_profit(4568,64440,19876,25,25,47214)
+        self.assertEqual((p['carrier_buy_percent'],p['carrier_sell_percent']),(41,105))
+        self.assertEqual((p['carrier_buy_price'],p['carrier_sell_price']),(19358,49575))
+        self.assertEqual(p['loading_per_ton'],19358-4568)
+        self.assertEqual(p['unloading_per_ton'],64440-49575)
+        self.assertEqual(p['owner_profit']+p['crew_profit'],p['gross_profit'])
+
+    def test_percentage_bounds_and_unavailable_route(self):
+        p=split_profit(0,1000000,100,0,0,100)
+        self.assertEqual((p['carrier_buy_percent'],p['carrier_sell_percent']),(5,1000))
+        self.assertGreaterEqual(p['owner_per_ton'],0)
+        with self.assertRaises(ValueError):split_profit(1,4,100,25,25,100)
+        for mean in (True,-1,1.5):
+            with self.assertRaises(ValueError):split_profit(100,200,100,25,25,mean)
+        self.assertFalse(split_profit(100,200,100)['carrier_prices_valid'])
+
+    def test_bad_percentage_route_does_not_hide_other_quotes(self):
+        from modules.trade.profit import preview
+        rows=[{'buy':1,'sell':4,'quantity':10,'mean_price':100},
+              {'buy':100,'sell':200,'quantity':10,'mean_price':100}]
+        splits=preview({'rows':rows})['splits']
+        self.assertIn('error',splits[0]);self.assertEqual(splits[1]['carrier_buy_percent'],125)

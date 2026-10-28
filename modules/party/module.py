@@ -8,7 +8,8 @@ from datetime import datetime, timezone
 import hmac
 import hashlib
 import http.client
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
+from elitelab.core.http import ExclusiveHTTPServer
 import ipaddress
 import json
 import math
@@ -28,6 +29,15 @@ STALE_SECONDS = 30
 REPORT_SECONDS = 1
 MAX_MEMBERS = 32
 MAX_BODY = 64000
+CLOSE_GRACE_SECONDS = 3
+
+
+class PartyClosed(ValueError):
+    """A terminal room response, distinct from a temporary network failure."""
+
+
+class PartyCodeRejected(PartyClosed):
+    pass
 
 
 def utc():
@@ -133,7 +143,7 @@ def exchange(url, token, body):
         response = connection.getresponse()
         data = response.read(256001)
         if response.status == 403:
-            raise ValueError("Party code rejected. Copy the current code from the leader; restarting or recreating a party changes it.")
+            raise PartyCodeRejected("Party code rejected. Copy the current code from the leader; restarting or recreating a party changes it.")
         if response.status == 404:
             raise ValueError("No party listener at that address. Use the leader's party port (usually 8767), not the dashboard port.")
         if response.status != 200:
@@ -143,6 +153,8 @@ def exchange(url, token, body):
         result = json.loads(data)
         if not isinstance(result, dict) or not isinstance(result.get("members"), list):
             raise ValueError("Invalid party response.")
+        if result.get("closed") is True:
+            raise PartyClosed("The leader closed the party. Join again with a new invitation.")
         return result
     finally:
         connection.close()
@@ -174,6 +186,9 @@ class Party:
         self.error = None
         self.url = ""
         self.server = None
+        self.closing = False
+        self.close_pending = set()
+        self.close_acknowledged = threading.Event()
         self.stop = threading.Event()
         self.generation = 0
         self.last_success = None
@@ -234,7 +249,7 @@ class Party:
                     member["stale"] = True
             self.core.store.update(NS, {"mode": self.mode, "code": self.token if self.mode == "leader" else None,
                 "port": self.server.server_port if self.server else None, "url": self.url, "error": self.error,
-                "members": shared.get("members", []), "plan": shared.get("plan"), "stale": stale,
+                "members": shared.get("members", []), "plan": shared.get("plan"), "stale": stale, "closing": self.closing,
                 "operation": shared.get("operation"), "carrier": shared.get("carrier"), "activity": self.activity, "work": copy.deepcopy(self.work),
                 "workload": shared.get("workload"),
                 "load_suggestion": None if stale else shared.get("load_suggestion"),
@@ -250,6 +265,13 @@ class Party:
             raise ValueError("Invalid member identity.")
         report = sanitize(body.get("report", {}))
         with self.lock:
+            if self.closing:
+                # The final authenticated poll tells connected members to clear
+                # the room before its listener disappears. Saved work is kept.
+                self.close_pending.discard(mid)
+                if not self.close_pending:
+                    self.close_acknowledged.set()
+                return {"closed": True, "members": [], "plan": None, "operation": None}
             if self.mode != "leader":
                 raise ValueError("Party is closed.")
             self.shared()  # expire old reports before applying the membership limit
@@ -301,12 +323,30 @@ class Party:
 
     def _leave(self):
         with self.lock:
+            closing_server = self.server if self.mode == "leader" else None
+            if closing_server:
+                self.closing = True
+                self.stop.set()
+                self.close_pending = {mid for mid, m in self.members.items()
+                                      if time.time() - m["received"] <= STALE_SECONDS}
+                self.close_acknowledged.clear()
+                if not self.close_pending:
+                    self.close_acknowledged.set()
+                self.publish()
+        if closing_server:
+            # Allow one normal heartbeat plus headroom; never wait forever on
+            # an offline or older client. Keep the current token valid only for
+            # the terminal response, then release the listening port.
+            self.close_acknowledged.wait(CLOSE_GRACE_SECONDS)
+        with self.lock:
             old_mode, old_url, old_token = self.mode, self.url, self.token
             final_report = self.local() if old_mode == "member" else None
             self.stop.set()
             self.generation += 1
             server, self.server = self.server, None
             self.mode, self.token, self.url = "idle", "", ""
+            self.closing = False
+            self.close_pending.clear()
             self.members, self.remote, self.error = {}, {}, None
             self.last_success = None
             self.publish()
@@ -342,14 +382,14 @@ class Party:
                 if self.mode != "idle":
                     raise ValueError("Leave the current party first.")
                 try:
-                    server = ThreadingHTTPServer((bind, port), self.handler())
+                    server = ExclusiveHTTPServer((bind, port), self.handler())
                 except OSError:
                     raise ValueError("Could not listen on that address and port. Check the address or choose another port.") from None
                 self.server, self.mode, self.token = server, "leader", secrets.token_urlsafe(24)
                 self.stop = threading.Event()
                 self.error = None
                 self.generation += 1
-                threading.Thread(target=server.serve_forever, name="party-listener", daemon=True).start()
+                threading.Thread(target=lambda: server.serve_forever(poll_interval=0.05), name="party-listener", daemon=True).start()
                 self.start_worker()
                 self.publish()
         return self.core.store.get(NS)
@@ -504,14 +544,24 @@ class Party:
                     return
                 url, token = self.url, self.token
                 body = {"id": self.member_id, "report": self.local()}
+            terminal = False
             try:
                 shared = exchange(url, token, body)
                 error = None
+            except PartyClosed as ex:
+                shared, terminal = None, True
+                error = ("The party invitation is no longer valid. The leader may have closed or recreated it. Join with the current invitation."
+                         if isinstance(ex, PartyCodeRejected) else str(ex))
             except Exception:
                 shared, error = None, failure_message
             with self.lock:
                 if generation == self.generation:
-                    if shared:
+                    if terminal:
+                        self.stop.set()
+                        self.generation += 1
+                        self.mode, self.url, self.token = "idle", "", ""
+                        self.remote, self.members, self.last_success = {}, {}, None
+                    elif shared:
                         self.remote, self.last_success = shared, time.time()
                     self.error = error
                     self.publish()
@@ -536,6 +586,7 @@ class Party:
 def setup(core, module):
     party = Party(core)
     module.party = party
+    core.shutdown_callbacks.append(party.leave)
     core.http.route("/api/party", lambda q: core.store.get(NS), tool="get_hauling_party", module=module.name,
         description="Local hauling party status, commander cargo/location and telemetry (shield up/down, fuel, flight mode, alerts, last-reported hull), observation timestamps and shared leader plan. Party codes appear only on the leader's local dashboard.")
     core.http.route("/api/party/host", party.host, method="POST", tool="host_hauling_party", module=module.name,
