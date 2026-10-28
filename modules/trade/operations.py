@@ -71,6 +71,7 @@ class Operations:
                 op = {"id": secrets.token_hex(16), "stage": "loading", "paused": False,
                       "quantity": qty, "baseline_stock": plan["target"] - qty, "notes": "",
                       "reports": {}, "started_at": timestamp(), "updated_at": timestamp()}
+                op["phase_started_at"] = {"loading": op["started_at"]}
                 data["operation"] = op
             else:
                 if not op or q.get("id") != op["id"]:
@@ -83,7 +84,10 @@ class Operations:
                     if op["stage"] != before or op["paused"]:
                         raise ValueError("Resume the operation and follow its stages in order.")
                     op["stage"] = after
+                    if after == "complete":
+                        op["ended_at"] = timestamp()
                     if after == "unloading":
+                        op.setdefault("phase_started_at", {})["unloading"] = timestamp()
                         plan["mode"], plan["target"] = "unload", op["baseline_stock"]
                         if plan.get("crew_enabled"):
                             plan["carrier_price"] = plan["crew_split"]["carrier_sell_price"]
@@ -93,6 +97,7 @@ class Operations:
                     op["paused"] = action == "pause"
                 elif action == "cancel":
                     op["stage"], op["paused"] = "cancelled", False
+                    op["ended_at"] = timestamp()
                 elif action == "notes":
                     notes = q.get("notes", "")
                     if not isinstance(notes, str) or len(notes) > 500:
@@ -158,6 +163,7 @@ class Operations:
             row[phase] = q["tonnes"]
             row["reported"][phase] = raw
             row["adjustments"][phase] = q["tonnes"] - raw
+            row["correction_at"] = {**previous.get("correction_at", {}), phase:timestamp()}
             op["reports"][mid] = row
             op.setdefault("correction_requests", {})[request] = command
             record(op, "correction", member_id=mid, cmdr=row["cmdr"], phase=phase,
@@ -193,13 +199,18 @@ class Operations:
             data["operation"]["reports"][mid] = {**previous, **credited, "reported": accepted,
                 "cmdr": report.get("cmdr") or previous.get("cmdr") or "Unknown commander",
                 "owner": mid == self.core.store.get("party", "local_id"), "updated_at": timestamp()}
+            evidence_by_phase = dict(previous.get("delivery_evidence", {}))
             for phase in accepted:
                 before = previous.get("reported", previous).get(phase, 0)
                 if accepted[phase] != before:
                     evidence = work.get("last_entry") or {}
+                    phase_evidence = work.get("delivery_evidence", {}).get(phase) or (evidence if evidence.get("phase") == phase else None)
+                    if phase_evidence:
+                        evidence_by_phase[phase] = {k:phase_evidence.get(k) for k in ("kind", "at", "tonnes")}
                     record(data["operation"], "delivery", member_id=mid,
                            cmdr=data["operation"]["reports"][mid]["cmdr"], phase=phase,
                            before=previous.get(phase, 0), after=credited[phase],
                            reported_before=before, reported_after=accepted[phase], adjustment=adjustments.get(phase, 0),
                            last_entry=copy.deepcopy(evidence) if evidence.get("phase") == phase else None)
+            data["operation"]["reports"][mid]["delivery_evidence"] = evidence_by_phase
             self.desk.commit(data)

@@ -109,3 +109,10 @@ carry the departing ship's last cargo observation. Trade uses the roster to upda
 live allocation and include new eligible commanders in active equal splits before
 party publishes its response. It does
 not fire from store publication, avoiding recursive allocation updates.
+
+`journal.replay.done` also schedules operation-scoped delivery recovery. The
+normal replay still never credits deliveries directly. The background scanner
+reads complete MarketSell/CargoTransfer lines, reconstructs docking independently,
+checks tracked-job/phase/manual/correction boundaries, and uses the same durable
+event fingerprints as live delivery tracking. It performs no network calls;
+ordinary party heartbeats acknowledge recovered cumulative counts.

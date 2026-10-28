@@ -49,10 +49,21 @@ class HaulingSessionTests(unittest.TestCase):
         return self.owner.http.tools["manage_carrier_operation"].fn({"action": action, "id": op["id"] if op else None})["operation"]
 
     def report(self, core, tonnes, key, phase="loading"):
+        self.sync(core)
         return core.modules["party"].party.report_work({"id": self.op["id"], "phase": phase, "tonnes": tonnes, "request_id": key * 32})
 
     def sync(self, core):
-        return core.modules["party"].party.report_work({"activity": "hauling"})
+        # Catch-up is asynchronous and intentionally pauses pickup/manual UI.
+        # Wait for that lifecycle step before asserting actionable instructions.
+        owner = self.owner.modules["party"].party
+        owner.schedule_recovery()
+        deadline = time.monotonic()+3
+        while True:
+            state = core.modules["party"].party.report_work({"activity": "hauling"})
+            if not state["recovery"]["running"] and not owner.recovery["running"]:
+                return state
+            self.assertLess(time.monotonic(), deadline, "journal catch-up did not finish")
+            time.sleep(.01)
 
     def test_close_party_notifies_connected_members_and_releases_port(self):
         self.report(self.crew, 50, "p")

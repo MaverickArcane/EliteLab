@@ -273,7 +273,8 @@ Manual stage confirmation never synthesises inventory or crew deliveries.
 include activity and cumulative `work{operation_id,loading,unloading}`. Party
 emits `party.work`; trade validates operation/phase/bounds and merges monotonic
 per-member totals into its own namespace. Delivery reports never modify inventory.
-`party-local.json` holds only identity and cumulative work (no invitation code).
+`party-local.json` holds identity, cumulative work, event fingerprints, manual
+retry receipts and job recovery boundaries (no invitation code or address).
 Heartbeat retries and reconnects deduplicate by identity and cumulative counters.
 Late loading reports can arrive after departure; unloading cannot be reported
 before that phase. Cancelled/other-operation reports are ignored. Crew UI marks
@@ -379,7 +380,7 @@ Later rounds are estimates using usable ship capacities. A full ship can retain
 future work; a faster returning ship can pick up more without a fixed quota cap.
 `unassigned` records work with no eligible ship; `reserved` records cargo held by
 unavailable commanders. Per-member `cargo_snapshot` retains the last material
-cargo observation and corresponding delivery counters. Later deliveries consume
+cargo observation and corresponding raw `reported` delivery counters. Later deliveries consume
 that observation until a new cargo snapshot arrives, including on disconnect.
 `party.roster` also fires on leader heartbeats and explicitly carries a leaving
 member's last report. Only material changes write the saved live workload.
@@ -469,3 +470,28 @@ chosen within 5..1000 and the station spread, preserving nonnegative leg/owner
 margins. Profit totals and quotas use the resulting prices. Without a reference,
 preview values are explicitly targets and starting automatic crew pricing is
 rejected. Active job prices are frozen; refresh/override requires ending the job.
+
+Delivery recovery and physical cargo:
+Operations persist `phase_started_at` and `ended_at`. Reports retain per-leg
+`delivery_evidence{kind,at,tonnes}` and `correction_at`; local work sends the same bounded
+delivery evidence. Raw totals and credited totals remain separate. Live cargo
+snapshots use raw-counter baselines; corrections, manual accounting, and journal
+evidence older than the cargo observation do not consume the current hold.
+Legacy snapshots preserve their observed cargo until new evidence arrives.
+
+`party-local.json.tracking` contains `operation_id`, `since`, `owner`, and
+per-leg `manual_through` cutoffs. First observation establishes the recovery
+boundary; installing this version never guesses older missing contributions.
+`party.recovery` is `{running,recovered,error}`. Restart/rejoin/phase changes
+schedule a background scan of complete journal lines using separate docking
+context. Members require the matching shared job. Event fingerprints deduplicate
+live and recovered deliveries. Cancelled jobs, post-completion events, and
+evidence covered by manual entries/corrections are excluded. Missing legacy
+phase boundaries and full fingerprint history require manual review.
+`shared.recovering` pauses crew pickup suggestions during the owner's scan;
+local scans also pause the personal desk and new manual entries. Leave/new jobs
+invalidate scans by generation and identity. No credentials are persisted.
+
+Materials publication serializes writers separately from inventory reads and
+releases its inventory lock before synchronous callbacks. Build edits are
+serialized. Build and wishlist edits publish only after their disk write succeeds.

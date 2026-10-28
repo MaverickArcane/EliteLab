@@ -35,6 +35,7 @@ def smoke(bundle):
         env.update(PATH=str(system), PYTHONHOME=str(directory / "missing-python"),
                    PYTHONPATH=str(directory / "missing-packages"), ELITELAB_HOST="127.0.0.1",
                    ELITELAB_OFFLINE="1", ELITELAB_JOURNAL_DIR=str(ROOT / "tests" / "fixtures" / "journals"))
+        env["ELITELAB_INSTANCE_DIR"] = str(directory / "instance")
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
         def get(path):

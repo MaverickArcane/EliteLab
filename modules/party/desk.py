@@ -85,6 +85,8 @@ def project(shared, local_id, local, work=None, stale=False):
         reason = "Trade complete. Your recorded contributions are below."
     elif stale:
         reason = "Leader connection is stale. Wait for fresh instructions before another run."
+    elif shared.get("recovering"):
+        reason = "Checking journals for missed deliveries. Wait for updated pickup amounts."
     elif op.get("paused"):
         reason = "Paused. Do not start another run; completed deliveries still count."
     elif phase == "transit":

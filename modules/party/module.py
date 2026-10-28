@@ -22,6 +22,7 @@ from urllib.parse import urlsplit
 from elitelab.core.gamedata import norm
 from modules.party.loads import recommend
 from modules.party.desk import project
+from modules.party.recovery import deliveries, phase_at, seconds
 from elitelab.core.hauling import view as workload_view
 
 NS = "party"
@@ -91,6 +92,16 @@ def sanitize(raw):
                 raise ValueError("Invalid delivery evidence.")
             out["work"]["last_entry"] = {"kind":entry["kind"], "phase":entry["phase"],
                                          "tonnes":amount(entry.get("tonnes")), "at":clean_text(entry.get("at"))}
+        evidence = work.get("delivery_evidence", {})
+        if not isinstance(evidence, dict) or set(evidence) - {"loading", "unloading"}:
+            raise ValueError("Invalid delivery timestamps.")
+        if evidence:
+            out["work"]["delivery_evidence"] = {}
+            for phase, item in evidence.items():
+                if not isinstance(item, dict) or item.get("kind") not in ("manual", "MarketSell", "CargoTransfer"):
+                    raise ValueError("Invalid delivery evidence.")
+                out["work"]["delivery_evidence"][phase] = {"kind":item["kind"], "at":clean_text(item.get("at")),
+                                                         "tonnes":amount(item.get("tonnes"))}
     return out
 
 
@@ -179,6 +190,13 @@ class Party:
         self.auto_seen = [v for v in saved.get("auto_seen", []) if isinstance(v, str) and len(v) == 64][-10000:]
         self.last_auto = saved.get("last_auto") if isinstance(saved.get("last_auto"), dict) else None
         self.receipts = saved.get("receipts", {}) if isinstance(saved.get("receipts"), dict) else {}
+        self.tracking = saved.get("tracking") if isinstance(saved.get("tracking"), dict) else {}
+        if seconds(self.tracking.get("since")) is None:
+            self.tracking = {}
+        self.recovery = {"running":False, "recovered":0, "error":None}
+        self.recovery_key = None
+        self.recovery_retry = 0
+        self.replay_complete = False
         self.docked_market = None
         self.save_work(self.work)
         self.members = {}
@@ -193,6 +211,7 @@ class Party:
         self.generation = 0
         self.last_success = None
         core.bus.on("journal.*", self.journal_delivery)
+        core.bus.on("journal.replay.done", self.replay_done)
         core.bus.on("state.journal.location", lambda n, v: self.publish())
         core.bus.on("state.journal.status", lambda n, v: self.publish())
         core.bus.on("state.journal.game_running", lambda n, v: self.publish())
@@ -238,16 +257,26 @@ class Party:
             plan, operation = job.get("plan"), job.get("operation")
             workload = workload_view(job.get("workload"), operation, members, plan) if plan else None
             suggestion = recommend(plan, operation, members, (job.get("calculation") or {}).get("to_haul"), workload)
+            if suggestion and self.recovery["running"]:
+                suggestion.update(enabled=False,next_buy=0)
+                for row in suggestion["members"]:
+                    row["next_buy"] = 0
             if workload and suggestion:
                 pickups = {r["id"]:r["next_buy"] for r in suggestion["members"]}
                 for row in workload["members"]:
                     row["next_pickup"] = pickups.get(row["id"],0)
                     row["pickup_phase"] = suggestion["phase"]
-            return {"members": members, "plan": plan, "operation": operation, "workload": workload, "load_suggestion": suggestion, "carrier": self.core.store.get("journal", "carrier"), "leader": self.local().get("cmdr"), "updated_at": utc()}
+            return {"members": members, "plan": plan, "operation": operation, "workload": workload, "load_suggestion": suggestion,
+                    "recovering":self.recovery["running"], "carrier": self.core.store.get("journal", "carrier"), "leader": self.local().get("cmdr"), "updated_at": utc()}
 
     def publish(self):
         with self.lock:
             shared = self.shared() if self.mode != "member" else copy.deepcopy(self.remote)
+            op = shared.get("operation") or {}
+            if (op.get("stage") in ("loading", "transit", "unloading") and op.get("id") != self.tracking.get("operation_id")
+                    and not (self.mode == "idle" and self.tracking and not self.tracking.get("owner"))):
+                self.save_work(self.work, tracking={"operation_id":op["id"], "since":utc(),
+                                                   "owner":self.mode != "member", "manual_through":{}})
             stale = self.mode == "member" and (self.last_success is None or time.time() - self.last_success > STALE_SECONDS)
             if stale:
                 for member in shared.get("members", []):
@@ -257,10 +286,61 @@ class Party:
                 "members": shared.get("members", []), "plan": shared.get("plan"), "stale": stale, "closing": self.closing,
                 "operation": shared.get("operation"), "carrier": shared.get("carrier"), "activity": self.activity, "work": copy.deepcopy(self.work),
                 "workload": shared.get("workload"),
+                "recovery": copy.deepcopy(self.recovery),
                 "load_suggestion": None if stale else shared.get("load_suggestion"),
                 "auto_tracking": {"loading": bool((shared.get("plan") or {}).get("carrier_market_id")), "unloading": bool((shared.get("plan") or {}).get("destination_market_id"))}, "last_auto_delivery": copy.deepcopy(self.last_auto),
                 "updated_at": shared.get("updated_at"), "local_id": self.member_id,
-                "desk": project(shared, self.member_id, self.local(), self.work, stale)})
+                "desk": project({**shared,"recovering":self.recovery["running"] or shared.get("recovering",False)}, self.member_id, self.local(), self.work, stale)})
+
+    def replay_done(self, name, value):
+        self.replay_complete = True
+        self.schedule_recovery()
+
+    def schedule_recovery(self):
+        with self.lock:
+            if self.core.watcher.is_alive() and not self.replay_complete:
+                return
+            if self.mode == "idle" and self.tracking and not self.tracking.get("owner"):
+                return  # Rejoin before trusting a former leader's job context.
+            if self.mode == "member" and (self.last_success is None or time.time() - self.last_success > STALE_SECONDS):
+                return  # Confirm that the leader still has this job before catch-up.
+            shared = self.remote if self.mode == "member" else self.shared()
+            op = shared.get("operation") or {}
+            key = (self.generation, op.get("id"), op.get("stage"))
+            if (op.get("id") != self.tracking.get("operation_id") or not op.get("id")
+                    or op.get("stage") not in ("loading", "transit", "unloading", "complete")
+                    or self.recovery["running"] or key == self.recovery_key or time.monotonic() < self.recovery_retry):
+                return
+            self.recovery_key = key
+            self.recovery = {"running":True,"recovered":0,"error":None}
+            directory, since = self.core.config.JOURNAL_DIR, self.tracking["since"]
+            self.publish()
+
+        def run():
+            count, error = 0, None
+            try:
+                if len(self.auto_seen) >= 10000:
+                    raise ValueError("Delivery history is full; check missed deliveries manually.")
+                if op["stage"] in ("unloading", "complete") and not (op.get("phase_started_at") or {}).get("unloading"):
+                    raise ValueError("This older job has no saved unloading start time; check missed deliveries manually.")
+                for event, market in deliveries(directory, since):
+                    with self.lock:
+                        if self.generation != key[0] or self.tracking.get("operation_id") != key[1]:
+                            break
+                        count += self.journal_delivery("journal."+event["event"], event, recovering=True, recovered_market=market) or 0
+            except (OSError, ValueError) as ex:
+                error = "Could not finish delivery catch-up: " + str(ex)
+            finally:
+                with self.lock:
+                    changed = self.generation != key[0] or self.tracking.get("operation_id") != key[1]
+                    self.recovery = {"running":False,"recovered":0 if changed else count,"error":None if changed else error}
+                    if changed:
+                        self.recovery_key, self.recovery_retry = None, 0
+                    elif error:
+                        self.recovery_key = None
+                        self.recovery_retry = time.monotonic()+30
+                    self.publish()
+        threading.Thread(target=run, name="party-journal-recovery", daemon=True).start()
 
     def receive(self, body):
         if not isinstance(body, dict):
@@ -435,29 +515,35 @@ class Party:
                 self.publish()
         return self.core.store.get(NS)
 
-    def save_work(self, work, seen=None, last_auto=None, receipts=None):
+    def save_work(self, work, seen=None, last_auto=None, receipts=None, tracking=None):
         seen = self.auto_seen if seen is None else seen
         last_auto = self.last_auto if last_auto is None else last_auto
         receipts = self.receipts if receipts is None else receipts
-        self.core.write_data({"id": self.member_id, "work": work, "auto_seen": seen, "last_auto": last_auto, "receipts": receipts}, "party-local.json")
+        tracking = self.tracking if tracking is None else tracking
+        self.core.write_data({"id": self.member_id, "work": work, "auto_seen": seen, "last_auto": last_auto, "receipts": receipts,
+                              "tracking":tracking}, "party-local.json")
         self.work, self.auto_seen, self.last_auto = work, seen, last_auto
         self.receipts = receipts
+        self.tracking = tracking
 
-    def journal_delivery(self, name, event):
+    def journal_delivery(self, name, event, *, recovering=False, recovered_market=None):
         if not isinstance(event, dict):
             return
         kind = event.get("event")
         with self.lock:
-            if kind in ("Docked", "Location", "CarrierJump"):
+            if not recovering and kind in ("Docked", "Location", "CarrierJump"):
                 self.docked_market = event.get("MarketID") if kind == "Docked" or event.get("Docked") else None
-            elif kind in ("Undocked", "FSDJump", "LoadGame"):
+            elif not recovering and kind in ("Undocked", "FSDJump", "LoadGame"):
                 self.docked_market = None
             # Replays, cargo snapshots, buys and inventory drops are not new deliveries.
             if event.get("_replay") or kind not in ("MarketSell", "CargoTransfer"):
                 return
             shared = self.shared() if self.mode != "member" else self.remote
             op, plan = shared.get("operation"), shared.get("plan")
-            if not op or not plan or op["stage"] not in ("loading", "unloading"):
+            if not op or not plan or (not recovering and op["stage"] not in ("loading", "unloading")):
+                return
+            phase = phase_at(op,event,self.tracking,self.member_id) if recovering else op["stage"]
+            if phase is None:
                 return
             try:
                 event_time = datetime.fromisoformat(event["timestamp"].replace("Z", "+00:00")).timestamp()
@@ -466,7 +552,6 @@ class Party:
                     return
             except (KeyError, ValueError, TypeError, AttributeError):
                 return
-            phase = op["stage"]
             market = plan.get("carrier_market_id" if phase == "loading" else "destination_market_id")
             if not market:
                 return
@@ -475,7 +560,7 @@ class Party:
             if kind == "MarketSell" and event.get("MarketID") == market and norm(event.get("Type")) == commodity:
                 count = event.get("Count")
                 tonnes = count if type(count) is int and count > 0 else 0
-            elif kind == "CargoTransfer" and phase == "loading" and self.docked_market == market:
+            elif kind == "CargoTransfer" and phase == "loading" and (recovered_market if recovering else self.docked_market) == market:
                 tonnes = sum(t["Count"] for t in event.get("Transfers", []) if isinstance(t, dict)
                              and t.get("Direction") == "tocarrier" and norm(t.get("Type")) == commodity
                              and type(t.get("Count")) is int and t["Count"] > 0)
@@ -484,6 +569,8 @@ class Party:
             digest = hashlib.sha256(json.dumps({k:v for k,v in event.items() if not k.startswith("_")}, sort_keys=True).encode()).hexdigest()
             if digest in self.auto_seen:
                 return
+            if recovering and len(self.auto_seen) >= 10000:
+                raise ValueError("Delivery history is full; check missed deliveries manually.")
             work = copy.deepcopy(self.work) if self.work and self.work["operation_id"] == op["id"] else {"operation_id":op["id"], "loading":0, "unloading":0}
             # Keep observed evidence even if this client's view predates an
             # owner correction. The leader validates credited totals; a report
@@ -494,12 +581,15 @@ class Party:
                 return
             work[phase] += tonnes
             work["last_entry"] = {"kind":kind, "phase":phase, "tonnes":tonnes, "at":event["timestamp"]}
+            work.setdefault("delivery_evidence", {})[phase] = {"kind":kind,"at":event["timestamp"],"tonnes":tonnes}
             self.save_work(work, (self.auto_seen + [digest])[-10000:], {"operation_id":op["id"],"phase":phase,"tonnes":tonnes,"at":event["timestamp"]})
-            self.activity = "hauling"
+            if not recovering:
+                self.activity = "hauling"
             if self.mode != "member":
                 self.core.bus.emit("party.work", {"id":self.member_id,"report":self.local()})
             # No network I/O on the watcher thread: the heartbeat sends cumulative totals.
             self.publish()
+            return tonnes
 
     def report_work(self, q):
         with self.lock:
@@ -510,6 +600,8 @@ class Party:
                 if request_id is not None and (not isinstance(request_id, str) or not 16 <= len(request_id) <= 80):
                     raise ValueError("Invalid delivery request id.")
                 receipt = self.receipts.get(request_id) if request_id else None
+                if self.recovery["running"] and not receipt:
+                    raise ValueError("Wait for journal catch-up to finish before recording a missed delivery.")
                 if receipt and (receipt["operation_id"] != q.get("id") or receipt["tonnes"] != q["tonnes"] or (q.get("phase") and receipt["phase"] != q["phase"])):
                     raise ValueError("This delivery request was already used for a different report.")
                 op = self.shared().get("operation") if self.mode != "member" else self.remote.get("operation")
@@ -528,12 +620,16 @@ class Party:
                         raise ValueError("Your reported deliveries exceed the operation size.")
                     work[phase] += tonnes
                     work["last_entry"] = {"kind":"manual", "phase":phase, "tonnes":tonnes, "at":utc()}
+                    work.setdefault("delivery_evidence", {})[phase] = {"kind":"manual","at":work["last_entry"]["at"],"tonnes":tonnes}
                     receipts = dict(self.receipts)
                     if request_id:
                         if len(receipts) >= 10000:
                             raise ValueError("Manual report history is full. Use automatic journal tracking.")
                         receipts[request_id] = {"operation_id": op["id"], "phase": phase, "tonnes": tonnes}
-                    self.save_work(work, receipts=receipts)
+                    tracking = copy.deepcopy(self.tracking)
+                    if tracking.get("operation_id") == op["id"]:
+                        tracking.setdefault("manual_through", {})[phase] = work["last_entry"]["at"]
+                    self.save_work(work, receipts=receipts, tracking=tracking)
             mode, generation = self.mode, self.generation
             body = {"id": self.member_id, "report": self.local()}
             if mode != "member":
@@ -576,6 +672,7 @@ class Party:
                         self.remote, self.last_success = shared, time.time()
                     self.error = error
                     self.publish()
+        self.schedule_recovery()
 
     def start_worker(self):
         stop, generation = self.stop, self.generation
@@ -593,6 +690,7 @@ class Party:
                         if self.mode == "leader":
                             self.core.bus.emit("party.roster", self.shared()["members"])
                         self.publish()
+                    self.schedule_recovery()
 
         threading.Thread(target=run, name="party-reporter", daemon=True).start()
 

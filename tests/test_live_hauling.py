@@ -75,6 +75,55 @@ class LiveHaulingTests(unittest.TestCase):
         self.assertGreater(project(state,"a",self.members[0])["quantity"],0)
         self.assertEqual(state["operation"]["loaded"],initial+100)
 
+    def test_historical_corrections_do_not_release_physical_cargo(self):
+        for phase in ("loading", "unloading"):
+            with self.subTest(phase=phase):
+                self.op.update(stage=phase, quantity=2200, reports={})
+                self.members[0].update(capacity=1000,cargo_count=1000,cargo=[{"key":"gold","count":1000}])
+                saved,_=self.state()
+                self.op["reports"]={"a":{phase:1000,"reported":{phase:0},"adjustments":{phase:1000}}}
+                saved,state=self.state(saved)
+                self.assertEqual(project(state,"b",self.members[1])["quantity"],200)
+                self.assertEqual(project(state,"a",self.members[0])["quantity"],1000)
+                # Reducing the same accounting correction must not invent cargo.
+                self.op["reports"]["a"].update({phase:500,"adjustments":{phase:500}})
+                _,state=self.state(saved)
+                self.assertEqual(project(state,"b",self.members[1])["quantity"],700)
+
+    def test_legacy_snapshot_preserves_hold_until_new_physical_evidence(self):
+        self.op["quantity"]=2200
+        self.members[0].update(capacity=1000,cargo_count=1000,cargo=[{"key":"gold","count":1000}])
+        saved,_=self.state()
+        for row in saved["members"]:
+            snapshot=row["cargo_snapshot"]
+            snapshot["delivered"]=snapshot.pop("reported")
+        self.op["reports"]={"a":{"loading":1000,"reported":{"loading":0},"adjustments":{"loading":1000}}}
+        saved,state=self.state(saved)
+        self.assertEqual(project(state,"b",self.members[1])["quantity"],200)
+        self.members.pop(0)  # cargo is still reserved when the owner disconnects
+        _,state=self.state(saved)
+        self.assertEqual(state["workload"]["reserved"]["loading"],1000)
+
+    def test_late_journal_or_manual_report_does_not_consume_a_newer_hold(self):
+        self.op["quantity"]=2200
+        self.members[0].update(capacity=1000,cargo_count=1000,cargo=[{"key":"gold","count":1000}],cargo_at="2026-10-20T12:00:00Z")
+        saved,_=self.state()
+        for kind,at in (("MarketSell","2026-10-20T11:00:00Z"),("manual","2026-10-20T13:00:00Z")):
+            self.op["reports"]={"a":{"loading":1000,"reported":{"loading":1000},
+                "delivery_evidence":{"loading":{"kind":kind,"at":at}}}}
+            _,state=self.state(saved)
+            self.assertEqual(project(state,"b",self.members[1])["quantity"],200)
+
+    def test_heartbeat_combining_historical_and_new_delivery_consumes_only_proven_cargo(self):
+        self.op["quantity"]=2200
+        self.members[0].update(capacity=1000,cargo_count=1000,cargo=[{"key":"gold","count":1000}],cargo_at="2026-10-20T12:00:00Z")
+        saved,_=self.state()
+        self.op["reports"]={"a":{"loading":1200,"reported":{"loading":1200},
+            "delivery_evidence":{"loading":{"kind":"MarketSell","at":"2026-10-20T13:00:00Z","tonnes":200}}}}
+        _,state=self.state(saved)
+        self.assertEqual(project(state,"b",self.members[1])["quantity"],200)
+        self.assertEqual(project(state,"a",self.members[0])["quantity"],800)
+
     def test_leaving_releases_unpicked_work_but_preserves_cargo(self):
         self.op["quantity"]=3000
         self.members[1].update(cargo_count=500,cargo=[{"key":"gold","count":500}])

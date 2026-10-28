@@ -1,7 +1,15 @@
 """Live next-load allocation: preserve cargo, share work by available holds."""
 import hashlib
 import json
+from datetime import datetime
 from .gamedata import norm
+
+
+def _time(value):
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+    except (AttributeError, TypeError, ValueError):
+        return None
 
 
 def distribute(total, spaces):
@@ -41,6 +49,13 @@ def build_live(plan, operation, members, settings, previous, quantity):
     snapshots, cargo, spaces, usable, eligible = {}, {}, {}, {}, {}
     for mid, member in known.items():
         snapshot = old.get(mid, {}).get("cargo_snapshot", {})
+        report = reports.get(mid, {})
+        physical = {p: report.get("reported", report).get(p, 0) for p in ("loading", "unloading")}
+        if snapshot and "reported" not in snapshot:
+            # Older snapshots used credited totals, which included corrections.
+            # Their original raw baseline is unknowable. Preserve the observed
+            # hold until new cargo or delivery evidence arrives.
+            snapshot = {**snapshot, "reported": physical}
         count = member.get("cargo_count")
         if mid in live and (not member.get("stale") or member.get("departed") or not snapshot) and type(count) is int and count >= 0:
             observed = {"count":count, "matching":min(count, sum(i.get("count") or 0 for i in member.get("cargo", [])
@@ -48,10 +63,26 @@ def build_live(plan, operation, members, settings, previous, quantity):
             # A delivery can arrive before Cargo.json changes. Repeated copies
             # of that old hold must not re-reserve the cargo just delivered.
             if any(snapshot.get(k) != value for k,value in observed.items()):
-                snapshot = {**observed,"delivered":{p:reports.get(mid, {}).get(p,0) for p in ("loading","unloading")}}
+                snapshot = {**observed, "reported": physical}
+        for phase, evidence in report.get("delivery_evidence", {}).items():
+            observed_at, delivered_at = _time(snapshot.get("at")), _time(evidence.get("at"))
+            if evidence.get("kind") == "manual" or (observed_at is not None and delivered_at is not None and delivered_at <= observed_at):
+                # Catch-up/manual accounting may describe an earlier run, not
+                # the load now aboard. Rebase without consuming that hold.
+                snapshot = {**snapshot, "reported":{**snapshot.get("reported", {}), phase:physical.get(phase, 0)}}
         snapshots[mid] = snapshot
-        # Retain absent ships' physical cargo, but consume any later credited delivery.
-        delta = sum(max(0, reports.get(mid, {}).get(p,0)-snapshot.get("delivered",{}).get(p,0)) for p in ("loading","unloading"))
+        # Accounting corrections do not move physical cargo. Only new raw
+        # delivery evidence can consume a previously observed hold.
+        delta = 0
+        for phase in physical:
+            increment = max(0, physical[phase]-snapshot.get("reported", {}).get(phase, 0))
+            evidence = report.get("delivery_evidence", {}).get(phase, {})
+            if type(evidence.get("tonnes")) is int:
+                # One heartbeat can combine old recovered/manual increments
+                # with a new delivery. Only its latest physical amount is
+                # proven to postdate this hold; wait for cargo to clear the rest.
+                increment = min(increment, evidence["tonnes"])
+            delta += increment
         cargo[mid] = max(0, snapshot.get("matching",0)-delta)
         capacity = member.get("capacity")
         telemetry = member.get("telemetry") or {}

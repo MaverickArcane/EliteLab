@@ -7,6 +7,7 @@ The material catalog (names, grades, caps, trader families) is the shared table 
 this module's data.json only holds the where-to-find hints.
 """
 import json
+import copy
 import os
 import threading
 
@@ -20,6 +21,7 @@ class Materials:
     def __init__(self, core):
         self.core = core
         self._lock = threading.RLock()
+        self._publish_lock = threading.RLock()
         with open(os.path.join(HERE, "data.json"), "r", encoding="utf-8") as f:
             data = json.load(f)
         self.caps = MATERIAL_CAPS
@@ -75,8 +77,11 @@ class Materials:
             self.cats[k] = category
 
     def on_event(self, name, ev):
-        with self._lock:
-            self._on_event(name, ev)
+        with self._publish_lock:
+            with self._lock:
+                self._on_event(name, ev)
+                state = self._snapshot()
+            self.core.store.update(NS, state)
 
     def _on_event(self, name, ev):
         e = ev.get("event")
@@ -102,7 +107,6 @@ class Materials:
         elif e == "MissionCompleted":
             for i in ev.get("MaterialsReward") or []:
                 self.add(i.get("Name"), i.get("Count", 0), i.get("Category"), i.get("Name_Localised"))
-        self.publish()
 
     # -- publishing ---------------------------------------------------------------
     def rows(self, category=None, grade=None, only_wishlist=False, only_short=False):
@@ -131,10 +135,14 @@ class Materials:
         return out
 
     def publish(self):
-        with self._lock:
-            self._publish()
+        # Keep publication ordered, but release the inventory lock before
+        # synchronous callbacks read other modules (wishlist/build).
+        with self._publish_lock:
+            with self._lock:
+                state = self._snapshot()
+            self.core.store.update(NS, state)
 
-    def _publish(self):
+    def _snapshot(self):
         totals = {"Raw": 0, "Manufactured": 0, "Encoded": 0}
         for k, c in self.inv.items():
             cat = self.info(k)["category"]
@@ -143,9 +151,9 @@ class Materials:
         self._version += 1
         # The inventory itself is not in the store (it would go over SSE on every pickup); other modules read it through
         # the get_material_inventory tool and recompute on inventory_version.
-        self.core.store.update(NS, {"totals": totals, "wishlist": self.wishlist,
+        return {"totals": totals, "wishlist": copy.deepcopy(self.wishlist),
                                     "shortfalls": [r for r in self.rows(only_wishlist=True)],
-                                    "inventory_count": len(self.inv), "inventory_version": self._version})
+                                    "inventory_count": len(self.inv), "inventory_version": self._version}
 
     def inventory(self):
         with self._lock:
@@ -153,8 +161,12 @@ class Materials:
 
     # -- wishlist ------------------------------------------------------------------
     def set_wishlist(self, items, mode="replace", label=None):
-        with self._lock:
-            return self._set_wishlist(items, mode, label)
+        with self._publish_lock:
+            with self._lock:
+                result = self._set_wishlist(items, mode, label)
+                state = self._snapshot()
+            self.core.store.update(NS, state)
+            return result
 
     def _set_wishlist(self, items, mode, label):
         if mode not in ("replace", "add", "remove", "clear"):
@@ -189,7 +201,6 @@ class Materials:
         wishlist = {k: v for k, v in wishlist.items() if v["need"] > 0}
         self.core.write_data(wishlist, "wishlist.json")
         self.wishlist = wishlist
-        self.publish()
         return {"wishlist": self.rows(only_wishlist=True), "unknown": unknown}
 
     def source(self, name):

@@ -260,8 +260,15 @@ Loading and unloading progress and the per-commander totals are crew reports,
 separate from journal inventory and cargo in transit. Cumulative totals and
 local identity survive restart; reconnects and repeated heartbeats do not add
 the same delivery again. Journal event fingerprints also survive restart. The
-watcher performs no network calls; heartbeats send the saved totals. Replays,
-purchases, cargo snapshots and unrelated markets/commodities do not count.
+watcher performs no network calls; heartbeats send the saved totals. Ordinary
+replay, purchases, cargo snapshots and unrelated markets/commodities do not count.
+After restart or rejoining the same job, a separate local journal check recovers
+missed deliveries once. It starts when this version first tracked that job and
+uses saved phase times and event fingerprints. Pickup instructions and manual
+entry wait while the check runs. Members must rejoin the leader first. Cancelled
+jobs and events already covered by a manual report or owner correction are not
+backfilled. Older jobs without an unloading start time show a manual-check notice;
+upgrading does not guess at deliveries before tracking began.
 **Manual delivery fallback** is only for missing journal evidence or plans
 without verified market IDs; never enter an already auto-recorded delivery.
 Failed sends are retained locally for retry. Completed deliveries can still be reported during a

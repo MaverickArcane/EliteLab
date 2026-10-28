@@ -5,6 +5,7 @@ import http from 'node:http';
 import assert from 'node:assert/strict';
 import os from 'node:os';
 import './profits.mjs';
+import './state-feed.mjs';
 const dir = path.dirname(new URL(import.meta.url).pathname.replace(/^\/(\w:)/, '$1'));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const server = spawn(process.env.PYTHON || 'python', ['-u', path.join(dir, 'browser_server.py')], {windowsHide:true});

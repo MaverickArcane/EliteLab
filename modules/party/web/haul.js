@@ -31,7 +31,7 @@
           <div class="ship-sec">My progress</div>
           <div class="haul-personal"><div><span class="k">Loaded</span><strong data-value="loaded"></strong><progress data-progress="loading" aria-label="Your contribution to the loading target"></progress></div><div><span class="k">Unloaded</span><strong data-value="unloaded"></strong><progress data-progress="unloading" aria-label="Your contribution to the unloading target"></progress></div><div><span class="k">Recorded profit*</span><strong data-value="earned"></strong></div></div>
           <div data-personal-profit><div class="haul-pay"><div><span class="k">Remaining profit, estimated</span><b data-value="profit-remaining"></b></div><div><span class="k">My total profit, estimated</span><b data-value="profit-estimated"></b></div></div><div class="note" data-value="profit-breakdown"></div></div>
-          <div class="note" data-value="earnings-note"></div><div class="note" data-value="adjustments"></div><div class="note warn" data-value="pending" role="status"></div>
+          <div class="note" data-value="earnings-note"></div><div class="note" data-value="adjustments"></div><div class="note warn" data-value="pending" role="status"></div><div class="note" data-value="recovery" role="status"></div>
           <div class="haul-notes" data-haul-notes hidden><span class="k">Owner instructions</span><div data-value="notes"></div></div>
           <div class="row haul-activity"><label>My status <select data-activity><option value="ready">Ready</option><option value="hauling">Hauling</option><option value="away">Away</option></select></label><span class="note" data-auto-tracking></span></div>
           <details class="trade-details" data-manual-details><summary>Record a missed delivery</summary><p class="note">Journal deliveries are automatic. Only add a delivery that was missed; adding an already tracked delivery would count it twice.</p><form data-delivery class="row"><label>Delivered tonnes<input name="tonnes" type="number" min="1" max="1000000" required></label><button class="mini" type="submit">Record delivery</button></form><div data-delivery-status class="note" role="status"></div></details>
@@ -120,13 +120,14 @@
       for (const phase of ['loading','unloading']) { const bar = el.querySelector(`[data-progress="${phase}"]`); const target=assignment ? assignment[phase+'_target'] : d.target; bar.max = target || 1; bar.value = Math.min(target || 1, d.progress[phase]);bar.setAttribute('aria-label',assignment ? `Your assigned ${phase} progress` : `Your contribution to the ${phase} target`); }
       const pending = Object.entries(d.pending).filter(([,n])=>n).map(([phase,n])=>`${tons(n)} ${phase}`).join(', ');
       set('pending', pending ? `${pending} saved locally, awaiting leader acknowledgement. Do not report again.` : '');
+      set('recovery',p.recovery?.running ? 'Checking local journals for missed deliveries...' : p.recovery?.error || (p.recovery?.recovered ? `Recovered ${tons(p.recovery.recovered)} of missed deliveries from your journals.` : ''));
       const adjustments=Object.entries(d.adjustments || {}).filter(([,n])=>n).map(([phase,n])=>`${phase}: ${n>0?'+':''}${fmt(n)} t`).join(', ');
       set('adjustments',adjustments ? `Owner corrections included in your progress (${adjustments}). See Delivery history in Carrier job.` : '');
       set('notes', d.notes); el.querySelector('[data-haul-notes]').hidden = !d.notes;
       const activity = el.querySelector('[data-activity]'); if (document.activeElement !== activity) activity.value = p.activity || 'ready';
       const working = ['loading','unloading'].includes(d.phase), tracking = p.auto_tracking?.[d.phase];
       el.querySelector('[data-auto-tracking]').textContent = working ? tracking ? 'Journal tracking on' : 'Market ID missing: use manual reporting' : 'Journal tracking waits for an active leg';
-      const form = el.querySelector('[data-delivery]'), canReport = working && !d.stale && !el._haul.busy;
+      const form = el.querySelector('[data-delivery]'), canReport = working && !d.stale && !el._haul.busy && !p.recovery?.running;
       form.elements.tonnes.disabled = !canReport; form.querySelector('button').disabled = !canReport;
     },
   });

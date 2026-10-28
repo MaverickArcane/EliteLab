@@ -146,3 +146,19 @@ cargo snapshots, automatic quantity previews, pauses and unavailable ships.
 Session tests compare leader next-pickup rows with member instructions and check
 that unchanged heartbeats do not rewrite the ledger. Browser tests exercise live
 mode on independent clients, leaving/reallocation, and all three crew Inara links.
+
+Hardening regressions:
+- `test_live_hauling.py` covers corrections with cargo in flight, legacy snapshot
+  migration, and historical/manual delivery evidence predating the current hold.
+- `test_engineering_concurrency.py` schedules simultaneous material publication
+  and wishlist edits, checks failed-write rollback, and bounds exchange batches
+  by receiving capacity while preserving unresolved needs.
+- `test_delivery_recovery.py` uses `fixtures/journals/recovery` for restart catch-up,
+  loading/unloading boundaries, member rejoin, duplicate evidence, manual/corrected
+  cutoffs, incomplete lines, failed-write retry and leaving during a scan.
+- `node tests/state-feed.mjs` checks old queued events, out-of-order fields,
+  overlapping snapshots, restart generations, bounded queues and retry without
+  new events. The browser suite imports these checks too.
+- CI runs the full browser suite on Node 22 and the hauling branch's pushes.
+  The Windows smoke test uses an isolated instance directory. Docker gives the
+  non-root process an instance directory under its writable `/data` volume.

@@ -120,10 +120,11 @@ class Wishlist:
                 if s > 0:
                     surplus[k] = s
         trades, unresolved = [], []
-        remaining = {}
+        remaining, room = {}, {}
         for r in rows:
             if r["short"] > 0 and r.get("family"):
-                remaining[r["key"]] = min(r["short"], max(0, r["cap"] - r["have"])) if r["cap"] is not None else r["short"]
+                remaining[r["key"]] = r["short"]
+                room[r["key"]] = max(0, r["cap"] - r["have"]) if r["cap"] is not None else r["short"]
         # Every (donor, shortfall) pair, cheapest exchange first across the whole list, so a 6:1 same-family trade
         # is never starved by a 36:1 cross-family one that happened to be considered earlier.
         options = []
@@ -138,7 +139,7 @@ class Wishlist:
             left = remaining[r["key"]]
             if left <= 0:
                 continue
-            n = min(math.ceil(left / get), surplus[donor] // give)
+            n = min(math.ceil(left / get), surplus[donor] // give, room[r["key"]] // get)
             if n <= 0:
                 continue
             dm = gd.MATERIAL_BY_KEY[donor]
@@ -146,6 +147,7 @@ class Wishlist:
                            "give": {"key": donor, "name": dm["name"], "grade": dm["grade"], "qty": n * give},
                            "get": {"key": r["key"], "name": r["name"], "grade": r["grade"], "qty": n * get}})
             surplus[donor] -= n * give
+            room[r["key"]] -= n * get
             remaining[r["key"]] = left - n * get
         for r in rows:
             left = remaining.get(r["key"], 0)
@@ -235,8 +237,9 @@ class Wishlist:
         else:
             raise ValueError(f"nothing matches '{text}'; try list_recipes or a material name")
         entry.update({"id": uuid.uuid4().hex[:8], "qty": qty, "label": label, "added": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
-        self.entries.append(entry)
-        self.core.write_data(self.entries, FILE)
+        entries = self.entries + [entry]
+        self.core.write_data(entries, FILE)
+        self.entries = entries
         self.publish()
         st = self.core.store.get(NS)
         out = [e for e in st["entries"] if e["id"] == entry["id"]][0]
@@ -250,11 +253,12 @@ class Wishlist:
         pinned = self.core.store.get("build", "pinned")
         if not pinned:
             raise ValueError("no build is pinned; pin an EDSY link first")
-        self.entries = [e for e in self.entries if e["kind"] != "build"]
+        entries = [e for e in self.entries if e["kind"] != "build"]
         entry = {"kind": "build", "key": "build", "name": pinned.get("name"), "module": pinned.get("ship"), "qty": 1, "label": label,
                  "id": uuid.uuid4().hex[:8], "added": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
-        self.entries.append(entry)
-        self.core.write_data(self.entries, FILE)
+        entries.append(entry)
+        self.core.write_data(entries, FILE)
+        self.entries = entries
         self.publish()
         st = self.core.store.get(NS)
         out = [e for e in st["entries"] if e["id"] == entry["id"]][0]
@@ -283,15 +287,16 @@ class Wishlist:
             ids = q.get("id")
             if str(q.get("all", "")).lower() in ("1", "true") or ids in ("all", "*"):
                 removed = len(self.entries)
-                self.entries = []
+                entries = []
             else:
                 if not ids:
                     raise ValueError("id is required (or all=true)")
                 ids = set(ids.split(",")) if isinstance(ids, str) else set(ids)
                 before = len(self.entries)
-                self.entries = [e for e in self.entries if e["id"] not in ids]
-                removed = before - len(self.entries)
-            self.core.write_data(self.entries, FILE)
+                entries = [e for e in self.entries if e["id"] not in ids]
+                removed = before - len(entries)
+            self.core.write_data(entries, FILE)
+            self.entries = entries
             self.publish()
             return {"removed": removed, "entries": self.core.store.get(NS, "entries")}
 
