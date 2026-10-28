@@ -12,12 +12,20 @@ const server = spawn(process.env.PYTHON || 'python', ['-u', path.join(dir, 'brow
 server.stderr.on('data', d => process.stderr.write(d));
 let serverText = ''; server.stdout.on('data', d => serverText += d);
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'elitelab-chrome-'));
-const chrome = spawn(process.env.CHROME_BIN || (process.platform === 'win32' ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : 'google-chrome'), ['--headless=new', '--no-sandbox', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], {windowsHide:true, stdio:'ignore'});
+const chrome = spawn(process.env.CHROME_BIN || (process.platform === 'win32' ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : 'google-chrome'), ['--headless=new', '--no-sandbox', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], {windowsHide:true, stdio:['ignore','ignore','pipe']});
+let chromeLog='', chromeError;
+chrome.stderr.on('data',d=>{chromeLog=(chromeLog+d).slice(-8000);});
+chrome.on('error',error=>{chromeError=error;});
 const attacker = http.createServer((req,res) => {res.writeHead(200, {'Content-Type':'text/html'}); res.end('<!doctype html><title>Audit cross-origin test</title>');});
 await new Promise(r => attacker.listen(0,'127.0.0.1',r));
 let ws, joinServer, memberServer;
 try {
-  for(let i=0;i<100 && (!serverText.trim() || !fs.existsSync(path.join(profile, 'DevToolsActivePort')));i++) await sleep(100);
+  for(let i=0;i<300 && (!serverText.trim() || !fs.existsSync(path.join(profile, 'DevToolsActivePort')));i++) {
+    if(chromeError || chrome.exitCode!==null || chrome.signalCode!==null) throw new Error(`Chrome failed to start: ${chromeError || chrome.exitCode || chrome.signalCode}\n${chromeLog}`);
+    await sleep(100);
+  }
+  assert.ok(fs.existsSync(path.join(profile,'DevToolsActivePort')),`Chrome debugger did not become ready within 30 seconds.\n${chromeLog}`);
+  assert.ok(serverText.trim(),'Browser fixture server did not become ready within 30 seconds.');
   const port = Number(serverText.trim());
   console.log('Server port', port);
   const debugPort = Number(fs.readFileSync(path.join(profile,'DevToolsActivePort'),'utf8').split('\n')[0]);
