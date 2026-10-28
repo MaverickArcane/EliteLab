@@ -123,7 +123,9 @@ and temporary disconnect recovery.
 Pricing regressions cover the live test reference (Gold at 47,214 Cr/t for 100%),
 whole-percentage rounding, payout conservation, bounds, impossible quotes,
 automatic meanPrice selection and absent references. Browser checks preserve
-expanded profit details across real job changes and remove cancelled-job progress
+expanded profit and delivery details across repeated real job changes, using
+summary clicks and checking that each panel remembers its own open/closed state.
+They also remove cancelled-job progress
 even while its previous text is selected for copying.
 
 Mid-haul joining tests cover automatic equal shares, preserved deliveries and

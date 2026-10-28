@@ -180,11 +180,18 @@ try {
   await evaluate("document.querySelector('[data-delivery] [name=tonnes]').value='100';document.querySelector('[data-delivery]').requestSubmit();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade?.operation?.loaded===100"))break;}
   assert.equal(await evaluate('Lab.state.trade.operation.loaded'),100);
-  await evaluate("document.querySelector('[data-op-details=prices]').open=true;document.querySelector('[data-op-details=reports]').open=true;true");
-  await evaluate("Lab.post('/api/trade/operation',{action:'notes',id:Lab.state.trade.operation.id,notes:'Updated while profit details are open.'})");
+  // Exercise the actual summary controls, including successive DOM rebuilds.
+  await evaluate("document.querySelector('[data-op-details=prices] summary').click();document.querySelector('[data-op-details=reports] summary').click();true");
+  for(let revision=1;revision<=3;revision++) {
+    await evaluate(`Lab.post('/api/trade/operation',{action:'notes',id:Lab.state.trade.operation.id,notes:'Panel update ${revision}'})`);
+    await reportGuest();await sleep(1200);
+    assert.ok(await evaluate(`document.querySelector('[data-operation]').textContent.includes('Panel update ${revision}')`));
+    assert.ok(await evaluate("document.querySelector('[data-op-details=prices]').open && document.querySelector('[data-op-details=reports]').open"));
+  }
+  await evaluate("document.querySelector('[data-op-details=reports] summary').click();true");
+  await evaluate("Lab.post('/api/trade/operation',{action:'notes',id:Lab.state.trade.operation.id,notes:'Reports closed; prices still open.'})");
   await reportGuest();await sleep(1200);
-  assert.ok(await evaluate("document.querySelector('[data-operation]').textContent.includes('Updated while profit details are open.')"));
-  assert.ok(await evaluate("document.querySelector('[data-op-details=prices]').open && document.querySelector('[data-op-details=reports]').open"));
+  assert.ok(await evaluate("document.querySelector('[data-op-details=prices]').open && !document.querySelector('[data-op-details=reports]').open"));
   assert.equal(await evaluate('Lab.state.trade.inventory.gold.stock'),300);
   await evaluate("document.querySelector('[data-op-action=pause]').click();true");
   for(let i=0;i<30;i++){await sleep(100);if(await evaluate("Lab.state.trade.operation.paused"))break;}
