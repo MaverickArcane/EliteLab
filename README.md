@@ -403,23 +403,35 @@ Spansh (https://spansh.co.uk) for station and system search, EDSM (https://www.e
 ## License
 
 MIT. See LICENSE.
-## Personal trading
+## Trading
 
-Choose **Layout > Personal trading** for ship-sized community trade routes.
+Choose **Layout > Trading** for ship-sized Spansh trade routes.
 Leave Starting system blank to use your current journal location; leave
 Destination blank to search any buyer within range. Choose a light-year limit
 (up to 500 Ly), or an estimated number of jumps using your current ship's fully
 laden range. Blank load size uses ship cargo capacity; enter a smaller load if
 your hold or budget is limited. The minimum pad defaults to Large and is editable.
 
-The search matches Ardent/EDDN exports in the starting system to nearby buyers,
-ranking up to 30 one-way routes by estimated profit per load. Results include
-prices, supply/demand, report timestamps, approach distances, purchase costs,
-copyable stops and Inara market links. It screens 24 locally available commodities
-by default (48 optional); choosing a commodity searches just that good. Nearby
-buyers are capped at 1,000 reports per commodity by the provider. Reports are
-cached five minutes and can change before arrival. Jump estimates use straight-line
-distance, not a plotted route; profits exclude fuel, fees and personal bonuses.
+Choose **Round trip** (default) or **One way**. Round trips return to the exact
+starting station, with independently chosen return cargo. An optional starting
+station narrows the origin; the destination field is a system name. Each leg
+must have reported supply and positive demand for the full load. Fleet carriers
+are excluded; surface stations are optional and excluded by default.
+
+The search ranks up to 30 routes by combined load profit. Separate outbound and
+return sections show commodity prices, supply/demand, timestamps, approach
+distances and copy buttons. The total shows starting credits needed (accounting
+for outbound profit), total purchases and return on purchase costs. Inara is the
+preferred external market and prefilled station-pair route view; its website
+filters may differ from the local search.
+
+Search checks the nearest 100 eligible stations by default (200/300 optional),
+plus up to 100 origin markets. All available goods are compared; the commodity
+selector restricts outbound cargo only. Coverage warnings show when the station
+limit is reached. Reports are cached five minutes and can change before arrival.
+Jump estimates use straight-line distance per leg, not a plotted route; profits
+exclude fuel, fees and personal bonuses. Routes exceeding your reported credits
+or capacity show a warning; reduce the load before flying them.
 Search results retain the original settings until you run another search.
 
 The `find_personal_trade_routes` tool exposes the same search via HTTP/MCP/CLI.

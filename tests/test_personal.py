@@ -1,128 +1,164 @@
-"""Personal routes use local supply and nearby demand, never carrier capacity."""
+"""Spansh trades: exact loops, full-load eligibility and bounded discovery."""
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
+import copy
 import unittest
-from urllib.parse import urlparse, parse_qs
-
 from modules.personal.module import Personal
 
 
 class PersonalTests(unittest.TestCase):
     def setUp(self):
-        self.journal = {"system": "Sol", "star_pos": [0, 0, 0], "cargo_capacity": 100,
-                        "jump_range_laden": 20, "jump_range_now": 40, "credits": 100000,
-                        "carrier": {"system": "Lave", "free_space": 20000}}
+        self.journal = {'system': 'Sol', 'cargo_capacity': 100, 'jump_range_laden': 20, 'credits': 10000}
         self.now = datetime.now(timezone.utc).isoformat()
-        self.exports = [self.quote(1, "Sol", 0, buyPrice=100), self.quote(2, "Sol", 0, buyPrice=110)]
-        self.imports = [self.quote(3, "Alpha", 39, sellPrice=300), self.quote(4, "Beta", 41, sellPrice=400)]
+        self.origin = self.station(1, 'Sol', 0, [self.item('Gold', 100, 0), self.item('Silver', 0, 300)])
+        self.other = self.station(2, 'Alpha', 39, [self.item('Gold', 0, 400), self.item('Silver', 500, 0)])
+        self.third = self.station(3, 'Beta', 41, [self.item('Gold', 0, 300), self.item('Silver', 100, 0)])
+        self.locals, self.nearby = [self.origin], [self.other, self.third]
         self.calls = []
-        self.core = SimpleNamespace(config=SimpleNamespace(OFFLINE=False),
-            store=SimpleNamespace(get=lambda ns: self.journal),
-            services=SimpleNamespace(fetch_json=self.fetch, edsm_coords=lambda names: {names[0]: {"x": 10, "y": 0, "z": 0}}))
+        self.core = SimpleNamespace(config=SimpleNamespace(OFFLINE=False), store=SimpleNamespace(get=lambda ns: self.journal),
+                                    services=SimpleNamespace(fetch_json=self.fetch))
         self.desk = Personal(self.core)
 
-    def quote(self, mid, system, x, **extra):
-        return {"commodityName": "gold", "marketId": mid, "stationName": "Port " + str(mid),
-                "stationType": "Coriolis", "systemName": system, "systemX": x, "systemY": 0, "systemZ": 0,
-                "buyPrice": 0, "sellPrice": 0, "stock": 1000, "demand": 1000, "maxLandingPadSize": 3,
-                "updatedAt": self.now, **extra}
+    def item(self, name, buy, sell, **extra):
+        return dict(commodity=name, buy_price=buy, sell_price=sell, supply=1000, demand=1000, **extra)
 
-    def fetch(self, url, ttl):
-        self.calls.append(url)
-        if url.endswith('/v2/commodities'):
-            return [{"commodityName": "gold", "minBuyPrice": 10, "maxSellPrice": 500}]
-        if '/commodities/exports?' in url:
-            return self.exports
-        if '/nearby/imports?' in url:
-            return self.imports
-        raise AssertionError(url)
+    def station(self, mid, system, x, market):
+        return dict(market_id=mid, name='Port '+str(mid), system_name=system, type='Dodec Starport',
+                    has_market=True, has_large_pad=True, distance_to_arrival=100, market_updated_at=self.now,
+                    system_x=x, system_y=0, system_z=0, market=market)
 
-    def test_local_supply_nearby_buyers_profit_and_ship_defaults(self):
-        self.exports.append(self.quote(10, "Elsewhere", 1, buyPrice=1))
+    def fetch(self, url, body=None, ttl=None):
+        self.calls.append((url, body))
+        if body['filters']['distance']['max'] == 0.001 and body['reference_system'] == 'Sol':
+            return {'count': len(self.locals), 'results': self.locals}
+        return {'count': len(self.nearby), 'results': self.nearby}
+
+    def test_exact_loop_not_two_hops_and_independent_return_commodity(self):
         result = self.desk.search({})
-        self.assertEqual(result['settings']['origin'], 'Sol')
+        self.assertEqual(len(result['rows']), 1)  # Alpha has no profitable return.
+        row = result['rows'][0]
+        self.assertEqual([l['commodity'] for l in row['legs']], ['Gold', 'Silver'])
+        self.assertEqual([l['buy']['market_id'] for l in row['legs']], [1, 3])
+        self.assertEqual([l['sell']['market_id'] for l in row['legs']], [3, 1])
+        self.assertEqual(row['profit'], 40000)
+        self.assertEqual(row['cost'], 20000)
+        self.assertEqual(row['required_credits'], 10000)
+        self.assertEqual(row['return_on_cost'], 200)
         self.assertEqual(result['settings']['quantity'], 100)
-        self.assertEqual([r['profit'] for r in result['rows']], [30000, 20000])
-        self.assertEqual(result['rows'][0]['buy']['market_id'], 1)
-        self.assertEqual(result['rows'][0]['cost'], 10000)
-        self.assertTrue(any('/system/name/Sol/commodity/name/gold/nearby/imports?' in u for u in self.calls))
+        self.assertIn('Spansh', result['source'])
 
-    def test_jump_limit_uses_laden_range_and_optional_destination(self):
-        result = self.desk.search({'distance_mode': 'jumps', 'jumps': 2})
-        self.assertEqual(result['settings']['distance'], 40)
+    def test_one_way_keeps_destination_and_laden_jump_filter(self):
+        result = self.desk.search({'route_type': 'one_way', 'distance_mode': 'jumps', 'jumps': 2})
         self.assertEqual(len(result['rows']), 1)
+        self.assertEqual(result['rows'][0]['sell']['system'], 'Alpha')
         self.assertEqual(result['rows'][0]['estimated_jumps'], 2)
+        self.assertEqual(len(result['rows'][0]['legs']), 1)
         self.assertEqual(self.desk.search({'destination': 'bEtA'})['rows'][0]['sell']['system'], 'Beta')
         self.assertFalse(self.desk.search({'destination': 'Missing'})['rows'])
+        self.assertFalse(self.desk.search({'station': 'Missing'})['rows'])
+        self.assertTrue(self.desk.search({'station': 'pOrT 1'})['rows'])
 
-    def test_exact_fractional_radius_rechecks_rounded_api_limit(self):
-        self.imports[0]['systemX'] = 40.21
-        result = self.desk.search({'distance': 40.2})
-        self.assertFalse(result['rows'])
-        params = parse_qs(urlparse(self.calls[-1]).query)
-        self.assertEqual(params['maxDistance'], ['41'])
-
-    def test_filters_age_volume_pad_carriers_coordinates_and_bad_prices(self):
-        base = self.imports[0]
-        bad = [{"demand": 99}, {"maxLandingPadSize": 2}, {"stationType": "FleetCarrier"},
-               {"stationType": "StrongholdCarrier"}, {"systemX": None}, {"sellPrice": float('nan')},
-               {"sellPrice": True}, {"marketId": None}, {"updatedAt": "bad"},
-               {"updatedAt": (datetime.now(timezone.utc) - timedelta(days=4)).isoformat()},
-               {"updatedAt": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()}]
-        self.imports = [{**base, **patch} for patch in bad] + [base]
-        self.assertEqual(len(self.desk.search({})['rows']), 1)
-
-    def test_same_market_and_losses_are_excluded(self):
-        self.imports = [self.quote(1, 'Sol', 0, sellPrice=105), self.quote(5, 'Sol', 0, sellPrice=99)]
+    def test_return_to_exact_station_not_another_station_in_same_system(self):
+        self.origin['market'][1]['sell_price'] = 0
+        self.locals.append(self.station(4, 'Sol', 0, [self.item('Silver', 0, 900)]))
         self.assertFalse(self.desk.search({})['rows'])
 
-    def test_custom_origin_and_unknown_coordinates(self):
-        self.exports[0].update(systemName='Custom', systemX=10)
-        result = self.desk.search({'origin': 'Custom', 'quantity': 50})
-        self.assertEqual(result['rows'][0]['quantity'], 50)
-        self.assertEqual(result['rows'][0]['distance'], 31)
-        self.core.services.edsm_coords = lambda names: {}
-        with self.assertRaisesRegex(ValueError, 'Coordinates unavailable'):
-            self.desk.search({'origin': 'Unknown'})
+    def test_starting_funds_account_for_outbound_profit(self):
+        self.third['market'][1]['buy_price'] = 1000
+        self.origin['market'][1]['sell_price'] = 1200
+        row = self.desk.search({'destination': 'Beta'})['rows'][0]
+        self.assertEqual(row['required_credits'], 80000)  # 100k return purchase minus 20k earned outbound.
 
-    def test_unknown_laden_range_never_substitutes_unladen(self):
+    def test_fractional_radius_and_same_market_exclusion(self):
+        self.third['system_x'] = 40.21
+        self.assertFalse(self.desk.search({'distance': 40.2})['rows'])
+        self.third['market_id'] = 1
+        self.assertFalse(self.desk.search({})['rows'])
+
+    def test_invalid_station_reports_filtered(self):
+        base = copy.deepcopy(self.third)
+        bad = [{'type':'Drake-Class Carrier'}, {'carrier_name':'Carrier'}, {'name':'Stronghold Carrier'},
+               {'system_x':None}, {'system_x':True}, {'market_id':True}, {'has_large_pad':False},
+               {'market_updated_at':'bad'}, {'market_updated_at':'2026-01-01'},
+               {'market_updated_at':(datetime.now(timezone.utc)-timedelta(days=4)).isoformat()},
+               {'market_updated_at':(datetime.now(timezone.utc)+timedelta(days=1)).isoformat()},
+               {'distance_to_arrival':10001}, {'is_planetary':True}]
+        for patch in bad:
+            with self.subTest(patch=patch):
+                self.nearby = [{**base, **patch}]
+                self.assertFalse(self.desk.search({})['rows'])
+
+    def test_full_load_price_and_rare_filters_on_both_legs(self):
+        for side, index, key, value in [('nearby',1,'supply',99), ('nearby',0,'demand',0),
+                                      ('local',1,'demand',99), ('local',0,'supply',99),
+                                      ('nearby',1,'buy_price',float('nan')), ('nearby',0,'sell_price',True),
+                                      ('nearby',1,'is_rare',True)]:
+            with self.subTest(key=key,side=side):
+                self.setUp()
+                target = self.third if side == 'nearby' else self.origin
+                target['market'][index][key] = value
+                self.assertFalse(self.desk.search({})['rows'])
+
+    def test_surface_and_pad_filters_are_enforced_locally(self):
+        self.third.update(type='Planetary Port', is_planetary=True)
+        self.assertFalse(self.desk.search({})['rows'])
+        self.assertTrue(self.desk.search({'surface':'1'})['rows'])
+        self.third.update(type='Outpost', is_planetary=False, has_large_pad=False, medium_pads=1)
+        self.assertTrue(self.desk.search({'pad':'M'})['rows'])
+
+    def test_selected_commodity_only_restricts_outbound(self):
+        self.origin['market'][0]['commodity'] = 'HN Shock Mount'
+        self.third['market'][0]['commodity'] = 'HN Shock Mount'
+        r = self.desk.search({'commodity':'hnshockmount'})
+        self.assertEqual(r['rows'][0]['legs'][1]['commodity'], 'Silver')
+        self.assertEqual(r['commodities'][0], {'key':'hnshockmount','name':'HN Shock Mount'})
+        self.assertFalse(self.desk.search({'commodity':'missing'})['rows'])
+
+    def test_unknown_range_and_validation_before_io(self):
+        for q in ({'quantity':True},{'quantity':1.5},{'distance':'nan'},{'distance':501},{'breadth':301},
+                  {'hours':0},{'pad':'X'},{'origin':123},{'commodity':'../gold'},{'surface':'yes'},
+                  {'arrival':-1},{'route_type':'loopish'},{'distance_mode':'bad'}):
+            with self.subTest(q=q), self.assertRaises(ValueError):
+                self.desk.search(q)
+        self.assertFalse(self.calls)
         self.journal['jump_range_laden'] = None
-        with self.assertRaisesRegex(ValueError, 'range is unknown'):
-            self.desk.search({'distance_mode': 'jumps'})
+        with self.assertRaisesRegex(ValueError,'range is unknown'):
+            self.desk.search({'distance_mode':'jumps'})
         self.assertIsNone(self.desk.search({})['rows'][0]['estimated_jumps'])
 
-    def test_invalid_inputs_rejected_before_network(self):
-        for params in ({'quantity': True}, {'quantity': 1.5}, {'distance': 'nan'}, {'distance': 501},
-                       {'distance_mode': 'invalid'}, {'hours': 0}, {'breadth': 49}, {'origin': 123},
-                       {'commodity': '../gold'}, {'pad': 'X'}, {'jumps': 1.5, 'distance_mode': 'jumps'}):
-            with self.subTest(params=params), self.assertRaises(ValueError):
-                self.desk.search(params)
-        self.assertEqual(self.calls, [])
-        self.journal['jump_range_laden'] = 100
-        with self.assertRaisesRegex(ValueError, '500 Ly'):
-            self.desk.search({'distance_mode': 'jumps', 'jumps': 6})
+    def test_origin_must_match_and_empty_search_stops_early(self):
+        self.origin['system_name'] = 'Wrong'
+        r = self.desk.search({})
+        self.assertFalse(r['rows'])
+        self.assertEqual(len(self.calls),1)
+        self.assertTrue(r['warnings'])
 
-    def test_no_local_supply_does_not_search_unavailable_commodities(self):
-        self.exports = []
-        result = self.desk.search({})
-        self.assertFalse(result['rows'])
-        self.assertEqual(result['screened'], 0)
-        self.assertFalse(any('/nearby/' in url for url in self.calls))
-
-    def test_network_failure_is_visible_and_offline_does_no_io(self):
-        def failing(url, ttl):
-            if '/nearby/' in url:
-                raise OSError('network down')
-            return self.fetch(url, ttl)
-        self.core.services.fetch_json = failing
-        result = self.desk.search({})
-        self.assertFalse(result['rows'])
-        self.assertEqual(len(result['warnings']), 1)
-        self.calls.clear()
+    def test_offline_and_network_failure(self):
         self.core.config.OFFLINE = True
-        with self.assertRaisesRegex(ValueError, 'offline'):
+        with self.assertRaisesRegex(ValueError,'offline'):
             self.desk.search({})
         self.assertFalse(self.calls)
+        self.core.config.OFFLINE = False
+        def fail(*a,**kw):
+            raise OSError('network unavailable')
+        self.core.services.fetch_json = fail
+        with self.assertRaisesRegex(ValueError,'Spansh markets unavailable'):
+            self.desk.search({})
+
+    def test_bounded_pages_and_visible_partial_failure(self):
+        original = self.fetch
+        def paged(url, body=None, ttl=None):
+            if body['filters']['distance']['max'] == 0.001:
+                return original(url,body,ttl)
+            if body['page'] == 1:
+                raise OSError('second page unavailable')
+            return {'count':250,'results':[self.third]*100}
+        self.core.services.fetch_json = paged
+        r = self.desk.search({'breadth':200})
+        self.assertEqual(len(r['rows']),1)
+        self.assertEqual(r['screened'],100)
+        self.assertEqual(r['available'],250)
+        self.assertTrue(any('partial' in w for w in r['warnings']))
 
 
 if __name__ == '__main__':

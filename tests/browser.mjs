@@ -61,7 +61,7 @@ try {
   assert.ok(await evaluate("document.querySelector('.mat-session').textContent.includes('Gained this session: +4') && document.querySelector('.mat-session').textContent.includes('Latest gain: +1 Iron')"));
   await evaluate("document.querySelector('#mat-q').value='arsenic';document.querySelector('#mat-view').value='all';document.querySelector('#mat-q').dispatchEvent(new Event('input'));true");
   // Personal search defaults to the live ship, preserves edits and escapes reports.
-  await evaluate(`document.querySelector('[data-preset="Personal trading"]').click();true`);
+  await evaluate(`document.querySelector('[data-preset="Trading"]').click();true`);
   await sleep(100);
   const personal = await evaluate(`(async () => {
     const original=Lab.api, journal=Lab.state.journal, form=document.querySelector('[data-personal-search]');
@@ -71,7 +71,9 @@ try {
       if(path!=='/api/personal/routes')return original.call(Lab,path,params);
       sent=params;
       const stop={station:'<img src=x onerror=alert(1)>',system:'Sol',price:100,volume:1000,pad:'L',observed_at:new Date().toISOString(),arrival_ls:10};
-      return {commodities:['gold'],rows:[{commodity:'gold',buy:stop,sell:{...stop,system:'Alpha',price:200},quantity:100,cost:10000,profit:10000,per_ton:100,distance:30,estimated_jumps:2}],settings:{origin:params.origin,quantity:params.quantity,distance:40},warnings:[],source:'Ardent / EDDN',screened:1,available:1,note:'Test reports',queried_at:new Date().toISOString()};
+      const outbound={commodity:'Gold',buy:stop,sell:{...stop,station:'Destination',system:'Alpha',price:200},quantity:100,cost:10000,profit:10000,per_ton:100};
+      const returning={commodity:'Silver',buy:{...outbound.sell,price:500},sell:{...stop,price:600},quantity:100,cost:50000,profit:10000,per_ton:100};
+      return {commodities:[{key:'gold',name:'Gold'}],rows:[{...outbound,legs:[outbound,returning],route_type:'round_trip',cost:60000,profit:20000,required_credits:40000,return_on_cost:100/3,distance:30,estimated_jumps:2}],settings:{origin:params.origin,quantity:params.quantity,distance:40,pad:'L',surface:false},warnings:[],source:'Spansh / community markets',screened:1,available:1,note:'Test reports',queried_at:new Date().toISOString()};
     };
     try {
       form.elements.distance_mode.value='jumps';form.elements.distance_mode.dispatchEvent(new Event('change'));
@@ -83,6 +85,9 @@ try {
         images:document.querySelectorAll('#card-personal img').length,
         destination:form.elements.destination.value,
         jumpsEnabled:!form.elements.jumps.disabled,lyDisabled:form.elements.distance.disabled,
+        legs:document.querySelectorAll('#card-personal .trading-leg').length,
+        returnText:document.querySelectorAll('#card-personal .trading-leg')[1].textContent,
+        inaraRoute:document.querySelector('#card-personal .trade-pair-footer a').href,
         link:document.querySelector('#card-personal [data-personal-results] a').href};
     } finally {Lab.api=original;Lab.state.journal=journal;}
   })()`);
@@ -94,6 +99,24 @@ try {
   assert.equal(personal.destination,'Keep this destination');
   assert.ok(personal.jumpsEnabled && personal.lyDisabled);
   assert.ok(personal.link.startsWith('https://inara.cz/elite/station-market/'));
+  assert.equal(personal.sent.route_type,'round_trip');
+  assert.equal(personal.legs,2);
+  assert.ok(personal.returnText.includes('Silver'));
+  assert.equal(new URL(personal.inaraRoute).searchParams.get('pi7'),'1');
+  assert.equal(new URL(personal.inaraRoute).searchParams.get('ps2'),'Destination [Alpha]');
+  const tradingDesktop = await send('Page.captureScreenshot',{format:'png'});
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await sleep(200);
+  const tradingMobile = await evaluate(`({width:document.documentElement.scrollWidth,viewport:innerWidth,columns:getComputedStyle(document.querySelector('#card-personal .trade-pair-stops')).gridTemplateColumns})`);
+  assert.ok(tradingMobile.width <= tradingMobile.viewport + 1,JSON.stringify(tradingMobile));
+  assert.equal(tradingMobile.columns.split(' ').length,1);
+  if(process.env.ELITELAB_SCREENSHOT_DIR){
+    const shot=await send('Page.captureScreenshot',{format:'png'});
+    fs.mkdirSync(process.env.ELITELAB_SCREENSHOT_DIR,{recursive:true});
+    fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'trading-desktop.png'),Buffer.from(tradingDesktop.data,'base64'));
+    fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'trading-mobile.png'),Buffer.from(shot.data,'base64'));
+  }
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   // Exercise the carrier desk and real party listener through the browser.
   await evaluate(`document.querySelector('[data-preset="Carrier ops"]').click();true`);
   await sleep(200);

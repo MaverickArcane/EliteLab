@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Rename Personal trading to Trading. Search Spansh station markets for one-way
+  trades or exact round trips, with independent return cargo and no fleet carriers.
+- Show separate outbound/return sections, combined profit, starting-credit needs,
+  station/report filters, coverage warnings and prefilled Inara route links.
+- Preserve ship capacity and laden-range inputs; improve Trading's mobile layout.
 - Hauling party: each client now proves it owns its member id with a private
   secret saved in `party-local.json`, so a party code alone no longer lets one
   commander report, be paid or be removed as another. Members reject leader
