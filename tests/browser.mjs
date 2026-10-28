@@ -364,7 +364,7 @@ try {
   assert.equal(await evaluate("document.querySelectorAll('[data-party-inara]').length"),3);
   await postMember('/api/party/leave',{});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}`});
-  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[data-value=quantity]')?.textContent==='1,136 t'"))break;}
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate(`location.port==='${port}' && document.querySelector('[data-value=quantity]')?.textContent==='1,136 t' && document.querySelector('[data-wl-order]')?.textContent==='0 t'`))break;}
   assert.equal(await evaluate("document.querySelector('[data-value=quantity]').textContent"),'1,136 t');
   assert.equal(await evaluate("document.querySelector('[data-wl-order]').textContent"),'0 t');
   await evaluate("Lab.post('/api/trade/operation',{action:'cancel',id:Lab.state.trade.operation.id})");
