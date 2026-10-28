@@ -60,6 +60,40 @@ try {
   assert.ok(await evaluate("document.querySelector('.mat-list').textContent.includes('Iron') && document.querySelector('.mat-list').textContent.includes('+1')"));
   assert.ok(await evaluate("document.querySelector('.mat-session').textContent.includes('Gained this session: +4') && document.querySelector('.mat-session').textContent.includes('Latest gain: +1 Iron')"));
   await evaluate("document.querySelector('#mat-q').value='arsenic';document.querySelector('#mat-view').value='all';document.querySelector('#mat-q').dispatchEvent(new Event('input'));true");
+  // Personal search defaults to the live ship, preserves edits and escapes reports.
+  await evaluate(`document.querySelector('[data-preset="Personal trading"]').click();true`);
+  await sleep(100);
+  const personal = await evaluate(`(async () => {
+    const original=Lab.api, journal=Lab.state.journal, form=document.querySelector('[data-personal-search]');
+    Lab.state.journal={...journal,cargo_capacity:720,jump_range_laden:20};
+    let sent;
+    Lab.api=async (path,params)=>{
+      if(path!=='/api/personal/routes')return original.call(Lab,path,params);
+      sent=params;
+      const stop={station:'<img src=x onerror=alert(1)>',system:'Sol',price:100,volume:1000,pad:'L',observed_at:new Date().toISOString(),arrival_ls:10};
+      return {commodities:['gold'],rows:[{commodity:'gold',buy:stop,sell:{...stop,system:'Alpha',price:200},quantity:100,cost:10000,profit:10000,per_ton:100,distance:30,estimated_jumps:2}],settings:{origin:params.origin,quantity:params.quantity,distance:40},warnings:[],source:'Ardent / EDDN',screened:1,available:1,note:'Test reports',queried_at:new Date().toISOString()};
+    };
+    try {
+      form.elements.distance_mode.value='jumps';form.elements.distance_mode.dispatchEvent(new Event('change'));
+      await form.onsubmit({preventDefault(){}});
+      form.elements.destination.value='Keep this destination';
+      Lab.cards.personal.render(document.querySelector('#card-personal > .body'),Lab.state);
+      return {sent,expectedSystem:Lab.state.journal.system,expectedCapacity:Lab.state.journal.cargo_capacity,
+        count:document.querySelectorAll('#card-personal .trade-pair').length,
+        images:document.querySelectorAll('#card-personal img').length,
+        destination:form.elements.destination.value,
+        jumpsEnabled:!form.elements.jumps.disabled,lyDisabled:form.elements.distance.disabled,
+        link:document.querySelector('#card-personal [data-personal-results] a').href};
+    } finally {Lab.api=original;Lab.state.journal=journal;}
+  })()`);
+  assert.equal(personal.sent.origin,personal.expectedSystem);
+  assert.equal(personal.sent.quantity,personal.expectedCapacity);
+  assert.equal(personal.sent.destination,'');
+  assert.equal(personal.sent.distance_mode,'jumps');
+  assert.equal(personal.count,1);assert.equal(personal.images,0);
+  assert.equal(personal.destination,'Keep this destination');
+  assert.ok(personal.jumpsEnabled && personal.lyDisabled);
+  assert.ok(personal.link.startsWith('https://inara.cz/elite/station-market/'));
   // Exercise the carrier desk and real party listener through the browser.
   await evaluate(`document.querySelector('[data-preset="Carrier ops"]').click();true`);
   await sleep(200);

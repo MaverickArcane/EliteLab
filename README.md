@@ -403,3 +403,23 @@ Spansh (https://spansh.co.uk) for station and system search, EDSM (https://www.e
 ## License
 
 MIT. See LICENSE.
+## Personal trading
+
+Choose **Layout > Personal trading** for ship-sized community trade routes.
+Leave Starting system blank to use your current journal location; leave
+Destination blank to search any buyer within range. Choose a light-year limit
+(up to 500 Ly), or an estimated number of jumps using your current ship's fully
+laden range. Blank load size uses ship cargo capacity; enter a smaller load if
+your hold or budget is limited. The minimum pad defaults to Large and is editable.
+
+The search matches Ardent/EDDN exports in the starting system to nearby buyers,
+ranking up to 30 one-way routes by estimated profit per load. Results include
+prices, supply/demand, report timestamps, approach distances, purchase costs,
+copyable stops and Inara market links. It screens 24 locally available commodities
+by default (48 optional); choosing a commodity searches just that good. Nearby
+buyers are capped at 1,000 reports per commodity by the provider. Reports are
+cached five minutes and can change before arrival. Jump estimates use straight-line
+distance, not a plotted route; profits exclude fuel, fees and personal bonuses.
+Search results retain the original settings until you run another search.
+
+The `find_personal_trade_routes` tool exposes the same search via HTTP/MCP/CLI.

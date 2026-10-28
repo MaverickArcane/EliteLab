@@ -1,5 +1,10 @@
 # Testing
 
+`tests/test_personal.py` checks personal trade searches using mocked community
+reports: exact starting-system supply, optional destination, loaded-ship range,
+fractional distance limits, pad/volume/age filters, invalid reports, profit ranking,
+offline mode and visible partial network failures. No journal parsing is added.
+
 ```
 python -m unittest discover -s tests -v
 ```
