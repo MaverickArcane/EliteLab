@@ -12,7 +12,9 @@ parameters, escaping, preserved input and Trading layout at mobile width.
 python -m unittest discover -s tests -v
 ```
 
-No dependencies. Runs in well under a second. CI runs it on Linux and Windows with Python 3.10 and 3.13.
+The Python suite needs no third-party dependencies. It includes real local HTTP,
+restart and recovery tests, so allow about a minute; timing varies by machine.
+CI runs it on Linux and Windows with Python 3.10 and 3.13.
 
 ## How the suite works
 
@@ -22,7 +24,11 @@ No dependencies. Runs in well under a second. CI runs it on Linux and Windows wi
 - `ELITELAB_OFFLINE=1` -> every `Services.fetch_json` raises, so nothing talks to Spansh or EDSM
 - `ELITELAB_DATA_DIR` -> `tests/.data` (gitignored; wishlist writes go there)
 
-`make_core()` builds a real `Core`, loads every module through the loader, and calls `core.watcher.replay()` synchronously (no thread, no HTTP server). Tests then call tool functions directly: `core.http.tools['get_rares_loop'].fn({})`. That exercises the exact code the HTTP and MCP paths use, minus the transport.
+Many tests build a real `Core`, load modules, replay fixture journals and call
+tool functions directly, for example `core.http.tools['get_rares_loop'].fn({})`.
+Other tests start local listeners and independent cores to exercise HTTP party
+reports, reconnection, persistence and process restarts. Temporary data
+directories isolate those tests from the player's saved data.
 
 The loop module's coordinate fetch runs in a thread and fails under OFFLINE; it logs a warning and the loop still computes (with `dist: null`). Tests assert on that behaviour implicitly.
 
@@ -49,7 +55,13 @@ Loader order and missing-dependency error; tool schema completeness; commander s
 
 ## What is not covered (yet)
 
-The HTTP transport itself (SSE framing, static path guard), the MCP server, the front end, and anything that needs Spansh (targets, combat). The CI Docker job does an end-to-end check of the HTTP path against the fixture. For Spansh-backed modules, test by hand with `python -m elitelab call find_sell_targets min=125 max=165` and read the result.
+The suite does not replace live-game or multi-PC testing. Automated transport
+tests cover HTTP keep-alive, static path traversal, SSE snapshots and the MCP
+handshake and tools. `node tests/browser.mjs` exercises the front end in
+headless Chrome. The CI Docker job also checks the dashboard HTTP
+API against a fixture. Live external market data and actual network conditions
+still need separate validation. For Spansh-backed targets, test by hand with
+`python -m elitelab call find_sell_targets min=125 max=165` and read the result.
 
 ## Pinned fleet carriers
 
