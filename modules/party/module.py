@@ -30,6 +30,10 @@ STALE_SECONDS = 30
 REPORT_SECONDS = 1
 MAX_MEMBERS = 32
 MAX_BODY = 64000
+# A snapshot contains every member's report, plus the leader's plan and
+# derived workload. Allow for JSON escaping and snapshot metadata while still
+# bounding reads from an untrusted leader.
+MAX_RESPONSE = MAX_MEMBERS * MAX_BODY * 6 + 1024 * 1024
 CLOSE_GRACE_SECONDS = 3
 
 
@@ -183,7 +187,7 @@ def exchange(url, token, body):
     try:
         connection.request("POST", "/report", json.dumps(body), {"Content-Type": "application/json", "Authorization": "Bearer " + token})
         response = connection.getresponse()
-        data = response.read(256001)
+        data = response.read(MAX_RESPONSE + 1)
         if response.status == 403:
             raise PartyCodeRejected("Party code rejected. Copy the current code from the leader; restarting or recreating a party changes it.")
         if response.status == 404:
@@ -193,7 +197,7 @@ def exchange(url, token, body):
             raise LeaderRejected(reason)
         if response.status != 200:
             raise ValueError(f"Leader returned HTTP {response.status}. Check the party address and matching EliteLab versions.")
-        if len(data) > 256000:
+        if len(data) > MAX_RESPONSE:
             raise ValueError("Party response too large.")
         result = json.loads(data)
         if not isinstance(result, dict) or not isinstance(result.get("members"), list):

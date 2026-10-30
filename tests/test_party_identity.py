@@ -114,6 +114,23 @@ class PartyIdentityTests(unittest.TestCase):
         self.assertTrue(bodies[-1]["leave"])
         self.assertNotIn(self.member.member_id, self.leader.members)
 
+    def test_full_roster_with_large_cargo_synchronizes_over_http(self):
+        cargo = [{"key": f"commodity{i}", "name": f"Commodity {i}", "count": 1}
+                 for i in range(256)]
+        report = self.report(cargo=cargo, cargo_count=256)
+        # The leader and already joined member occupy two slots.
+        for i in range(30):
+            body = {"id": f"{i + 1:032x}", "secret": "e" * 32, "report": report}
+            self.assertLessEqual(len(json.dumps(body).encode()), self.api.MAX_BODY)
+            status, _ = self.post(body)
+            self.assertEqual(status, 200)
+        self.member.synchronize(self.member.generation, "offline")
+        shared = self.member.remote
+        self.assertGreater(len(json.dumps(shared).encode()), 256000)
+        self.assertEqual(len(shared["members"]), self.api.MAX_MEMBERS)
+        self.assertEqual(len(next(m for m in shared["members"] if m["id"] == f"{1:032x}")["cargo"]), 256)
+        self.assertIsNone(self.member.error)
+
 
 class LeaderResponseTests(unittest.TestCase):
     """Members render what the leader sends; numeric job fields must be numbers."""
@@ -160,6 +177,11 @@ class LeaderResponseTests(unittest.TestCase):
                    "operation": {"id": "a" * 32, "stage": "loading", "quantity": 100, "loaded": 5, "unloaded": None}}
         self.assertEqual(self.exchange(self.serve(payload))["operation"]["quantity"], 100)
         self.assertEqual(self.exchange(self.serve({"members": [], "plan": None, "operation": None}))["operation"], None)
+
+    def test_oversized_response_is_rejected(self):
+        payload = {"members": [], "padding": "x" * self.api.MAX_RESPONSE}
+        with self.assertRaisesRegex(ValueError, "response too large"):
+            self.exchange(self.serve(payload))
 
 
 if __name__ == "__main__":
