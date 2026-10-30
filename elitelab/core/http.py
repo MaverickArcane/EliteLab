@@ -1,6 +1,7 @@
 """HTTP layer: route registry (self-describing, doubles as the AI tool list),
 Server-Sent Events for live state, and static files for the shell and modules.
 """
+import functools
 import json
 import hashlib
 import hmac
@@ -19,7 +20,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from . import config
 
 LOOPBACK_NAMES = ("127.0.0.1", "localhost", "::1")
-MACHINE_NAMES = {n.lower().rstrip(".") for n in (socket.gethostname(), socket.getfqdn()) if n}   # computed once
+
+
+@functools.lru_cache(maxsize=1)
+def machine_name():
+    """This machine's own name, lower-cased; read on first use and cached. gethostname() never touches DNS
+    (getfqdn() would, and can block for seconds), so a fully qualified or MagicDNS name goes in ELITELAB_ALLOWED_HOSTS."""
+    return socket.gethostname().lower().rstrip(".")
 
 
 def host_name(header):
@@ -53,7 +60,7 @@ def host_allowed(name):
         pass
     bind = config.HOST.lower().rstrip(".")
     return (name in LOOPBACK_NAMES or (bind != "0.0.0.0" and name == bind)
-            or name in MACHINE_NAMES or name in config.ALLOWED_HOSTS)
+            or name == machine_name() or name in config.ALLOWED_HOSTS)
 
 MAX_BODY = 1_000_000      # bytes; the largest legitimate POST is a wishlist
 

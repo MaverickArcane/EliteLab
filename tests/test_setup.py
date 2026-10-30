@@ -298,10 +298,27 @@ class HostCheckTests(unittest.TestCase):
                              f"[fe80::1]:{self.port}", f"127.0.0.1:{self.port}"):
                     self.assertEqual(self.post(host), 200, (bind, host))
 
-    def test_machine_hostname_is_accepted(self):
-        with mock.patch.object(config, "HOST", "0.0.0.0"):
-            for name in (socket.gethostname(), socket.gethostname().upper(), socket.getfqdn()):
+    def test_machine_hostname_is_accepted_without_dns(self):
+        from elitelab.core import http as core_http
+        core_http.machine_name.cache_clear()
+        self.addCleanup(core_http.machine_name.cache_clear)
+        no_dns = AssertionError("no DNS lookups in the Host rule")
+        with mock.patch.object(config, "HOST", "0.0.0.0"), \
+                mock.patch("socket.gethostname", return_value="Lab-PC") as hostname, \
+                mock.patch("socket.getfqdn", side_effect=no_dns), \
+                mock.patch("socket.gethostbyaddr", side_effect=no_dns):   # getaddrinfo stays: the test client needs it
+            for name in ("lab-pc", "LAB-PC", "Lab-PC."):
                 self.assertEqual(self.post(f"{name}:{self.port}"), 200, name)
+            self.assertEqual(self.post(f"lab-pc.example.com:{self.port}"), 403)    # an FQDN needs ELITELAB_ALLOWED_HOSTS
+        self.assertEqual(hostname.call_count, 1)                                     # computed once, on first use
+
+    def test_importing_http_does_no_lookups(self):
+        import importlib as il
+        from elitelab.core import http as core_http
+        boom = AssertionError("lookup at import")
+        with mock.patch("socket.gethostname", side_effect=boom), mock.patch("socket.getfqdn", side_effect=boom):
+            il.reload(core_http)
+        self.addCleanup(il.reload, core_http)
 
     def test_named_bind_host_is_accepted(self):
         with mock.patch.object(config, "HOST", "lab.example"):

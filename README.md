@@ -120,7 +120,7 @@ See docs/AI.md.
 | `ELITELAB_OFFLINE` | | Set to `1` to never call Spansh or EDSM (tests use this) |
 | `ELITELAB_URL` | `http://127.0.0.1:8766` | Where the MCP proxy finds the lab |
 
-Without `ELITELAB_AUTH_TOKEN`, the server answers a POST only when its Host header is an IP address, `localhost`, the bind host, this machine's own name, or a name in `ELITELAB_ALLOWED_HOSTS`; any other gets 403 with the variable to set. This holds on every bind, so a DNS-rebinding web page (which always needs a DNS name) cannot change anything, while opening the dashboard by IP or by the machine's name keeps working. Bind to `0.0.0.0` to open the dashboard from a tablet on your LAN; if you reach it by a name such as `nas.local`, add that name to `ELITELAB_ALLOWED_HOSTS`. Without a token there is no auth, so do not expose it to the internet.
+Without `ELITELAB_AUTH_TOKEN`, the server answers a POST only when its Host header is an IP address, `localhost`, the bind host, this machine's own name, or a name in `ELITELAB_ALLOWED_HOSTS`; any other gets 403 with the variable to set. This holds on every bind, so a DNS-rebinding web page (which always needs a DNS name) cannot change anything, while opening the dashboard by IP or by the machine's name keeps working. Bind to `0.0.0.0` to open the dashboard from a tablet on your LAN; this machine's own name is its short host name, so if you reach it by any other name, such as `nas.local`, a fully qualified name or a Tailscale MagicDNS name, add that name to `ELITELAB_ALLOWED_HOSTS`. Without a token there is no auth, so do not expose it to the internet.
 
 ## How it is built
 
