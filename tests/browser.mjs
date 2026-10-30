@@ -51,6 +51,9 @@ try {
   await sleep(200);
   await evaluate("scrollTo(0,0);true");
   const mobile=await evaluate("({bodyWidth:document.body.scrollWidth,viewport:innerWidth,clientWidth:document.documentElement.clientWidth,cards:document.querySelectorAll('#grid > .card').length,overflow:[...document.querySelectorAll('body *')].filter(e=>e.getBoundingClientRect().right>395&&getComputedStyle(e).position!=='fixed').slice(0,15).map(e=>({tag:e.tagName,id:e.id,cls:e.className,right:e.getBoundingClientRect().right}))})");
+  // journal banner: folder shown as text, link to /setup/, removed once journals are found
+  const bannerProbe=await evaluate(`(async()=>{const orig=Lab.api;const out={};try{Lab.api=async p=>p==='/api/health'?{journal_found:false,journal_dir:'<dir>&'}:orig(p);await Lab.checkHealth();const b=document.getElementById('journal-warning');const a=b&&b.querySelector('a[href="/setup/"]');out.link=a?a.textContent:null;out.text=b?b.textContent:'';out.injected=b?b.querySelectorAll('dir').length:-1;Lab.api=async p=>p==='/api/health'?{journal_found:true,journal_dir:'x'}:orig(p);await Lab.checkHealth();out.gone=!document.getElementById('journal-warning');}finally{Lab.api=orig;}return out;})()`);
+  assert.equal(bannerProbe.link,'Open setup'); assert.ok(bannerProbe.text.includes('No journal files found in <dir>&. Open setup to choose your journal folder.')); assert.ok(bannerProbe.text.includes('In Docker, mount the folder read-only at /journals.')); assert.equal(bannerProbe.injected,0); assert.ok(bannerProbe.gone);
   const shot=await send('Page.captureScreenshot',{format:'png'});
   await fetch(`http://127.0.0.1:${port}/api/materials/wishlist`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:{arsenic:10}})});
   await send('Page.navigate',{url:`http://127.0.0.1:${attacker.address().port}`});await sleep(250);
@@ -82,7 +85,7 @@ try {
   const setupSaved=await evaluate("({restartVisible:!document.querySelector('[data-restart]').hidden,status:document.querySelector('[data-status]').textContent})");
   assert.ok(setupSaved.restartVisible); assert.match(setupSaved.status,/restart/i);
   assert.deepEqual(JSON.parse(fs.readFileSync(settingsFile,'utf8')),{port:8799});
-  const results={setupPage,precedence,restartWait,setupSaved,desktop:before,inputAfter,engineeringCards,mobile,crossOrigin,wishlistAfter,browserExceptions:errors};
+  const results={bannerProbe,setupPage,precedence,restartWait,setupSaved,desktop:before,inputAfter,engineeringCards,mobile,crossOrigin,wishlistAfter,browserExceptions:errors};
   assert.equal(inputAfter.name,'arsenic'); assert.equal(inputAfter.qty,'5'); assert.equal(inputAfter.focus,'mat-q'); assert.equal(mobile.bodyWidth,390); assert.equal(wishlistAfter.wishlist[0].need,10); assert.deepEqual(errors,[]); assert.deepEqual(before.renderErrors,[]);console.log(JSON.stringify(results,null,2));
   await send('Browser.close').catch(()=>{});
 } finally {ws?.close();server.kill();chrome.kill();attacker.close();}
