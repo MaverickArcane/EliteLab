@@ -18,12 +18,13 @@ def _norm(path: str) -> str:
 
 def steam_libraries(home: str) -> list:
     """Steam roots that exist, plus every library listed in each root's libraryfolders.vdf."""
-    found = []
+    found, seen = [], set()
     for parts in _STEAM_ROOTS:
         root = _norm(os.path.join(home, *parts))
         if not os.path.isdir(root):
             continue
-        if root not in found:
+        if os.path.realpath(root) not in seen:
+            seen.add(os.path.realpath(root))
             found.append(root)
         try:
             with open(os.path.join(root, "steamapps", "libraryfolders.vdf"), encoding="utf-8", errors="replace") as f:
@@ -32,7 +33,8 @@ def steam_libraries(home: str) -> list:
             continue
         for raw in _VDF_PATH.findall(text):
             lib = _norm(raw.replace("\\\\", "\\"))
-            if lib not in found:
+            if os.path.realpath(lib) not in seen:
+                seen.add(os.path.realpath(lib))
                 found.append(lib)
     return found
 
@@ -40,7 +42,7 @@ def steam_libraries(home: str) -> list:
 def describe(path: str) -> dict:
     """exists / journals / newest for one folder. newest is the latest journal name without Journal. and .log."""
     try:
-        names = [n for n in os.listdir(path) if n.startswith("Journal.") and n.endswith(".log")]
+        names = [n for n in os.listdir(path) if n.startswith("Journal.") and n.endswith(".log") and len(n) > len("Journal..log")]
     except OSError:
         return {"exists": os.path.isdir(path), "journals": 0, "newest": None}
     newest = max(names)[len("Journal."):-len(".log")] if names else None
@@ -60,8 +62,9 @@ def candidates(home: str, platform: str = os.name, extra=()) -> list:
     out, seen = [], set()
     for path, source in listed:
         path = _norm(path)
-        if path in seen:
+        key = os.path.realpath(path)
+        if key in seen:
             continue
-        seen.add(path)
+        seen.add(key)
         out.append({"path": path, "source": source, **describe(path)})
     return out

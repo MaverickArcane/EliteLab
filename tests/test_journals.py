@@ -85,6 +85,22 @@ class JournalCandidates(unittest.TestCase):
         self.assertEqual(cands[1]["source"], "saved")
         self.assertTrue(all(not p.endswith(os.sep) for p in paths))
 
+    def test_symlinked_steam_root_listed_once(self):
+        real = os.path.join(self.home, ".local", "share", "Steam")
+        touch(real, TAIL, "Journal.2026-10-30T100000.01.log")
+        os.makedirs(os.path.join(self.home, ".steam"))
+        try:
+            os.symlink(real, os.path.join(self.home, ".steam", "steam"))
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("symlinks not supported")
+        steam = self.by_source(journals.candidates(self.home, platform="posix"), "steam")
+        self.assertEqual(len(steam), 1)
+        self.assertEqual(len(journals.steam_libraries(self.home)), 1)
+
+    def test_describe_ignores_bare_journal_log(self):
+        touch(self.home, "Journal.log")
+        self.assertEqual(journals.describe(self.home)["journals"], 0)
+
     def test_describe_empty_and_missing(self):
         self.assertEqual(journals.describe(os.path.join(self.home, "nope")),
                          {"exists": False, "journals": 0, "newest": None})
