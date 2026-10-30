@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Fix #50 (Tbehrends4587): Heat Sink Launcher now offers Lightweight, Reinforced,
+  and Shielded alongside Ammo Capacity in recipe filters and the engineering
+  wishlist. Shared blueprint keys and costs stay compatible with saved entries;
+  new wishlist entries retain the selected module.
+
 ## 0.5.0 (2026-10-25)
 
 - Merit rate: three rates instead of one. The headline is the pace while earning (time between merit gains, gaps capped at 20 min), beside the rate while playing (any journal activity; a 10 min silence is a break) and the elapsed-session rate, plus the break count and an idle flag. A three-hour engineering stop used to halve the only figure shown.
