@@ -15,9 +15,16 @@ from unittest import mock
 from test_elitelab import Core, config, ROOT  # noqa: F401  (imports first: sets the test environment)
 
 
-class StartReturnTests(unittest.TestCase):
+class _TmpMixin:
+    def _tmp(self):
+        d = tempfile.TemporaryDirectory(prefix="elitelab-test-")
+        self.addCleanup(d.cleanup)
+        return d.name
+
+
+class StartReturnTests(_TmpMixin, unittest.TestCase):
     def _run(self, action):
-        tmp = tempfile.mkdtemp(prefix="elitelab-restart-")
+        tmp = self._tmp()
         result = {}
         def serve():
             with contextlib.redirect_stdout(io.StringIO()):
@@ -27,7 +34,7 @@ class StartReturnTests(unittest.TestCase):
             t = threading.Thread(target=serve, daemon=True)
             t.start()
             deadline = time.time() + 5
-            while time.time() < deadline and not (core.ready and core._server.srv):
+            while time.time() < deadline and not core.ready:
                 time.sleep(0.02)
             self.assertTrue(core.ready)
             action(core)
@@ -36,6 +43,23 @@ class StartReturnTests(unittest.TestCase):
         self.assertFalse(core.ready)
         return result["rc"]
 
+    def test_restart_requested_before_start_is_not_lost(self):
+        tmp = self._tmp()
+        result = {}
+
+        def serve():
+            with contextlib.redirect_stdout(io.StringIO()):
+                result.update(rc=core.start("127.0.0.1", 0))
+        with mock.patch.object(config, "DATA_DIR", tmp):
+            core = Core()
+            core.request_restart()
+            time.sleep(0.3)   # the stop timer fires while nothing is bound
+            t = threading.Thread(target=serve, daemon=True)
+            t.start()
+            t.join(5)
+            self.assertFalse(t.is_alive(), "start() ignored a restart requested before the bind")
+        self.assertEqual(result["rc"], 75)
+
     def test_start_returns_75_after_request_restart(self):
         self.assertEqual(self._run(lambda c: c.request_restart()), 75)
 
@@ -43,9 +67,9 @@ class StartReturnTests(unittest.TestCase):
         self.assertEqual(self._run(lambda c: c._server.stop()), 0)
 
 
-class MainSettingsTests(unittest.TestCase):
+class MainSettingsTests(_TmpMixin, unittest.TestCase):
     def test_main_settings_flag_sets_env_before_import(self):
-        tmp = tempfile.mkdtemp(prefix="elitelab-settings-")
+        tmp = self._tmp()
         path = os.path.join(tmp, "s.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"port": 8799}, f)
@@ -62,9 +86,9 @@ class MainSettingsTests(unittest.TestCase):
 
 
 @unittest.skipUnless(os.name == "posix", "start.sh is a POSIX shell script")
-class StartShTests(unittest.TestCase):
+class StartShTests(_TmpMixin, unittest.TestCase):
     def _run(self, codes):
-        tmp = tempfile.mkdtemp(prefix="elitelab-sh-")
+        tmp = self._tmp()
         log = os.path.join(tmp, "log")
         counter = os.path.join(tmp, "n")
         fake = os.path.join(tmp, "python3")

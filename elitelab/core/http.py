@@ -235,15 +235,29 @@ class HttpServer:
     def __init__(self, core):
         self.core = core
         self.srv = None
+        self._stop_requested = False
+        self._lock = threading.Lock()
 
-    def serve(self, host, port):
-        self.srv = ThreadingHTTPServer((host, port), make_handler(self.core))
-        self.srv.daemon_threads = True
+    def bind(self, host, port):
+        srv = ThreadingHTTPServer((host, port), make_handler(self.core))
+        srv.daemon_threads = True
+        self.srv = srv
+
+    def serve(self):
+        """Run the bound server until stop(). A stop requested before this call returns at once."""
+        with self._lock:
+            if self._stop_requested:
+                self._stop_requested = False
+                self.srv.server_close()
+                return
         try:
             self.srv.serve_forever()
         finally:
             self.srv.server_close()
 
     def stop(self):
-        if self.srv:
-            threading.Thread(target=self.srv.shutdown, daemon=True).start()
+        with self._lock:
+            if not self.srv:
+                self._stop_requested = True
+                return
+        threading.Thread(target=self.srv.shutdown, daemon=True).start()

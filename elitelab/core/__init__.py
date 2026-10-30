@@ -113,8 +113,9 @@ class Core:
         print(f"Modules: {', '.join(self.modules) or 'none'}")
         print("Ctrl+C to stop.")
         try:
+            self._server.bind(host, port)
             self.ready = True
-            self._server.serve(host, port)
+            self._server.serve()
         except KeyboardInterrupt:
             pass
         finally:

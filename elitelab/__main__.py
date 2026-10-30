@@ -32,12 +32,13 @@ def main(argv=None):
 
     if cmd == "mcp":
         from . import mcp
-        return mcp.serve()
+        mcp.serve()
+        return 0
     if cmd == "tools":
         from . import mcp
         for t in mcp._tools():
             print(f"{t['name']:<24} {t['description']}")
-        return
+        return 0
     if cmd == "call":
         from . import mcp
         kv = {}
@@ -48,12 +49,12 @@ def main(argv=None):
             except Exception:
                 kv[k] = v
         print(json.dumps(mcp._call(args.tool, kv), indent=1))
-        return
+        return 0
     if cmd == "modules":
         from .core import loader
         for m in loader.resolve_order(loader.discover()):
             print(f"{m.name:<12} requires={m.requires} provides={m.provides} cards={[c['id'] for c in m.cards]}")
-        return
+        return 0
 
     logging.basicConfig(level=logging.DEBUG if getattr(args, "verbose", False) else logging.INFO,
                         format="%(asctime)s %(name)s %(levelname)s %(message)s", stream=sys.stderr)
