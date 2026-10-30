@@ -8,6 +8,16 @@
   responses whose job quantities are not numbers, and the progress bars coerce
   those numbers before rendering, closing a script injection path from a
   malicious leader. Older clients must update to rejoin.
+- Hauling party and carrier trade reliability: the carrier ledger and party
+  receipts are written by background writer threads instead of on the journal
+  thread (a carrier event dropped from about 90 ms to under 1 ms), replay saves
+  once when it finishes, and cancelling a carrier buy order keeps its side and
+  price. Members keep their heartbeat after an unreadable leader update, see the
+  leader's actual rejection reason, and leave after three rejections instead of
+  retrying forever. The 100% price reference says when offline mode or an Ardent
+  fetch failure is the cause, and reports a few seconds ahead of the local clock
+  are no longer stale. All hauling party, carrier trade and shutdown tools are
+  documented in docs/API.md.
 - Materials: show current inventory and gross gains since the latest game login,
   including pickups, mission rewards and trader receipts. Journal replay restores
   session totals after dashboard restarts. The Engineering preset puts inventory
