@@ -61,13 +61,28 @@ try {
   await send('Page.navigate',{url:`http://127.0.0.1:${port}/setup/`});
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!!document.querySelector('[data-candidates] input')"))break;}
   const setupPage=await evaluate("({candidates:document.querySelectorAll('[data-candidates] input').length,selected:(document.querySelector('[data-candidates] input:checked')||{}).value||'',connections:document.body.textContent.includes('Nothing to connect yet. Inara and other services will appear here.'),restartHidden:document.querySelector('[data-restart]').hidden,bodyWidth:document.body.scrollWidth,viewport:innerWidth})");
+  // custom path then radio: the last interaction wins
+  const precedence=await evaluate("(()=>{const c=document.querySelector('[name=journal_dir_custom]');const r=document.querySelector('[data-candidates] input');c.value='/tmp/typed';c.dispatchEvent(new Event('input',{bubbles:true}));const afterType=document.querySelectorAll('[data-candidates] input:checked').length;r.click();return {afterType,custom:c.value,radio:r.checked}})()");
+  assert.deepEqual(precedence,{afterType:0,custom:'',radio:true});
+  // restart wait, with a fake fetch and clock (Restart is never clicked)
+  const restartWait=await evaluate(`(async()=>{
+    const ok={ok:true,json:async()=>({ok:true})};
+    const mk=(steps)=>{const log=[];let i=0;const f=async()=>{const s=steps[Math.min(i++,steps.length-1)];log.push(s);if(s==='reject')throw new TypeError('down');if(s==='bad')return {ok:false,json:async()=>({})};if(s==='html')return {ok:true,json:async()=>{throw new Error('not json')}};return ok};return {f,log}};
+    const clk=()=>{let t=0;return {now:()=>t,sleep:async ms=>{t+=ms}}};
+    const W=window.SetupPage.waitForRestart;
+    const a=mk(['ok','ok','reject','reject','ok']);const ra=await W(a.f,'',clk());
+    const b=mk(['ok']);const rb=await W(b.f,'',clk());
+    const c=mk(['ok','bad','html','ok']);const rc=await W(c.f,'',clk());
+    const d=[];const rd=await W(async(u,o)=>{d.push([u,o&&o.mode]);if(d.length<3)return ok;if(d.length===3)throw new TypeError('down');return {type:'opaque'}},'http://127.0.0.1:8799',clk());
+    return {ra,la:a.log.join(','),rb,lb:b.log.length,rc,lc:c.log.join(','),rd,d}})()`);
+  assert.deepEqual(restartWait,{ra:'up',la:'ok,ok,reject,reject,ok',rb:'timeout',lb:60,rc:'up',lc:'ok,bad,html,ok',rd:'up',d:[['/api/health',null],['/api/health',null],['/api/health',null],['http://127.0.0.1:8799/api/health','no-cors']]});
   assert.ok(setupPage.candidates>=1); assert.equal(path.resolve(setupPage.selected),path.join(dir,'fixtures','journals')); assert.ok(setupPage.connections); assert.ok(setupPage.restartHidden); assert.equal(setupPage.bodyWidth,setupPage.viewport);
   await evaluate("document.querySelector('[name=port]').value='8799';document.querySelector('[data-setup-form]').requestSubmit();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!document.querySelector('[data-restart]').hidden"))break;}
   const setupSaved=await evaluate("({restartVisible:!document.querySelector('[data-restart]').hidden,status:document.querySelector('[data-status]').textContent})");
   assert.ok(setupSaved.restartVisible); assert.match(setupSaved.status,/restart/i);
   assert.deepEqual(JSON.parse(fs.readFileSync(settingsFile,'utf8')),{port:8799});
-  const results={setupPage,setupSaved,desktop:before,inputAfter,engineeringCards,mobile,crossOrigin,wishlistAfter,browserExceptions:errors};
+  const results={setupPage,precedence,restartWait,setupSaved,desktop:before,inputAfter,engineeringCards,mobile,crossOrigin,wishlistAfter,browserExceptions:errors};
   assert.equal(inputAfter.name,'arsenic'); assert.equal(inputAfter.qty,'5'); assert.equal(inputAfter.focus,'mat-q'); assert.equal(mobile.bodyWidth,390); assert.equal(wishlistAfter.wishlist[0].need,10); assert.deepEqual(errors,[]); assert.deepEqual(before.renderErrors,[]);console.log(JSON.stringify(results,null,2));
   await send('Browser.close').catch(()=>{});
 } finally {ws?.close();server.kill();chrome.kill();attacker.close();}

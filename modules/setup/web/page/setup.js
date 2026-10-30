@@ -55,6 +55,7 @@
 
   form.addEventListener('submit', async e => {
     e.preventDefault();
+    if (!form.elements.port.value.trim()) { say('Enter a port between 1024 and 65535.', 'warn'); return; }
     let diff;
     try { diff = changes(); } catch (err) { say(err.message, 'warn'); return; }
     if (!Object.keys(diff).length) { say(loaded.restart_required ? 'Nothing new to save. A saved change is waiting for a restart.' : 'Nothing changed.'); return; }
@@ -67,27 +68,58 @@
     } catch (err) { say(err.message, 'bad'); }
   });
 
+  // Wait for a restart under one budget. Phase 1: the CURRENT origin must stop answering (or answer non-OK), which proves the old
+  // process is gone whether or not the port changed. Phase 2: the target must be healthy. Same origin: require HTTP OK and a JSON
+  // body with ok === true. New port: the server sends no CORS headers, so a normal fetch would reject even when it is up; the
+  // no-cors fetch resolves as an opaque response when something is listening, which is only a reachability signal.
+  // fetchImpl and clock ({now, sleep}) are injectable so the browser suite can drive this without restarting the lab.
+  async function waitForRestart(fetchImpl, targetBase, clock, budgetMs = 30000, stepMs = 500) {
+    const started = clock.now();
+    const left = () => clock.now() - started < budgetMs;
+    const sameOrigin = targetBase === '';
+    while (left()) {                                   // phase 1: old server must go away
+      let gone = false;
+      try { const r = await fetchImpl('/api/health', { cache: 'no-store' }); gone = !r.ok; } catch (e) { gone = true; }
+      if (gone) break;
+      await clock.sleep(stepMs);
+      if (!left()) return 'timeout';
+    }
+    while (left()) {                                   // phase 2: target must be healthy
+      try {
+        if (sameOrigin) {
+          const r = await fetchImpl('/api/health', { cache: 'no-store' });
+          if (r.ok) { const j = await r.json(); if (j && j.ok === true) return 'up'; }
+        } else {
+          await fetchImpl(targetBase + '/api/health', { cache: 'no-store', mode: 'no-cors' });
+          return 'up';
+        }
+      } catch (e) { /* not back yet */ }
+      await clock.sleep(stepMs);
+    }
+    return 'timeout';
+  }
+  window.SetupPage = { waitForRestart };
+
   restartBtn.addEventListener('click', async () => {
     restartBtn.disabled = true;
     const port = (loaded.pending && loaded.pending.port) || loaded.values.port;
     const same = Number(port) === Number(location.port || (location.protocol === 'https:' ? 443 : 80));
     const base = same ? '' : `${location.protocol}//${location.hostname}:${port}`;
+    try { await api('/api/restart', {}); } catch (err) {
+      if (!(err instanceof TypeError)) { restartBtn.disabled = false; say(err.message, 'bad'); return; }   // HTTP refusal: show it now
+      /* a dropped connection is the server exiting */
+    }
     say('Restarting. This page will open the dashboard when EliteLab is back.');
-    try { await api('/api/restart', {}); } catch (err) { /* the server may drop the connection as it exits */ }
-    const started = Date.now();
-    const timer = setInterval(async () => {
-      try {
-        await fetch(base + '/api/health', { cache: 'no-store', mode: same ? 'same-origin' : 'no-cors' });
-        clearInterval(timer);
-        location.href = base + '/';
-      } catch (err) {
-        if (Date.now() - started > 30000) {
-          clearInterval(timer);
-          restartBtn.disabled = false;
-          say('EliteLab did not come back. Start it again from your launcher.', 'bad');
-        }
-      }
-    }, 500);
+    const clock = { now: () => Date.now(), sleep: ms => new Promise(r => setTimeout(r, ms)) };
+    if (await waitForRestart((u, o) => fetch(u, o), base, clock) === 'up') { location.href = base + '/'; return; }
+    restartBtn.disabled = false;
+    say('EliteLab did not come back. Start it again from your launcher.', 'bad');
+  });
+
+  // The last interaction wins between the radios and the custom folder.
+  $('[data-candidates]').addEventListener('change', e => { if (e.target.type === 'radio') form.elements.journal_dir_custom.value = ''; });
+  form.elements.journal_dir_custom.addEventListener('input', e => {
+    if (e.target.value.trim()) for (const r of form.querySelectorAll('[data-candidates] input:checked')) r.checked = false;
   });
 
   api('/api/setup').then(render).catch(err => say(`Could not load settings. ${err.message}`, 'bad'));
