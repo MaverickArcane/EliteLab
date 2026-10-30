@@ -148,6 +148,12 @@ class PersonalTests(unittest.TestCase):
         self.assertIn('cargo capacity', str(caught.exception).lower())
         self.assertTrue(self.desk.search({'quantity': 50})['rows'])
 
+    def test_blank_load_uses_known_ship_capacity(self):
+        for quantity in ('', None):
+            with self.subTest(quantity=quantity):
+                result = self.desk.search({'quantity': quantity})
+                self.assertEqual(result['settings']['quantity'], 100)
+
     def test_commodity_not_sold_at_the_origin_is_explained(self):
         result = self.desk.search({'commodity': 'platinum'})
         self.assertEqual(result['rows'], [])

@@ -143,7 +143,8 @@ class Personal:
         destination, station = system_name(q.get('destination', '')), system_name(q.get('station', ''))
         if q.get('quantity') in (None, '') and not positive(j.get('cargo_capacity')):
             raise ValueError('Ship cargo capacity is unknown. Enter a load size.')
-        quantity = numeric(q, 'quantity', j.get('cargo_capacity'), 1000000, True)
+        quantity = numeric({'quantity': j.get('cargo_capacity') if q.get('quantity') in (None, '') else q['quantity']},
+                           'quantity', None, 1000000, True)
         hours, breadth = numeric(q, 'hours', 24, 72, True), numeric(q, 'breadth', 100, 300, True)
         pad, route_type = q.get('pad', 'L'), q.get('route_type', 'round_trip')
         if pad not in ('S', 'M', 'L') or route_type not in ('one_way', 'round_trip'):
