@@ -3,6 +3,7 @@ import json
 import logging
 import os
 
+from . import journals
 from .. import __version__      # elitelab/__init__.py has no imports, so this is safe
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -52,9 +53,16 @@ def save_settings(changes: dict, path: str) -> dict:
 
 
 def _default_journal_dir() -> str:
+    """Docker folder, else the first detected folder with journals, else one that exists, else the Windows path."""
     if os.path.isdir("/journals"):          # Docker convention
         return "/journals"
-    return os.path.join(os.path.expanduser("~"), "Saved Games", "Frontier Developments", "Elite Dangerous")
+    home = os.path.expanduser("~")
+    found = journals.candidates(home)
+    for want in (lambda c: c["journals"] > 0, lambda c: c["exists"]):
+        for c in found:
+            if want(c):
+                return c["path"]
+    return os.path.join(home, "Saved Games", "Frontier Developments", "Elite Dangerous")
 
 
 def _port(value) -> int:
