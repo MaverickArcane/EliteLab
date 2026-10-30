@@ -170,6 +170,13 @@ class Setup:
         out["warnings"] = warnings
         return out
 
+    def inspect(self, q):
+        raw = (q or {}).get("path")
+        if not isinstance(raw, str) or not raw.strip():
+            raise ValueError("path is required.")
+        path = _norm(raw.strip())
+        return {"path": path, **journals.describe(path)}
+
     def restart(self, q=None):
         self.core.request_restart()
         return {"restarting": True, "exit_code": config.RESTART_EXIT_CODE}
@@ -192,6 +199,12 @@ def setup(core, module):
                                                                      "0.0.0.0 (all interfaces), or a host name such as localhost. "
                                                                      "Refused when the lab could not listen there."},
                             "data_dir": {"type": "string", "description": "Folder for the lab's own files such as wishlists"}})
+    core.http.route("/api/setup/journals", s.inspect, tool="inspect_journal_folder", module=module.name,
+                    description="Check one folder for Elite Dangerous journals without saving anything: returns the "
+                                "normalised path, whether it exists, how many Journal.*.log files it holds and the newest "
+                                "one's timestamp. Use it to test a journal_dir before save_setup.",
+                    params={"path": {"type": "string", "required": True,
+                                     "description": "Folder to check; ~ is expanded and relative paths are made absolute"}})
     core.http.route("/api/restart", s.restart, tool="restart_elitelab", method="POST", module=module.name,
                     description="Restart EliteLab so saved settings apply. The process exits with status 75 and a supervisor "
                                 "(the launcher or a service wrapper) must start it again; without one the lab simply stops.")

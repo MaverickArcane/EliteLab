@@ -170,5 +170,6 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 .setup .field .note { grid-column: 2; margin-top: 0; }
 .setup input[type=text], .setup input[type=number] { width: 100%; min-width: 0; }
 .setup [hidden] { display: none; }
-@media (max-width: 560px) { .setup .field { grid-template-columns: 1fr; } .setup .field .note { grid-column: 1; } }
+.setup .field > button { grid-column: 2; justify-self: start; }
+@media (max-width: 560px) { .setup .field { grid-template-columns: 1fr; } .setup .field .note, .setup .field > button { grid-column: 1; } }
 .journal-warning a { color: var(--warn); }

@@ -222,6 +222,8 @@ def make_handler(core):
                 if method != "GET":
                     return self._send(405, {"error": "method not allowed"})
                 for prefix, directory in router.static.items():
+                    if path == prefix.rstrip("/"):            # /setup -> /setup/ so the page's relative URLs resolve
+                        return self._send(302, b"", "text/plain; charset=utf-8", {"Location": prefix})
                     if path.startswith(prefix):
                         return self._static(directory, path[len(prefix):])
                 return self._static(config.WEB_DIR, path)

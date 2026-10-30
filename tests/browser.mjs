@@ -70,22 +70,30 @@ try {
   // restart wait, with a fake fetch and clock (Restart is never clicked)
   const restartWait=await evaluate(`(async()=>{
     const ok={ok:true,json:async()=>({ok:true})};
-    const mk=(steps)=>{const log=[];let i=0;const f=async()=>{const s=steps[Math.min(i++,steps.length-1)];log.push(s);if(s==='reject')throw new TypeError('down');if(s==='bad')return {ok:false,json:async()=>({})};if(s==='html')return {ok:true,json:async()=>{throw new Error('not json')}};return ok};return {f,log}};
+    const mk=(steps)=>{const log=[];let i=0;const f=async()=>{const s=steps[Math.min(i++,steps.length-1)];log.push(s);if(s==='reject')throw new TypeError('down');if(s==='bad')return {ok:false,json:async()=>({})};if(s==='html')return {ok:true,json:async()=>{throw new Error('not json')}};if(s==='notready')return {ok:true,json:async()=>({ok:true,ready:false})};return ok};return {f,log}};
     const clk=()=>{let t=0;return {now:()=>t,sleep:async ms=>{t+=ms}}};
     const W=window.SetupPage.waitForRestart;
     const a=mk(['ok','ok','reject','reject','ok']);const ra=await W(a.f,'',clk());
     const b=mk(['ok']);const rb=await W(b.f,'',clk());
     const c=mk(['ok','bad','html','ok']);const rc=await W(c.f,'',clk());
     const d=[];const rd=await W(async(u,o)=>{d.push([u,o&&o.mode]);if(d.length<3)return ok;if(d.length===3)throw new TypeError('down');return {type:'opaque'}},'http://127.0.0.1:8799',clk());
-    return {ra,la:a.log.join(','),rb,lb:b.log.length,rc,lc:c.log.join(','),rd,d}})()`);
-  assert.deepEqual(restartWait,{ra:'up',la:'ok,ok,reject,reject,ok',rb:'timeout',lb:60,rc:'up',lc:'ok,bad,html,ok',rd:'up',d:[['/api/health',null],['/api/health',null],['/api/health',null],['http://127.0.0.1:8799/api/health','no-cors']]});
+    const e=mk(['ok','reject','notready']);const re=await W(e.f,'',clk());
+    const g=mk(['ok','reject','notready','notready','ok']);const rg=await W(g.f,'',clk());
+    return {ra,la:a.log.join(','),rb,lb:b.log.length,rc,lc:c.log.join(','),rd,d,re,rg,lg:g.log.join(',')}})()`);
+  assert.deepEqual(restartWait,{ra:'up',la:'ok,ok,reject,reject,ok',rb:'timeout',lb:60,rc:'up',lc:'ok,bad,html,ok',rd:'up',d:[['/api/health',null],['/api/health',null],['/api/health',null],['http://127.0.0.1:8799/api/health','no-cors']],re:'timeout',rg:'up',lg:'ok,reject,notready,notready,ok'});
+  // Test button for the typed journal folder: counts for a real folder, "not found" otherwise, always as text
+  const testFolder=async value=>{await evaluate(`(()=>{const c=document.querySelector('[name=journal_dir_custom]');c.value=${JSON.stringify(value)};c.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-result="journal_test"]').textContent='';document.querySelector('[data-test-journal]').click();return true})()`);
+    for(let i=0;i<50;i++){await sleep(100);const t=await evaluate("document.querySelector('[data-result=\"journal_test\"]').textContent");if(t)return t;}return '';};
+  const journalTest={found:await testFolder(path.join(dir,'fixtures','journals')),missing:await testFolder('/nonexistent-elitelab'),hostile:await testFolder('<img src=x onerror=alert(1)>'),injected:await evaluate("document.querySelectorAll('[data-result=\"journal_test\"] img').length")};
+  await evaluate("(()=>{const c=document.querySelector('[name=journal_dir_custom]');c.value='';c.dispatchEvent(new Event('input',{bubbles:true}));return true})()");
+  assert.match(journalTest.found,/^\d+ journals, newest \S+$/); assert.equal(journalTest.missing,'not found'); assert.equal(journalTest.hostile,'not found'); assert.equal(journalTest.injected,0);
   assert.ok(setupPage.candidates>=1); assert.equal(path.resolve(setupPage.selected),path.join(dir,'fixtures','journals')); assert.ok(setupPage.connections); assert.ok(setupPage.restartHidden); assert.equal(setupPage.bodyWidth,setupPage.viewport);
   await evaluate("document.querySelector('[name=port]').value='8799';document.querySelector('[data-setup-form]').requestSubmit();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!document.querySelector('[data-restart]').hidden"))break;}
   const setupSaved=await evaluate("({restartVisible:!document.querySelector('[data-restart]').hidden,status:document.querySelector('[data-status]').textContent})");
-  assert.ok(setupSaved.restartVisible); assert.match(setupSaved.status,/restart/i);
+  assert.ok(setupSaved.restartVisible); assert.match(setupSaved.status,/restart/i); assert.match(setupSaved.status,/still point at port \d+/);
   assert.deepEqual(JSON.parse(fs.readFileSync(settingsFile,'utf8')),{port:8799});
-  const results={bannerProbe,setupPage,precedence,restartWait,setupSaved,desktop:before,inputAfter,engineeringCards,mobile,crossOrigin,wishlistAfter,browserExceptions:errors};
+  const results={bannerProbe,setupPage,precedence,restartWait,journalTest,setupSaved,desktop:before,inputAfter,engineeringCards,mobile,crossOrigin,wishlistAfter,browserExceptions:errors};
   assert.equal(inputAfter.name,'arsenic'); assert.equal(inputAfter.qty,'5'); assert.equal(inputAfter.focus,'mat-q'); assert.equal(mobile.bodyWidth,390); assert.equal(wishlistAfter.wishlist[0].need,10); assert.deepEqual(errors,[]); assert.deepEqual(before.renderErrors,[]);console.log(JSON.stringify(results,null,2));
   await send('Browser.close').catch(()=>{});
 } finally {ws?.close();server.kill();chrome.kill();attacker.close();}

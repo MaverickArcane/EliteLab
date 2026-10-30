@@ -208,8 +208,24 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(r, {"restarting": True, "exit_code": 75})
         m.assert_called_once_with()
 
+    def test_inspect_journal_folder_describes_a_typed_path(self):
+        fixtures = config.JOURNAL_DIR
+        r = self.call("inspect_journal_folder", path=fixtures + os.sep)
+        self.assertEqual(r["path"], os.path.normpath(fixtures))
+        self.assertTrue(r["exists"])
+        self.assertGreater(r["journals"], 0)
+        self.assertTrue(r["newest"])
+        self.assertEqual(self.call("inspect_journal_folder", path=os.path.join(self.tmp, "none")),
+                         {"path": os.path.join(self.tmp, "none"), "exists": False, "journals": 0, "newest": None})
+        with self.assertRaises(ValueError) as cm:
+            self.call("inspect_journal_folder", path="  ")
+        self.assertEqual(str(cm.exception), "path is required.")
+        route = self.core.http.tools["inspect_journal_folder"]
+        self.assertEqual((route.path, route.method), ("/api/setup/journals", "GET"))
+        self.assertIn("path", route.schema()["input_schema"]["required"])
+
     def test_tools_have_descriptions(self):
-        for name in ("get_setup", "save_setup", "restart_elitelab"):
+        for name in ("get_setup", "save_setup", "restart_elitelab", "inspect_journal_folder"):
             self.assertTrue(self.core.http.tools[name].schema()["description"].strip(), name)
 
 
@@ -307,14 +323,26 @@ class HostCheckTests(unittest.TestCase):
             self.assertEqual(self.post(f"attacker.example:{self.port}", headers={"Authorization": "Bearer s3cret"}), 200)
             self.assertEqual(self.post(f"attacker.example:{self.port}"), 401)
 
-    def get_path(self, path):
+    def get_path(self, path, header="Content-Type"):
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
         conn.request("GET", path)
         r = conn.getresponse()
         body = r.read().decode("utf-8", "replace")
-        ctype = r.getheader("Content-Type", "")
+        ctype = r.getheader(header, "")
         conn.close()
         return r.status, ctype, body
+
+    def test_mount_without_trailing_slash_redirects(self):
+        status, location, _ = self.get_path("/setup", header="Location")
+        self.assertIn(status, (301, 302))
+        self.assertEqual(location, "/setup/")
+        self.assertEqual(self.get_path("/setupx")[0], 404)
+
+    def test_inspect_journal_folder_over_http(self):
+        import urllib.parse
+        status, _, body = self.get_path("/api/setup/journals?path=" + urllib.parse.quote(config.JOURNAL_DIR))
+        self.assertEqual(status, 200)
+        self.assertGreater(json.loads(body)["journals"], 0)
 
     def test_setup_page_is_served(self):
         status, ctype, body = self.get_path("/setup/")

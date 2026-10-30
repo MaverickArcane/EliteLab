@@ -106,6 +106,16 @@ class MainSettingsTests(_TmpMixin, unittest.TestCase):
         self.assertEqual(r.stdout.strip(), "8799", r.stderr)
 
 
+class LauncherTests(unittest.TestCase):
+    def test_windows_launcher_runs_the_loop_by_relative_path(self):
+        # cmd /c strips the outer quotes of "%~dp0scripts\serve-loop.cmd" and breaks on paths with parentheses;
+        # the launcher already cd's to its own folder, so a relative path needs no quotes.
+        with open(os.path.join(ROOT, "Start EliteLab.cmd"), encoding="ascii") as f:
+            text = f.read()
+        self.assertIn('cd /d "%~dp0"', text)
+        self.assertIn("cmd /c scripts\\serve-loop.cmd", text)
+        self.assertNotIn("%~dp0scripts", text)
+
 @unittest.skipUnless(os.name == "posix", "start.sh is a POSIX shell script")
 class StartShTests(_TmpMixin, unittest.TestCase):
     def _run(self, codes):

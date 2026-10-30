@@ -88,7 +88,7 @@
       try {
         if (sameOrigin) {
           const r = await fetchImpl('/api/health', { cache: 'no-store' });
-          if (r.ok) { const j = await r.json(); if (j && j.ok === true) return 'up'; }
+          if (r.ok) { const j = await r.json(); if (j && j.ok === true && j.ready !== false) return 'up'; }   // ready:false = still loading
         } else {
           await fetchImpl(targetBase + '/api/health', { cache: 'no-store', mode: 'no-cors' });
           return 'up';
@@ -116,9 +116,25 @@
     say('EliteLab did not come back. Start it again from your launcher.', 'bad');
   });
 
+  // Test the typed folder without saving it.
+  const testBtn = $('[data-test-journal]');
+  const testOut = $('[data-result="journal_test"]');
+  testBtn.addEventListener('click', async () => {
+    const typed = form.elements.journal_dir_custom.value.trim();
+    if (!typed) { testOut.textContent = 'Type a folder path first.'; return; }
+    testBtn.disabled = true;
+    testOut.textContent = 'Checking...';
+    try {
+      const d = await api(`/api/setup/journals?path=${encodeURIComponent(typed)}`);
+      testOut.textContent = d.exists && d.journals ? `${d.journals} journals, newest ${d.newest || 'unknown'}` : 'not found';
+    } catch (err) { testOut.textContent = err.message; }
+    testBtn.disabled = false;
+  });
+
   // The last interaction wins between the radios and the custom folder.
   $('[data-candidates]').addEventListener('change', e => { if (e.target.type === 'radio') form.elements.journal_dir_custom.value = ''; });
   form.elements.journal_dir_custom.addEventListener('input', e => {
+    testOut.textContent = '';
     if (e.target.value.trim()) for (const r of form.querySelectorAll('[data-candidates] input:checked')) r.checked = false;
   });
 
