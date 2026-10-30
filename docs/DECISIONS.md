@@ -29,6 +29,7 @@ A log of why things are the way they are. Add to it when you change direction or
 
 - The first code review (2026-10-23) found two copies of the rare-goods set that disagreed (`leatheryeggs` vs `alieneggs`), a duplicated `norm()`, and `journal.materials` totals that only ever went up. All shared game facts now live in `elitelab/core/gamedata.py`, and materials are owned by the materials module only.
 - No CORS. The API has no auth; `Access-Control-Allow-Origin: *` let any web page the user visits read state and change the wishlist. Removed. If LAN use ever needs cross-origin, it needs a token first (roadmap issue 10).
+- Loopback binds only answer to loopback Host names (127.0.0.1, localhost, ::1) on every POST, so a DNS-rebinding page cannot reach the API under an attacker hostname; binding to 0.0.0.0 or a LAN address skips this check as the user's explicit choice. `browser` (an executable) is not saveable over HTTP for the same reason.
 - POST bodies are always read before replying, even on 404, because the server speaks HTTP/1.1 keep-alive and an unread body becomes the next request.
 
 - Rare goods now come from EDCD FDevIDs `rare_commodity.csv` (142 entries with origin market ids) instead of eight observed keys plus community slugs; five of those slugs were wrong (`zeesszeantgrubglue`, `alyabodysoap`, `lucanonionhead`, `wuthieloku`, `onionheadbetastrain`), which is exactly the failure mode Leathery Eggs had taught us. Issue 15.

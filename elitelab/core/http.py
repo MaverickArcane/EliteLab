@@ -16,6 +16,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import config
 
+LOOPBACK_BINDS = ("127.0.0.1", "localhost", "::1")
+LOOPBACK_NAMES = ("127.0.0.1", "localhost", "::1", "[::1]")
+
 MAX_BODY = 1_000_000      # bytes; the largest legitimate POST is a wishlist
 
 
@@ -112,6 +115,11 @@ def make_handler(core):
         def _check_mutation(self):
             origin = self.headers.get("Origin")
             host = self.headers.get("Host", "")
+            # DNS rebinding: bound to loopback, only loopback names may be used as the Host (a LAN or 0.0.0.0 bind is the user's choice)
+            if config.HOST in LOOPBACK_BINDS:
+                name = host.rsplit(":", 1)[0] if not host.endswith("]") and ":" in host and host.count(":") == 1 else host
+                if name not in LOOPBACK_NAMES:
+                    return 403, "requests for this host are not accepted"
             # same host over http or https (a reverse proxy may terminate TLS in front of us)
             if ((origin is not None and origin not in ("http://" + host, "https://" + host))
                     or self.headers.get("Sec-Fetch-Site") == "cross-site"):

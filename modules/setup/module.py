@@ -10,15 +10,21 @@ from elitelab.core import config, journals
 from elitelab.core.watcher import journal_files
 
 NS = "setup"
-KEYS = ("journal_dir", "port", "host", "data_dir", "browser")
+KEYS = ("journal_dir", "port", "host", "data_dir", "browser")      # reported
+SAVEABLE = ("journal_dir", "port", "host", "data_dir")               # browser names an executable: file or env only
 PATH_KEYS = ("journal_dir", "data_dir")
 HOSTS = ("127.0.0.1", "0.0.0.0", "localhost")
-NOT_ALLOWED = "Only journal_dir, port, host, data_dir and browser can be saved here."
+NOT_ALLOWED = "Only journal_dir, port, host and data_dir can be saved here."
+BROWSER_NOT_ALLOWED = "browser can only be set in the settings file or with ELITELAB_BROWSER."
 
 
 def _running():
     return {"journal_dir": config.JOURNAL_DIR, "port": config.PORT, "host": config.HOST,
             "data_dir": config.DATA_DIR, "browser": config.BROWSER}
+
+
+def _home():
+    return os.path.expanduser("~")
 
 
 def _norm(path):
@@ -45,10 +51,6 @@ def _clean(key, value):
             except ValueError:
                 raise ValueError("host must be 127.0.0.1, 0.0.0.0, localhost or an IP address.") from None
         return host
-    if key == "browser":
-        if not isinstance(value, str):
-            raise ValueError("browser must be text, or empty to use the default.")
-        return value.strip()
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{key} must be a folder path and cannot be empty.")
     return _norm(value.strip())
@@ -64,7 +66,7 @@ class Setup:
         running = _running()
         out = {}
         for key in KEYS:
-            if key in saved:
+            if key in saved and key in SAVEABLE:
                 try:
                     value = _clean(key, saved[key])
                 except ValueError:
@@ -80,7 +82,7 @@ class Setup:
     def status(self, q=None):
         pending = self._pending()
         here = _norm(config.JOURNAL_DIR)
-        found = journals.candidates(os.path.expanduser("~"), extra=[config.JOURNAL_DIR])
+        found = journals.candidates(_home(), extra=[config.JOURNAL_DIR])
         for c in found:
             c["selected"] = _norm(c["path"]) == here
         return {"path": config.SETTINGS_PATH, "exists": os.path.exists(config.SETTINGS_PATH),
@@ -90,8 +92,10 @@ class Setup:
 
     def save(self, q):
         q = q or {}
-        known = {k: q[k] for k in KEYS if k in q}
-        extra = [k for k in q if k not in KEYS and not k.startswith("_")]
+        if "browser" in q:
+            raise ValueError(BROWSER_NOT_ALLOWED)
+        known = {k: q[k] for k in SAVEABLE if k in q}
+        extra = [k for k in q if k not in SAVEABLE and not k.startswith("_")]
         if extra:
             raise ValueError(NOT_ALLOWED)
         clean = {k: _clean(k, v) for k, v in known.items()}
@@ -128,14 +132,13 @@ def setup(core, module):
                                 "came from, values saved but not yet applied (pending), whether a restart is needed, whether "
                                 "journal files were found, and candidate Elite Dangerous journal folders with journal counts.")
     core.http.route("/api/setup", s.save, tool="save_setup", method="POST", module=module.name,
-                    description="Save settings to the settings file. Only journal_dir, port, host, data_dir and browser are accepted; "
+                    description="Save settings to the settings file. Only journal_dir, port, host and data_dir are accepted; "
                                 "other keys are rejected. Nothing is applied live: changed values take effect after "
                                 "restart_elitelab. Returns the same shape as get_setup plus saved and warnings.",
                     params={"journal_dir": {"type": "string", "description": "Folder holding Journal.*.log files"},
                             "port": {"type": "integer", "description": "HTTP port, 1024 to 65535"},
                             "host": {"type": "string", "description": "Bind address: 127.0.0.1, 0.0.0.0, localhost or an IP address"},
-                            "data_dir": {"type": "string", "description": "Folder for the lab's own files such as wishlists"},
-                            "browser": {"type": "string", "description": "Browser command to open at start, empty for the default"}})
+                            "data_dir": {"type": "string", "description": "Folder for the lab's own files such as wishlists"}})
     core.http.route("/api/restart", s.restart, tool="restart_elitelab", method="POST", module=module.name,
                     description="Restart EliteLab so saved settings apply. The process exits with status 75 and a supervisor "
                                 "(the launcher or a service wrapper) must start it again; without one the lab simply stops.")
