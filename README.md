@@ -37,8 +37,8 @@ tab alone does not stop the server. Windows dashboard and party ports are exclus
 |---|---|---|
 | journal | Location, Ship, Cargo, Rares at this market, Live feed | `get_commander_state` |
 | carrier | Fleet carrier: owned details or one pinned visitor carrier | `get_followed_carrier`, `pin_fleet_carrier`, `unpin_fleet_carrier`, `refresh_followed_carrier` |
-| trade | Carrier stock ledger, loading/unloading plan, margins, run counts and buy/sell stops | `get_carrier_trade`, `plan_carrier_trade`, `reconcile_carrier_stock`, `get_trade_profiles`, `find_carrier_opportunities`, `select_carrier_opportunity` |
-| party | Private LAN/tailnet hauling party: member cargo and location, shared leader plan | `get_hauling_party`, `host_hauling_party`, `join_hauling_party`, `leave_hauling_party` |
+| trade | Carrier stock ledger, loading/unloading plan, margins, run counts and buy/sell stops; team operation stages, crew workload split and profit shares, delivery corrections and diagnostics | `get_carrier_trade`, `plan_carrier_trade`, `reconcile_carrier_stock`, `reset_carrier_inventory`, `get_trade_profiles`, `find_carrier_opportunities`, `select_carrier_opportunity`, `find_trade_spots`, `get_carrier_price_reference`, `manage_carrier_operation`, `configure_trade_workload`, `preview_trade_profit`, `correct_hauling_delivery`, `export_hauling_diagnostics` |
+| party | Private LAN/tailnet hauling party: member cargo and location, shared leader plan, crew activity and delivery reports | `get_hauling_party`, `host_hauling_party`, `join_hauling_party`, `report_hauling_work`, `leave_hauling_party` |
 | powerplay | Power, rank, merits, merits this session, cycle countdown | `get_powerplay_status` |
 | merits | Merits per hour and per activity, worked out from the journal | `get_merits_summary` |
 | combat | Where combat pays merits: contested systems with combat zones, acquisition, undermining, reinforcement | `find_combat_systems` |
@@ -51,7 +51,7 @@ tab alone does not stop the server. Windows dashboard and party ports are exclus
 | build | Pin an EDSY or Coriolis build (or SLEF JSON) and measure your ship against it: modules to buy (with credits), blueprints and grades still to roll, effects, every material vs inventory, one click to track it on the wishlist | `get_build_progress`, `pin_build`, `unpin_build`, `build_to_wishlist` |
 | history | Feeds the map | `get_travel_history` |
 | map | Star map: starfield, visited systems coloured by star class, route trail, layers from other modules | `get_system_coords` |
-| core | Header, live connection, layout | `get_state`, `get_recent_events`, `list_modules`, `list_tools`, `health` |
+| core | Header, live connection, layout, Quit EliteLab | `get_state`, `get_recent_events`, `list_modules`, `list_tools`, `health`, `stop_elitelab` |
 
 Everything updates live over Server-Sent Events the moment the game writes a journal line. Cards can be dragged, resized, hidden, saved as named layouts, or switched between presets (Powerplay, Rares run, Combat, Mining and trade, Engineering, Second screen).
 
