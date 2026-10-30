@@ -183,7 +183,7 @@ Recomputed on `state.journal.star_pos` (distances) and `state.wishlist.needs` (`
 | `restart_required` | bool | A saved setting differs from the running value |
 | `settings_path` | string | Settings file in use |
 
-The module writes all four when it loads and after every `save_setup`. Saving never changes the running config, so `journal_dir` and the other running values stay as they are until the lab restarts. The journal-warning banner in `web/app.js` reads `journal_found` and `journal_dir` from `/api/health`, not from this namespace.
+The module writes all four when it loads and after every `save_setup`. Its read-only tools `get_setup` and `inspect_journal_folder` (one typed folder's journal count and newest journal) do not write state. Saving never changes the running config, so `journal_dir` and the other running values stay as they are until the lab restarts. The journal-warning banner in `web/app.js` reads `journal_found` and `journal_dir` from `/api/health`, not from this namespace.
 
 ## map (module: map)
 

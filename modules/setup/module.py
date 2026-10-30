@@ -192,7 +192,9 @@ def setup(core, module):
     core.http.route("/api/setup", s.save, tool="save_setup", method="POST", module=module.name,
                     description="Save settings to the settings file. Only journal_dir, port, host and data_dir are accepted; "
                                 "other keys are rejected. Nothing is applied live: changed values take effect after "
-                                "restart_elitelab. Returns the same shape as get_setup plus saved and warnings.",
+                                "restart_elitelab. A port already in use or an address the lab could not "
+                                "listen on is refused. Returns the same shape as get_setup plus saved and warnings (for "
+                                "example an environment variable or flag that will override the saved value).",
                     params={"journal_dir": {"type": "string", "description": "Folder holding Journal.*.log files"},
                             "port": {"type": "integer", "description": "HTTP port, 1024 to 65535; refused when already in use"},
                             "host": {"type": "string", "description": "Bind address: an IPv4 address such as 127.0.0.1 (this machine only) or "
