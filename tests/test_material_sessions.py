@@ -21,7 +21,7 @@ class MaterialSessionTests(unittest.TestCase):
     def client(self):
         core = Core()
         loader.load_all(core)
-        self.addCleanup(core.modules['party'].party.leave)
+        self.addCleanup(core.close)
         return core
 
     def materials(self, core=None):

@@ -41,7 +41,7 @@ class HaulingSessionTests(unittest.TestCase):
         loader.load_all(core)
         core.store.update("journal", {"cmdr": name, "system": "Sol", "cargo_capacity": 200,
                           "cargo": {"count": 0, "items": []}})
-        self.addCleanup(core.modules["party"].party.leave)
+        self.addCleanup(core.close)
         return core
 
     def control(self, action):

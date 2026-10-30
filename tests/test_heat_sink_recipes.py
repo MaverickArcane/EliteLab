@@ -15,6 +15,7 @@ class HeatSinkRecipeTests(unittest.TestCase):
         self.addCleanup(data.stop)
         self.core = Core()
         loader.load_all(self.core)
+        self.addCleanup(self.core.close)
 
     def call(self, tool, **params):
         return self.core.http.tools[tool].fn(params)
@@ -45,6 +46,7 @@ class HeatSinkRecipeTests(unittest.TestCase):
                 self.assertEqual({row["key"]: row["need"] for row in added["needs"]}, {material: 2})
         restarted = Core()
         loader.load_all(restarted)
+        self.addCleanup(restarted.close)
         entries = restarted.http.tools["get_engineering_wishlist"].fn({})["entries"]
         self.assertEqual(len(entries), 3)
         self.assertTrue(all(row["module"] == "Heat sink launcher" for row in entries))
