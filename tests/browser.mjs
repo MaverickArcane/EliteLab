@@ -203,7 +203,7 @@ try {
   assert.equal(await evaluate("document.querySelector('[data-delivery] [name=tonnes]').disabled"),false);
   await evaluate("document.querySelector('[data-delivery] [name=tonnes]').value='100';document.querySelector('[data-delivery]').requestSubmit();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade?.operation?.loaded===100"))break;}
-  assert.equal(await evaluate('Lab.state.trade.operation.loaded'),100);
+  assert.equal(await evaluate('Lab.state.trade.operation.loaded'),100, JSON.stringify(await evaluate("({status:document.querySelector('[data-delivery-status]').textContent, recovery:Lab.state.party.recovery, work:Lab.state.party.work, operation:Lab.state.party.operation})")));
   // Exercise the actual summary controls, including successive DOM rebuilds.
   await evaluate("document.querySelector('[data-op-details=prices] summary').click();document.querySelector('[data-op-details=reports] summary').click();true");
   for(let revision=1;revision<=3;revision++) {
