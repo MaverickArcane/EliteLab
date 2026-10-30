@@ -48,6 +48,15 @@ class Trade:
         self.core = core
         self.archive = archive
         self.lock = threading.RLock()
+        # Journal events change the ledger in memory; the writer thread saves the
+        # latest snapshot so the bus thread never waits on disk. Routes still write
+        # synchronously (a failed save leaves their change out). Serialize all
+        # trade.json writes with self.io; never take self.lock while holding it.
+        self.io = threading.Lock()
+        self.version = 0          # bumps on every in-memory change
+        self.saved = 0            # last version handed to write_data
+        self.changed = threading.Condition(self.lock)
+        self.writer = None
         self.data = {} if archive else (core.read_data("trade.json", default={}) or {})
         for k, v in {"carrier_id": None, "inventory": {}, "orders": {}, "markets": {}, "plan": None, "operation": None, "seen": []}.items():
             self.data.setdefault(k, v)
@@ -61,14 +70,62 @@ class Trade:
         core.bus.on("state.journal.cargo_capacity", lambda n, v: self.publish())
         core.bus.on("state.powerplay.power", lambda n, v: self.publish())
         core.bus.on("state.powerplay.rank", lambda n, v: self.publish())
+        core.bus.on("journal.replay.done", lambda n, v: self.flush())   # replayed events are saved once, here
         core.bus.on("journal.replay.done", self.backfill)
         self.publish()
 
     def commit(self, candidate):
-        if not self.archive:
-            self.core.write_data(candidate, "trade.json")
-        self.data = candidate
+        """Replace the ledger and write it now; a failed write leaves memory unchanged."""
+        with self.lock:
+            if not self.archive:
+                with self.io:
+                    self.core.write_data(candidate, "trade.json")
+            self.data = candidate
+            self.version += 1
+            self.saved = self.version
+            self.publish()
+
+    def changed_in_place(self, defer=False):
+        """A journal event changed self.data. Publish now; save on the writer thread unless deferred to flush()."""
+        self.version += 1
         self.publish()
+        if self.archive or defer:
+            return
+        if self.writer is None:
+            self.writer = threading.Thread(target=self.write_loop, name="trade-ledger-writer", daemon=True)
+            self.writer.start()
+        self.changed.notify_all()
+
+    def write_loop(self):
+        while True:
+            with self.lock:
+                while self.saved >= self.version:
+                    self.changed.wait()
+                version, snapshot = self.version, copy.deepcopy(self.data)
+            try:
+                with self.io:
+                    self.core.write_data(snapshot, "trade.json")
+            except Exception:
+                self.core.log.exception("Could not save the carrier ledger; it is retried on the next change")
+            with self.lock:
+                # A synchronous commit that landed during this write may now be
+                # older on disk than our snapshot; write the current ledger again.
+                overtaken = self.saved > version
+                self.saved = max(self.saved, version)
+                if overtaken:
+                    self.version += 1
+                self.changed.notify_all()
+
+    def flush(self):
+        """Write any change the writer thread has not saved yet. Deterministic for shutdown and tests."""
+        with self.lock:
+            if self.archive or self.saved >= self.version:
+                return
+            version, snapshot = self.version, copy.deepcopy(self.data)
+            with self.io:
+                self.core.write_data(snapshot, "trade.json")
+            self.saved = max(self.saved, version)
+            self.changed.notify_all()
 
     def publish(self):
         if self.archive:
@@ -326,7 +383,7 @@ class Trade:
             digest = hashlib.sha256(json.dumps({k: v for k, v in ev.items() if not k.startswith("_")}, sort_keys=True).encode()).hexdigest()
             if digest in self.data["seen"]:
                 return
-            d = copy.deepcopy(self.data)
+            d = self.data   # mutated in place: every early return below happens before the first change
             if e == "CarrierStats":
                 cid = ev.get("CarrierID")
                 if not cid:
@@ -351,10 +408,14 @@ class Trade:
                 old = d["orders"].get(key, {})
                 if stamp < old.get("updated_at", ""):
                     return
-                side = "buy" if "PurchaseOrder" in ev else "sell"
+                cancelled = bool(ev.get("CancelTrade"))
+                side, price = "buy" if "PurchaseOrder" in ev else "sell", ev.get("Price", 0)
+                if cancelled:
+                    # A cancellation names only the commodity: keep the cancelled order's side and price.
+                    side, price = old.get("side", side), old.get("price", price)
                 qty = ev.get("PurchaseOrder", ev.get("SaleOrder", 0))
-                d["orders"][key] = {"name": ev.get("Commodity_Localised") or key, "side": side, "quantity": 0 if ev.get("CancelTrade") else qty,
-                    "price": ev.get("Price", 0), "updated_at": stamp, "source": "journal order", "active": not ev.get("CancelTrade", False)}
+                d["orders"][key] = {"name": ev.get("Commodity_Localised") or key, "side": side, "quantity": 0 if cancelled else qty,
+                    "price": price, "updated_at": stamp, "source": "journal order", "active": not cancelled}
                 if "SaleOrder" in ev and stamp >= d["inventory"].get(key, {}).get("updated_at", ""):
                     d["inventory"][key] = {"name": ev.get("Commodity_Localised") or key, "stock": qty, "source": "sale order stock", "updated_at": stamp}
             else:
@@ -383,7 +444,7 @@ class Trade:
                         elif e == "MarketSell":
                             order.update(quantity=max(0, order["quantity"] - abs(delta)), updated_at=stamp)
             d["seen"] = (d["seen"] + [digest])[-10000:]
-            self.commit(d)
+            self.changed_in_place(defer=bool(ev.get("_replay")))
 
     def spots(self, q):
         key = norm(text(q.get("commodity", ""), "Commodity", True))
@@ -470,7 +531,7 @@ def setup(core, module):
     desk = Trade(core)
     profiles = MarketProfiles(core, desk)
     core.http.route("/api/trade/price-reference", profiles.price_reference, tool="get_carrier_price_reference", module=module.name,
-        description="Retrieve the newest commodity meanPrice from local journals or Ardent/EDDN reports within 24 hours. This is a reported reference for the carrier 100% setting, not the average of station buy/sell prices. Live in-game prices take precedence.",
+        description="Retrieve the newest commodity meanPrice from local journals or Ardent/EDDN reports within 24 hours. This is a reported reference for the carrier 100% setting, not the average of station buy/sell prices. Live in-game prices take precedence. warnings lists Ardent fetch failures or offline mode; when no reference is found the error states why.",
         params={"commodity":{"type":"string","required":True}})
     operations = Operations(core, desk)
     module.operations = operations
@@ -496,6 +557,7 @@ def setup(core, module):
         params={"action": {"type": "string", "required": True}, "id": {"type": "string"}, "notes": {"type": "string"}})
     module.trade = desk
     module.profiles = profiles
+    core.shutdown_callbacks.append(desk.flush)
     core.http.route("/api/trade/profiles", lambda q: {"profiles": PROFILES, "context": profiles.context()}, tool="get_trade_profiles", module=module.name,
         description="Trade profiles and their live carrier context: observed inventory, buy orders, free space, ship capacity and reference system. Inventory is partial journal evidence.")
     core.http.route("/api/trade/opportunities", profiles.query, tool="find_carrier_opportunities", module=module.name,

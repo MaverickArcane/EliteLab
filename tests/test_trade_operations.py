@@ -1,5 +1,6 @@
 """Operation lifecycle and crew evidence are separate from carrier inventory."""
 import copy
+from datetime import datetime, timedelta, timezone
 import unittest
 import test_trade_party as trade_tests
 from test_elitelab import Core, loader
@@ -27,6 +28,16 @@ class OperationTests(unittest.TestCase):
 
     def test_start_rejects_stale_online_percentage_reference(self):
         self.desk.data['plan'].update(carrier_mean_source='Ardent / EDDN',carrier_mean_at='2020-01-01T00:00:00Z')
+        with self.assertRaisesRegex(ValueError, 'reference is stale'):
+            self.control('start')
+
+    def test_start_accepts_online_reference_seconds_ahead_of_the_clock(self):
+        ahead = (datetime.now(timezone.utc) + timedelta(seconds=5)).isoformat()
+        self.desk.data['plan'].update(carrier_mean_source='Ardent / EDDN', carrier_mean_at=ahead)
+        self.assertEqual(self.control('start')['operation']['stage'], 'loading')
+        self.control('cancel')
+        far_ahead = (datetime.now(timezone.utc) + timedelta(seconds=600)).isoformat()
+        self.desk.data['plan'].update(carrier_mean_source='Ardent / EDDN', carrier_mean_at=far_ahead)
         with self.assertRaisesRegex(ValueError, 'reference is stale'):
             self.control('start')
 

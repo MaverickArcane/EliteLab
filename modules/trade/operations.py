@@ -3,6 +3,7 @@ import copy
 import secrets
 from datetime import datetime, timezone
 from modules.trade.profit import split_profit
+from modules.trade.market import CLOCK_SKEW_SECONDS
 from elitelab.core.hauling import build as build_workload
 from modules.trade.audit import record
 
@@ -52,7 +53,7 @@ class Operations:
                         age = (datetime.now(timezone.utc) - reference_time).total_seconds()
                     except (ValueError, TypeError):
                         age = float("inf")
-                    if not 0 <= age <= 86400:
+                    if not -CLOCK_SKEW_SECONDS <= age <= 86400:
                         raise ValueError("The carrier 100% price reference is stale. Refresh carrier pricing before starting.")
                 qty = plan.get("planned_quantity") or (self.desk.calculate() or {}).get("remaining")
                 if not qty or qty < 1 or qty > plan["target"]:

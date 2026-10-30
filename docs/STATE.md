@@ -200,7 +200,12 @@ Recomputed on `state.journal.star_pos` (distances) and `state.wishlist.needs` (`
 timestamp), `orders` (side, active, remaining quantity, price and timestamp),
 `plan`, `calculation`, `market_count`, `inventory_scan`, and `buy_commitment`. `trade.json` also
 persists up to 100 observed markets and 10,000 event fingerprints for replay
-deduplication. Physical counts and orders are separate. Carrier ownership is
+deduplication. Journal events change the ledger in memory and publish at once;
+the `trade-ledger-writer` thread then saves the latest snapshot (coalesced, never
+on the bus thread), replayed events are saved once on `journal.replay.done`, and
+`Trade.flush()` writes anything pending (shutdown callback, tests). Routes and
+crew reports still write synchronously so a failed save leaves their change out.
+Physical counts and orders are separate. Carrier ownership is
 established by CarrierStats/CarrierTradeOrder, never by pinning a visitor carrier.
 Counts are partial evidence; unreported external trades require reconciliation.
 Private `baselines` preserve manual counts during the chronological archive scan.

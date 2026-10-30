@@ -14,6 +14,10 @@ from elitelab.core.gamedata import is_rare
 
 PROFILES = [{"id": "route", "name": "Buy / sell route", "description": "Low-priced supply near high-paying buyers."}]
 
+# Ardent updatedAt and journal timestamps come from other clocks. A report
+# stamped a few seconds after our own clock is the newest one, not a stale one;
+# every freshness check accepts this much negative age before rejecting a report.
+CLOCK_SKEW_SECONDS = 300
 
 
 def stamp(value):
@@ -33,28 +37,36 @@ class MarketProfiles:
         key = q.get("commodity", "")
         if not isinstance(key, str) or not key.isascii() or not key.isalnum() or len(key)>100:
             raise ValueError("Choose a commodity before refreshing carrier pricing.")
-        observed = []
+        observed, warnings = [], []
         now = datetime.now(timezone.utc).timestamp()
         with self.desk.lock:
             for market in self.desk.data["markets"].values():
                 for item in market["items"]:
                     if item["key"] == key and type(item.get("mean_price")) is int and item["mean_price"]>0:
                         observed.append({"mean_price":item["mean_price"],"observed_at":market["timestamp"],"source":"Local market journal"})
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            pending = [pool.submit(self.core.services.fetch_json,
-                "https://api.ardent-insight.com/v2/commodity/name/"+quote(key,safe="")+"/"+side+"?minVolume=1&maxDaysAgo=1&fleetCarriers=0",ttl=300)
-                for side in ("exports","imports")]
-            for future in pending:
-                try:
-                    for row in future.result():
-                        if type(row.get("meanPrice")) is int and row["meanPrice"]>0:
-                            observed.append({"mean_price":row["meanPrice"],"observed_at":row.get("updatedAt"),"source":"Ardent / EDDN"})
-                except Exception:
-                    pass
-        recent = [r for r in observed if 0 <= now-stamp(r["observed_at"]) <= 86400]
+        if self.core.config.OFFLINE:
+            warnings.append("Community price reports are unavailable in offline mode (ELITELAB_OFFLINE is set); only markets opened in game are used.")
+        else:
+            # A failed report is a warning the user can act on, never a silent "no reference".
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                pending = {side: pool.submit(self.core.services.fetch_json,
+                    "https://api.ardent-insight.com/v2/commodity/name/"+quote(key,safe="")+"/"+side+"?minVolume=1&maxDaysAgo=1&fleetCarriers=0",ttl=300)
+                    for side in ("exports","imports")}
+                for side, future in pending.items():
+                    try:
+                        rows = future.result()
+                        if not isinstance(rows, list):
+                            raise ValueError("unexpected report format")
+                        for row in rows:
+                            if type(row.get("meanPrice")) is int and row["meanPrice"]>0:
+                                observed.append({"mean_price":row["meanPrice"],"observed_at":row.get("updatedAt"),"source":"Ardent / EDDN"})
+                    except Exception as error:
+                        warnings.append(f"Could not retrieve Ardent {side} reports: {error or type(error).__name__}.")
+        recent = [r for r in observed if -CLOCK_SKEW_SECONDS <= now-stamp(r["observed_at"]) <= 86400]
         if not recent:
-            raise ValueError("No recent 100% price reference is available. Open a commodity market in game or enter its 100% price under Adjust operation.")
-        return {"commodity":key, **max(recent,key=lambda r:stamp(r["observed_at"]))}
+            raise ValueError(" ".join(["No recent 100% price reference is available.", *warnings,
+                "Open a commodity market in game or enter its 100% price under Adjust operation."]))
+        return {"commodity":key, **max(recent,key=lambda r:stamp(r["observed_at"])), "warnings":warnings}
 
     def context(self):
         j = self.core.store.get("journal")
@@ -86,7 +98,7 @@ class MarketProfiles:
             price, volume = r.get("buyPrice" if side == "buy" else "sellPrice"), r.get("stock" if side == "buy" else "demand")
             if not isinstance(price, (int, float)) or not isinstance(volume, (int, float)) or not math.isfinite(price) or not math.isfinite(volume) or price <= 0 or volume < settings["min_volume"]:
                 continue
-            if not 0 <= age <= settings["hours"] * 3600 or (r.get("maxLandingPadSize") or 0) < settings["pad"] or r.get("stationType") == "FleetCarrier":
+            if not -CLOCK_SKEW_SECONDS <= age <= settings["hours"] * 3600 or (r.get("maxLandingPadSize") or 0) < settings["pad"] or r.get("stationType") == "FleetCarrier":
                 continue
             arrival = r.get("distanceToArrival")
             if settings["arrival"] and (arrival is None or arrival > settings["arrival"]):

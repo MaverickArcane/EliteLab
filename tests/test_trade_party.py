@@ -6,6 +6,7 @@ import json
 import os
 import socket
 import tempfile
+import threading
 import time
 import unittest
 from unittest.mock import patch
@@ -68,6 +69,52 @@ class TradeTests(unittest.TestCase):
         state = self.call("get_carrier_trade")
         self.assertEqual(state["inventory"]["gold"]["stock"], 440)
         self.assertEqual(state["orders"]["gold"]["quantity"], 0)
+
+    def test_cancelling_a_buy_order_keeps_its_side_and_price(self):
+        before = self.call("get_carrier_trade")["orders"]["tritium"]
+        self.assertEqual((before["side"], before["price"], before["active"]), ("buy", 50000, True))
+        self.event("CarrierTradeOrder", CarrierID=3700000001, Commodity="tritium", CancelTrade=True)
+        order = self.call("get_carrier_trade")["orders"]["tritium"]
+        self.assertEqual((order["side"], order["price"]), ("buy", 50000))
+        self.assertEqual((order["active"], order["quantity"]), (False, 0))
+        self.assertEqual(order["updated_at"], "2026-10-23T12:00:00Z")
+        self.assertEqual(self.call("get_carrier_trade")["buy_commitment"], 0)
+
+    def test_live_journal_events_write_the_ledger_off_the_bus_thread(self):
+        writes = []
+        real = self.core.write_data
+
+        def record(value, *parts):
+            writes.append((parts, threading.current_thread()))
+            return real(value, *parts)
+
+        self.event("Docked", MarketID=3700000001, StationName="TST-001", StationType="FleetCarrier")
+        with patch.object(self.core, "write_data", side_effect=record):
+            self.desk.flush()
+            writes.clear()
+            self.event("CargoTransfer", Transfers=[{"Type": "gold", "Count": 10, "Direction": "tocarrier"}])
+            self.assertEqual(self.call("get_carrier_trade")["inventory"]["gold"]["stock"], 450)
+            self.assertNotIn(threading.current_thread(), [t for parts, t in writes if parts == ("trade.json",)])
+            self.desk.flush()
+        self.assertEqual(self.core.read_data("trade.json")["inventory"]["gold"]["stock"], 450)
+        restarted = Core(); loader.load_all(restarted); restarted.watcher.replay()
+        self.assertEqual(restarted.store.get("trade", "inventory")["gold"]["stock"], 450)
+
+    def test_replay_writes_the_ledger_once_when_replay_finishes(self):
+        fresh = tempfile.TemporaryDirectory(prefix="elitelab-trade-replay-")
+        self.addCleanup(fresh.cleanup)
+        with patch.object(config, "DATA_DIR", fresh.name):
+            core = Core()
+            loader.load_all(core)
+            # The archive merge after replay is its own commit; count only replay's writes.
+            with patch.object(core.modules["trade"].trade, "scan_archive"), patch.object(core, "write_data", wraps=core.write_data) as write:
+                core.watcher.replay()
+            ledger_writes = [c for c in write.call_args_list if c.args[1:] == ("trade.json",)]
+            self.assertEqual(len(ledger_writes), 1)
+            saved = core.read_data("trade.json")
+            self.assertEqual(saved["inventory"]["gold"]["stock"], 440)
+            self.assertEqual(len(saved["seen"]), len(core.modules["trade"].trade.data["seen"]))
+            self.assertGreater(len(saved["seen"]), 1)
 
     def test_plan_separates_stock_ship_orders_and_runs(self):
         self.call("reconcile_carrier_stock", commodity="tritium", stock=200)

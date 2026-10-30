@@ -48,6 +48,40 @@ class RouteTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'No recent 100%'):
                 self.call('get_carrier_price_reference',commodity='gold')
 
+    def test_price_reference_accepts_a_report_seconds_ahead_of_the_clock(self):
+        self.buys = []
+        self.sells[0]['meanPrice'] = 47214
+        self.sells[0]['updatedAt'] = (datetime.now(timezone.utc) + timedelta(seconds=5)).isoformat()
+        with patch.object(self.core.services, 'fetch_json', side_effect=self.fetch):
+            result = self.call('get_carrier_price_reference', commodity='gold')
+        self.assertEqual(result['mean_price'], 47214)
+        self.sells[0]['updatedAt'] = (datetime.now(timezone.utc) + timedelta(seconds=600)).isoformat()
+        with patch.object(self.core.services, 'fetch_json', side_effect=self.fetch):
+            with self.assertRaisesRegex(ValueError, 'No recent 100%'):
+                self.call('get_carrier_price_reference', commodity='gold')
+
+    def test_price_reference_offline_names_offline_mode(self):
+        with patch.object(config, 'OFFLINE', True), patch.object(self.core.services, 'fetch_json', side_effect=AssertionError('no network in offline mode')):
+            with self.assertRaisesRegex(ValueError, 'offline mode'):
+                self.call('get_carrier_price_reference', commodity='gold')
+
+    def test_price_reference_reports_the_fetch_failure(self):
+        with patch.object(self.core.services, 'fetch_json', side_effect=OSError('connection timed out')):
+            with self.assertRaisesRegex(ValueError, 'connection timed out'):
+                self.call('get_carrier_price_reference', commodity='gold')
+        self.core.bus.emit('journal.file.Market', {'timestamp': datetime.now(timezone.utc).isoformat(), 'MarketID': 777, 'StationName': 'Port', 'StarSystem': 'Sol',
+            'Items': [{'Name': '$gold_name;', 'MeanPrice': 47000, 'BuyPrice': 46000, 'SellPrice': 48000, 'Stock': 10, 'Demand': 10}]})
+        with patch.object(self.core.services, 'fetch_json', side_effect=OSError('connection timed out')):
+            result = self.call('get_carrier_price_reference', commodity='gold')
+        self.assertEqual((result['mean_price'], result['source']), (47000, 'Local market journal'))
+        self.assertTrue(any('connection timed out' in w for w in result['warnings']), result)
+
+    def test_quotes_accept_a_report_seconds_ahead_of_the_clock(self):
+        ahead = (datetime.now(timezone.utc) + timedelta(seconds=5)).isoformat()
+        self.buys[0]['updatedAt'] = ahead
+        self.sells[0]['updatedAt'] = ahead
+        self.assertEqual(len(self.query(commodity="gold")["rows"]), 1)
+
     def test_auto_volume_tracks_free_space_and_filters_both_stops(self):
         from urllib.parse import parse_qs, urlsplit
         carrier = self.core.store.get("journal", "carrier")
