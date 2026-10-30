@@ -5,7 +5,8 @@ import tempfile
 import unittest
 from unittest import mock
 
-from elitelab.core import config, journals
+import test_elitelab  # noqa: F401  (first: sets ELITELAB_SETTINGS and the fixtures before config is imported)
+from elitelab.core import config, journals  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 VDF = os.path.join(HERE, "fixtures", "steam", "libraryfolders.vdf")
@@ -20,6 +21,14 @@ def touch(*parts):
         f.write("")
     return path
 
+
+IMPORT_SETTINGS_PATH = config.SETTINGS_PATH      # what config read when this module imported it
+
+
+class HermeticImportTests(unittest.TestCase):
+    def test_config_was_first_imported_with_the_test_settings_file(self):
+        self.assertTrue(os.path.realpath(IMPORT_SETTINGS_PATH).startswith(os.path.realpath(tempfile.gettempdir())),
+                        IMPORT_SETTINGS_PATH)
 
 class JournalCandidates(unittest.TestCase):
     def setUp(self):

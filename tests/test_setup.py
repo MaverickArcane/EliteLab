@@ -10,9 +10,17 @@ import tempfile
 import unittest
 from unittest import mock
 
-from elitelab.core.http import make_handler
-from test_elitelab import config, make_core
+from test_elitelab import config, make_core  # first: sets ELITELAB_SETTINGS and the fixtures before config is imported
+from elitelab.core.http import make_handler  # noqa: E402
 
+
+IMPORT_SETTINGS_PATH = config.SETTINGS_PATH      # what config read when this module imported it
+
+
+class HermeticImportTests(unittest.TestCase):
+    def test_config_was_first_imported_with_the_test_settings_file(self):
+        self.assertTrue(os.path.realpath(IMPORT_SETTINGS_PATH).startswith(os.path.realpath(tempfile.gettempdir())),
+                        IMPORT_SETTINGS_PATH)
 
 class SetupTests(unittest.TestCase):
     def setUp(self):
