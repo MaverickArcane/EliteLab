@@ -10,11 +10,13 @@
 import argparse
 import json
 import logging
+import os
 import sys
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="elitelab", description="Self-hosted live dashboard for Elite Dangerous")
+    ap.add_argument("--settings", help="settings file to use (sets ELITELAB_SETTINGS)")
     sub = ap.add_subparsers(dest="cmd")
     s = sub.add_parser("serve", help="run the server (default)")
     s.add_argument("--host"); s.add_argument("--port", type=int); s.add_argument("--journals"); s.add_argument("-v", "--verbose", action="store_true")
@@ -25,6 +27,8 @@ def main(argv=None):
     c.add_argument("tool"); c.add_argument("args", nargs="*", help="key=value pairs (JSON values allowed)")
     args = ap.parse_args(argv)
     cmd = args.cmd or "serve"
+    if args.settings:
+        os.environ["ELITELAB_SETTINGS"] = args.settings   # config reads it at import, so before any elitelab.core import
 
     if cmd == "mcp":
         from . import mcp
@@ -56,8 +60,9 @@ def main(argv=None):
     from .core import Core, config
     if getattr(args, "journals", None):
         config.JOURNAL_DIR = args.journals
-    Core().start(getattr(args, "host", None), getattr(args, "port", None))
+        config.SOURCES["journal_dir"] = "flag"
+    return Core().start(getattr(args, "host", None), getattr(args, "port", None))
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

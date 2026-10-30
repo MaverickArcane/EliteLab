@@ -36,6 +36,8 @@ class Core:
         self.modules = {}
         self.watcher = JournalWatcher(self.bus)
         self._server = HttpServer(self)
+        self.ready = False
+        self.restart_requested = False
         self._register_builtin_routes()
 
     # -- helpers for modules ---------------------------------------------------
@@ -93,18 +95,29 @@ class Core:
         return [{k: v for k, v in e.items() if k != "_replay"} for e in evs[:limit]]
 
     # -- lifecycle -----------------------------------------------------------
+    def request_restart(self):
+        """Ask the running server to stop and make start() return RESTART_EXIT_CODE."""
+        self.restart_requested = True
+        t = threading.Timer(0.1, self._server.stop)
+        t.daemon = True
+        t.start()
+
     def start(self, host=None, port=None):
+        """Serve until stopped. Returns RESTART_EXIT_CODE if a restart was requested, else 0."""
         from .. import __version__
         load_all(self)
         self.watcher.start()
-        host, port = host or config.HOST, port or config.PORT
+        host, port = host or config.HOST, port if port is not None else config.PORT
         print(f"EliteLab {__version__} listening on http://{host}:{port}")
         print(f"Journal dir: {config.JOURNAL_DIR}  (found: {bool(journal_files())})")
         print(f"Modules: {', '.join(self.modules) or 'none'}")
         print("Ctrl+C to stop.")
         try:
+            self.ready = True
             self._server.serve(host, port)
         except KeyboardInterrupt:
             pass
         finally:
+            self.ready = False
             self.watcher.stop()
+        return config.RESTART_EXIT_CODE if self.restart_requested else 0
