@@ -78,6 +78,12 @@ Journals are mounted read-only. Wishlists and the selected loop persist in a nam
 ./start.sh --journals "/path/to/Saved Games/Frontier Developments/Elite Dangerous"
 ```
 
+### First run
+
+Open http://localhost:8766/setup/. The page lists the Elite Dangerous journal folders it found (Windows Saved Games, Steam Proton including Flatpak Steam and every Steam library, and the Mac Application Support folder), or you can type a path. Pick the folder, save, and click **Restart** if the page says a restart is needed; it waits for the lab to come back and reloads. When no journal files are found, the dashboard banner links to this page. Saving only writes the settings file, and nothing changes until the restart.
+
+The settings file is `%APPDATA%\EliteLab\settings.json` on Windows and `$XDG_CONFIG_HOME/elitelab/settings.json` elsewhere (`~/.config/elitelab/settings.json` by default). Environment variables still win over the file, so a Docker setup behaves as before. Restart works under `start.sh` and `Start EliteLab.cmd`, which start the lab again when it exits with status 75; run the server any other way and Restart simply stops it.
+
 ## Talking to it from an AI
 
 With the lab running, open the repo folder in Claude Code. The `.mcp.json` in the repo registers the `elitelab` MCP server automatically. Then ask things like:
@@ -100,15 +106,17 @@ See docs/AI.md.
 
 | Variable | Default | Meaning |
 |---|---|---|
+| `ELITELAB_SETTINGS` / `--settings PATH` | platform path (see First run) | Settings file to read and write. Order of precedence: flag, environment, settings file, default |
 | `ELITELAB_HOST` / `ELITELAB_PORT` | `127.0.0.1` / `8766` | Bind address (`0.0.0.0` in Docker) |
 | `ELITELAB_JOURNAL_DIR` | Saved Games path, or `/journals` | Where the game writes `Journal.*.log` |
+| `ELITELAB_BROWSER` | | Browser executable setting, reserved for the launcher (nothing reads it yet); the setup page shows it but cannot change it, so set it here or as `browser` in the settings file |
 | `ELITELAB_DATA_DIR` | `./data` | Persistent files (wishlist, selected loop) |
 | `ELITELAB_RECENT_JOURNALS` | `3` | Journal files replayed at startup |
 | `ELITELAB_DISABLE` | | Comma-separated module names to skip |
 | `ELITELAB_OFFLINE` | | Set to `1` to never call Spansh or EDSM (tests use this) |
 | `ELITELAB_URL` | `http://127.0.0.1:8766` | Where the MCP proxy finds the lab |
 
-Bind to `0.0.0.0` to open the dashboard from a tablet on your LAN. There is no auth, so do not expose it to the internet.
+Bound to loopback (`127.0.0.1`, `localhost` or `::1`), the server answers a POST only when its Host header is also a loopback name; any other gets 403. Bind to `0.0.0.0` to open the dashboard from a tablet on your LAN. There is no auth, so do not expose it to the internet.
 
 ## How it is built
 

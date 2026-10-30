@@ -27,6 +27,25 @@ Most recent raw journal events (newest first). Useful to see exactly what the ga
 | `limit` | integer | How many events (max 200) (default `30`) |
 | `event` | string | Only this event type, e.g. MarketSell |
 
+## `get_setup`  -  `GET /api/setup`  -  module: setup
+
+First-run setup state: the settings file path, the values the lab is running with and where each came from, values saved but not yet applied (pending), whether a restart is needed, whether journal files were found, and candidate Elite Dangerous journal folders with journal counts.
+
+## `save_setup`  -  `POST /api/setup`  -  module: setup
+
+Save settings to the settings file. Only journal_dir, port, host and data_dir are accepted; other keys are rejected. Nothing is applied live: changed values take effect after restart_elitelab. Returns the same shape as get_setup plus saved and warnings.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `journal_dir` | string | Folder holding Journal.*.log files |
+| `port` | integer | HTTP port, 1024 to 65535 |
+| `host` | string | Bind address: 127.0.0.1, 0.0.0.0, localhost or an IP address |
+| `data_dir` | string | Folder for the lab's own files such as wishlists |
+
+## `restart_elitelab`  -  `POST /api/restart`  -  module: setup
+
+Restart EliteLab so saved settings apply. The process exits with status 75 and a supervisor (the launcher or a service wrapper) must start it again; without one the lab simply stops.
+
 ## `get_commander_state`  -  `GET /api/journal`  -  module: journal
 
 Live commander state from the journal: name, credits, ship (with loadout summary), cargo capacity and jump range, current system/station, docked flag, Powerplay control of the current system, cargo with rare goods tagged, rares in stock at the last market opened, fleet carrier summary, and the recent event feed. Materials live in get_materials.

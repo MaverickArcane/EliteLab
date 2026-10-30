@@ -49,6 +49,12 @@ The HTTP transport itself (SSE framing, static path guard), the MCP server, the 
 
 For a manual check, enable the Fleet carrier card in Layout, pin a previously visited carrier, refresh, restart EliteLab, and verify the selection and observation survive. Check that the map marks the reported location and that docking at a different carrier does not change the pin. Unpin to restore owned-carrier details if present. Remote reports are last known observations, not live telemetry.
 
+## Setup, settings and restart
+
+`tests/test_settings.py` covers the settings file: the platform path and the `ELITELAB_SETTINGS` override, a missing or invalid file loading as empty with one warning, saving that keeps unknown keys and connections and creates the folder, precedence (flag, environment, file, default), casting a string port and falling back from a bad one, and `~` expansion for folders. `tests/test_journals.py` builds fake home folders and checks the candidate folders: Windows first on `nt`, Proton under every Steam root, extra libraries from `libraryfolders.vdf`, Flatpak Steam, the Mac path, saved paths first, one entry for a symlinked root, a bare `Journal.log` ignored, and the default journal folder choice. `tests/test_restart.py` checks that `start()` returns 75 after `request_restart` (including one requested before the start) and 0 on a normal stop, that `--settings` is applied before the config is imported, and that `start.sh` loops on 75 and stops on anything else (POSIX only). `tests/test_setup.py` calls `get_setup`, `save_setup` and `restart_elitelab` directly (what is reported, what is written, restart flagging, rejected values, `browser` refused, unknown keys kept), and starts a real server for the loopback Host rule (a POST with another Host gets 403 and writes nothing; a LAN bind and GET are unaffected) and for the page being served.
+
+`tests/browser.mjs` drives the setup page in Chrome: the candidate list and the selected fixture folder, typing a path clearing the radio choice, saving a port change showing Restart and writing the file, `waitForRestart` against a fake `fetch` and clock (up after a gap, timeout, bad or non-JSON replies, a new port with `no-cors`), and the journal banner linking to `/setup/`. It never clicks Restart.
+
 ## Manual checks before a release
 
 1. `python -m elitelab serve -v` against real journals; open the dashboard; drag, resize, hide and show cards; switch presets; watch the footer for stalls.

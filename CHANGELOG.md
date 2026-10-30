@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Setup: a settings file read by the server, journal folder detection for Windows, Steam Proton and Mac, a first-run page at /setup/ with a reserved Connections section, and a restart that the start scripts honour (exit status 75). On a loopback bind, a POST whose Host header is not a loopback name now gets 403.
+
 ## 0.5.0 (2026-10-25)
 
 - Merit rate: three rates instead of one. The headline is the pace while earning (time between merit gains, gaps capped at 20 min), beside the rate while playing (any journal activity; a 10 min silence is a break) and the elapsed-session rate, plus the break count and an idle flag. A three-hour engineering stop used to halve the only figure shown.

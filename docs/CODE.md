@@ -33,6 +33,10 @@ Module-level constants read from environment at import time. Tests override `con
 | `DISABLED_MODULES` | `ELITELAB_DISABLE` | comma list |
 | `OFFLINE` | `ELITELAB_OFFLINE` | truthy = `Services.fetch_json` raises instead of calling out |
 
+## elitelab/core/journals.py
+
+`candidates(home, platform, extra)` lists likely journal folders (saved, Windows, Steam Proton, Mac) with `exists`, `journals` and `newest`, de-duplicated by real path; `steam_libraries(home)` reads Steam roots and `libraryfolders.vdf`; `describe(path)` counts journals. Pure: it reads only under the paths it is given. `config._default_journal_dir()` uses it.
+
 ## elitelab/core/gamedata.py
 
 Game facts shared by modules (modules may not import each other, so shared facts live in core): `POWERS` (the 12 powers, Spansh spelling), `RARES` (journal key -> display name for all 142 rare goods, from EDCD FDevIDs `rare_commodity.csv`), `RARE_MARKETS` (key -> origin station market id), `KNOWN_RARES`, `RARE_NAMES`, `norm(name)` (strip `$`/`_name;`, lowercase), `is_rare(key_or_name)`.
@@ -123,7 +127,7 @@ Constants: `STARPORT_TYPES` (Coriolis, Orbis, Ocellus, Asteroid base, Planetary 
 
 Built-in routes (`module="core"`): `/api/health` (`health`), `/api/state` (`get_state`), `/api/modules` (`list_modules`), `/api/schema` (`list_tools`), `/api/events` (`get_recent_events`, params `limit` <= 200, `event`). `_remember_event` keeps a ring of the last 500 journal events for `/api/events`.
 
-`start(host, port)`: `load_all`, start watcher thread, print banner, serve forever; stops the watcher on exit.
+`start(host, port)`: `load_all`, start watcher thread, print banner, serve forever; stops the watcher on exit and returns `config.RESTART_EXIT_CODE` (75) if `request_restart()` was called, else 0. `request_restart()` marks a restart and stops the server; a request made before the server is bound is kept, not lost.
 
 ## elitelab/mcp.py
 
@@ -258,6 +262,10 @@ Routes: `/api/build` -> `get_build_progress`; `POST /api/build/pin` -> `pin_buil
 In the running server a daemon worker scans the archive and checks the pin every five minutes (or on a new pin). Network calls use the shared service cache and run outside bus handlers. `refresh()` rejects mismatched IDs, invalid timestamps and reports older than the current observation. A lock serializes refreshes; a selection generation prevents an in-flight response from restoring an old pin. Offline mode uses local observations only. The card retains ID `carrier` for saved layouts, displays owner data when unpinned, and contributes its own `pinned-carrier` map layer.
 
 Routes: `get_followed_carrier`, `pin_fleet_carrier`, `unpin_fleet_carrier`, `refresh_followed_carrier`.
+
+## modules/setup/module.py
+
+First-run setup. `get_setup` (`GET /api/setup`), `save_setup` (`POST /api/setup`) and `restart_elitelab` (`POST /api/restart`), the `setup` store namespace (see docs/STATE.md), and the page in `modules/setup/web/page/` mounted at `/setup/`. Saving writes only the settings file; `browser` cannot be saved here.
 
 ## modules/map/module.py
 
