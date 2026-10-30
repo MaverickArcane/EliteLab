@@ -53,6 +53,7 @@ class IsolatedCoreTests(unittest.TestCase):
         self.data.start()
         self.addCleanup(self.data.stop)
         self.core = make_core()
+        self.addCleanup(self.core.close)
 
     def call(self, name, **args):
         return self.core.http.tools[name].fn(args)

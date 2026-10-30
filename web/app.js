@@ -1,6 +1,7 @@
 /* EliteLab shell: state store fed by SSE, card registry, map layer registry, and a drag-and-drop layout.
    Modules load their card scripts from /modules/<name>/... and call Lab.card({...}) / Lab.map.addLayer(...). No build step. */
 'use strict';
+import {StateFeed} from './state-feed.js';
 (() => {
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fmt = n => (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString();
@@ -13,6 +14,11 @@
       esc, fmt, ls,
       inaraSys: n => `https://inara.cz/elite/starsystem/?search=${encodeURIComponent(n)}`,
       inaraSt: n => `https://inara.cz/elite/station/?search=${encodeURIComponent(n)}`,
+      inaraMarket: (station, system) => {
+        const name = String(station || '').trim(), place = String(system || '').trim();
+        if (!name || ['Unknown stop', 'Carrier'].includes(name)) return null;
+        return `https://inara.cz/elite/station-market/?search=${encodeURIComponent(place ? `${name} [${place}]` : name)}`;
+      },
       spanshSys: n => `https://spansh.co.uk/search/${encodeURIComponent(n)}`,
       copy: t => navigator.clipboard && navigator.clipboard.writeText(t),
       dist3: (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z),
@@ -249,6 +255,9 @@
   const ALL = () => allCards.map(c => c.id);
   const ENG = ['recipes', 'wishlist', 'farming', 'build'];       // engineering cards, hidden by the non-engineering presets
   const PRESETS = {
+    'Carrier ops': () => ({ order: ['haul', 'party', 'trade', 'carrier', 'cargo', 'location', 'ship', 'map', 'feed'],
+      spans: { haul: 5, party: 7, trade: 12, carrier: 4, cargo: 4, location: 4, ship: 4, map: 8, feed: 4 },
+      hidden: ALL().filter(id => !['haul', 'trade', 'party', 'carrier', 'cargo', 'location', 'ship', 'map', 'feed'].includes(id)) }),
     'Default': () => ({ order: ['location', 'ship', 'build', 'wishlist', 'farming', 'recipes', 'materials', 'powerplay', 'merits', 'targets', 'combat', 'feed', 'cargo', 'market', 'carrier', 'loop', 'map'],
       spans: { location: 4, ship: 4, build: 4, wishlist: 6, farming: 6, recipes: 4, materials: 4, powerplay: 4, merits: 4, targets: 12, combat: 12, feed: 4, cargo: 4, market: 4, carrier: 4, loop: 4, map: 12 }, hidden: [] }),
     'Powerplay': () => ({ order: ['map', 'powerplay', 'merits', 'targets', 'combat', 'location', 'loop', 'cargo', 'ship', 'feed'],
@@ -257,10 +266,10 @@
       spans: { loop: 4, cargo: 4, market: 4, map: 8, location: 4, targets: 12, merits: 4, ship: 4, feed: 4 }, hidden: ['combat', 'materials', 'carrier', 'powerplay', ...ENG] }),
     'Combat': () => ({ order: ['merits', 'ship', 'location', 'combat', 'map', 'feed', 'powerplay'],
       spans: { merits: 4, ship: 4, location: 4, combat: 12, map: 8, feed: 4, powerplay: 4 }, hidden: ['loop', 'targets', 'materials', 'market', 'cargo', 'carrier', ...ENG] }),
-    'Mining & trade': () => ({ order: ['cargo', 'market', 'ship', 'targets', 'map', 'location', 'merits', 'feed'],
-      spans: { cargo: 4, market: 4, ship: 4, targets: 12, map: 8, location: 4, merits: 4, feed: 4 }, hidden: ['loop', 'combat', 'materials', 'powerplay', 'carrier', ...ENG] }),
-    'Engineering': () => ({ order: ['build', 'wishlist', 'farming', 'recipes', 'materials', 'ship', 'location', 'map', 'feed'],
-      spans: { build: 6, wishlist: 6, farming: 6, recipes: 6, materials: 4, ship: 4, location: 4, map: 12, feed: 4 },
+    'Mining & trade': () => ({ order: ['trade', 'party', 'cargo', 'carrier', 'market', 'ship', 'targets', 'map', 'location', 'merits', 'feed'],
+      spans: { trade: 8, party: 4, cargo: 4, carrier: 4, market: 4, ship: 4, targets: 12, map: 8, location: 4, merits: 4, feed: 4 }, hidden: ['loop', 'combat', 'materials', 'powerplay', ...ENG] }),
+    'Engineering': () => ({ order: ['materials', 'wishlist', 'build', 'farming', 'recipes', 'ship', 'location', 'map', 'feed'],
+      spans: { build: 6, wishlist: 6, farming: 6, recipes: 6, materials: 6, ship: 4, location: 4, map: 12, feed: 4 },
       hidden: ['loop', 'targets', 'combat', 'market', 'powerplay', 'merits', 'carrier', 'cargo'] }),
     'Second screen': () => ({ order: ['map', 'location', 'feed', 'merits'], spans: { map: 12, location: 4, feed: 4, merits: 4 },
       hidden: ALL().filter(id => !['map', 'location', 'feed', 'merits'].includes(id)) }),
@@ -355,19 +364,15 @@
 
   // ------------------------------------------------------------------ live connection
   function applySnapshot(snap) { Object.keys(snap).forEach(ns => { if (ns !== '_version') Lab.state[ns] = { ...(Lab.state[ns] || {}), ...snap[ns] }; }); Lab._v = snap._version || 0; Object.keys(Lab.state).forEach(ns => Lab.emit(ns)); }
-  let resyncing = false;
-  async function resync() { if (resyncing) return; resyncing = true; try { applySnapshot(await Lab.api('/api/state')); } catch (e) { } resyncing = false; }
+  const feed=new StateFeed({fetchSnapshot:()=>Lab.api('/api/state'),snapshot:applySnapshot,
+    change:m=>{Lab._v=m.v;(Lab.state[m.ns]=Lab.state[m.ns] || {})[m.key]=m.value;Lab.emit(m.ns);}});
 
   function connect() {
     const live = document.getElementById('h-live');
-    const es = new EventSource('/events');
-    es.addEventListener('snapshot', e => { applySnapshot(JSON.parse(e.data)); live.classList.add('live'); });
+    const es = Lab.events = new EventSource('/events');
+    es.addEventListener('snapshot', e => { feed.reset(JSON.parse(e.data)); live.classList.add('live'); });
     es.addEventListener('state', e => {
-      const m = JSON.parse(e.data);
-      // Every change carries a global version. A gap means the server dropped messages for this slow/background tab.
-      if (Lab._v && m.v > Lab._v + 1) resync();
-      Lab._v = m.v;
-      (Lab.state[m.ns] = Lab.state[m.ns] || {})[m.key] = m.value; Lab.emit(m.ns);
+      feed.receive(JSON.parse(e.data));
     });
     es.onerror = () => { live.classList.remove('live'); live.textContent = 'reconnecting…'; };
   }
@@ -380,7 +385,7 @@
       document.getElementById('f-modules').textContent = 'modules: ' + manifest.map(m => m.name).join(', ');
       const scripts = [...new Set(manifest.flatMap(m => m.cards.map(c => c.script)))];
       await Promise.all(scripts.map(loadScript));       // registration order does not matter: cards mount after all have loaded
-      applySnapshot(await Lab.api('/api/state'));
+      feed.reset(await Lab.api('/api/state'));
       allCards = manifest.flatMap(m => m.cards.map(c => ({ ...c, module: m.name }))).sort((a, b) => (a.order || 100) - (b.order || 100));
       mountCards();
       Object.keys(Lab.state).forEach(ns => Lab.emit(ns));
@@ -413,6 +418,16 @@
     }
     banner.textContent = `No journal files found in ${health.journal_dir}. Start Elite Dangerous, or set ELITELAB_JOURNAL_DIR to your journal folder and restart EliteLab. In Docker, mount the folder read-only at /journals.`;
   }
-  setInterval(() => checkHealth().catch(() => {}), 30000);
+  const healthTimer=setInterval(() => checkHealth().catch(() => {}), 30000);
+  document.getElementById('app-quit').onclick=async e=>{
+    const button=e.currentTarget;button.disabled=true;
+    try {
+      await Lab.post('/api/shutdown');
+      Lab.events?.close();feed.stop();clearInterval(healthTimer);Object.keys(mounted).forEach(unmountCard);
+      document.getElementById('h-live').textContent='stopped';
+      document.getElementById('h-live').classList.remove('live');
+      grid.innerHTML='<section class="card" style="grid-column:1/-1"><h2>EliteLab stopped</h2><p>The party is closing. You can close this tab and use Start EliteLab to launch again.</p></section>';
+    } catch(error){Lab.toast(error.message,'bad');button.disabled=false;}
+  };
   boot();
 })();

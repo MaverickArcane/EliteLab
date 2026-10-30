@@ -1,0 +1,4 @@
+{"timestamp":"2026-10-26T17:59:00Z","event":"LoadGame","Commander":"Telemetry Test","Ship":"type9","ShipName":"Cargo Runner","ShipIdent":"TST-02"}
+{"timestamp":"2026-10-26T17:59:01Z","event":"Loadout","Ship":"type9","ShipID":12,"ShipName":"Cargo Runner","ShipIdent":"TST-02","HullHealth":0.95,"CargoCapacity":790,"FuelCapacity":{"Main":64,"Reserve":1},"Modules":[]}
+{"timestamp":"2026-10-26T17:59:02Z","event":"Location","StarSystem":"Sol","StarPos":[0,0,0],"Docked":false}
+{"timestamp":"2026-10-26T17:59:03Z","event":"HullDamage","Health":0.8,"PlayerPilot":true,"Fighter":false}

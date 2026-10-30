@@ -25,7 +25,7 @@ def detail(hit, grade=None, from_grade=0, qty=1):
         from_grade = int(from_grade or 0)
         if not 1 <= grade <= b["max_grade"] or not 0 <= from_grade < grade:
             raise ValueError(f"grade must be 1-{b['max_grade']} and from_grade below it")
-        return {"kind": "blueprint", "key": b["key"], "name": b["name"], "module": b["module"], "max_grade": b["max_grade"],
+        return {"kind": "blueprint", "key": b["key"], "name": b["name"], "module": hit["module"], "max_grade": b["max_grade"],
                 "grades": {g: mats(ing) for g, ing in b["grades"].items()},
                 "engineers": b["engineers"],
                 "rolls_per_grade": gd.ROLLS_PER_GRADE,

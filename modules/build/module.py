@@ -11,6 +11,7 @@ State ``build``: pinned {url, name, ship, pinned_at} | None, progress {...} (see
 Persisted in data/build.json.
 """
 import time
+import threading
 
 from elitelab.core import builds
 from elitelab.core import gamedata as gd
@@ -31,6 +32,7 @@ def exp_key(name):
 class Build:
     def __init__(self, core):
         self.core = core
+        self._lock = threading.RLock()
         self.pinned = None
         self.target = None
         saved = core.read_data(FILE, default=None)
@@ -57,22 +59,28 @@ class Build:
         target = builds.parse(url)
         if not target["slots"]:
             raise ValueError("that build has no modules")
-        self.target = target
-        self.pinned = {"url": url, "source": target["source"], "hash": target.get("hash"), "name": target["name"] or target["ship"]["name"],
+        pinned = {"url": url, "source": target["source"], "hash": target.get("hash"), "name": target["name"] or target["ship"]["name"],
                        "ship": target["ship"]["name"], "ship_fdname": target["ship"]["fdname"], "slots": len(target["slots"]),
                        "pinned_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
-        self.core.write_data(self.pinned, FILE)
-        self.publish()
-        return self.core.store.get(NS)
+        with self._lock:
+            self.core.write_data(pinned, FILE)
+            self.target, self.pinned = target, pinned
+            self.publish()
+            return self.core.store.get(NS)
 
     def unpin(self, q):
-        self.pinned = self.target = None
-        self.core.write_data({}, FILE)
-        self.publish()
+        with self._lock:
+            self.core.write_data({}, FILE)
+            self.pinned = self.target = None
+            self.publish()
         return {"pinned": None}
 
     # -- comparison -------------------------------------------------------------------
     def compute(self):
+        with self._lock:
+            return self._compute()
+
+    def _compute(self):
         t = self.target
         if not t:
             return {"pinned": None, "progress": None}
@@ -190,12 +198,17 @@ class Build:
 
     def publish(self):
         try:
-            self.core.store.update(NS, self.compute())
+            with self._lock:
+                self.core.store.update(NS, self.compute())
         except Exception as ex:
             self.core.log.warning("build: publish failed: %s", ex)
 
     # -- wishlist hand-off ------------------------------------------------------------
     def to_wishlist(self, q):
+        with self._lock:
+            return self._to_wishlist(q)
+
+    def _to_wishlist(self, q):
         """Track the pinned build on the wishlist as one entry (through the wishlist tools, never an import). Its needs are
         this module's progress.materials, so the entry shrinks as modules get fitted and engineered. Older per-blueprint
         entries labelled for this build are removed."""
