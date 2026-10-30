@@ -141,6 +141,8 @@ class Personal:
         if not origin:
             raise ValueError('Enter a starting system or wait for your journal location.')
         destination, station = system_name(q.get('destination', '')), system_name(q.get('station', ''))
+        if q.get('quantity') in (None, '') and not positive(j.get('cargo_capacity')):
+            raise ValueError('Ship cargo capacity is unknown. Enter a load size.')
         quantity = numeric(q, 'quantity', j.get('cargo_capacity'), 1000000, True)
         hours, breadth = numeric(q, 'hours', 24, 72, True), numeric(q, 'breadth', 100, 300, True)
         pad, route_type = q.get('pad', 'L'), q.get('route_type', 'round_trip')
@@ -175,7 +177,9 @@ class Personal:
         origins = [m for r in local if (m := self.market(r, settings, now))
                    and m['system'].casefold() == origin.casefold() and (not station or m['station'].casefold() == station.casefold())]
         catalog = {commodity_key(name): name for m in origins for name in m['buys']}
-        rows, checked, available = [], 0, 0
+        rows, checked, available, too_far = [], 0, 0, []
+        if origins and selected and selected.casefold() not in catalog:
+            warnings.append(f'{selected} is not sold at the starting market for this load. Choose a commodity from the list or search all goods.')
         if origins:
             nearby, available, notes = self.stations(settings, destination or origin, 0 if destination else distance, breadth, now)
             warnings.extend(notes)
@@ -185,7 +189,10 @@ class Personal:
             for start in origins:
                 for end in markets.values():
                     separation = math.dist(start['pos'], end['pos'])
-                    if start['market_id'] == end['market_id'] or separation > distance:
+                    if start['market_id'] == end['market_id']:
+                        continue
+                    if separation > distance:
+                        too_far.append(separation)
                         continue
                     outbound = self.legs(start, end, quantity, selected.casefold())
                     returning = self.legs(end, start, quantity) if route_type == 'round_trip' else []
@@ -199,6 +206,8 @@ class Personal:
                                      'per_ton': profit / quantity, 'required_credits': required, 'return_on_cost': 100 * profit / cost,
                                      'distance': round(separation, 2), 'total_distance': round(separation * len(legs), 2),
                                      'estimated_jumps': (max(1, math.ceil(separation / laden)) if separation else 0) if laden else None})
+            if destination and not rows and too_far:
+                warnings.append(f'{destination} is {min(too_far):.0f} Ly away, beyond the {distance:g} Ly per-leg limit. Increase the distance or switch to estimated jumps.')
         else:
             warnings.append('No fresh eligible starting market found. Check the station name, pad, report age and surface-station filters.')
         rows.sort(key=lambda r: (-r['profit'], r['distance'], r['required_credits']))

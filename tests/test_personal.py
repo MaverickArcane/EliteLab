@@ -133,6 +133,27 @@ class PersonalTests(unittest.TestCase):
         self.assertEqual(len(self.calls),1)
         self.assertTrue(r['warnings'])
 
+    def test_destination_beyond_the_distance_limit_is_explained(self):
+        far = self.station(9, 'Far', 120, [self.item('Gold', 0, 400), self.item('Silver', 100, 0)])
+        self.nearby = [far]
+        result = self.desk.search({'destination': 'Far'})
+        self.assertEqual(result['rows'], [])
+        self.assertTrue(any('Far' in w and '120' in w and '80' in w for w in result['warnings']), result['warnings'])
+        self.assertTrue(self.desk.search({'destination': 'Far', 'distance': 200})['rows'])
+
+    def test_blank_load_with_unknown_capacity_asks_for_a_load_size(self):
+        self.journal['cargo_capacity'] = None
+        with self.assertRaises(ValueError) as caught:
+            self.desk.search({})
+        self.assertIn('cargo capacity', str(caught.exception).lower())
+        self.assertTrue(self.desk.search({'quantity': 50})['rows'])
+
+    def test_commodity_not_sold_at_the_origin_is_explained(self):
+        result = self.desk.search({'commodity': 'platinum'})
+        self.assertEqual(result['rows'], [])
+        self.assertTrue(any('platinum' in w.lower() and 'starting' in w.lower() for w in result['warnings']), result['warnings'])
+        self.assertEqual(self.desk.search({'commodity': 'gold'})['warnings'], [])
+
     def test_offline_and_network_failure(self):
         self.core.config.OFFLINE = True
         with self.assertRaisesRegex(ValueError,'offline'):

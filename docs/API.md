@@ -537,8 +537,8 @@ Galactic coordinates for one or more systems (EDSM).
 
 ## Trading routes
 
-`find_personal_trade_routes` / `/api/personal/routes` retains its existing tool
-and URL for compatibility. It now uses Spansh station market snapshots.
+`find_personal_trade_routes` / `/api/personal/routes` searches Spansh station
+market snapshots.
 `route_type=round_trip` (default) builds exact station A-B-A loops; `one_way`
 returns a single leg. `origin` defaults to the journal system, `station` is an
 optional starting station, and `destination` is an optional system name.
@@ -546,10 +546,11 @@ optional starting station, and `destination` is an optional system name.
 or `distance_mode=jumps` uses `jumps * jump_range_laden` as an estimate.
 `pad` is S/M/L; `hours` defaults to 24 (max 72); `arrival` defaults to 10000 Ls
 (0 means any); `surface` is "0" or "1". Fleet carriers are always excluded.
-`breadth` now counts nearest eligible stations (default 100, max 300), not goods.
+`breadth` counts nearest eligible stations (default 100, max 300).
 `commodity` is an outbound selection key returned in `commodities[{key,name}]`;
 it never restricts the return cargo. The result includes up to 30 routes with
 `legs`, `profit`, combined `cost`, `required_credits`, `return_on_cost` (percent),
+`per_ton` (combined profit per tonne of hold across both legs; each leg carries its own `per_ton`),
 `distance` per leg, `total_distance`, and `estimated_jumps` per leg.
 `screened`/`available` count nearby stations; coverage/errors appear in `warnings`.
 Reports are cached five minutes. No game action is performed.

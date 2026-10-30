@@ -2,8 +2,11 @@
 
 ## Unreleased
 
-- Rename Personal trading to Trading. Search Spansh station markets for one-way
-  trades or exact round trips, with independent return cargo and no fleet carriers.
+- Add Trading (`find_personal_trade_routes`, `/api/personal/routes`): search
+  Spansh station markets for one-way trades or exact round trips, with
+  independent return cargo and no fleet carriers. Searches explain a destination
+  beyond the distance limit, a commodity the starting market does not sell, and
+  a blank load size when ship capacity is unknown.
 - Show separate outbound/return sections, combined profit, starting-credit needs,
   station/report filters, coverage warnings and prefilled Inara route links.
 - Preserve ship capacity and laden-range inputs; improve Trading's mobile layout.
