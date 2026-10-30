@@ -75,8 +75,21 @@ Journals are mounted read-only. Wishlists and the selected loop persist in a nam
 ### Linux and macOS
 
 ```
-./start.sh --journals "/path/to/Saved Games/Frontier Developments/Elite Dangerous"
+./start.sh serve --journals "/path/to/Saved Games/Frontier Developments/Elite Dangerous"
 ```
+
+### First-run setup
+
+Open `http://localhost:8766/setup/` to choose the journal folder, port and data
+folder. Save your changes, then restart from the setup page when running through
+the start scripts. Direct Python launches must be started again after exit 75.
+Settings live in `%APPDATA%\EliteLab\settings.json` on Windows or
+`$XDG_CONFIG_HOME/elitelab/settings.json` (default `~/.config/elitelab/settings.json`)
+on Linux and macOS. Override the location with `ELITELAB_SETTINGS` or the global
+`--settings PATH` flag. CLI flags override environment variables, which override
+the settings file. Docker environment settings therefore continue to win.
+`ELITELAB_BROWSER` reserves a browser executable preference for the future tray.
+Connections are reserved for future integrations; setup does not upload journals.
 
 ## Talking to it from an AI
 

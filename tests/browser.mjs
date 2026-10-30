@@ -51,6 +51,21 @@ try {
   await evaluate("scrollTo(0,0);true");
   const mobile=await evaluate("({bodyWidth:document.body.scrollWidth,viewport:innerWidth,clientWidth:document.documentElement.clientWidth,cards:document.querySelectorAll('#grid > .card').length,overflow:[...document.querySelectorAll('body *')].filter(e=>e.getBoundingClientRect().right>395&&getComputedStyle(e).position!=='fixed').slice(0,15).map(e=>({tag:e.tagName,id:e.id,cls:e.className,right:e.getBoundingClientRect().right}))})");
   const shot=await send('Page.captureScreenshot',{format:'png'});
+  await evaluate("(async()=>{window.originalApi=Lab.api;Lab.api=async path=>path==='/api/health'?{journal_found:false,journal_dir:'<dir>&'}:window.originalApi(path);await Lab.checkHealth();return true})()");
+  assert.equal(await evaluate("!!document.querySelector('#journal-warning a[href=\"/setup/\"]')"),true);
+  assert.equal(await evaluate("!!document.querySelector('#journal-warning dir')"),false);
+  await evaluate("(async()=>{await Lab.checkHealth();Lab.api=window.originalApi;await Lab.checkHealth();return true})()");
+  assert.equal(await evaluate("!!document.querySelector('#journal-warning')"),false);
+  await send('Page.navigate',{url:`http://127.0.0.1:${port}/setup/`});
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!!document.querySelector('[data-candidates] input')"))break;}
+  assert.equal(await evaluate("!!document.querySelector('[data-candidates] input:checked')"),true);
+  assert.equal(await evaluate("document.body.textContent.includes('Nothing to connect yet. Inara and other services will appear here.')"),true);
+  await evaluate("document.querySelector('[name=port]').value='8799';document.querySelector('[data-setup-form]').requestSubmit();true");
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!document.querySelector('[data-restart]').hidden"))break;}
+  assert.equal(await evaluate("!document.querySelector('[data-restart]').hidden"),true);
+  const setupState=await (await fetch(`http://127.0.0.1:${port}/api/setup`)).json();
+  assert.deepEqual(JSON.parse(fs.readFileSync(setupState.path,'utf8')), {port:8799});
+  assert.equal(await evaluate("document.querySelector('[data-status]').textContent.includes('Restart')"),true);
   await fetch(`http://127.0.0.1:${port}/api/materials/wishlist`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:{arsenic:10}})});
   await send('Page.navigate',{url:`http://127.0.0.1:${attacker.address().port}`});await sleep(250);
   const crossOrigin=await evaluate(`fetch('http://127.0.0.1:${port}/api/materials/wishlist',{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({items:{},mode:'clear'})}).then(r=>({type:r.type})).catch(e=>({error:String(e)}))`);

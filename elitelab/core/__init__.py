@@ -36,6 +36,8 @@ class Core:
         self.modules = {}
         self.watcher = JournalWatcher(self.bus)
         self._server = HttpServer(self)
+        self.restart_requested = False
+        self.ready = False
         self._register_builtin_routes()
 
     # -- helpers for modules ---------------------------------------------------
@@ -93,12 +95,27 @@ class Core:
         return [{k: v for k, v in e.items() if k != "_replay"} for e in evs[:limit]]
 
     # -- lifecycle -----------------------------------------------------------
-    def start(self, host=None, port=None):
+    def request_restart(self):
+        self.restart_requested = True
+        timer = threading.Timer(0.1, self._server.stop)
+        timer.daemon = True
+        timer.start()
+
+    def start(self, host=None, port=None, *, open_browser=False):
         from .. import __version__
         load_all(self)
+        host, port = config.HOST if host is None else host, config.PORT if port is None else port
+        self._server.bind(host, port)
         self.watcher.start()
-        host, port = host or config.HOST, port or config.PORT
-        print(f"EliteLab {__version__} listening on http://{host}:{port}")
+        self.ready = True
+        if open_browser:
+            import webbrowser
+            browser_host = "127.0.0.1" if host == "0.0.0.0" else host
+            url = f"http://{browser_host}:{self._server.srv.server_port}/"
+            timer = threading.Timer(0.1, lambda: webbrowser.open(url))
+            timer.daemon = True
+            timer.start()
+        print(f"EliteLab {__version__} listening on http://{host}:{self._server.srv.server_port}")
         print(f"Journal dir: {config.JOURNAL_DIR}  (found: {bool(journal_files())})")
         print(f"Modules: {', '.join(self.modules) or 'none'}")
         print("Ctrl+C to stop.")
@@ -107,4 +124,6 @@ class Core:
         except KeyboardInterrupt:
             pass
         finally:
+            self.ready = False
             self.watcher.stop()
+        return config.RESTART_EXIT_CODE if self.restart_requested else 0
