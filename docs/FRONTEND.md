@@ -14,6 +14,14 @@
 
 ## The `Lab` runtime
 
+`app.js` is loaded as an ES module and imports `state-feed.js`. The feed buffers
+out-of-order updates until their global versions are contiguous, drops events
+already covered by a snapshot, and repairs gaps with `/api/state`. Buffered
+updates newer than that response are replayed in order; an older response never
+rewinds current state. Each SSE snapshot starts a new connection generation so
+responses from before a server restart are discarded. Failed repairs retry even
+without further events; the pending queue is bounded to 1,000 messages.
+
 | Member | Purpose |
 |---|---|
 | `Lab.state[ns]` | server namespaces mirrored from SSE; client-only namespaces live here too (`targets` results, `combat` results) |

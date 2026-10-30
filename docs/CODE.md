@@ -270,3 +270,16 @@ See docs/FRONTEND.md. Exposes `window.Lab`, mounts cards from `/api/modules`, co
 ## tests/test_elitelab.py
 
 Builds a real `Core`, loads all modules, replays `tests/fixtures/journals/`, and calls tool functions directly (`core.http.tools[name].fn(q)`). `ELITELAB_OFFLINE=1` makes every network call raise; the loop module logs the failure and carries on without coordinates. See docs/TESTING.md.
+
+## modules/personal (Trading)
+
+`Personal.stations` pages bounded Spansh station searches, with bucketed age
+filters for the shared five-minute cache. Spansh treats a zero maximum radius as
+unbounded; exact-system searches use 0.001 Ly and recheck the system name locally.
+`market` independently validates type, pad, coordinates, timestamp, approach and
+full-load volume. `legs` compares all eligible goods for one station pair.
+`search` combines outbound with the most profitable return to the identical
+market ID, or returns one-way legs. It keeps the existing HTTP/tool identity.
+Starting funds for a loop are max(outbound cost, return cost - outbound profit).
+The browser keeps filters across refreshes, migrates old search settings, and
+renders both legs without replacing the form on journal updates.

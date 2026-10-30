@@ -1,0 +1,6 @@
+{
+  "name": "personal", "version": "1.1.0",
+  "description": "Ship-sized one-way trades and round trips from Spansh markets.",
+  "requires": ["journal"], "provides": ["personal"], "order": 28,
+  "cards": [{"id": "personal", "title": "Trading", "span": 12, "script": "card.js", "order": 46}]
+}

@@ -16,6 +16,7 @@ class CarrierTests(unittest.TestCase):
             p.start()
             self.addCleanup(p.stop)
         self.core = make_core()
+        self.addCleanup(self.core.close)
 
     def call(self, name, **params):
         return self.core.http.tools[name].fn(params)
@@ -52,6 +53,7 @@ class CarrierTests(unittest.TestCase):
         self.pin()
         restarted = Core()
         loader.load_all(restarted)
+        self.addCleanup(restarted.close)
         self.assertEqual(restarted.http.tools["get_followed_carrier"].fn({})["pinned"]["market_id"], 3700000001)
         state = self.call("unpin_fleet_carrier")
         self.assertIsNone(state["pinned"])
@@ -59,6 +61,7 @@ class CarrierTests(unittest.TestCase):
         self.assertEqual(self.call("get_commander_state")["carrier"], owned)
         restarted = Core()
         loader.load_all(restarted)
+        self.addCleanup(restarted.close)
         self.assertIsNone(restarted.http.tools["get_followed_carrier"].fn({})["pinned"])
 
     def test_archive_discovers_visits_without_recent_replay(self):
@@ -66,6 +69,7 @@ class CarrierTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as data, patch.object(config, "DATA_DIR", data):
             core = Core()
             loader.load_all(core)
+            self.addCleanup(core.close)
             core.bus.emit("journal.replay.done", 0)
             state = core.http.tools["get_followed_carrier"].fn({})
             self.assertEqual({r["market_id"] for r in state["visited"]}, {3700000001, 3700000002})

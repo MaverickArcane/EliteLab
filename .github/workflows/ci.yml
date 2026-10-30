@@ -2,8 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, master, development ]
+    branches: [ main, master, development, feat/hauling-desk-v2 ]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -35,7 +36,46 @@ jobs:
       - name: node --check every script
         run: |
           set -e
-          for f in web/*.js modules/*/web/*.js; do node --check "$f"; done
+          for f in web/*.js modules/*/web/*.js; do node --input-type=module --check < "$f"; done
+      - name: Individual profit estimates
+        run: node tests/profits.mjs
+      - name: State stream ordering and recovery
+        run: node tests/state-feed.mjs
+
+  browser:
+    name: Owner and crew browser regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Headless Chrome session
+        run: node tests/browser.mjs
+
+  windows-bundle:
+    name: Portable Windows bundle
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build with checksum-verified embedded Python
+        run: python scripts/build_windows.py
+      - name: Launch extracted bundle without system Python on PATH
+        run: python scripts/smoke_windows_bundle.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EliteLab-windows-x64
+          path: |
+            dist/EliteLab-windows-x64.zip
+            dist/EliteLab-windows-x64.zip.sha256
+          if-no-files-found: error
 
   docker:
     name: Docker image
@@ -48,5 +88,19 @@ jobs:
         run: |
           docker run -d --name lab -p 8766:8766 -v "$PWD/tests/fixtures/journals:/journals:ro" -e ELITELAB_OFFLINE=1 elitelab:ci
           for i in $(seq 1 20); do curl -fs http://localhost:8766/api/health && break; sleep 1; done
-          curl -fs http://localhost:8766/api/journal | python3 -c "import sys,json; j=json.load(sys.stdin); assert j['cmdr']=='Testpilot', j; print('ok', j['ship'])"
+          python3 - <<'PY'
+          import json, time, urllib.request
+          for attempt in range(40):
+              try:
+                  with urllib.request.urlopen('http://localhost:8766/api/journal', timeout=2) as response:
+                      journal = json.load(response)
+                  if journal.get('cmdr') == 'Testpilot':
+                      print('ok', journal['ship'])
+                      break
+              except OSError:
+                  pass
+              time.sleep(.25)
+          else:
+              raise SystemExit('Fixture replay did not finish')
+          PY
           docker rm -f lab

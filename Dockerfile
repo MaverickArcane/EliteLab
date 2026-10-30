@@ -14,6 +14,7 @@ ENV ELITELAB_HOST=0.0.0.0 \
     ELITELAB_PORT=8766 \
     ELITELAB_JOURNAL_DIR=/journals \
     ELITELAB_DATA_DIR=/data \
+    ELITELAB_INSTANCE_DIR=/data/.instance \
     PYTHONUNBUFFERED=1
 
 RUN mkdir -p /data && chown nobody /data

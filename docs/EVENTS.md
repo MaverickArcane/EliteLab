@@ -11,6 +11,7 @@ Replay: at startup the watcher re-emits events from the newest `RECENT_JOURNALS`
 | `Fileheader` | `gameversion` | journal | one per journal file |
 | `Commander` | `Name` | journal | |
 | `LoadGame` | `Commander, Credits, Ship, Ship_Localised, ShipName, ShipIdent` | journal, powerplay, merits | resets session counters |
+| `Shutdown` | `timestamp` | journal | marks game closed in party telemetry; retained readings are last-reported |
 | `Powerplay` | `Power, Rank, Merits, TimePledged` | powerplay | emitted at load when pledged |
 | `PowerplayJoin` / `PowerplayDefect` / `PowerplayLeave` | `Power`, `ToPower`/`FromPower` | powerplay, merits | reset merits/rank |
 | `PowerplayRank` | `Rank`, `Power` | powerplay, feed | |
@@ -58,7 +59,8 @@ Rare goods keys are the FDevIDs symbols lower-cased (`gamedata.RARES`, all 142).
 | `Bounty` | `Target, Target_Localised, TotalReward, VictimFaction` | merits cause `bounty hunting`; absent for Powerplay zone kills |
 | `FactionKillBond` | `Reward, AwardingFaction, VictimFaction` | ordinary conflict zones only; merits cause `combat zone` (faction) |
 | `PVPKill` | `Victim` | |
-| `UnderAttack`, `HullDamage`, `ShieldState`, `HeatWarning` | | not stored; counts only |
+| `HullDamage` | `Health, PlayerPilot, Fighter, timestamp` | last-reported ship hull only when PlayerPilot is true and Fighter is false; thresholds, not continuous health |
+| `UnderAttack`, `ShieldState`, `HeatWarning` | | not stored; counts only; party shield/heat state comes from Status.json |
 | `Died` | | feed |
 | `Interdicted` | `Interdictor_Localised` | feed |
 
@@ -88,6 +90,29 @@ Observed in a Medium Powerplay conflict zone (LP 673-42, 2026-10-23): `Powerplay
 
 `FuelScoop` (`Scooped`), `MissionCompleted`, `Bounty`, `Interdicted`, `Died`, `CarrierJump*`, `MaterialCollected`, `EngineerCraft`. The feed formatter table is `FEED` in `modules/journal/module.py`; add an entry there to show a new event.
 
-## Snapshot files watched but not yet used
+## Status and other snapshot files
+
+`Status.json` is consumed by journal and shared through party telemetry. Fields:
+`Flags`, `Flags2`, `Fuel{FuelMain,FuelReservoir}`, `BodyName`, `Destination{Name}`,
+`LegalState`, `Cargo`, `Balance` and `timestamp`. Flag bits supply shield up/down,
+docked/landed/supercruise/FSD state, vehicle and low fuel/heat/danger/interdiction
+warnings. Balance stays local. Omitted fuel keeps the old value and its original
+timestamp until the vehicle changes. See the Player Journal manual, section 14.
 
 `ModulesInfo.json`, `ShipLocker.json`, `Backpack.json`, `NavRoute.json` (the plotted route; a natural input for a route card), `Shipyard.json`, `Outfitting.json`. The watcher emits `journal.file.<Name>` for each when it changes.
+
+## Internal crew events
+
+`party.roster` carries the leader's current sanitized member list after accepting
+a party report and emitting `party.work`, and on leader heartbeats. Leaving reports
+carry the departing ship's last cargo observation. Trade uses the roster to update
+live allocation and include new eligible commanders in active equal splits before
+party publishes its response. It does
+not fire from store publication, avoiding recursive allocation updates.
+
+`journal.replay.done` also schedules operation-scoped delivery recovery. The
+normal replay still never credits deliveries directly. The background scanner
+reads complete MarketSell/CargoTransfer lines, reconstructs docking independently,
+checks tracked-job/phase/manual/correction boundaries, and uses the same durable
+event fingerprints as live delivery tracking. It performs no network calls;
+ordinary party heartbeats acknowledge recovered cumulative counts.
