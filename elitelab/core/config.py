@@ -1,7 +1,12 @@
-"""Runtime configuration. Everything can be overridden with environment variables."""
+"""Runtime configuration: command line flags (set by __main__) beat ELITELAB_* environment variables, which beat the
+settings file (settings_path(), written by the setup page), which beats the defaults. config.SOURCES records which won."""
+import ipaddress
 import json
 import logging
 import os
+import re
+import tempfile
+import threading
 
 from . import journals
 from .. import __version__      # elitelab/__init__.py has no imports, so this is safe
@@ -38,18 +43,66 @@ def load_settings(path: str) -> dict:
         return {}
 
 
+_save_lock = threading.Lock()
+
+
+def _usable(path: str) -> bool:
+    """True when the file parses as a JSON object (an empty {} included)."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return isinstance(json.load(f), dict)
+    except (OSError, ValueError):
+        return False
+
+
 def save_settings(changes: dict, path: str) -> dict:
-    """Merge changes over the current file (unknown keys and connections are kept) and write it atomically."""
-    merged = load_settings(path)
-    merged.update(changes)
-    folder = os.path.dirname(path)
-    if folder:
+    """Merge changes over the current file (unknown keys and connections are kept) and write it atomically.
+
+    One save at a time per process. A file that exists but cannot be parsed is kept as <path>.bad, not overwritten.
+    Raises OSError when the file cannot be written."""
+    with _save_lock:
+        merged = load_settings(path)
+        if not merged and os.path.isfile(path) and not _usable(path):
+            bad = path + ".bad"
+            os.replace(path, bad)
+            _log.warning("settings file %s could not be read; kept it as %s", path, bad)
+        merged.update(changes)
+        folder = os.path.dirname(path) or "."
         os.makedirs(folder, exist_ok=True)
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(merged, f, indent=2)
-    os.replace(tmp, path)
-    return merged
+        fd, tmp = tempfile.mkstemp(prefix=".settings-", suffix=".tmp", dir=folder)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(merged, f, indent=2)
+            os.replace(tmp, path)
+        except BaseException:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            raise
+        return merged
+
+
+_HOST_NAME = re.compile(r"[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*\.?", re.I)
+
+
+def valid_host(host) -> bool:
+    """An IPv4 address or a host name. The server listens on IPv4 only, so IPv6 addresses are not valid."""
+    if not isinstance(host, str) or not host or len(host) > 253:
+        return False
+    if re.fullmatch(r"[0-9.]+", host):
+        try:
+            ipaddress.IPv4Address(host)
+            return True
+        except ValueError:
+            return False
+    return bool(_HOST_NAME.fullmatch(host))
+
+
+def _host(value) -> str:
+    if not valid_host(value):
+        raise ValueError(value)
+    return value
 
 
 def _default_journal_dir() -> str:
@@ -97,7 +150,7 @@ def _pick(key, env_name, default, cast=str):
     return default() if callable(default) else default
 
 
-HOST = _pick("host", "ELITELAB_HOST", "127.0.0.1")
+HOST = _pick("host", "ELITELAB_HOST", "127.0.0.1", _host)
 AUTH_TOKEN = os.environ.get("ELITELAB_AUTH_TOKEN", "")
 # extra Host header names a POST may use without a token (beyond IP literals, loopback, the bind host and this machine's names)
 ALLOWED_HOSTS = {h.strip().lower().rstrip(".") for h in os.environ.get("ELITELAB_ALLOWED_HOSTS", "").split(",") if h.strip()}

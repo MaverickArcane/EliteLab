@@ -3,6 +3,7 @@ import contextlib
 import io
 import json
 import os
+import socket
 import stat
 import subprocess
 import sys
@@ -65,6 +66,26 @@ class StartReturnTests(_TmpMixin, unittest.TestCase):
 
     def test_start_returns_0_on_normal_stop(self):
         self.assertEqual(self._run(lambda c: c._server.stop()), 0)
+
+    def test_port_in_use_prints_one_plain_line_and_returns_non_zero(self):
+        tmp = self._tmp()
+        busy = socket.socket()
+        busy.bind(("127.0.0.1", 0))
+        busy.listen()
+        self.addCleanup(busy.close)
+        port = busy.getsockname()[1]
+        out = io.StringIO()
+        with mock.patch.object(config, "DATA_DIR", tmp), mock.patch.dict(config.SOURCES, {"host": "file", "port": "env"}):
+            core = Core()
+            with contextlib.redirect_stdout(out):
+                rc = core.start("127.0.0.1", port)
+        self.assertNotIn(rc, (0, config.RESTART_EXIT_CODE))
+        self.assertFalse(core.ready)
+        lines = [l for l in out.getvalue().splitlines() if "127.0.0.1" in l and str(port) in l]
+        self.assertEqual(len(lines), 1, out.getvalue())
+        for part in ("host from settings file", "port from environment variable", config.SETTINGS_PATH):
+            self.assertIn(part, lines[0])
+        self.assertNotIn("listening on", out.getvalue())
 
 
 class MainSettingsTests(_TmpMixin, unittest.TestCase):

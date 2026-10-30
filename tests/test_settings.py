@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import tempfile
+import threading
 import unittest
 from unittest import mock
 
@@ -105,6 +106,75 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(c.DATA_DIR, os.path.abspath(os.path.expanduser("~/d")))
         self.assertEqual(c.SOURCES["journal_dir"], "file")
 
+
+    def _logs(self):
+        logging.disable(logging.NOTSET)         # test_elitelab silences logging globally
+        self.addCleanup(logging.disable, logging.CRITICAL)
+
+    def test_concurrent_saves_both_land(self):
+        os.makedirs(os.path.dirname(self.path))
+        real = config.load_settings
+        gate = threading.Barrier(2, timeout=1)
+
+        def slow_load(path):
+            data = real(path)
+            try:
+                gate.wait()                     # without the lock both threads read before either writes
+            except threading.BrokenBarrierError:
+                pass
+            return data
+        with mock.patch.object(config, "load_settings", slow_load):
+            threads = [threading.Thread(target=config.save_settings, args=({k: v}, self.path))
+                       for k, v in (("port", 8767), ("host", "0.0.0.0"))]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(5)
+        with open(self.path, encoding="utf-8") as f:
+            self.assertEqual(json.load(f), {"port": 8767, "host": "0.0.0.0"})
+        self.assertEqual(os.listdir(os.path.dirname(self.path)), ["settings.json"])     # no temp files left
+
+    def test_saving_over_a_corrupt_file_keeps_it_as_bad(self):
+        self._logs()
+        os.makedirs(os.path.dirname(self.path))
+        with open(self.path + ".bad", "w", encoding="utf-8") as f:
+            f.write("older")
+        for text in ("{bad", "[1,2]"):
+            with open(self.path, "w", encoding="utf-8") as f:
+                f.write(text)
+            with self.assertLogs("elitelab.config", level="WARNING") as cm:
+                self.assertEqual(config.save_settings({"port": 8767}, self.path), {"port": 8767})
+            self.assertTrue(any(self.path + ".bad" in r.getMessage() for r in cm.records), cm.output)
+            with open(self.path + ".bad", encoding="utf-8") as f:
+                self.assertEqual(f.read(), text)
+            with open(self.path, encoding="utf-8") as f:
+                self.assertEqual(json.load(f), {"port": 8767})
+
+    def test_saving_over_an_empty_object_makes_no_backup(self):
+        os.makedirs(os.path.dirname(self.path))
+        with open(self.path, "w", encoding="utf-8") as f:
+            f.write("{}")
+        config.save_settings({"port": 8767}, self.path)
+        self.assertFalse(os.path.exists(self.path + ".bad"))
+
+    def test_invalid_host_in_file_falls_back_to_default_with_a_warning(self):
+        self._logs()
+        for bad in ("::1", "bad host!", 5, "999.1.1.1"):
+            with self.assertLogs("elitelab.config", level="WARNING") as cm:
+                c = self._reload(file_data={"host": bad})
+            self.assertEqual((c.HOST, c.SOURCES["host"]), ("127.0.0.1", "default"), bad)
+            self.assertTrue(any("host" in r.getMessage() for r in cm.records), cm.output)
+        for good in ("0.0.0.0", "192.168.1.5", "localhost", "lab.example"):
+            c = self._reload(file_data={"host": good})
+            self.assertEqual((c.HOST, c.SOURCES["host"]), (good, "file"))
+
+    def test_empty_host_env_means_the_default(self):
+        c = self._reload(env={"ELITELAB_HOST": ""})
+        self.assertEqual((c.HOST, c.SOURCES["host"]), ("127.0.0.1", "default"))
+
+    def test_allowed_hosts_env_is_a_lower_case_set(self):
+        c = self._reload(env={"ELITELAB_ALLOWED_HOSTS": " Lab.Lan, nas.local ,,"})
+        self.assertEqual(c.ALLOWED_HOSTS, {"lab.lan", "nas.local"})
 
 if __name__ == "__main__":
     unittest.main()

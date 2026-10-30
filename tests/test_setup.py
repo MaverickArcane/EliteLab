@@ -75,13 +75,83 @@ class SetupTests(unittest.TestCase):
     def test_save_journal_dir_normalises_and_warns_when_missing(self):
         r = self.call("save_setup", journal_dir=self.tmp + "/nope/")
         self.assertEqual(self.file(), {"journal_dir": os.path.join(self.tmp, "nope")})
-        self.assertEqual(len(r["warnings"]), 1)
-        self.assertIn("Folder does not exist yet", r["warnings"][0])
+        self.assertEqual(len([w for w in r["warnings"] if "Folder does not exist yet" in w]), 1)
         self.assertTrue(r["restart_required"])
+
+    def test_env_and_flag_sources_warn_that_the_save_will_not_apply(self):
+        with mock.patch.dict(config.SOURCES, {"journal_dir": "env", "host": "flag", "data_dir": "file"}):
+            r = self.call("save_setup", journal_dir=self.tmp, host="0.0.0.0", data_dir=self.tmp)
+        self.assertIn("ELITELAB_JOURNAL_DIR is set, so this value will not apply until it is unset.", r["warnings"])
+        self.assertIn("The --host flag is set, so this value will not apply until it is removed.", r["warnings"])
+        self.assertFalse([w for w in r["warnings"] if "DATA_DIR" in w], r["warnings"])
+        with mock.patch.dict(config.SOURCES, {"port": "env"}):
+            r = self.call("save_setup", port=8768)
+        self.assertIn("ELITELAB_PORT is set, so this value will not apply until it is unset.", r["warnings"])
+        with mock.patch.dict(config.SOURCES, {"journal_dir": "flag"}):
+            r = self.call("save_setup", journal_dir=self.tmp + "/other")
+        self.assertIn("The --journals flag is set, so this value will not apply until it is removed.", r["warnings"])
+
+    def test_port_change_warns_about_the_launcher(self):
+        r = self.call("save_setup", port=8767)
+        self.assertIn(f"The launcher and ELITELAB_URL still point at port {config.PORT}; update them if you use them.",
+                      r["warnings"])
+        r = self.call("save_setup", host="0.0.0.0")
+        self.assertFalse([w for w in r["warnings"] if "launcher" in w])
+
+    def test_unwritable_settings_file_is_a_plain_error(self):
+        os.makedirs(self.path)                              # a folder where the file should be
+        with self.assertRaises(ValueError) as cm:
+            self.call("save_setup", port=8767)
+        self.assertTrue(str(cm.exception).startswith(f"Could not write the settings file at {self.path}: "), cm.exception)
+        self.assertEqual(os.listdir(self.path), [])
+        self.assertEqual(os.listdir(self.tmp), ["settings.json"])     # no temp file left behind
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root ignores folder permissions")
+    @unittest.skipIf(os.name == "nt", "chmod does not make a folder read-only on Windows")
+    def test_read_only_folder_is_a_plain_error(self):
+        os.chmod(self.tmp, 0o500)
+        self.addCleanup(os.chmod, self.tmp, 0o700)
+        with self.assertRaises(ValueError) as cm:
+            self.call("save_setup", port=8767)
+        self.assertTrue(str(cm.exception).startswith(f"Could not write the settings file at {self.path}: "), cm.exception)
+
+    def test_port_in_use_is_refused_and_writes_nothing(self):
+        busy = socket.socket()
+        busy.bind(("127.0.0.1", 0))
+        busy.listen()
+        self.addCleanup(busy.close)
+        port = busy.getsockname()[1]
+        with mock.patch.object(config, "HOST", "127.0.0.1"):
+            with self.assertRaises(ValueError) as cm:
+                self.call("save_setup", port=port)
+        self.assertEqual(str(cm.exception), f"Port {port} is already in use on 127.0.0.1.")
+        self.assertFalse(os.path.exists(self.path))
+
+    def test_host_change_on_the_running_port_is_not_refused(self):
+        busy = socket.socket()                                  # stands in for this lab's own listening socket
+        busy.bind(("127.0.0.1", 0))
+        busy.listen()
+        self.addCleanup(busy.close)
+        with mock.patch.object(config, "HOST", "127.0.0.1"), mock.patch.object(config, "PORT", busy.getsockname()[1]):
+            r = self.call("save_setup", host="0.0.0.0")
+        self.assertEqual(r["saved"], ["host"])
+
+    def test_address_not_on_this_machine_is_refused(self):
+        with self.assertRaises(ValueError) as cm:
+            self.call("save_setup", host="192.0.2.1")           # TEST-NET-1, never assigned
+        self.assertIn("192.0.2.1", str(cm.exception))
+        self.assertFalse(os.path.exists(self.path))
+
+    def test_ipv6_host_is_refused_with_a_plain_message(self):
+        for host in ("::1", "fe80::1"):
+            with self.assertRaises(ValueError) as cm:
+                self.call("save_setup", host=host)
+            self.assertEqual(str(cm.exception),
+                             "host must be an IPv4 address such as 127.0.0.1 or 0.0.0.0, or a host name such as localhost.")
 
     def test_save_rejects_bad_values(self):
         for q, field in (({"port": 80}, "port"), ({"port": "x"}, "port"), ({"port": True}, "port"),
-                         ({"host": "example.com"}, "host"), ({"journal_dir": ""}, "journal_dir"),
+                         ({"host": "::1"}, "host"), ({"host": "bad host!"}, "host"), ({"journal_dir": ""}, "journal_dir"),
                          ({"data_dir": "  "}, "data_dir")):
             with self.assertRaises(ValueError, msg=q) as cm:
                 self.call("save_setup", **q)
@@ -90,7 +160,7 @@ class SetupTests(unittest.TestCase):
 
     def test_bad_value_blocks_the_whole_save(self):
         with self.assertRaises(ValueError):
-            self.call("save_setup", port=8767, host="example.com")
+            self.call("save_setup", port=8767, host="::1")
         self.assertFalse(os.path.exists(self.path))
 
     def test_connections_and_unknown_keys_survive_a_save(self):
