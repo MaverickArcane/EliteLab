@@ -44,6 +44,25 @@ try {
   // Confirm a preset and restoration both mount cleanly.
   await evaluate("document.querySelector('[data-preset=Engineering]').click();true");
   await sleep(200); const engineeringCards=await evaluate("document.querySelectorAll('#grid > .card').length");
+  // Issue 50: filter heat sinks, hand a shared blueprint to the picker, and add it.
+  for(let i=0;i<50;i++){if(await evaluate("[...document.querySelector('#rc-module').options].some(o=>o.value==='Heat sink launcher') && [...document.querySelector('#wl-module').options].some(o=>o.value==='Heat sink launcher')"))break;await sleep(100);}
+  await evaluate("document.querySelector('#rc-module').value='Heat sink launcher';document.querySelector('#rc-kind').value='blueprint';document.querySelector('#rc-module').dispatchEvent(new Event('change'));true");
+  for(let i=0;i<50;i++){if(await evaluate("document.querySelectorAll('.rc-add').length===4"))break;await sleep(100);}
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('.rc-add')].map(b=>b.dataset.key).sort()"),
+    ['Misc_HeatSinkCapacity','Misc_LightWeight','Misc_Reinforced','Misc_Shielded']);
+  await evaluate("document.querySelector('.rc-add[data-key=Misc_LightWeight]').click();true");
+  for(let i=0;i<50;i++){if(await evaluate("document.querySelector('#wl-module').value==='Heat sink launcher' && document.querySelector('#wl-recipe').value==='Misc_LightWeight'"))break;await sleep(100);}
+  assert.equal(await evaluate("document.querySelector('#wl-module').value"),'Heat sink launcher');
+  assert.equal(await evaluate("document.querySelector('#wl-recipe').value"),'Misc_LightWeight');
+  await evaluate("document.querySelector('#wl-qty').value='2';document.querySelector('#wl-to').value='1';document.querySelector('#wl-add').click();true");
+  let heatSinkEntry;
+  for(let i=0;i<50;i++){
+    const wishlist=await (await fetch(`http://127.0.0.1:${port}/api/wishlist`)).json();
+    heatSinkEntry=wishlist.entries.find(e=>e.key==='Misc_LightWeight');
+    if(heatSinkEntry)break;await sleep(100);
+  }
+  assert.equal(heatSinkEntry?.module,'Heat sink launcher');
+  assert.equal(heatSinkEntry?.grade,1);assert.equal(heatSinkEntry?.qty,2);
   await evaluate("document.querySelector('[data-preset=Default]').click();true");
   await sleep(200);
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});

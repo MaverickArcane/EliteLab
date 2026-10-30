@@ -223,6 +223,11 @@ class Wishlist:
                 entry["fits"] = fits
             if hit["kind"] == "blueprint":
                 b = gd.BLUEPRINT_BY_KEY[hit["key"]]
+                if q.get("module"):
+                    selected = gd.resolve_recipe(hit["key"], module=q["module"])
+                    if "match" not in selected:
+                        raise ValueError("This blueprint is not available for the selected module")
+                    entry["module"] = selected["match"]["module"]
                 grade = grade or b["max_grade"]
                 if not 1 <= grade <= b["max_grade"] or not 0 <= from_grade < grade:
                     raise ValueError(f"grade must be 1-{b['max_grade']} and from_grade below it")
@@ -335,8 +340,9 @@ def options(q):
     """Pick-lists for the card: modules with their blueprints and effects, unlocks by broker, materials by category."""
     mods = {}
     for b in gd.BLUEPRINTS:
-        mods.setdefault(b["module"], {"module": b["module"], "blueprints": [], "experimentals": []})["blueprints"].append(
-            {"key": b["key"], "name": b["name"], "max_grade": b["max_grade"]})
+        for m in gd.blueprint_modules(b):
+            mods.setdefault(m, {"module": m, "blueprints": [], "experimentals": []})["blueprints"].append(
+                {"key": b["key"], "name": b["name"], "max_grade": b["max_grade"]})
     for e in gd.EXPERIMENTALS:
         for m in e["modules"]:
             mods.setdefault(m, {"module": m, "blueprints": [], "experimentals": []})["experimentals"].append({"key": e["key"], "name": e["name"]})
