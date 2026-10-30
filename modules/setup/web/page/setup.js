@@ -125,7 +125,7 @@
     testBtn.disabled = true;
     testOut.textContent = 'Checking...';
     try {
-      const d = await api(`/api/setup/journals?path=${encodeURIComponent(typed)}`);
+      const d = await api('/api/setup/journals', { path: typed });
       testOut.textContent = d.exists && d.journals ? `${d.journals} journals, newest ${d.newest || 'unknown'}` : 'not found';
     } catch (err) { testOut.textContent = err.message; }
     testBtn.disabled = false;

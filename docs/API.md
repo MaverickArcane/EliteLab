@@ -42,9 +42,9 @@ Save settings to the settings file. Only journal_dir, port, host and data_dir ar
 | `host` | string | Bind address: an IPv4 address such as 127.0.0.1 (this machine only) or 0.0.0.0 (all interfaces), or a host name such as localhost. Refused when the lab could not listen there. |
 | `data_dir` | string | Folder for the lab's own files such as wishlists |
 
-## `inspect_journal_folder`  -  `GET /api/setup/journals`  -  module: setup
+## `inspect_journal_folder`  -  `POST /api/setup/journals`  -  module: setup
 
-Check one folder for Elite Dangerous journals without saving anything: returns the normalised path, whether it exists, how many Journal.*.log files it holds and the newest one's timestamp. Use it to test a journal_dir before save_setup.
+Check one folder for Elite Dangerous journals without saving anything: returns the normalised path, whether it exists, how many Journal.*.log files it holds and the newest one's timestamp. Use it to test a journal_dir before save_setup. Network (UNC) paths are refused.
 
 | Parameter | Type | Description |
 |---|---|---|

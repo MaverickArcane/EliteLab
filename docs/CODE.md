@@ -272,7 +272,7 @@ Routes: `get_followed_carrier`, `pin_fleet_carrier`, `unpin_fleet_carrier`, `ref
 
 ## modules/setup/module.py
 
-First-run setup. `get_setup` (`GET /api/setup`), `save_setup` (`POST /api/setup`), `inspect_journal_folder` (`GET /api/setup/journals`, the page's Test button) and `restart_elitelab` (`POST /api/restart`), the `setup` store namespace (see docs/STATE.md), and the page in `modules/setup/web/page/` mounted at `/setup/`. Saving writes only the settings file; `browser` cannot be saved here. `save` refuses an IPv6 host, a port in use and an address the lab could not listen on (a throwaway bind; on the running port only the address is checked, since this lab holds the port), turns a failed write into a `ValueError` naming the file, and warns when an environment variable or flag will override a saved value and when the port changes away from the launcher and `ELITELAB_URL`.
+First-run setup. `get_setup` (`GET /api/setup`), `save_setup` (`POST /api/setup`), `inspect_journal_folder` (`POST /api/setup/journals`, the page's Test button) and `restart_elitelab` (`POST /api/restart`), the `setup` store namespace (see docs/STATE.md), and the page in `modules/setup/web/page/` mounted at `/setup/`. Saving writes only the settings file; `browser` cannot be saved here. `save` refuses an IPv6 host, a port in use and an address the lab could not listen on (a throwaway bind; on the running port only the address is checked, since this lab holds the port), turns a failed write into a `ValueError` naming the file, and warns when an environment variable or flag will override a saved value and when the port changes away from the launcher and `ELITELAB_URL`.
 
 ## modules/map/module.py
 

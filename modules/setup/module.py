@@ -32,8 +32,18 @@ def _home():
     return os.path.expanduser("~")
 
 
+NETWORK_PATH = "Network paths are not supported. Choose a folder on this computer."
+
+
 def _norm(path):
     return os.path.abspath(os.path.expanduser(str(path)))
+
+
+def _typed(path):
+    """Like _norm for a folder the user typed: refuse UNC and network paths before any filesystem call."""
+    if os.path.expanduser(str(path)).startswith(("\\\\", "//")):
+        raise ValueError(NETWORK_PATH)
+    return _norm(path)
 
 
 def _clean(key, value):
@@ -55,7 +65,7 @@ def _clean(key, value):
         return host
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{key} must be a folder path and cannot be empty.")
-    return _norm(value.strip())
+    return _typed(value.strip())
 
 
 def _check_listen(host, port):
@@ -157,7 +167,7 @@ class Setup:
             if (target["host"], target["port"]) != (config.HOST, config.PORT):
                 # on the running port this lab holds the socket itself, so only check that the address is usable
                 _check_listen(target["host"], 0 if target["port"] == config.PORT else target["port"])
-        if "port" in changes:
+        if "port" in changes and changes["port"] != config.PORT:
             warnings.append(f"The launcher and ELITELAB_URL still point at port {config.PORT}; update them if you use them.")
         if changes:
             try:
@@ -174,7 +184,7 @@ class Setup:
         raw = (q or {}).get("path")
         if not isinstance(raw, str) or not raw.strip():
             raise ValueError("path is required.")
-        path = _norm(raw.strip())
+        path = _typed(raw.strip())
         return {"path": path, **journals.describe(path)}
 
     def restart(self, q=None):
@@ -201,10 +211,11 @@ def setup(core, module):
                                                                      "0.0.0.0 (all interfaces), or a host name such as localhost. "
                                                                      "Refused when the lab could not listen there."},
                             "data_dir": {"type": "string", "description": "Folder for the lab's own files such as wishlists"}})
-    core.http.route("/api/setup/journals", s.inspect, tool="inspect_journal_folder", module=module.name,
+    core.http.route("/api/setup/journals", s.inspect, tool="inspect_journal_folder", method="POST", module=module.name,
                     description="Check one folder for Elite Dangerous journals without saving anything: returns the "
                                 "normalised path, whether it exists, how many Journal.*.log files it holds and the newest "
-                                "one's timestamp. Use it to test a journal_dir before save_setup.",
+                                "one's timestamp. Use it to test a journal_dir before save_setup. "
+                                "Network (UNC) paths are refused.",
                     params={"path": {"type": "string", "required": True,
                                      "description": "Folder to check; ~ is expanded and relative paths are made absolute"}})
     core.http.route("/api/restart", s.restart, tool="restart_elitelab", method="POST", module=module.name,

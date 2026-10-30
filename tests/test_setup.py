@@ -106,6 +106,11 @@ class SetupTests(unittest.TestCase):
         r = self.call("save_setup", host="0.0.0.0")
         self.assertFalse([w for w in r["warnings"] if "launcher" in w])
 
+    def test_saving_the_running_port_does_not_warn_about_the_launcher(self):
+        self.call("save_setup", port=8767)
+        r = self.call("save_setup", port=config.PORT)
+        self.assertFalse([w for w in r["warnings"] if "launcher" in w])
+
     def test_unwritable_settings_file_is_a_plain_error(self):
         os.makedirs(self.path)                              # a folder where the file should be
         with self.assertRaises(ValueError) as cm:
@@ -221,8 +226,23 @@ class SetupTests(unittest.TestCase):
             self.call("inspect_journal_folder", path="  ")
         self.assertEqual(str(cm.exception), "path is required.")
         route = self.core.http.tools["inspect_journal_folder"]
-        self.assertEqual((route.path, route.method), ("/api/setup/journals", "GET"))
+        self.assertEqual((route.path, route.method), ("/api/setup/journals", "POST"))
         self.assertIn("path", route.schema()["input_schema"]["required"])
+
+    def test_network_paths_are_refused_without_touching_the_filesystem(self):
+        msg = "Network paths are not supported. Choose a folder on this computer."
+        boom = AssertionError("filesystem touched")
+        for bad in ("\\\\host\\share", "//host/share", "\\\\host\\share\\Journals"):
+            with mock.patch("os.listdir", side_effect=boom), mock.patch("os.path.isdir", side_effect=boom), \
+                    mock.patch("os.path.exists", side_effect=boom):
+                with self.assertRaises(ValueError, msg=bad) as cm:
+                    self.call("inspect_journal_folder", path=bad)
+                self.assertEqual(str(cm.exception), msg)
+                for key in ("journal_dir", "data_dir"):
+                    with self.assertRaises(ValueError, msg=(key, bad)) as cm:
+                        self.call("save_setup", **{key: bad})
+                    self.assertEqual(str(cm.exception), msg)
+        self.assertFalse(os.path.exists(self.path))
 
     def test_tools_have_descriptions(self):
         for name in ("get_setup", "save_setup", "restart_elitelab", "inspect_journal_folder"):
@@ -356,10 +376,20 @@ class HostCheckTests(unittest.TestCase):
         self.assertEqual(self.get_path("/setupx")[0], 404)
 
     def test_inspect_journal_folder_over_http(self):
-        import urllib.parse
-        status, _, body = self.get_path("/api/setup/journals?path=" + urllib.parse.quote(config.JOURNAL_DIR))
-        self.assertEqual(status, 200)
+        host = f"127.0.0.1:{self.port}"
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.request("POST", "/api/setup/journals", body=json.dumps({"path": config.JOURNAL_DIR}).encode(),
+                     headers={"Host": host, "Origin": "http://" + host, "Content-Type": "application/json"})
+        r = conn.getresponse()
+        body = r.read()
+        conn.close()
+        self.assertEqual(r.status, 200)
         self.assertGreater(json.loads(body)["journals"], 0)
+
+    def test_inspect_journal_folder_is_not_reachable_by_get(self):
+        import urllib.parse
+        status, _, _ = self.get_path("/api/setup/journals?path=" + urllib.parse.quote(config.JOURNAL_DIR))
+        self.assertIn(status, (404, 405))
 
     def test_setup_page_is_served(self):
         status, ctype, body = self.get_path("/setup/")
