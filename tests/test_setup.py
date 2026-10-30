@@ -232,7 +232,8 @@ class SetupTests(unittest.TestCase):
     def test_network_paths_are_refused_without_touching_the_filesystem(self):
         msg = "Network paths are not supported. Choose a folder on this computer."
         boom = AssertionError("filesystem touched")
-        for bad in ("\\\\host\\share", "//host/share", "\\\\host\\share\\Journals"):
+        for bad in ("\\\\host\\share", "//host/share", "\\\\host\\share\\Journals", "/\\host\\share",
+                    "\\/host/share", "\\\\?\\UNC\\host\\share"):
             with mock.patch("os.listdir", side_effect=boom), mock.patch("os.path.isdir", side_effect=boom), \
                     mock.patch("os.path.exists", side_effect=boom):
                 with self.assertRaises(ValueError, msg=bad) as cm:
@@ -243,6 +244,10 @@ class SetupTests(unittest.TestCase):
                         self.call("save_setup", **{key: bad})
                     self.assertEqual(str(cm.exception), msg)
         self.assertFalse(os.path.exists(self.path))
+
+    def test_a_normal_absolute_path_is_accepted_by_the_network_check(self):
+        r = self.call("save_setup", journal_dir=self.tmp)
+        self.assertEqual(r["saved"], ["journal_dir"])
 
     def test_tools_have_descriptions(self):
         for name in ("get_setup", "save_setup", "restart_elitelab", "inspect_journal_folder"):

@@ -41,9 +41,13 @@ def _norm(path):
 
 def _typed(path):
     """Like _norm for a folder the user typed: refuse UNC and network paths before any filesystem call."""
-    if os.path.expanduser(str(path)).startswith(("\\\\", "//")):
+    expanded = os.path.expanduser(str(path))
+    if expanded.replace("/", "\\").startswith("\\\\"):
         raise ValueError(NETWORK_PATH)
-    return _norm(path)
+    norm = _norm(path)
+    if norm.replace("/", "\\").startswith("\\\\") or os.path.splitdrive(norm)[0].replace("/", "\\").startswith("\\\\"):
+        raise ValueError(NETWORK_PATH)
+    return norm
 
 
 def _clean(key, value):
