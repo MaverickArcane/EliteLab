@@ -15,8 +15,9 @@ const attacker = http.createServer((req,res) => {res.writeHead(200, {'Content-Ty
 await new Promise(r => attacker.listen(0,'127.0.0.1',r));
 let ws;
 try {
-  for(let i=0;i<100 && (!serverText.trim() || !fs.existsSync(path.join(profile, 'DevToolsActivePort')));i++) await sleep(100);
-  const port = Number(serverText.trim());
+  for(let i=0;i<100 && (!serverText.includes('\n', serverText.indexOf('\n') + 1) || !fs.existsSync(path.join(profile, 'DevToolsActivePort')));i++) await sleep(100);
+  const [portLine, settingsFile] = serverText.split('\n').map(l => l.trim());
+  const port = Number(portLine);
   console.log('Server port', port);
   const debugPort = Number(fs.readFileSync(path.join(profile,'DevToolsActivePort'),'utf8').split('\n')[0]);
   const tabs = await (await fetch(`http://127.0.0.1:${debugPort}/json`, {signal:AbortSignal.timeout(10000)})).json();
@@ -55,7 +56,18 @@ try {
   await send('Page.navigate',{url:`http://127.0.0.1:${attacker.address().port}`});await sleep(250);
   const crossOrigin=await evaluate(`fetch('http://127.0.0.1:${port}/api/materials/wishlist',{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({items:{},mode:'clear'})}).then(r=>({type:r.type})).catch(e=>({error:String(e)}))`);
   const wishlistAfter=await (await fetch(`http://127.0.0.1:${port}/api/materials/wishlist`)).json();
-  const results={desktop:before,inputAfter,engineeringCards,mobile,crossOrigin,wishlistAfter,browserExceptions:errors};
+  // setup page: candidates listed, fixture folder selected, save a port change, restart offered, file written (Restart is never clicked)
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await send('Page.navigate',{url:`http://127.0.0.1:${port}/setup/`});
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!!document.querySelector('[data-candidates] input')"))break;}
+  const setupPage=await evaluate("({candidates:document.querySelectorAll('[data-candidates] input').length,selected:(document.querySelector('[data-candidates] input:checked')||{}).value||'',connections:document.body.textContent.includes('Nothing to connect yet. Inara and other services will appear here.'),restartHidden:document.querySelector('[data-restart]').hidden,bodyWidth:document.body.scrollWidth,viewport:innerWidth})");
+  assert.ok(setupPage.candidates>=1); assert.equal(path.resolve(setupPage.selected),path.join(dir,'fixtures','journals')); assert.ok(setupPage.connections); assert.ok(setupPage.restartHidden); assert.equal(setupPage.bodyWidth,setupPage.viewport);
+  await evaluate("document.querySelector('[name=port]').value='8799';document.querySelector('[data-setup-form]').requestSubmit();true");
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!document.querySelector('[data-restart]').hidden"))break;}
+  const setupSaved=await evaluate("({restartVisible:!document.querySelector('[data-restart]').hidden,status:document.querySelector('[data-status]').textContent})");
+  assert.ok(setupSaved.restartVisible); assert.match(setupSaved.status,/restart/i);
+  assert.deepEqual(JSON.parse(fs.readFileSync(settingsFile,'utf8')),{port:8799});
+  const results={setupPage,setupSaved,desktop:before,inputAfter,engineeringCards,mobile,crossOrigin,wishlistAfter,browserExceptions:errors};
   assert.equal(inputAfter.name,'arsenic'); assert.equal(inputAfter.qty,'5'); assert.equal(inputAfter.focus,'mat-q'); assert.equal(mobile.bodyWidth,390); assert.equal(wishlistAfter.wishlist[0].need,10); assert.deepEqual(errors,[]); assert.deepEqual(before.renderErrors,[]);console.log(JSON.stringify(results,null,2));
   await send('Browser.close').catch(()=>{});
 } finally {ws?.close();server.kill();chrome.kill();attacker.close();}

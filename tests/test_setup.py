@@ -185,6 +185,24 @@ class HostCheckTests(unittest.TestCase):
         with mock.patch.object(config, "HOST", "0.0.0.0"):
             self.assertEqual(self.request("POST", host, "http://" + host, body=b"{}"), 200)
 
+    def get_path(self, path):
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.request("GET", path)
+        r = conn.getresponse()
+        body = r.read().decode("utf-8", "replace")
+        ctype = r.getheader("Content-Type", "")
+        conn.close()
+        return r.status, ctype, body
+
+    def test_setup_page_is_served(self):
+        status, ctype, body = self.get_path("/setup/")
+        self.assertEqual(status, 200)
+        self.assertTrue(ctype.startswith("text/html"), ctype)
+        self.assertIn("data-setup-form", body)
+        self.assertIn("Connections", body)
+        self.assertEqual(self.get_path("/setup/setup.js")[0], 200)
+        self.assertEqual(self.get_path("/setup/../module.py")[0], 404)
+
 
 if __name__ == "__main__":
     unittest.main()

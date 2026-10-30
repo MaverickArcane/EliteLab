@@ -9,6 +9,7 @@ import os
 from elitelab.core import config, journals
 from elitelab.core.watcher import journal_files
 
+HERE = os.path.dirname(os.path.abspath(__file__))
 NS = "setup"
 KEYS = ("journal_dir", "port", "host", "data_dir", "browser")      # reported
 SAVEABLE = ("journal_dir", "port", "host", "data_dir")               # browser names an executable: file or env only
@@ -127,6 +128,7 @@ class Setup:
 
 def setup(core, module):
     s = Setup(core)
+    core.http.mount("/setup/", os.path.join(HERE, "web", "page"))
     core.http.route("/api/setup", s.status, tool="get_setup", module=module.name,
                     description="First-run setup state: the settings file path, the values the lab is running with and where each "
                                 "came from, values saved but not yet applied (pending), whether a restart is needed, whether "
