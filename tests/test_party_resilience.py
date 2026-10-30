@@ -49,7 +49,7 @@ class OwnerPersistenceTests(unittest.TestCase):
         p.start()
         self.addCleanup(p.stop)
         self.core = load_core()
-        self.addCleanup(self.core.modules["party"].party.leave)
+        self.addCleanup(self.core.close)
         self.party = self.core.modules["party"].party
         tools = self.core.http.tools
         tools["plan_carrier_trade"].fn({"commodity": "gold", "source": "Buy / Sol", "destination": "Sell / Lave", "target": 1000,
@@ -112,7 +112,7 @@ class MemberHeartbeatTests(unittest.TestCase):
         self.addCleanup(p.stop)
         self.leader_core, self.member_core = load_core(), load_core()
         for c in (self.leader_core, self.member_core):
-            self.addCleanup(c.modules["party"].party.leave)
+            self.addCleanup(c.close)
         self.leader = self.leader_core.modules["party"].party
         self.member = self.member_core.modules["party"].party
         self.api = self.member_core.modules["party"].instance

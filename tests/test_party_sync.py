@@ -18,6 +18,7 @@ class PartySyncTests(unittest.TestCase):
         self.core = Core()
         self.core.data_path = lambda *parts: str(Path(folder.name).joinpath(*parts))
         loader.load_all(self.core)
+        self.addCleanup(self.core.close)
         self.party = self.core.modules["party"].party
         self.api = self.core.modules["party"].instance
         # No background worker: schedule the same public methods deterministically.

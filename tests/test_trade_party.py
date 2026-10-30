@@ -24,6 +24,7 @@ class TradeTests(unittest.TestCase):
             self.addCleanup(p.stop)
         self.core = Core()
         loader.load_all(self.core)
+        self.addCleanup(self.core.close)
         self.core.watcher.replay()
         self.desk = self.core.modules["trade"].trade
 
@@ -48,6 +49,7 @@ class TradeTests(unittest.TestCase):
         self.assertEqual(self.call("get_carrier_trade"), state)
         second = Core()
         loader.load_all(second)
+        self.addCleanup(second.close)
         second.watcher.replay()
         self.assertEqual(second.store.get("trade"), state)
 
@@ -97,7 +99,7 @@ class TradeTests(unittest.TestCase):
             self.assertNotIn(threading.current_thread(), [t for parts, t in writes if parts == ("trade.json",)])
             self.desk.flush()
         self.assertEqual(self.core.read_data("trade.json")["inventory"]["gold"]["stock"], 450)
-        restarted = Core(); loader.load_all(restarted); restarted.watcher.replay()
+        restarted = Core(); loader.load_all(restarted); self.addCleanup(restarted.close); restarted.watcher.replay()
         self.assertEqual(restarted.store.get("trade", "inventory")["gold"]["stock"], 450)
 
     def test_replay_writes_the_ledger_once_when_replay_finishes(self):
@@ -106,6 +108,7 @@ class TradeTests(unittest.TestCase):
         with patch.object(config, "DATA_DIR", fresh.name):
             core = Core()
             loader.load_all(core)
+            self.addCleanup(core.close)
             # The archive merge after replay is its own commit; count only replay's writes.
             with patch.object(core.modules["trade"].trade, "scan_archive"), patch.object(core, "write_data", wraps=core.write_data) as write:
                 core.watcher.replay()
@@ -187,7 +190,7 @@ class TradeTests(unittest.TestCase):
         self.assertIsNone(cleared["inventory"]["tritium"]["stock"])
         self.assertEqual(cleared["orders"], {})
         self.assertTrue(self.core.read_data("trade-ledger-before-reset.json")["orders"])
-        second = Core(); loader.load_all(second); second.watcher.replay()
+        second = Core(); loader.load_all(second); self.addCleanup(second.close); second.watcher.replay()
         self.assertEqual(list(second.store.get("trade", "inventory")), ["tritium"])
         self.assertEqual(second.store.get("trade", "orders"), {})
         # Fractional reset times must reject a same-second earlier journal record.
@@ -213,7 +216,7 @@ class PartyTests(unittest.TestCase):
             real_read = c.read_data
             with patch.object(c, "read_data", side_effect=lambda *args, _read=real_read, **kwargs: {} if args == ("party-local.json",) else _read(*args, **kwargs)):
                 loader.load_all(c)
-            self.addCleanup(c.modules["party"].party.leave)
+            self.addCleanup(c.close)
         self.leader = self.leader_core.modules["party"].party
         self.member = self.member_core.modules["party"].party
         self.api = self.member_core.modules["party"].instance
@@ -389,7 +392,7 @@ class PartyTests(unittest.TestCase):
         self.member.leave()
         restarted=Core();loader.load_all(restarted)
         party=restarted.modules["party"].party
-        self.addCleanup(party.leave)
+        self.addCleanup(restarted.close)
         self.assertEqual(party.member_id,self.member.member_id)
         party.join({"url":self.url,"code":self.state["code"]})
         party.journal_delivery("journal.MarketSell", event)

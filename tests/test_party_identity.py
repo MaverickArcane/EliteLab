@@ -37,7 +37,7 @@ class PartyIdentityTests(unittest.TestCase):
         self.addCleanup(p.stop)
         self.leader_core, self.member_core = load_core(), load_core()
         for c in (self.leader_core, self.member_core):
-            self.addCleanup(c.modules["party"].party.leave)
+            self.addCleanup(c.close)
         self.leader = self.leader_core.modules["party"].party
         self.member = self.member_core.modules["party"].party
         self.api = self.member_core.modules["party"].instance
@@ -95,7 +95,7 @@ class PartyIdentityTests(unittest.TestCase):
 
     def test_secret_is_restored_with_the_identity_on_restart(self):
         core = load_core({"id": self.member.member_id, "secret": self.member.secret})
-        self.addCleanup(core.modules["party"].party.leave)
+        self.addCleanup(core.close)
         party = core.modules["party"].party
         self.assertEqual((party.member_id, party.secret), (self.member.member_id, self.member.secret))
 

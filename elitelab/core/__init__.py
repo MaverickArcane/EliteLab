@@ -122,11 +122,18 @@ class Core:
         except KeyboardInterrupt:
             pass
         finally:
-            self.ready = False
-            self.watcher.stop()
+            self.close()
+
+    def close(self):
+        """Stop watching journals and run module shutdown callbacks (flush writer
+        threads, leave parties). Safe before start() and safe to call twice."""
+        self.ready = False
+        self.watcher.stop()
+        if self._server.srv is not None:
             self._server.srv.server_close()
-            for callback in reversed(self.shutdown_callbacks):
-                try:
-                    callback()
-                except Exception:
-                    log.exception("Shutdown cleanup failed")
+        callbacks, self.shutdown_callbacks = list(self.shutdown_callbacks), []
+        for callback in reversed(callbacks):
+            try:
+                callback()
+            except Exception:
+                log.exception("Shutdown cleanup failed")
