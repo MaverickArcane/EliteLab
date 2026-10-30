@@ -162,3 +162,22 @@ Hardening regressions:
 - CI runs the full browser suite on Node 22 and the hauling branch's pushes.
   The Windows smoke test uses an isolated instance directory. Docker gives the
   non-root process an instance directory under its writable `/data` volume.
+
+`test_restart_reliability.py` launches the real CLI with temporary journal, data,
+and instance directories. It forcibly kills that process during an incomplete
+journal write, completes the delivery while the server is offline, and restarts
+twice on the same port. It checks preserved job and commander identities,
+exactly-once delivery totals despite duplicate evidence, continued journal
+tailing after recovery, and durable receipts. This tests process crashes, not
+power loss or filesystem corruption. Run it alone with:
+
+```
+python -m unittest discover -s tests -p test_restart_reliability.py -v
+```
+
+`test_material_sessions.py` replays `fixtures/journals/material-session` to check
+inventory versus gross session gains through collection, rewards, trading,
+spending, inventory snapshots and restarts. Missing session boundaries stay
+unknown. `node tests/materials-feed.mjs` delays inventory responses to check
+stale-response rejection, current filters and refresh after a failure; the
+browser suite imports it and checks the visible live pickup and session totals.

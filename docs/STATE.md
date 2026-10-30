@@ -132,8 +132,11 @@ Client-side manual overrides live in `localStorage.loopManual` as `{system: {don
 | `shortfalls` | rows for wishlist entries: `{key, name, category, grade, cap, count, need, label, short}` |
 | `inventory_count` | int distinct materials |
 | `inventory_version` | int, bumped on every inventory change; wishlist and build recompute on `state.materials.inventory_version` and read the counts through the `get_material_inventory` tool (the dict itself stays out of the store so it is not sent over SSE on every pickup) |
+| `session` | `{started_at, gained, totals {Raw, Manufactured, Encoded}, last_gain {key, name, count, at, event}}`; gross pickups, mission rewards and trader receipts since the latest `LoadGame`, reconstructed by journal replay. `gained` is null when the session boundary was not replayed; inventory snapshots and spending are not gains. |
 
 `GET /api/materials` returns rows for every material in inventory or on the wishlist with the same row shape.
+It also returns `session`; rows include `gained` for the current game session
+(null when unknown). Materials gained and then fully spent remain in these rows.
 
 ## recipes (module: recipes)
 
