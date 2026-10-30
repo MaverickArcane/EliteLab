@@ -5,6 +5,10 @@ sys.path.insert(0, str(ROOT))
 os.environ['ELITELAB_OFFLINE'] = '1'
 os.environ['ELITELAB_JOURNAL_DIR'] = str(ROOT / 'tests' / 'fixtures' / 'journals')
 os.environ['ELITELAB_DATA_DIR'] = tempfile.mkdtemp(prefix='elitelab-browser-data-')
+# A fixed party identity keeps equal-share remainders (lowest id first) deterministic.
+if os.environ.get('ELITELAB_TEST_PARTY_ID'):
+    import json
+    Path(os.environ['ELITELAB_DATA_DIR'], 'party-local.json').write_text(json.dumps({'id': os.environ['ELITELAB_TEST_PARTY_ID']}), encoding='utf-8')
 from elitelab.core import Core, loader
 from elitelab.core.http import make_handler
 from http.server import ThreadingHTTPServer

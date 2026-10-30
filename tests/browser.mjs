@@ -9,7 +9,9 @@ import './state-feed.mjs';
 import './materials-feed.mjs';
 const dir = path.dirname(new URL(import.meta.url).pathname.replace(/^\/(\w:)/, '$1'));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const server = spawn(process.env.PYTHON || 'python', ['-u', path.join(dir, 'browser_server.py')], {windowsHide:true});
+// Fixed party ids: equal-share remainders go to the lowest id, so the crew's figures below are exact.
+const partyEnv = id => ({...process.env, ELITELAB_TEST_PARTY_ID:id.repeat(32)});
+const server = spawn(process.env.PYTHON || 'python', ['-u', path.join(dir, 'browser_server.py')], {windowsHide:true, env:partyEnv('a')});
 server.stderr.on('data', d => process.stderr.write(d));
 let serverText = ''; server.stdout.on('data', d => serverText += d);
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'elitelab-chrome-'));
@@ -226,7 +228,7 @@ try {
   const carrierMobile=await send('Page.captureScreenshot',{format:'png'});
   if(process.env.ELITELAB_SCREENSHOT_DIR){fs.mkdirSync(process.env.ELITELAB_SCREENSHOT_DIR,{recursive:true});fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'carrier-desktop.png'),Buffer.from(carrierDesktop.data,'base64'));fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'carrier-mobile.png'),Buffer.from(carrierMobile.data,'base64'));}
   // A second independent EliteLab and browser view exercise the actual crew UI.
-  memberServer = spawn(process.env.PYTHON || 'python', ['-u', path.join(dir, 'browser_server.py')], {windowsHide:true});
+  memberServer = spawn(process.env.PYTHON || 'python', ['-u', path.join(dir, 'browser_server.py')], {windowsHide:true, env:partyEnv('c')});
   let memberText = ''; memberServer.stdout.on('data', d => memberText += d);
   memberServer.stderr.on('data', d => process.stderr.write(d));
   for(let i=0;i<100 && !memberText.trim();i++) await sleep(100);
@@ -251,9 +253,11 @@ try {
   assert.deepEqual(await evaluate("(() => {const bad='1\"><img src=x onerror=window.__pwned=1>';const S=structuredClone(Lab.state);S.party.operation={...S.party.operation,quantity:bad,loaded:bad,unloaded:bad};S.party.desk={...S.party.desk,target:bad,loaded:bad,unloaded:bad};const party=document.querySelector('#card-party .body'),trade=document.querySelector('#card-trade .body');const count=()=>document.querySelectorAll('#card-party progress, #card-trade progress').length;const before=count();Lab.cards.party.render(party,S);Lab.cards.trade.render(trade,S);const imgs=document.querySelectorAll('#card-party img, #card-trade img').length;const bars=[...document.querySelectorAll('#card-party progress, #card-trade progress')];const result={imgs,sameBars:bars.length===before && before>=4,finite:bars.every(b=>Number.isFinite(b.max) && Number.isFinite(b.value))};Lab.cards.party.render(party,Lab.state);Lab.cards.trade.render(trade,Lab.state);return result;})()"),{imgs:0,sameBars:true,finite:true});
   assert.equal(await evaluate("document.querySelector('[data-value=rate]').textContent"),'50 Cr');
   assert.equal(await evaluate("document.querySelector('[data-value=run-pay]').textContent"),'10,000 Cr');
-  for(let i=0;i<30;i++){await sleep(100);if(await evaluate("document.querySelector('[data-value=profit-estimated]')?.textContent.endsWith(' Cr')"))break;}
-  const expectedPersonalProfit=await evaluate("document.querySelector('[data-value=profit-estimated]').textContent");
-  assert.ok(['31,650 Cr','31,700 Cr'].includes(expectedPersonalProfit));
+  // The estimate follows the crew's assignment: 300 t loading at 50 Cr plus 333 t unloading at 50 Cr (owner 'a' takes the 1 t remainder).
+  for(let i=0;i<30;i++){await sleep(100);if(await evaluate("Lab.state.party.desk?.assignment?.loading_target===300 && Lab.state.party.desk?.assignment?.unloading_target===333"))break;}
+  assert.deepEqual(await evaluate("[Lab.state.party.desk.assignment.loading_target, Lab.state.party.desk.assignment.unloading_target]"),[300,333]);
+  const expectedPersonalProfit='31,650 Cr';
+  assert.equal(await evaluate("document.querySelector('[data-value=profit-estimated]').textContent"),expectedPersonalProfit);
   assert.equal(await evaluate("document.querySelector('[data-value=profit-remaining]').textContent"),expectedPersonalProfit);
   assert.deepEqual(await evaluate("[...document.querySelectorAll('[data-haul-inara]')].map(a=>({search:new URL(a.href).searchParams.get('search'),hidden:a.hidden,target:a.target,rel:a.rel}))"),[
     {search:'Source Port [Lave]',hidden:false,target:'_blank',rel:'noopener noreferrer'},

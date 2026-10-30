@@ -234,7 +234,13 @@ management routes remain on the local dashboard. Every report carries the member
 private `secret`; the leader binds an id to the first secret it sees and rejects later reports or leave
 requests for that id under any other secret, so the shared party code admits commanders without letting
 them act as each other. Secrets are never included in shared state. Members reject leader responses whose
-job quantities are not numbers. Reports older than 30 seconds
+job quantities are not numbers. A 200 response that cannot be rendered (a member
+without `id`, a plan without `commodity`, an active operation without `id`) is
+never adopted: join fails with "unreadable party update" and a heartbeat keeps the
+previous snapshot, sets `party.error` and continues. A 400 from the leader surfaces
+the leader's own `error` text (printable, at most 200 characters) instead of a
+generic HTTP message; three consecutive rejections end the membership the way a
+closed party does, with the reason in `party.error`. Reports older than 30 seconds
 are stale, and members expire after 300 seconds. Client disconnects retain the
 last evidence marked stale rather than turning cargo into zero. Party reports
 never modify the trade ledger.
@@ -303,7 +309,15 @@ carrier_market_id. The party journal listener matches MarketSell commodity and
 market ID against the active loading/unloading leg; owner CargoTransfer to the
 correct docked carrier can record loading. No cargo-delta inference. Replays and
 events predating the operation are ignored. `party-local.json` persists auto_seen
-fingerprints and last_auto with cumulative totals atomically. Heartbeats send
+fingerprints and last_auto with cumulative totals atomically. Live journal
+deliveries update memory on the watcher thread and queue the snapshot for the
+`party-writer` thread (latest snapshot wins); the owner's `party.work` emit runs
+on that thread after the write, so the local receipt is on disk before the trade
+ledger learns of it. Manual reports, journal catch-up, the tracking boundary and
+startup still write synchronously; a synchronous write supersedes queued snapshots
+and runs their follow-ups. `Party.flush()` waits for queued writes; Leave, shutdown
+and every member heartbeat call it. A failed queued write sets `party.error` and
+is repaired by the next snapshot or by catch-up after a restart. Heartbeats send
 those totals, including after a temporary disconnect. `party.auto_tracking`
 reports whether each leg has its required market ID; missing IDs require manual
 fallback. Manual entry of an already detected delivery would count twice.

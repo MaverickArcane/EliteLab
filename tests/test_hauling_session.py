@@ -174,6 +174,7 @@ class HaulingSessionTests(unittest.TestCase):
         self.owner.bus.emit("journal.Docked", {"event": "Docked", "MarketID": 123})
         self.owner.bus.emit("journal.CargoTransfer", {"event": "CargoTransfer", "timestamp": datetime.now(timezone.utc).isoformat(),
             "Transfers": [{"Type": "gold", "Count": 40, "Direction": "tocarrier"}]})
+        self.assertTrue(party.flush())  # the receipt lands on disk before the ledger is credited
         state = self.owner.store.get("party")
         self.assertEqual(state["desk"]["progress"]["loading"], 40)
         self.assertIsNone(state["desk"]["earnings"])

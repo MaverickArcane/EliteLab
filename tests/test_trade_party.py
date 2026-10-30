@@ -401,11 +401,13 @@ class PartyTests(unittest.TestCase):
         timestamp=datetime.now(timezone.utc).isoformat()
         self.leader.journal_delivery("journal.Docked", {"event":"Docked","MarketID":123})
         self.leader.journal_delivery("journal.CargoTransfer", {"event":"CargoTransfer","timestamp":timestamp,"Transfers":[{"Type":"gold","Count":30,"Direction":"tocarrier"},{"Type":"gold","Count":20,"Direction":"toship"}]})
+        self.assertTrue(self.leader.flush())  # live receipts reach the ledger after the queued disk write
         self.assertEqual(self.leader.shared()["operation"]["loaded"],30)
         # Transfers require the selected carrier, and replay must not duplicate them.
         self.leader.journal_delivery("journal.CargoTransfer", {"event":"CargoTransfer", "_replay":True,"timestamp":timestamp,"Transfers":[{"Type":"gold","Count":30,"Direction":"tocarrier"}]})
         self.leader.journal_delivery("journal.Docked", {"event":"Docked","MarketID":999})
         self.leader.journal_delivery("journal.CargoTransfer", {"event":"CargoTransfer", "timestamp":timestamp,"Transfers":[{"Type":"gold","Count":30,"Direction":"tocarrier"}]})
+        self.assertTrue(self.leader.flush())
         self.assertEqual(self.leader.shared()["operation"]["loaded"],30)
         for action in ("depart","unload"):
             self.leader_core.http.tools["manage_carrier_operation"].fn({"action":action,"id":op["id"]})
@@ -415,6 +417,7 @@ class PartyTests(unittest.TestCase):
         self.leader.journal_delivery("journal.CargoTransfer", {"event":"CargoTransfer","timestamp":timestamp,"Transfers":[{"Type":"gold","Count":20,"Direction":"toship"}]})
         self.assertEqual(self.leader.shared()["operation"]["unloaded"],0)
         self.leader.journal_delivery("journal.MarketSell", {**event,"MarketID":456})
+        self.assertTrue(self.leader.flush())
         self.assertEqual(self.leader.shared()["operation"]["unloaded"],20)
         self.member.journal_delivery("journal.MarketSell", {**event,"MarketID":123})
         self.assertIsNone(self.member.work)

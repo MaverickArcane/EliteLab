@@ -41,6 +41,29 @@ class PartyCodeRejected(PartyClosed):
     pass
 
 
+class LeaderRejected(ValueError):
+    """The leader answered 400 with its own reason; repeated ones end the membership."""
+
+
+class LeaderUnreadable(ValueError):
+    """A 200 response that this version cannot render; never adopted as shared state."""
+
+
+REJECTIONS_BEFORE_LEAVING = 3
+
+
+def leader_error(data):
+    """The leader's plain-text reason for a 400, bounded and printable, or None."""
+    try:
+        text = json.loads(data).get("error")
+    except (ValueError, AttributeError):
+        return None
+    if not isinstance(text, str):
+        return None
+    text = "".join(c for c in text if c.isprintable()).strip()
+    return text[:200] or None
+
+
 def utc():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -165,6 +188,9 @@ def exchange(url, token, body):
             raise PartyCodeRejected("Party code rejected. Copy the current code from the leader; restarting or recreating a party changes it.")
         if response.status == 404:
             raise ValueError("No party listener at that address. Use the leader's party port (usually 8767), not the dashboard port.")
+        reason = leader_error(data) if response.status == 400 else None
+        if reason:
+            raise LeaderRejected(reason)
         if response.status != 200:
             raise ValueError(f"Leader returned HTTP {response.status}. Check the party address and matching EliteLab versions.")
         if len(data) > 256000:
@@ -214,6 +240,14 @@ class Party:
         self.recovery_retry = 0
         self.replay_complete = False
         self.docked_market = None
+        # Live journal deliveries queue their party-local.json snapshot for the
+        # party-writer thread; everything else still writes synchronously.
+        self.disk = threading.Condition()
+        self.pending = []      # [(snapshot or None, follow-up callable or None)] in save order
+        self.busy = False      # the writer holds a batch (disk write and follow-ups)
+        self.writing = False   # the writer is inside write_data
+        self.writer_thread = None
+        self.rejections = 0
         self.save_work(self.work)
         self.members = {}
         self.remote = {}
@@ -289,7 +323,7 @@ class Party:
         with self.lock:
             shared = self.shared() if self.mode != "member" else copy.deepcopy(self.remote)
             op = shared.get("operation") or {}
-            if (op.get("stage") in ("loading", "transit", "unloading") and op.get("id") != self.tracking.get("operation_id")
+            if (op.get("stage") in ("loading", "transit", "unloading") and op.get("id") and op.get("id") != self.tracking.get("operation_id")
                     and not (self.mode == "idle" and self.tracking and not self.tracking.get("owner"))):
                 self.save_work(self.work, tracking={"operation_id":op["id"], "since":utc(),
                                                    "owner":self.mode != "member", "manual_through":{}})
@@ -460,7 +494,7 @@ class Party:
             self.close_pending.clear()
             self.members, self.remote, self.error = {}, {}, None
             self.secrets = {}
-            self.last_success = None
+            self.last_success, self.rejections = None, 0
             self.publish()
         if server:
             server.shutdown()
@@ -477,6 +511,7 @@ class Party:
     def leave(self, q=None):
         with self.operations:
             self._leave()
+        self.flush()  # Leave and shutdown both land queued receipts and their ledger follow-ups.
         return self.core.store.get(NS)
 
     def host(self, q):
@@ -524,28 +559,116 @@ class Party:
                 if self.mode != "idle":
                     raise ValueError("Leave the current party first.")
             try:
-                shared = exchange(url, token, {"id": self.member_id, "secret": self.secret, "report": self.local()})
+                shared = self.check(exchange(url, token, {"id": self.member_id, "secret": self.secret, "report": self.local()}))
             except (OSError, http.client.HTTPException):
                 raise ValueError("Could not reach the leader. Check Tailscale, the address, port and firewall.") from None
             with self.lock:
                 self.mode, self.url, self.token = "member", url, token
                 self.remote, self.error, self.last_success = shared, None, time.time()
+                self.rejections = 0
                 self.stop = threading.Event()
                 self.generation += 1
                 self.start_worker()
                 self.publish()
         return self.core.store.get(NS)
 
-    def save_work(self, work, seen=None, last_auto=None, receipts=None, tracking=None):
+    def save_work(self, work, seen=None, last_auto=None, receipts=None, tracking=None, *, deferred=False):
+        """Persist the local receipt. Callers never mutate the saved objects in
+        place, so a deferred snapshot can share them with the live state."""
         seen = self.auto_seen if seen is None else seen
         last_auto = self.last_auto if last_auto is None else last_auto
         receipts = self.receipts if receipts is None else receipts
         tracking = self.tracking if tracking is None else tracking
-        self.core.write_data({"id": self.member_id, "secret": self.secret, "work": work, "auto_seen": seen, "last_auto": last_auto, "receipts": receipts,
-                              "tracking":tracking}, "party-local.json")
+        snapshot = {"id": self.member_id, "secret": self.secret, "work": work, "auto_seen": seen, "last_auto": last_auto, "receipts": receipts,
+                    "tracking":tracking}
+        if deferred:
+            self.work, self.auto_seen, self.last_auto, self.receipts, self.tracking = work, seen, last_auto, receipts, tracking
+            self.queue_write(snapshot, None)
+            return
+        with self.disk:
+            # This newer snapshot supersedes queued ones; only an in-flight disk
+            # write must finish first, and it never needs the party lock.
+            superseded, self.pending = self.pending, []
+            self.disk.wait_for(lambda: not self.writing)
+        try:
+            self.core.write_data(snapshot, "party-local.json")
+        except BaseException:
+            with self.disk:
+                self.pending = superseded + self.pending
+                self.disk.notify_all()
+            raise
         self.work, self.auto_seen, self.last_auto = work, seen, last_auto
         self.receipts = receipts
         self.tracking = tracking
+        for _, after in superseded:
+            if after:
+                after()
+
+    def queue_write(self, snapshot, after):
+        with self.disk:
+            self.pending.append((snapshot, after))
+            if self.writer_thread is None:
+                self.writer_thread = threading.Thread(target=self.writer, name="party-writer", daemon=True)
+                self.writer_thread.start()
+            self.disk.notify_all()
+
+    def after_write(self, callback):
+        """Run callback on the writer thread once every snapshot queued so far is on disk."""
+        self.queue_write(None, callback)
+
+    def writer(self):
+        while True:
+            with self.disk:
+                while not self.pending:
+                    self.disk.wait()
+                batch, self.pending = self.pending, []
+                self.busy = True
+            snapshot = next((s for s, _ in reversed(batch) if s is not None), None)
+            failure = None
+            if snapshot is not None:
+                with self.disk:
+                    self.writing = True
+                try:
+                    self.core.write_data(snapshot, "party-local.json")
+                except Exception as ex:
+                    failure = ex
+                finally:
+                    with self.disk:
+                        self.writing = False
+                        self.disk.notify_all()
+            try:
+                if failure is not None:
+                    # Memory already holds the delivery; the next snapshot or a
+                    # journal catch-up after restart recovers the missing write.
+                    with self.lock:
+                        self.error = "Could not save party-local.json: " + str(failure)[:160]
+                        self.publish()
+                for _, after in batch:
+                    if after:
+                        try:
+                            after()
+                        except Exception:
+                            self.core.log.exception("party-local.json follow-up failed")
+            finally:
+                with self.disk:
+                    self.busy = False
+                    self.disk.notify_all()
+
+    def flush(self, timeout=10):
+        """Wait until every queued party-local.json write and follow-up has run.
+        Never call this while holding self.lock: follow-ups publish under it."""
+        with self.disk:
+            return self.disk.wait_for(lambda: not self.pending and not self.busy, timeout)
+
+    def check(self, shared):
+        """Render a leader snapshot before adopting it. A member without an id or
+        a plan without a commodity would otherwise raise inside every publish."""
+        try:
+            project({**shared, "recovering": False}, self.member_id, self.local(), self.work, False)
+        except Exception as ex:
+            detail = f"{type(ex).__name__}: {str(ex)[:120]}"
+            raise LeaderUnreadable(f"The leader sent an unreadable party update ({detail}). Check that both EliteLab versions match.") from ex
+        return shared
 
     def journal_delivery(self, name, event, *, recovering=False, recovered_market=None):
         if not isinstance(event, dict):
@@ -603,11 +726,20 @@ class Party:
             work[phase] += tonnes
             work["last_entry"] = {"kind":kind, "phase":phase, "tonnes":tonnes, "at":event["timestamp"]}
             work.setdefault("delivery_evidence", {})[phase] = {"kind":kind,"at":event["timestamp"],"tonnes":tonnes}
-            self.save_work(work, (self.auto_seen + [digest])[-10000:], {"operation_id":op["id"],"phase":phase,"tonnes":tonnes,"at":event["timestamp"]})
+            # Live events run on the watcher thread: queue the receipt for the
+            # writer. Journal catch-up runs on its own thread and writes directly.
+            self.save_work(work, (self.auto_seen + [digest])[-10000:], {"operation_id":op["id"],"phase":phase,"tonnes":tonnes,"at":event["timestamp"]},
+                           deferred=not recovering)
             if not recovering:
                 self.activity = "hauling"
             if self.mode != "member":
-                self.core.bus.emit("party.work", {"id":self.member_id,"report":self.local()})
+                body = {"id":self.member_id,"report":self.local()}
+                if recovering:
+                    self.core.bus.emit("party.work", body)
+                else:
+                    # The local receipt reaches disk before the owner's ledger
+                    # learns of it, so a restart always finds the cumulative work.
+                    self.after_write(lambda: (self.core.bus.emit("party.work", body), self.publish()))
             # No network I/O on the watcher thread: the heartbeat sends cumulative totals.
             self.publish()
             return tonnes
@@ -667,23 +799,35 @@ class Party:
         # contain current cumulative work and cargo. Never hold the party lock
         # during network I/O; journal events must remain responsive.
         with self.exchange_lock:
+            # Queued journal receipts reach disk before the leader learns of them.
+            self.flush()
             with self.lock:
                 if generation != self.generation or self.mode != "member":
                     return
                 url, token = self.url, self.token
                 body = {"id": self.member_id, "secret": self.secret, "report": self.local()}
-            terminal = False
+            terminal, rejected = False, False
             try:
-                shared = exchange(url, token, body)
+                shared = self.check(exchange(url, token, body))
                 error = None
             except PartyClosed as ex:
                 shared, terminal = None, True
                 error = ("The party invitation is no longer valid. The leader may have closed or recreated it. Join with the current invitation."
                          if isinstance(ex, PartyCodeRejected) else str(ex))
+            except LeaderRejected as ex:
+                # The leader's own reason, not "unavailable"; persistent rejections end the membership.
+                shared, rejected, error = None, True, str(ex)
+                if self.rejections + 1 >= REJECTIONS_BEFORE_LEAVING:
+                    terminal = True
+                    error += " Left the party after repeated rejections. Fix the cause, then join again."
+            except LeaderUnreadable as ex:
+                # Kept out of the shared state; the heartbeat continues and the UI says why.
+                shared, error = None, str(ex)
             except Exception:
                 shared, error = None, failure_message
             with self.lock:
                 if generation == self.generation:
+                    self.rejections = self.rejections + 1 if rejected else 0
                     if terminal:
                         self.stop.set()
                         self.generation += 1
