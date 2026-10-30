@@ -254,7 +254,10 @@ try {
   assert.ok(await evaluate("document.querySelector('[data-crew-roster]').textContent.includes('<Hauler>')"));
   assert.ok(await evaluate("document.querySelector('[data-operation]').textContent.includes('Buy gold at Source Port / Lave')"));
   await evaluate("document.querySelector('[data-operation-notes] textarea').value='Dock at the carrier; wait for departure.';document.querySelector('[data-operation-notes]').requestSubmit();true");
-  await sleep(200);
+  // Recovery can still be running after the loading stage first appears.
+  // Wait for the actual delivery control to become usable before submitting.
+  for(let i=0;i<100;i++){if(await evaluate("!document.querySelector('[data-delivery] [name=tonnes]').disabled"))break;await sleep(100);}
+  assert.equal(await evaluate("document.querySelector('[data-delivery] [name=tonnes]').disabled"),false);
   await evaluate("document.querySelector('[data-delivery] [name=tonnes]').value='100';document.querySelector('[data-delivery]').requestSubmit();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade?.operation?.loaded===100"))break;}
   assert.equal(await evaluate('Lab.state.trade.operation.loaded'),100);
