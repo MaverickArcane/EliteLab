@@ -4,7 +4,9 @@ Server-Sent Events for live state, and static files for the shell and modules.
 import json
 import hashlib
 import hmac
+import ipaddress
 import secrets
+import socket
 from http.cookies import SimpleCookie
 import mimetypes
 import os
@@ -16,8 +18,42 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import config
 
-LOOPBACK_BINDS = ("127.0.0.1", "localhost", "::1")
-LOOPBACK_NAMES = ("127.0.0.1", "localhost", "::1", "[::1]")
+LOOPBACK_NAMES = ("127.0.0.1", "localhost", "::1")
+MACHINE_NAMES = {n.lower().rstrip(".") for n in (socket.gethostname(), socket.getfqdn()) if n}   # computed once
+
+
+def host_name(header):
+    """The name part of a Host header, lower-cased, without the port or IPv6 brackets. None when malformed."""
+    h = (header or "").strip().lower()
+    if h.startswith("["):
+        end = h.find("]")
+        rest = h[end + 1:] if end > 0 else "x"
+        if rest and not (rest.startswith(":") and rest[1:].isdigit()):
+            return None
+        name = h[1:end]
+        try:
+            ipaddress.IPv6Address(name)
+        except ValueError:
+            return None
+        return name
+    if h.count(":") > 1:
+        return None                     # a bare IPv6 address is not a valid Host header
+    name, _, port = h.partition(":")
+    if not name or (_ and not port.isdigit()):
+        return None
+    return name.rstrip(".")
+
+
+def host_allowed(name):
+    """DNS rebinding always needs a DNS name, so IP literals are safe; names must be ones this lab is known by."""
+    try:
+        ipaddress.ip_address(name)
+        return True
+    except ValueError:
+        pass
+    bind = config.HOST.lower().rstrip(".")
+    return (name in LOOPBACK_NAMES or (bind != "0.0.0.0" and name == bind)
+            or name in MACHINE_NAMES or name in config.ALLOWED_HOSTS)
 
 MAX_BODY = 1_000_000      # bytes; the largest legitimate POST is a wishlist
 
@@ -115,11 +151,13 @@ def make_handler(core):
         def _check_mutation(self):
             origin = self.headers.get("Origin")
             host = self.headers.get("Host", "")
-            # DNS rebinding: bound to loopback, only loopback names may be used as the Host (a LAN or 0.0.0.0 bind is the user's choice)
-            if config.HOST in LOOPBACK_BINDS:
-                name = host.rsplit(":", 1)[0] if not host.endswith("]") and ":" in host and host.count(":") == 1 else host
-                if name not in LOOPBACK_NAMES:
-                    return 403, "requests for this host are not accepted"
+            # DNS rebinding, on every bind: without a token only known names may be the Host (a token or cookie is proof enough)
+            if not config.AUTH_TOKEN:
+                name = host_name(host)
+                if name is None:
+                    return 403, "the Host header is missing or malformed"
+                if not host_allowed(name):
+                    return 403, f"requests for host {name} are not accepted; set ELITELAB_ALLOWED_HOSTS={name} to allow it"
             # same host over http or https (a reverse proxy may terminate TLS in front of us)
             if ((origin is not None and origin not in ("http://" + host, "https://" + host))
                     or self.headers.get("Sec-Fetch-Site") == "cross-site"):

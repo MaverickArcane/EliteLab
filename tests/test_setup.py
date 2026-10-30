@@ -3,6 +3,7 @@ import importlib
 import http.client
 import json
 import os
+import socket
 import threading
 from http.server import ThreadingHTTPServer
 import tempfile
@@ -135,7 +136,8 @@ class SetupTests(unittest.TestCase):
 
 
 class HostCheckTests(unittest.TestCase):
-    """POST routes on a loopback bind only answer to loopback Host names (DNS rebinding)."""
+    """Without a token, POST routes only answer to IP literals, loopback names, the bind host, this machine's name and
+    ELITELAB_ALLOWED_HOSTS, on every bind (DNS rebinding needs a DNS name)."""
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="elitelab-host-")
@@ -151,9 +153,9 @@ class HostCheckTests(unittest.TestCase):
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
 
-    def request(self, method, host, origin=None, body=b'{"port": 8767}'):
+    def request(self, method, host, origin=None, body=b'{"port": 8767}', headers=None):
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
-        headers = {"Host": host}
+        headers = {"Host": host, **(headers or {})}
         if method == "POST":
             headers["Content-Type"] = "application/json"
         if origin:
@@ -180,10 +182,52 @@ class HostCheckTests(unittest.TestCase):
         self.assertEqual(self.request("GET", f"attacker.example:{self.port}"), 200)
         self.assertEqual(self.request("GET", f"127.0.0.1:{self.port}"), 200)
 
-    def test_lan_bind_keeps_todays_behaviour(self):
-        host = f"lab.lan:{self.port}"
+    def post(self, host, **kw):
+        return self.request("POST", host, "http://" + host, body=b"{}", **kw)
+
+    def test_attacker_name_is_refused_on_an_all_interfaces_bind(self):
+        host = f"attacker.example:{self.port}"
         with mock.patch.object(config, "HOST", "0.0.0.0"):
-            self.assertEqual(self.request("POST", host, "http://" + host, body=b"{}"), 200)
+            conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+            conn.request("POST", "/api/setup", body=b"{}", headers={"Host": host, "Content-Type": "application/json"})
+            r = conn.getresponse()
+            body = json.loads(r.read())
+            conn.close()
+        self.assertEqual(r.status, 403)
+        self.assertEqual(body, {"error": "requests for host attacker.example are not accepted; "
+                                         "set ELITELAB_ALLOWED_HOSTS=attacker.example to allow it"})
+
+    def test_ip_literals_are_accepted_on_any_bind(self):
+        for bind in ("0.0.0.0", "127.0.0.1", "192.168.1.5"):
+            with mock.patch.object(config, "HOST", bind):
+                for host in (f"192.168.1.20:{self.port}", "192.168.1.20", f"[::1]:{self.port}", "[::1]",
+                             f"[fe80::1]:{self.port}", f"127.0.0.1:{self.port}"):
+                    self.assertEqual(self.post(host), 200, (bind, host))
+
+    def test_machine_hostname_is_accepted(self):
+        with mock.patch.object(config, "HOST", "0.0.0.0"):
+            for name in (socket.gethostname(), socket.gethostname().upper(), socket.getfqdn()):
+                self.assertEqual(self.post(f"{name}:{self.port}"), 200, name)
+
+    def test_named_bind_host_is_accepted(self):
+        with mock.patch.object(config, "HOST", "lab.example"):
+            self.assertEqual(self.post(f"LAB.example:{self.port}"), 200)
+        with mock.patch.object(config, "HOST", "0.0.0.0"):
+            self.assertEqual(self.post(f"0.0.0.0:{self.port}"), 200)     # an IP literal, not the bind exemption
+
+    def test_allow_listed_name_is_accepted(self):
+        with mock.patch.object(config, "HOST", "0.0.0.0"), mock.patch.object(config, "ALLOWED_HOSTS", {"lab.lan"}):
+            self.assertEqual(self.post(f"Lab.Lan:{self.port}"), 200)
+            self.assertEqual(self.post(f"other.lan:{self.port}"), 403)
+
+    def test_malformed_hosts_are_refused(self):
+        for host in ("", "[::1", "::1", "[::1]x", "[nothost]:80", "a:b:c"):
+            self.assertEqual(self.post(host), 403, host)
+
+    def test_any_host_is_accepted_with_a_valid_token(self):
+        with mock.patch.object(config, "HOST", "0.0.0.0"), mock.patch.object(config, "AUTH_TOKEN", "s3cret"):
+            self.assertEqual(self.post(f"attacker.example:{self.port}", headers={"Authorization": "Bearer s3cret"}), 200)
+            self.assertEqual(self.post(f"attacker.example:{self.port}"), 401)
 
     def get_path(self, path):
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
@@ -203,6 +247,55 @@ class HostCheckTests(unittest.TestCase):
         self.assertEqual(self.get_path("/setup/setup.js")[0], 200)
         self.assertEqual(self.get_path("/setup/../module.py")[0], 404)
 
+
+class MainFlagTests(unittest.TestCase):
+    """serve --host/--port are written back to config before the Core starts, like --journals."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="elitelab-flags-")
+        saved = dict(os.environ)
+        self.addCleanup(SetupTests._restore, self, saved)
+        os.environ["ELITELAB_SETTINGS"] = os.path.join(self.tmp, "settings.json")
+        importlib.reload(config)
+
+    def _main(self, *argv):
+        """Run main() with Core.start replaced by a probe that loads modules and serves one test server."""
+        from elitelab import __main__ as cli
+        from elitelab.core import Core, loader
+        seen = {}
+
+        def fake_start(core, host=None, port=None):
+            loader.load_all(core)
+            seen["setup"] = core.http.tools["get_setup"].fn({})
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(core))
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+            try:
+                for name in ("192.168.1.20", "lab.example"):
+                    host = f"{name}:{server.server_address[1]}"
+                    conn = http.client.HTTPConnection("127.0.0.1", server.server_address[1], timeout=5)
+                    conn.request("POST", "/api/setup", body=b"{}",
+                                 headers={"Host": host, "Origin": "http://" + host, "Content-Type": "application/json"})
+                    r = conn.getresponse(); r.read(); conn.close()
+                    seen[name] = r.status
+            finally:
+                server.shutdown(); server.server_close()
+            return 0
+        with mock.patch.object(Core, "start", fake_start), mock.patch("logging.basicConfig"):
+            self.assertEqual(cli.main(list(argv)), 0)
+        return seen
+
+    def test_host_and_port_flags_are_reported_with_source_flag(self):
+        seen = self._main("serve", "--host", "0.0.0.0", "--port", "8791")
+        self.assertEqual((config.HOST, config.PORT), ("0.0.0.0", 8791))
+        self.assertEqual((seen["setup"]["values"]["host"], seen["setup"]["values"]["port"]), ("0.0.0.0", 8791))
+        self.assertEqual((seen["setup"]["sources"]["host"], seen["setup"]["sources"]["port"]), ("flag", "flag"))
+        self.assertEqual(seen["192.168.1.20"], 200)       # a LAN device reaching a 0.0.0.0 bind by IP
+
+    def test_named_host_flag_is_the_bind_host_for_the_host_rule(self):
+        seen = self._main("serve", "--host", "lab.example")
+        self.assertEqual(seen["lab.example"], 200)
+        self.assertEqual(seen["setup"]["sources"]["host"], "flag")
+        self.assertNotEqual(seen["setup"]["sources"]["port"], "flag")
 
 if __name__ == "__main__":
     unittest.main()

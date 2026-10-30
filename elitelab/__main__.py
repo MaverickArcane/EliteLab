@@ -62,6 +62,12 @@ def main(argv=None):
     if getattr(args, "journals", None):
         config.JOURNAL_DIR = args.journals
         config.SOURCES["journal_dir"] = "flag"
+    if getattr(args, "host", None):
+        config.HOST = args.host                 # the Host rule and get_setup read config, so the flag must land there
+        config.SOURCES["host"] = "flag"
+    if getattr(args, "port", None) is not None:
+        config.PORT = args.port
+        config.SOURCES["port"] = "flag"
     return Core().start(getattr(args, "host", None), getattr(args, "port", None))
 
 

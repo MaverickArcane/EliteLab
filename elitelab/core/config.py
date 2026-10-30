@@ -99,6 +99,8 @@ def _pick(key, env_name, default, cast=str):
 
 HOST = _pick("host", "ELITELAB_HOST", "127.0.0.1")
 AUTH_TOKEN = os.environ.get("ELITELAB_AUTH_TOKEN", "")
+# extra Host header names a POST may use without a token (beyond IP literals, loopback, the bind host and this machine's names)
+ALLOWED_HOSTS = {h.strip().lower().rstrip(".") for h in os.environ.get("ELITELAB_ALLOWED_HOSTS", "").split(",") if h.strip()}
 PORT = _pick("port", "ELITELAB_PORT", 8766, _port)
 JOURNAL_DIR = _pick("journal_dir", "ELITELAB_JOURNAL_DIR", _default_journal_dir, _path)
 BROWSER = _pick("browser", "ELITELAB_BROWSER", "")
