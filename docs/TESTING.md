@@ -22,7 +22,7 @@ CI runs it on Linux and Windows with Python 3.10 and 3.13.
 
 - `ELITELAB_JOURNAL_DIR` -> `tests/fixtures/journals`
 - `ELITELAB_OFFLINE=1` -> every `Services.fetch_json` raises, so nothing talks to Spansh or EDSM
-- `ELITELAB_DATA_DIR` -> `tests/.data` (gitignored; wishlist writes go there)
+- `ELITELAB_DATA_DIR` -> a temporary directory (test data stays separate from player data)
 
 Many tests build a real `Core`, load modules, replay fixture journals and call
 tool functions directly, for example `core.http.tools['get_rares_loop'].fn({})`.
