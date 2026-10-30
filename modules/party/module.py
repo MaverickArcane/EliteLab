@@ -61,6 +61,14 @@ def amount(value, maximum=1000000):
     return value
 
 
+def hex_token(value):
+    return isinstance(value, str) and len(value) == 32 and all(c in "0123456789abcdef" for c in value)
+
+
+def job_number(value):
+    return value is None or (type(value) in (int, float) and math.isfinite(value))
+
+
 def sanitize(raw):
     if not isinstance(raw, dict):
         raise ValueError("A commander report is required.")
@@ -166,6 +174,11 @@ def exchange(url, token, body):
             raise ValueError("Invalid party response.")
         if result.get("closed") is True:
             raise PartyClosed("The leader closed the party. Join again with a new invitation.")
+        plan, operation = result.get("plan"), result.get("operation")
+        if plan is not None and (not isinstance(plan, dict) or not job_number(plan.get("planned_quantity"))):
+            raise ValueError("Invalid party response.")
+        if operation is not None and (not isinstance(operation, dict) or not all(job_number(operation.get(k)) for k in ("quantity", "loaded", "unloaded"))):
+            raise ValueError("Invalid party response.")
         return result
     finally:
         connection.close()
@@ -181,7 +194,10 @@ class Party:
         self.token = ""
         saved = core.read_data("party-local.json", default={}) or {}
         identity = saved.get("id", "")
-        self.member_id = identity if isinstance(identity, str) and len(identity) == 32 and all(c in "0123456789abcdef" for c in identity) else secrets.token_hex(16)
+        self.member_id = identity if hex_token(identity) else secrets.token_hex(16)
+        # The id is public to the room; the secret proves this client owns it.
+        self.secret = saved.get("secret") if hex_token(saved.get("secret")) else secrets.token_hex(16)
+        self.secrets = {}  # leader only: member id -> secret seen first
         self.activity = "ready"
         try:
             self.work = sanitize({"work": saved.get("work")}).get("work")
@@ -345,11 +361,14 @@ class Party:
     def receive(self, body):
         if not isinstance(body, dict):
             raise ValueError("Report must be an object.")
-        mid = body.get("id")
-        if not isinstance(mid, str) or len(mid) != 32 or any(c not in "0123456789abcdef" for c in mid) or mid == self.member_id:
+        mid, secret = body.get("id"), body.get("secret")
+        if not hex_token(mid) or mid == self.member_id or not hex_token(secret):
             raise ValueError("Invalid member identity.")
         report = sanitize(body.get("report", {}))
         with self.lock:
+            bound = self.secrets.get(mid)
+            if bound is not None and not hmac.compare_digest(bound, secret):
+                raise ValueError("Member identity rejected: another commander already reports with this id.")
             if self.closing:
                 # The final authenticated poll tells connected members to clear
                 # the room before its listener disappears. Saved work is kept.
@@ -365,6 +384,7 @@ class Party:
             else:
                 if mid not in self.members and len(self.members) >= MAX_MEMBERS - 1:
                     raise ValueError("Party is full.")
+                self.secrets.setdefault(mid, secret)
                 self.members[mid] = {**report, "last_seen": utc(), "received": time.time(), "leader": False}
             self.core.bus.emit("party.work", {"id": mid, "report": report})
             # Reconcile deliveries first, then let trade assign new crew using
@@ -439,6 +459,7 @@ class Party:
             self.closing = False
             self.close_pending.clear()
             self.members, self.remote, self.error = {}, {}, None
+            self.secrets = {}
             self.last_success = None
             self.publish()
         if server:
@@ -449,7 +470,7 @@ class Party:
                 # Finish any in-flight report before Leave, so it cannot re-add
                 # this commander to the leader after the departure request.
                 with self.exchange_lock:
-                    exchange(old_url, old_token, {"id": self.member_id, "leave": True, "report": final_report})
+                    exchange(old_url, old_token, {"id": self.member_id, "secret": self.secret, "leave": True, "report": final_report})
             except (OSError, ValueError, http.client.HTTPException):
                 pass  # the leader expires this report if it could not be removed
 
@@ -503,7 +524,7 @@ class Party:
                 if self.mode != "idle":
                     raise ValueError("Leave the current party first.")
             try:
-                shared = exchange(url, token, {"id": self.member_id, "report": self.local()})
+                shared = exchange(url, token, {"id": self.member_id, "secret": self.secret, "report": self.local()})
             except (OSError, http.client.HTTPException):
                 raise ValueError("Could not reach the leader. Check Tailscale, the address, port and firewall.") from None
             with self.lock:
@@ -520,7 +541,7 @@ class Party:
         last_auto = self.last_auto if last_auto is None else last_auto
         receipts = self.receipts if receipts is None else receipts
         tracking = self.tracking if tracking is None else tracking
-        self.core.write_data({"id": self.member_id, "work": work, "auto_seen": seen, "last_auto": last_auto, "receipts": receipts,
+        self.core.write_data({"id": self.member_id, "secret": self.secret, "work": work, "auto_seen": seen, "last_auto": last_auto, "receipts": receipts,
                               "tracking":tracking}, "party-local.json")
         self.work, self.auto_seen, self.last_auto = work, seen, last_auto
         self.receipts = receipts
@@ -650,7 +671,7 @@ class Party:
                 if generation != self.generation or self.mode != "member":
                     return
                 url, token = self.url, self.token
-                body = {"id": self.member_id, "report": self.local()}
+                body = {"id": self.member_id, "secret": self.secret, "report": self.local()}
             terminal = False
             try:
                 shared = exchange(url, token, body)

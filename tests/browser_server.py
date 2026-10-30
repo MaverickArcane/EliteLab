@@ -20,6 +20,7 @@ def ship(q):
     core.modules['party'].party.publish()
     return {'ok': True}
 core.http.route('/audit/ship', ship, method='POST')
+core.http.route('/audit/identity', lambda q: {'id': core.modules['party'].party.member_id, 'secret': core.modules['party'].party.secret})
 server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(core))
 print(server.server_port, flush=True)
 server.serve_forever()

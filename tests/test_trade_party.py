@@ -278,7 +278,7 @@ class PartyTests(unittest.TestCase):
     def test_leader_status_updates_publish_immediately_and_disconnect_stays_stale(self):
         self.leader_core.bus.emit("journal.file.Status", {"Flags":(1<<24)|8,"timestamp":"2026-10-26T18:00:00Z","Fuel":{"FuelMain":12}})
         self.assertEqual(self.leader_core.store.get("party","members")[0]["telemetry"]["fuel"], 12)
-        self.leader.receive({"id":self.member.member_id,"report":self.member.local()})
+        self.leader.receive({"id":self.member.member_id,"secret":self.member.secret,"report":self.member.local()})
         with self.leader.lock:
             self.leader.members[self.member.member_id]["received"] -= 31
         self.assertTrue(self.leader.shared()["members"][1]["stale"])
@@ -293,7 +293,7 @@ class PartyTests(unittest.TestCase):
         report = self.member.report_work({"id":op["id"], "tonnes":100, "activity":"hauling"})
         self.assertEqual(report["operation"]["loaded"],100)
         self.assertEqual(report["members"][1]["activity"],"hauling")
-        for _ in range(3): self.leader.receive({"id":self.member.member_id,"report":self.member.local()})
+        for _ in range(3): self.leader.receive({"id":self.member.member_id,"secret":self.member.secret,"report":self.member.local()})
         self.assertEqual(self.leader.shared()["operation"]["loaded"],100)
         self.member.leave()
         self.member.join({"url":self.url,"code":self.state["code"]})
@@ -402,7 +402,7 @@ class PartyTests(unittest.TestCase):
         self.assertEqual(self.member.mode, "idle")
 
     def test_stale_reports_expire_and_host_recreation_rotates_code(self):
-        self.leader.receive({"id": "a" * 32, "report": {"cmdr": "Old"}})
+        self.leader.receive({"id": "a" * 32, "secret": "b" * 32, "report": {"cmdr": "Old"}})
         self.leader.members["a" * 32]["received"] = time.time() - 40
         self.assertTrue(self.leader.shared()["members"][1]["stale"])
         self.leader.members["a" * 32]["received"] = time.time() - 301

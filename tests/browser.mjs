@@ -77,7 +77,7 @@ try {
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.party?.mode==='leader'"))break;}
   const partyCode=await evaluate('Lab.state.party.code');assert.ok(partyCode);
   const guestReport={cmdr:'<Hauler>',ship:'Type-9',ship_name:'Cargo Runner',system:'Sol',capacity:790,cargo_count:100,cargo:[{key:'gold',name:'Gold',count:100}],telemetry:{vehicle:'ship',game_running:true,shields_up:true,fuel:7.5,fuel_capacity:64,fuel_reservoir:.42,hull_health:.8,supercruise:true,low_fuel:true,destination:'<Galileo>',status_at:new Date().toISOString(),fuel_at:new Date().toISOString()}};
-  const reportGuest=()=>fetch(`http://127.0.0.1:${partyPort}/report`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+partyCode},body:JSON.stringify({id:'b'.repeat(32),report:guestReport})});
+  const reportGuest=()=>fetch(`http://127.0.0.1:${partyPort}/report`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+partyCode},body:JSON.stringify({id:'b'.repeat(32),secret:'d'.repeat(32),report:guestReport})});
   const guest=await reportGuest();
   assert.equal(guest.status,200);
   await sleep(250);
@@ -247,6 +247,8 @@ try {
   assert.equal(await evaluate("document.querySelector('[data-value=action]').textContent"),'Buy your next load');
   assert.ok(await evaluate("!document.querySelector('[data-party-leave]').hidden && !document.querySelector('[data-party-leave]').closest('details') && document.querySelector('[data-party-leave]').textContent==='Leave party'"));
   assert.equal(await evaluate("document.querySelector('[data-value=quantity]').textContent"),'200 t');
+  // Numeric job fields from the leader (quantity, loaded, unloaded, target) must never become markup (progress max/value).
+  assert.deepEqual(await evaluate("(() => {const bad='1\"><img src=x onerror=window.__pwned=1>';const S=structuredClone(Lab.state);S.party.operation={...S.party.operation,quantity:bad,loaded:bad,unloaded:bad};S.party.desk={...S.party.desk,target:bad,loaded:bad,unloaded:bad};const party=document.querySelector('#card-party .body'),trade=document.querySelector('#card-trade .body');const count=()=>document.querySelectorAll('#card-party progress, #card-trade progress').length;const before=count();Lab.cards.party.render(party,S);Lab.cards.trade.render(trade,S);const imgs=document.querySelectorAll('#card-party img, #card-trade img').length;const bars=[...document.querySelectorAll('#card-party progress, #card-trade progress')];const result={imgs,sameBars:bars.length===before && before>=4,finite:bars.every(b=>Number.isFinite(b.max) && Number.isFinite(b.value))};Lab.cards.party.render(party,Lab.state);Lab.cards.trade.render(trade,Lab.state);return result;})()"),{imgs:0,sameBars:true,finite:true});
   assert.equal(await evaluate("document.querySelector('[data-value=rate]').textContent"),'50 Cr');
   assert.equal(await evaluate("document.querySelector('[data-value=run-pay]').textContent"),'10,000 Cr');
   for(let i=0;i<30;i++){await sleep(100);if(await evaluate("document.querySelector('[data-value=profit-estimated]')?.textContent.endsWith(' Cr')"))break;}
@@ -311,7 +313,11 @@ try {
   const auditMember=await evaluate("Object.entries(Lab.state.trade.operation.reports).find(([,r])=>r.cmdr==='CMDR Crew')[0]");
   const auditJob=await evaluate('Lab.state.trade.operation.id');
   await evaluate(`document.querySelector('[data-haul-history]').open=true;var f=document.querySelector('[data-haul-correction]');f.elements.member.value='${auditMember}';f.elements.member.dispatchEvent(new Event('change'));f.elements.tonnes.value='70';f.elements.reason.value='<audit-correction> duplicate report';f.elements.tonnes.dispatchEvent(new Event('input',{bubbles:true}));true`);
-  const lateReport=await fetch(`http://127.0.0.1:${partyPort}/report`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+partyCode},body:JSON.stringify({id:auditMember,report:{cmdr:'CMDR Crew',capacity:200,cargo_count:0,cargo:[],work:{operation_id:auditJob,loading:90,unloading:0}}})});
+  // A late report for the member must carry the member's own secret; the leader rejects the same report under any other secret.
+  const identity=await (await fetch(`http://127.0.0.1:${memberPort}/audit/identity`)).json();assert.equal(identity.id,auditMember);
+  const lateBody=secret=>JSON.stringify({id:auditMember,secret,report:{cmdr:'CMDR Crew',capacity:200,cargo_count:0,cargo:[],work:{operation_id:auditJob,loading:90,unloading:0}}});
+  const forged=await fetch(`http://127.0.0.1:${partyPort}/report`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+partyCode},body:lateBody('e'.repeat(32))});assert.equal(forged.status,400);
+  const lateReport=await fetch(`http://127.0.0.1:${partyPort}/report`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+partyCode},body:lateBody(identity.secret)});
   assert.equal(lateReport.status,200);
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[data-correction-status]').textContent.includes('New progress')"))break;}
   assert.equal(await evaluate("document.querySelector('[data-haul-correction] [name=tonnes]').value"),'70');
@@ -326,7 +332,7 @@ try {
   const exportedText=await evaluate('window.__exportText');
   const exported=JSON.parse(exportedText);
   assert.equal(exported.format,'elitelab-hauling-diagnostics-v1');
-  for(const secret of [partyCode,auditMember,'CMDR Crew','<Hauler>','<audit-correction>'])assert.ok(!exportedText.includes(secret));
+  for(const secret of [partyCode,auditMember,identity.secret,'CMDR Crew','<Hauler>','<audit-correction>'])assert.ok(!exportedText.includes(secret));
   assert.ok(exported.reports.some(r=>r.reported.loading===90 && r.credited.loading===70 && r.adjustments.loading===-20));
   assert.equal(await evaluate('document.body.scrollWidth'),390);
   // Preparing another plan clears an ended operation, then starting it gets a new id.
@@ -353,7 +359,7 @@ try {
   assert.equal(await evaluate("document.querySelector('[data-crew-roster]').textContent"),'');
   await evaluate("getSelection().removeAllRanges();true");
   // Live mode sends the final 1,160 t to the 1,200 t ship, then reallocates on leave.
-  await fetch(`http://127.0.0.1:${partyPort}/report`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+partyCode},body:JSON.stringify({id:'b'.repeat(32),report:guestReport,leave:true})});
+  await fetch(`http://127.0.0.1:${partyPort}/report`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+partyCode},body:JSON.stringify({id:'b'.repeat(32),secret:'d'.repeat(32),report:guestReport,leave:true})});
   await fetch(`http://127.0.0.1:${port}/audit/ship`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmdr:'Owner',capacity:1136,count:0})});
   await postMember('/audit/ship',{cmdr:'CMDR Crew',capacity:1200,count:0});
   await postMember('/api/party/join',{url:`http://127.0.0.1:${partyPort}`,code:partyCode});

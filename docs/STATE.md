@@ -225,7 +225,11 @@ refresh timer on unmount.
 port, leader-only invitation code, remote URL, last error, shared plan and member
 reports. Connections and invitation codes are memory-only; local identity and
 cumulative delivery reports persist in `party-local.json`. The remote listener exposes only `/report`; the
-management routes remain on the local dashboard. Reports older than 30 seconds
+management routes remain on the local dashboard. Every report carries the member's public `id` and its
+private `secret`; the leader binds an id to the first secret it sees and rejects later reports or leave
+requests for that id under any other secret, so the shared party code admits commanders without letting
+them act as each other. Secrets are never included in shared state. Members reject leader responses whose
+job quantities are not numbers. Reports older than 30 seconds
 are stale, and members expire after 300 seconds. Client disconnects retain the
 last evidence marked stale rather than turning cargo into zero. Party reports
 never modify the trade ledger.
@@ -276,7 +280,7 @@ Manual stage confirmation never synthesises inventory or crew deliveries.
 include activity and cumulative `work{operation_id,loading,unloading}`. Party
 emits `party.work`; trade validates operation/phase/bounds and merges monotonic
 per-member totals into its own namespace. Delivery reports never modify inventory.
-`party-local.json` holds identity, cumulative work, event fingerprints, manual
+`party-local.json` holds identity (`id` and `secret`), cumulative work, event fingerprints, manual
 retry receipts and job recovery boundaries (no invitation code or address).
 Heartbeat retries and reconnects deduplicate by identity and cumulative counters.
 Late loading reports can arrive after departure; unloading cannot be reported

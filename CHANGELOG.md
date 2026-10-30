@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Hauling party: each client now proves it owns its member id with a private
+  secret saved in `party-local.json`, so a party code alone no longer lets one
+  commander report, be paid or be removed as another. Members reject leader
+  responses whose job quantities are not numbers, and the progress bars coerce
+  those numbers before rendering, closing a script injection path from a
+  malicious leader. Older clients must update to rejoin.
 - Materials: show current inventory and gross gains since the latest game login,
   including pickups, mission rewards and trader receipts. Journal replay restores
   session totals after dashboard restarts. The Engineering preset puts inventory
