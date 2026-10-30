@@ -247,6 +247,7 @@ try {
   assert.equal(await evaluate('Lab.state.trade.operation.stage'),'loading');
   assert.deepEqual(await evaluate("[...document.querySelectorAll('[data-operation] [data-inara-market]')].map(a=>new URL(a.href).searchParams.get('search'))"),['Source Port [Lave]','TST-001','Destination Port [Sol]']);
   assert.ok(await evaluate("document.querySelector('#card-haul [data-copy=\"Lave\"]') !== null && document.querySelector('#card-haul [data-copy=\"Source Port\"]') !== null"));
+  for(let i=0;i<100;i++){if(await evaluate("document.querySelector('#card-haul').textContent.includes('Transfer to carrier')"))break;await sleep(100);}
   assert.ok(await evaluate("document.querySelector('#card-haul').textContent.includes('Transfer to carrier')"));
   assert.equal(await evaluate('Lab.state.party.load_suggestion.next_buy'),400);
   guestReport.capacity=450;await reportGuest();await sleep(250);
@@ -256,9 +257,12 @@ try {
   await evaluate("document.querySelector('[data-operation-notes] textarea').value='Dock at the carrier; wait for departure.';document.querySelector('[data-operation-notes]').requestSubmit();true");
   // Recovery can still be running after the loading stage first appears.
   // Wait for the actual delivery control to become usable before submitting.
-  for(let i=0;i<100;i++){if(await evaluate("!document.querySelector('[data-delivery] [name=tonnes]').disabled"))break;await sleep(100);}
-  assert.equal(await evaluate("document.querySelector('[data-delivery] [name=tonnes]').disabled"),false);
-  await evaluate("document.querySelector('[data-delivery] [name=tonnes]').value='100';document.querySelector('[data-delivery]').requestSubmit();true");
+  let submitted = false;
+  for(let i=0;i<100;i++){
+    submitted = await evaluate("(()=>{const form=document.querySelector('[data-delivery]');if(form.elements.tonnes.disabled || Lab.state.party?.recovery?.running || Lab.state.party?.operation?.notes!=='Dock at the carrier; wait for departure.')return false;document.querySelector('[data-manual-details]').open=true;form.elements.tonnes.value='100';form.elements.tonnes.dispatchEvent(new Event('input',{bubbles:true}));form.requestSubmit();return true})()");
+    if(submitted)break;await sleep(100);
+  }
+  assert.ok(submitted, 'Delivery form did not become ready after saving instructions');
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.trade?.operation?.loaded===100"))break;}
   assert.equal(await evaluate('Lab.state.trade.operation.loaded'),100, JSON.stringify(await evaluate("({status:document.querySelector('[data-delivery-status]').textContent, recovery:Lab.state.party.recovery, work:Lab.state.party.work, operation:Lab.state.party.operation})")));
   // Exercise the actual summary controls, including successive DOM rebuilds.
