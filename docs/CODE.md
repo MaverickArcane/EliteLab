@@ -19,7 +19,7 @@ File by file, function by function. Line-level details change; the shapes below 
 
 ## elitelab/core/config.py
 
-Module-level constants read at import time. Precedence for `host`, `port`, `journal_dir`, `data_dir` and `browser`: command line flag (set by `__main__`), then the `ELITELAB_*` environment variable, then the settings file, then the default; an empty or invalid value is skipped. `save_settings(changes, path)` merges under a lock, writes through a temp file and keeps an unparseable file as `<path>.bad`; `valid_host(host)` is the IPv4-or-host-name check shared with the setup module. Tests override `config.JOURNAL_DIR` etc. after import, which works because every consumer reads `config.X` at call time, not at import.
+Module-level constants read at import time. Precedence for `host`, `port`, `journal_dir`, `data_dir` and `browser`: command line flag (set by `__main__`), then the `ELITELAB_*` environment variable, then the settings file, then the default; an empty or invalid value is skipped. `save_settings(changes, path)` merges under a lock, writes through a temp file that is flushed and fsynced before `os.replace`, and keeps an unparseable file as `<path>.bad`; `valid_host(host)` is the IPv4-or-host-name check shared with the setup module. Tests override `config.JOURNAL_DIR` etc. after import, which works because every consumer reads `config.X` at call time, not at import.
 
 | Name | Env | Default |
 |---|---|---|

@@ -56,7 +56,8 @@ def _usable(path: str) -> bool:
 
 
 def save_settings(changes: dict, path: str) -> dict:
-    """Merge changes over the current file (unknown keys and connections are kept) and write it atomically.
+    """Merge changes over the current file (unknown keys and connections are kept) and write it atomically
+    (temp file in the same folder, flushed and fsynced, then os.replace).
 
     One save at a time per process. A file that exists but cannot be parsed is kept as <path>.bad, not overwritten.
     Raises OSError when the file cannot be written."""
@@ -73,6 +74,8 @@ def save_settings(changes: dict, path: str) -> dict:
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(merged, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())        # on disk before the rename, so a crash cannot leave an empty settings file
             os.replace(tmp, path)
         except BaseException:
             try:

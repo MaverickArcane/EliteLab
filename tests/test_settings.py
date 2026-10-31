@@ -71,7 +71,16 @@ class SettingsTests(unittest.TestCase):
         os.makedirs(os.path.dirname(self.path))
         with open(self.path, "w", encoding="utf-8") as f:
             json.dump({"port": 8766, "future": 1, "connections": {"inara": {"k": "v"}}}, f)
-        merged = config.save_settings({"port": 8767}, self.path)
+        order = []
+        real_fsync, real_replace = os.fsync, os.replace
+        fsync = mock.Mock(side_effect=lambda fd: (order.append("fsync"), real_fsync(fd))[1])
+        replace = mock.Mock(side_effect=lambda a, b: (order.append("replace"), real_replace(a, b))[1])
+        with mock.patch("os.fsync", fsync), mock.patch("os.replace", replace):
+            merged = config.save_settings({"port": 8767}, self.path)
+            self.assertEqual(fsync.call_count, 1)          # the data is on disk before the rename makes it visible
+            config.save_settings({"port": 8767}, self.path)
+            self.assertEqual(fsync.call_count, 2)
+        self.assertEqual(order, ["fsync", "replace", "fsync", "replace"])
         self.assertEqual(merged, {"port": 8767, "future": 1, "connections": {"inara": {"k": "v"}}})
         with open(self.path, encoding="utf-8") as f:
             self.assertEqual(json.load(f), merged)
