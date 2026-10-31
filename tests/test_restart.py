@@ -3,6 +3,7 @@ import contextlib
 import io
 import json
 import os
+import shutil
 import socket
 import stat
 import subprocess
@@ -199,6 +200,41 @@ class LauncherTests(unittest.TestCase):
             loop = f.read()
         self.assertIn(b"--open-browser", loop)
         self.assertNotIn(b"\n", loop.replace(b"\r\n", b""), "serve-loop.cmd must keep CRLF line endings")
+
+
+@unittest.skipUnless(os.name == "nt", "serve-loop.cmd is a Windows batch file")
+class ServeLoopCmdTests(unittest.TestCase):
+    def test_windows_launcher_restarts_only_on_75(self):
+        # a folder name with a space, as under "C:\\Users\\First Last"; a fake elitelab logs its arguments
+        root = tempfile.mkdtemp(prefix="EliteLab restart ")
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        os.makedirs(os.path.join(root, "scripts"))
+        os.makedirs(os.path.join(root, "elitelab"))
+        launcher = os.path.join(root, "scripts", "serve-loop.cmd")
+        shutil.copyfile(os.path.join(ROOT, "scripts", "serve-loop.cmd"), launcher)
+        with open(os.path.join(root, "elitelab", "__init__.py"), "w", encoding="ascii") as f:
+            f.write("")
+        with open(os.path.join(root, "elitelab", "__main__.py"), "w", encoding="ascii") as f:
+            f.write("import os, sys\n"
+                    "log = os.environ['LAB_TEST_LOG']\n"
+                    "first = not os.path.exists(log)\n"
+                    "with open(log, 'a', encoding='ascii') as f:\n"
+                    "    f.write(' '.join(sys.argv[1:]) + '\\n')\n"
+                    "sys.exit(int(os.environ['LAB_TEST_FIRST']) if first else 0)\n")
+        first_call = "--open-browser serve --port 8799"
+        later_call = "serve --port 8799"
+        for first, calls, status in ((75, [first_call, later_call], 0), (1, [first_call], 1), (76, [first_call], 76)):
+            log = os.path.join(root, f"calls-{first}.log")
+            env = dict(os.environ, PATH=os.path.dirname(sys.executable) + os.pathsep + os.environ.get("PATH", ""),
+                       LAB_TEST_LOG=log, LAB_TEST_FIRST=str(first))
+            env.pop("PYTHONPATH", None)
+            r = subprocess.run(["cmd", "/c", launcher, "serve", "--port", "8799"], env=env,
+                               stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
+            self.assertEqual(r.returncode, status, r.stdout + r.stderr)
+            with open(log, encoding="ascii") as f:
+                lines = [" ".join(line.split()) for line in f.read().splitlines()]
+            self.assertEqual(lines, calls)     # --open-browser on the first run only
+
 
 @unittest.skipUnless(os.name == "posix", "start.sh is a POSIX shell script")
 class StartShTests(_TmpMixin, unittest.TestCase):
