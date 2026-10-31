@@ -300,6 +300,14 @@ exit 0
         _, lines = self._run([0], ("modules",))
         self.assertEqual(lines, ["-m elitelab modules"])
 
+    def test_start_sh_opens_the_browser_on_the_first_run_only(self):
+        # a restart (75) must not open a second tab; every other argument is kept as given
+        rc, lines = self._run([75, 75, 0], ("--port", "18961", "--open-browser", "--journals", "/a b"))
+        self.assertEqual(rc, 0)
+        self.assertEqual(lines, ["-m elitelab serve --port 18961 --open-browser --journals /a b",
+                                 "-m elitelab serve --port 18961 --journals /a b",
+                                 "-m elitelab serve --port 18961 --journals /a b"])
+
 
 if __name__ == "__main__":
     unittest.main()

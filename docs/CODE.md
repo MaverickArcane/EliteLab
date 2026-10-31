@@ -11,7 +11,7 @@ File by file, function by function. Line-level details change; the shapes below 
 `main(argv=None)`: argparse with subcommands.
 
 - `serve` (default): `--host`, `--port`, `--journals`, `-v`, `--open-browser`. Sets `config.JOURNAL_DIR` if `--journals` given, configures logging to stderr, builds `Core()` and calls `start(open_browser=...)`.
-- `--open-browser` is a top-level flag and is also accepted after `serve` (the subcommand copy uses `default=argparse.SUPPRESS` so it does not reset the top-level value). `scripts/serve-loop.cmd` runs `serve --open-browser ARGS` on its first run and `serve ARGS` after, so a restart does not open a second tab; `start.sh` inserts `serve` when its first argument is an option. `--settings` is also accepted after `serve` for that reason.
+- `--open-browser` is a top-level flag and is also accepted after `serve` (the subcommand copy uses `default=argparse.SUPPRESS` so it does not reset the top-level value). `scripts/serve-loop.cmd` runs `serve --open-browser ARGS` on its first run and `serve ARGS` after, so a restart does not open a second tab; `start.sh` inserts `serve` when its first argument is an option and drops `--open-browser` after its first run, keeping every other argument as given. `--settings` is also accepted after `serve` for that reason.
 - `mcp`: runs `elitelab.mcp.serve()` (stdio JSON-RPC).
 - `modules`: prints `loader.resolve_order(loader.discover())` without starting anything.
 - `tools`: prints the tool list from a running lab (`mcp._tools()`).
