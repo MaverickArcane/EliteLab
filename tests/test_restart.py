@@ -144,6 +144,21 @@ class OpenBrowserTests(_TmpMixin, unittest.TestCase):
         opened.assert_not_called()
 
 
+class OpenBrowserStickyStopTests(_TmpMixin, unittest.TestCase):
+    def test_restart_requested_before_start_never_opens_the_browser(self):
+        # the bind succeeds, serve() returns at once on the remembered stop; the browser timer must die with it
+        tmp = self._tmp()
+        with mock.patch.object(config, "DATA_DIR", tmp), mock.patch("webbrowser.open") as opened:
+            core = Core()
+            core.request_restart()
+            time.sleep(0.3)                     # the stop timer fires while nothing is bound
+            with contextlib.redirect_stdout(io.StringIO()):
+                rc = core.start("127.0.0.1", 0, open_browser=True)
+            time.sleep(0.5)                     # well past the 0.1 s browser delay
+        self.assertEqual(rc, config.RESTART_EXIT_CODE)
+        opened.assert_not_called()
+
+
 class MainOpenBrowserFlagTests(unittest.TestCase):
     def _flag(self, argv):
         from elitelab.__main__ import main
@@ -159,6 +174,13 @@ class MainOpenBrowserFlagTests(unittest.TestCase):
         self.assertIs(self._flag(["--open-browser", "serve"]), True)
         self.assertIs(self._flag(["serve", "--open-browser"]), True)
         self.assertIs(self._flag(["serve"]), False)
+        self.assertIs(self._flag(["serve", "--open-browser", "--port", "8799"]), True)   # what serve-loop.cmd runs
+
+    def test_settings_flag_is_accepted_after_serve(self):
+        # the launchers put serve first, so ./start.sh --settings FILE becomes serve --settings FILE
+        with mock.patch.dict(os.environ):
+            self._flag(["serve", "--settings", "/tmp/elitelab-x.json"])
+            self.assertEqual(os.environ["ELITELAB_SETTINGS"], "/tmp/elitelab-x.json")
         self.assertIs(self._flag([]), False)
 
 
@@ -221,14 +243,14 @@ class ServeLoopCmdTests(unittest.TestCase):
                     "with open(log, 'a', encoding='ascii') as f:\n"
                     "    f.write(' '.join(sys.argv[1:]) + '\\n')\n"
                     "sys.exit(int(os.environ['LAB_TEST_FIRST']) if first else 0)\n")
-        first_call = "--open-browser serve --port 8799"
+        first_call = "serve --open-browser --port 8799"
         later_call = "serve --port 8799"
         for first, calls, status in ((75, [first_call, later_call], 0), (1, [first_call], 1), (76, [first_call], 76)):
             log = os.path.join(root, f"calls-{first}.log")
             env = dict(os.environ, PATH=os.path.dirname(sys.executable) + os.pathsep + os.environ.get("PATH", ""),
                        LAB_TEST_LOG=log, LAB_TEST_FIRST=str(first))
             env.pop("PYTHONPATH", None)
-            r = subprocess.run(["cmd", "/c", launcher, "serve", "--port", "8799"], env=env,
+            r = subprocess.run(["cmd", "/c", launcher, "--port", "8799"], env=env,
                                stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
             self.assertEqual(r.returncode, status, r.stdout + r.stderr)
             with open(log, encoding="ascii") as f:
@@ -238,7 +260,7 @@ class ServeLoopCmdTests(unittest.TestCase):
 
 @unittest.skipUnless(os.name == "posix", "start.sh is a POSIX shell script")
 class StartShTests(_TmpMixin, unittest.TestCase):
-    def _run(self, codes):
+    def _run(self, codes, args=("serve",)):
         tmp = self._tmp()
         log = os.path.join(tmp, "log")
         counter = os.path.join(tmp, "n")
@@ -259,7 +281,7 @@ exit 0
 """)
         os.chmod(fake, os.stat(fake).st_mode | stat.S_IXUSR)
         env = dict(os.environ, PATH=tmp + os.pathsep + os.environ["PATH"])
-        r = subprocess.run(["sh", os.path.join(ROOT, "start.sh"), "serve"], env=env, timeout=30)
+        r = subprocess.run(["sh", os.path.join(ROOT, "start.sh"), *args], env=env, timeout=30)
         with open(log) as f:
             return r.returncode, f.read().splitlines()
 
@@ -268,6 +290,15 @@ exit 0
         self.assertEqual((rc, len(lines)), (0, 2))
         rc, lines = self._run([1])
         self.assertEqual((rc, len(lines)), (1, 1))
+
+    def test_start_sh_inserts_serve_before_leading_options(self):
+        # the README runs ./start.sh --journals DIR; the top-level parser has no --journals
+        _, lines = self._run([0], ("--journals", "/j", "--open-browser"))
+        self.assertEqual(lines, ["-m elitelab serve --journals /j --open-browser"])
+        _, lines = self._run([0], ("serve", "--port", "8799"))
+        self.assertEqual(lines, ["-m elitelab serve --port 8799"])
+        _, lines = self._run([0], ("modules",))
+        self.assertEqual(lines, ["-m elitelab modules"])
 
 
 if __name__ == "__main__":

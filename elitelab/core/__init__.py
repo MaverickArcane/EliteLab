@@ -103,13 +103,14 @@ class Core:
         t.daemon = True
         t.start()
 
-    @staticmethod
-    def _open_browser(host, port):
+    def _open_browser(self, host, port):
+        """Open the dashboard shortly, unless the server has stopped by then. Returns the timer so start() can cancel it."""
         import webbrowser
         url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}/"
-        t = threading.Timer(0.1, webbrowser.open, (url,))
+        t = threading.Timer(0.1, lambda: self.ready and webbrowser.open(url))
         t.daemon = True
         t.start()
+        return t
 
     def start(self, host=None, port=None, *, open_browser=False):
         """Serve until stopped. Returns RESTART_EXIT_CODE if a restart was requested, 1 if the address could not be
@@ -119,6 +120,7 @@ class Core:
         load_all(self)
         self.watcher.start()
         host, port = host or config.HOST, port if port is not None else config.PORT
+        browser = None
         try:
             try:
                 self._server.bind(host, port)
@@ -134,11 +136,13 @@ class Core:
             print("Ctrl+C to stop.")
             self.ready = True
             if open_browser:
-                self._open_browser(host, port)
+                browser = self._open_browser(host, port)
             self._server.serve()
         except KeyboardInterrupt:
             pass
         finally:
             self.ready = False
+            if browser:
+                browser.cancel()        # a stop requested before serve() returns at once; do not open a closing server
             self.watcher.stop()
         return config.RESTART_EXIT_CODE if self.restart_requested else 0

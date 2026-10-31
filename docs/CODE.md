@@ -11,7 +11,7 @@ File by file, function by function. Line-level details change; the shapes below 
 `main(argv=None)`: argparse with subcommands.
 
 - `serve` (default): `--host`, `--port`, `--journals`, `-v`, `--open-browser`. Sets `config.JOURNAL_DIR` if `--journals` given, configures logging to stderr, builds `Core()` and calls `start(open_browser=...)`.
-- `--open-browser` is a top-level flag and is also accepted after `serve` (the subcommand copy uses `default=argparse.SUPPRESS` so it does not reset the top-level value). `scripts/serve-loop.cmd` passes it on its first run only, so a restart does not open a second tab.
+- `--open-browser` is a top-level flag and is also accepted after `serve` (the subcommand copy uses `default=argparse.SUPPRESS` so it does not reset the top-level value). `scripts/serve-loop.cmd` runs `serve --open-browser ARGS` on its first run and `serve ARGS` after, so a restart does not open a second tab; `start.sh` inserts `serve` when its first argument is an option. `--settings` is also accepted after `serve` for that reason.
 - `mcp`: runs `elitelab.mcp.serve()` (stdio JSON-RPC).
 - `modules`: prints `loader.resolve_order(loader.discover())` without starting anything.
 - `tools`: prints the tool list from a running lab (`mcp._tools()`).
@@ -136,7 +136,7 @@ Constants: `STARPORT_TYPES` (Coriolis, Orbis, Ocellus, Asteroid base, Planetary 
 
 Built-in routes (`module="core"`): `/api/health` (`health`), `/api/state` (`get_state`), `/api/modules` (`list_modules`), `/api/schema` (`list_tools`), `/api/events` (`get_recent_events`, params `limit` <= 200, `event`). `_remember_event` keeps a ring of the last 500 journal events for `/api/events`.
 
-`start(host, port, *, open_browser=False)`: `load_all`, start watcher thread, bind, print banner (with the port the socket really got, which matters for port 0), serve forever; with `open_browser`, after a successful bind it opens `http://HOST:PORT/` with `webbrowser.open` on a 0.1 s daemon timer (`127.0.0.1` when HOST is `0.0.0.0`), and never after a failed bind; stops the watcher on exit and returns `config.RESTART_EXIT_CODE` (75) if `request_restart()` was called, else 0. `request_restart()` marks a restart and stops the server; a request made before the server is bound is kept, not lost.
+`start(host, port, *, open_browser=False)`: `load_all`, start watcher thread, bind, print banner (with the port the socket really got, which matters for port 0), serve forever; with `open_browser`, after a successful bind it opens `http://HOST:PORT/` with `webbrowser.open` on a 0.1 s daemon timer (`127.0.0.1` when HOST is `0.0.0.0`), never after a failed bind, and the timer is cancelled when `start()` leaves (a stop requested before the bind makes `serve()` return at once, so it would otherwise open a closing server); stops the watcher on exit and returns `config.RESTART_EXIT_CODE` (75) if `request_restart()` was called, else 0. `request_restart()` marks a restart and stops the server; a request made before the server is bound is kept, not lost.
 
 ## elitelab/mcp.py
 

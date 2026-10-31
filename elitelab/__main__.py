@@ -22,6 +22,7 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd")
     s = sub.add_parser("serve", help="run the server (default)")
     s.add_argument("--host"); s.add_argument("--port", type=int); s.add_argument("--journals"); s.add_argument("-v", "--verbose", action="store_true")
+    s.add_argument("--settings", default=argparse.SUPPRESS, help="settings file to use (the launchers put serve first)")
     s.add_argument("--open-browser", action="store_true", default=argparse.SUPPRESS,   # also accepted after serve
                    help="open the dashboard in the browser once the server is listening")
     sub.add_parser("mcp", help="MCP stdio server")
