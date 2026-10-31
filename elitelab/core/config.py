@@ -1,28 +1,170 @@
-"""Runtime configuration. Everything can be overridden with environment variables."""
+"""Runtime configuration: command line flags (set by __main__) beat ELITELAB_* environment variables, which beat the
+settings file (settings_path(), written by the setup page), which beats the defaults. config.SOURCES records which won."""
+import ipaddress
+import json
+import logging
 import os
+import re
+import tempfile
+import threading
 
+from . import journals
 from .. import __version__      # elitelab/__init__.py has no imports, so this is safe
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(_HERE))
+_log = logging.getLogger("elitelab.config")
 
 
-def _default_journal_dir() -> str:
-    env = os.environ.get("ELITELAB_JOURNAL_DIR")
-    if env:
-        return env
+def settings_path() -> str:
+    """Where the settings file lives. ELITELAB_SETTINGS overrides the platform default."""
+    override = os.environ.get("ELITELAB_SETTINGS")
+    if override:
+        return override
+    if os.name == "nt":
+        base = os.environ.get("APPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Roaming")
+        return os.path.join(base, "EliteLab", "settings.json")
+    base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
+    return os.path.join(base, "elitelab", "settings.json")
+
+
+def load_settings(path: str) -> dict:
+    """Read the settings file. A missing or unreadable file is not an error: warn once, return {}."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            raise ValueError("top level is not an object")
+        return data
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as e:
+        _log.warning("ignoring settings file %s: %s", path, e)
+        return {}
+
+
+_save_lock = threading.Lock()
+
+
+def _usable(path: str) -> bool:
+    """True when the file parses as a JSON object (an empty {} included)."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return isinstance(json.load(f), dict)
+    except (OSError, ValueError):
+        return False
+
+
+def save_settings(changes: dict, path: str) -> dict:
+    """Merge changes over the current file (unknown keys and connections are kept) and write it atomically
+    (temp file in the same folder, flushed and fsynced, then os.replace).
+
+    One save at a time per process. A file that exists but cannot be parsed is kept as <path>.bad, not overwritten.
+    Raises OSError when the file cannot be written."""
+    with _save_lock:
+        merged = load_settings(path)
+        if not merged and os.path.isfile(path) and not _usable(path):
+            bad = path + ".bad"
+            os.replace(path, bad)
+            _log.warning("settings file %s could not be read; kept it as %s", path, bad)
+        merged.update(changes)
+        folder = os.path.dirname(path) or "."
+        os.makedirs(folder, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(prefix=".settings-", suffix=".tmp", dir=folder)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(merged, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())        # on disk before the rename, so a crash cannot leave an empty settings file
+            os.replace(tmp, path)
+        except BaseException:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            raise
+        return merged
+
+
+_HOST_NAME = re.compile(r"[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*\.?", re.I)
+
+
+def valid_host(host) -> bool:
+    """An IPv4 address or a host name. The server listens on IPv4 only, so IPv6 addresses are not valid."""
+    if not isinstance(host, str) or not host or len(host) > 253:
+        return False
+    if re.fullmatch(r"[0-9.]+", host):
+        try:
+            ipaddress.IPv4Address(host)
+            return True
+        except ValueError:
+            return False
+    return bool(_HOST_NAME.fullmatch(host))
+
+
+def _host(value) -> str:
+    if not valid_host(value):
+        raise ValueError(value)
+    return value
+
+
+def _default_journal_dir(platform=None) -> str:
+    """Docker folder, else the first detected folder with journals, else one that exists, else the Windows path.
+    platform defaults to os.name; tests pin it, since Steam Proton folders are listed only off Windows."""
     if os.path.isdir("/journals"):          # Docker convention
         return "/journals"
-    return os.path.join(os.path.expanduser("~"), "Saved Games", "Frontier Developments", "Elite Dangerous")
+    home = os.path.expanduser("~")
+    found = journals.candidates(home, platform=platform or os.name)
+    for want in (lambda c: c["journals"] > 0, lambda c: c["exists"]):
+        for c in found:
+            if want(c):
+                return c["path"]
+    return os.path.join(home, "Saved Games", "Frontier Developments", "Elite Dangerous")
 
 
-HOST = os.environ.get("ELITELAB_HOST", "127.0.0.1")
+def _port(value) -> int:
+    port = int(value)
+    if not 1024 <= port <= 65535:
+        raise ValueError(port)
+    return port
+
+
+def _path(value) -> str:
+    return os.path.abspath(os.path.expanduser(str(value)))
+
+
+SETTINGS_PATH = settings_path()
+SETTINGS = load_settings(SETTINGS_PATH)
+SOURCES: dict = {}          # setting name -> "flag" | "env" | "file" | "default" ("flag" is set by __main__)
+
+
+def _pick(key, env_name, default, cast=str):
+    """Environment beats the settings file beats the default. An invalid value is skipped."""
+    for source, raw in (("env", os.environ.get(env_name)), ("file", SETTINGS.get(key))):
+        if raw in (None, ""):
+            continue
+        try:
+            value = cast(raw)
+        except (TypeError, ValueError):
+            _log.warning("ignoring invalid %s from %s: %r", key, source, raw)
+            continue
+        SOURCES[key] = source
+        return value
+    SOURCES[key] = "default"
+    return default() if callable(default) else default
+
+
+HOST = _pick("host", "ELITELAB_HOST", "127.0.0.1", _host)
 AUTH_TOKEN = os.environ.get("ELITELAB_AUTH_TOKEN", "")
-PORT = int(os.environ.get("ELITELAB_PORT", "8766"))
-JOURNAL_DIR = _default_journal_dir()
+# extra Host header names a POST may use without a token (beyond IP literals, loopback, the bind host and this machine's names)
+ALLOWED_HOSTS = {h.strip().lower().rstrip(".") for h in os.environ.get("ELITELAB_ALLOWED_HOSTS", "").split(",") if h.strip()}
+PORT = _pick("port", "ELITELAB_PORT", 8766, _port)
+JOURNAL_DIR = _pick("journal_dir", "ELITELAB_JOURNAL_DIR", _default_journal_dir, _path)
+BROWSER = _pick("browser", "ELITELAB_BROWSER", "")
+RESTART_EXIT_CODE = 75      # exit status that tells a supervising wrapper to start the lab again
 WEB_DIR = os.environ.get("ELITELAB_WEB_DIR", os.path.join(ROOT, "web"))
 MODULES_DIR = os.environ.get("ELITELAB_MODULES_DIR", os.path.join(ROOT, "modules"))
-DATA_DIR = os.environ.get("ELITELAB_DATA_DIR", os.path.join(ROOT, "data"))     # persistent per-user files (wishlists...)
+DATA_DIR = _pick("data_dir", "ELITELAB_DATA_DIR", lambda: os.path.join(ROOT, "data"), _path)     # persistent per-user files (wishlists...)
 USER_AGENT = f"EliteLab/{__version__} (+https://github.com/MaverickArcane/EliteLab)"
 
 RECENT_JOURNALS = int(os.environ.get("ELITELAB_RECENT_JOURNALS", "3"))   # files replayed at startup

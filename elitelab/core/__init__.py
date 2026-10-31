@@ -23,6 +23,7 @@ from .store import Store
 from .watcher import JournalWatcher, journal_files
 
 log = logging.getLogger("elitelab.core")
+_SOURCE_TEXT = {"flag": "command line flag", "env": "environment variable", "file": "settings file", "default": "default"}
 
 
 class Core:
@@ -36,6 +37,8 @@ class Core:
         self.modules = {}
         self.watcher = JournalWatcher(self.bus)
         self._server = HttpServer(self)
+        self.ready = False
+        self.restart_requested = False
         self._register_builtin_routes()
 
     # -- helpers for modules ---------------------------------------------------
@@ -93,18 +96,53 @@ class Core:
         return [{k: v for k, v in e.items() if k != "_replay"} for e in evs[:limit]]
 
     # -- lifecycle -----------------------------------------------------------
-    def start(self, host=None, port=None):
+    def request_restart(self):
+        """Ask the running server to stop and make start() return RESTART_EXIT_CODE."""
+        self.restart_requested = True
+        t = threading.Timer(0.1, self._server.stop)
+        t.daemon = True
+        t.start()
+
+    def _open_browser(self, host, port):
+        """Open the dashboard shortly, unless the server has stopped by then. Returns the timer so start() can cancel it."""
+        import webbrowser
+        url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}/"
+        t = threading.Timer(0.1, lambda: self.ready and webbrowser.open(url))
+        t.daemon = True
+        t.start()
+        return t
+
+    def start(self, host=None, port=None, *, open_browser=False):
+        """Serve until stopped. Returns RESTART_EXIT_CODE if a restart was requested, 1 if the address could not be
+        bound (after printing one line naming the host, port, their sources and the settings file), else 0.
+        With open_browser, the dashboard opens in the default browser only after a successful bind."""
         from .. import __version__
         load_all(self)
         self.watcher.start()
-        host, port = host or config.HOST, port or config.PORT
-        print(f"EliteLab {__version__} listening on http://{host}:{port}")
-        print(f"Journal dir: {config.JOURNAL_DIR}  (found: {bool(journal_files())})")
-        print(f"Modules: {', '.join(self.modules) or 'none'}")
-        print("Ctrl+C to stop.")
+        host, port = host or config.HOST, port if port is not None else config.PORT
+        browser = None
         try:
-            self._server.serve(host, port)
+            try:
+                self._server.bind(host, port)
+            except OSError as e:
+                src = {k: _SOURCE_TEXT.get(config.SOURCES.get(k), "default") for k in ("host", "port")}
+                print(f"EliteLab could not listen on {host}:{port} ({e.strerror or e}); host from {src['host']}, "
+                      f"port from {src['port']}; settings file: {config.SETTINGS_PATH}")
+                return 1
+            port = self._server.srv.server_port          # the real port, also when 0 asked the OS to pick one
+            print(f"EliteLab {__version__} listening on http://{host}:{port}")
+            print(f"Journal dir: {config.JOURNAL_DIR}  (found: {bool(journal_files())})")
+            print(f"Modules: {', '.join(self.modules) or 'none'}")
+            print("Ctrl+C to stop.")
+            self.ready = True
+            if open_browser:
+                browser = self._open_browser(host, port)
+            self._server.serve()
         except KeyboardInterrupt:
             pass
         finally:
+            self.ready = False
+            if browser:
+                browser.cancel()        # a stop requested before serve() returns at once; do not open a closing server
             self.watcher.stop()
+        return config.RESTART_EXIT_CODE if self.restart_requested else 0

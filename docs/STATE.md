@@ -174,6 +174,17 @@ Recomputed on `state.journal.star_pos` (distances) and `state.wishlist.needs` (`
 
 `progress.slots[]`: `{group, slot, item, target, blueprint, grade, experimental, status (ok | engineer | buy), todo[], materials[{key, name, count}], current{slot, item, blueprint, level, experimental} | null, credits}`. Recomputed on `state.journal.ship_info` and `state.materials.inventory_version`.
 
+## setup (module: setup)
+
+| Key | Type | Meaning |
+|---|---|---|
+| `journal_found` | bool | Journal files exist in the folder the lab is running with |
+| `journal_dir` | string | The journal folder the lab is running with (`config.JOURNAL_DIR`) |
+| `restart_required` | bool | A saved setting differs from the running value |
+| `settings_path` | string | Settings file in use |
+
+The module writes all four when it loads and after every `save_setup`. Its read-only tools `get_setup` and `inspect_journal_folder` (one typed folder's journal count and newest journal) do not write state. Saving never changes the running config, so `journal_dir` and the other running values stay as they are until the lab restarts. The journal-warning banner in `web/app.js` reads `journal_found` and `journal_dir` from `/api/health`, not from this namespace.
+
 ## map (module: map)
 
 | Key | Type |

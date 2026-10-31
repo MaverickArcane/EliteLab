@@ -158,3 +158,18 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 
 @media (max-width: 760px) { main { padding: 12px 14px; gap: 10px; } .map-wrap { height: 380px; } .pill { margin-left: 0; } .card .resize, .card h2 .grip { display: none; } header { gap: 8px 16px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* setup page (modules/setup/web/page) */
+.setup { max-width: 720px; margin: 0 auto; padding: 16px; display: block; }
+.setup h1 { font-size: 18px; letter-spacing: 1.2px; text-transform: uppercase; margin: 4px 0 14px; }
+.setup .card { grid-column: auto; margin-bottom: var(--gap); }
+.setup .candidates { list-style: none; margin: 0 0 8px; padding: 0; }
+.setup .chk { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; }
+.setup .n { min-width: 0; overflow-wrap: anywhere; }
+.setup .field { display: grid; grid-template-columns: 9em 1fr; gap: 4px 12px; align-items: center; margin-bottom: 10px; color: var(--muted); }
+.setup .field .note { grid-column: 2; margin-top: 0; }
+.setup input[type=text], .setup input[type=number] { width: 100%; min-width: 0; }
+.setup [hidden] { display: none; }
+.setup .field > button { grid-column: 2; justify-self: start; }
+@media (max-width: 560px) { .setup .field { grid-template-columns: 1fr; } .setup .field .note, .setup .field > button { grid-column: 1; } }
+.journal-warning a { color: var(--warn); }

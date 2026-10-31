@@ -61,7 +61,7 @@ cd EliteLab
 "Start EliteLab.cmd"
 ```
 
-That opens http://localhost:8766. The journal folder is found automatically at `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous`.
+The launcher runs the server with `--open-browser`, so the dashboard opens once the server is listening, at the address it really bound: http://127.0.0.1:8766/ by default, or the host and port you saved on the setup page. The journal folder is found automatically: `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous` on Windows, and on Linux and macOS the Steam Proton prefix in any Steam library (Flatpak Steam included) or the Mac Application Support folder, whichever holds journals. Change it on the setup page if it picked the wrong one.
 
 ### Docker
 
@@ -77,6 +77,14 @@ Journals are mounted read-only. Wishlists and the selected loop persist in a nam
 ```
 ./start.sh --journals "/path/to/Saved Games/Frontier Developments/Elite Dangerous"
 ```
+
+`--journals` is optional: without it the lab looks for a Steam Proton prefix and the Mac Application Support folder, and the setup page can save the folder for next time. `./start.sh serve --open-browser` also opens the dashboard in your browser once the server is listening; without the flag, open http://localhost:8766 yourself.
+
+### First run
+
+Open http://localhost:8766/setup/. The page lists the Elite Dangerous journal folders it found (Windows Saved Games, Steam Proton including Flatpak Steam and every Steam library, and the Mac Application Support folder), or you can type a path and click **Test** to see how many journals it holds. Pick the folder, save, and click **Restart** if the page says a restart is needed; it waits for the lab to come back and opens the dashboard. When no journal files are found, the dashboard banner links to this page. Saving only writes the settings file, and nothing changes until the restart.
+
+The settings file is `%APPDATA%\EliteLab\settings.json` on Windows and `$XDG_CONFIG_HOME/elitelab/settings.json` elsewhere (`~/.config/elitelab/settings.json` by default). Command line flags and environment variables still win over the file, so a Docker setup behaves as before; the page warns when one of them will override a value you save. Restart works under `start.sh` and `Start EliteLab.cmd`, which start the lab again when it exits with status 75; run the server any other way and Restart simply stops it.
 
 ## Talking to it from an AI
 
@@ -100,15 +108,21 @@ See docs/AI.md.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `ELITELAB_HOST` / `ELITELAB_PORT` | `127.0.0.1` / `8766` | Bind address (`0.0.0.0` in Docker) |
-| `ELITELAB_JOURNAL_DIR` | Saved Games path, or `/journals` | Where the game writes `Journal.*.log` |
+| `ELITELAB_SETTINGS` / `--settings PATH` | platform path (see First run) | Settings file to read and write. Order of precedence: flag, environment, settings file, default |
+| `ELITELAB_HOST` / `ELITELAB_PORT` | `127.0.0.1` / `8766` | Bind address (`0.0.0.0` in Docker) and port; an IPv4 address or a host name. Empty means the default |
+| `ELITELAB_AUTH_TOKEN` | | When set, `/api/*` and `/events` need `Authorization: Bearer TOKEN` or the session cookie from `POST /api/login`, and the Host rule below is skipped |
+| `ELITELAB_ALLOWED_HOSTS` | | Comma-separated extra host names a POST may use in its Host header, for example `nas.local` (see below) |
+| `ELITELAB_JOURNAL_DIR` | `/journals` in Docker, else the first detected folder with journals (Windows Saved Games, Steam Proton, Mac Application Support), else the Windows Saved Games path | Where the game writes `Journal.*.log` |
+| `ELITELAB_BROWSER` | | Browser executable setting, reserved for the launcher (nothing reads it yet); the setup page shows it but cannot change it, so set it here or as `browser` in the settings file |
 | `ELITELAB_DATA_DIR` | `./data` | Persistent files (wishlist, selected loop) |
 | `ELITELAB_RECENT_JOURNALS` | `3` | Journal files replayed at startup |
 | `ELITELAB_DISABLE` | | Comma-separated module names to skip |
 | `ELITELAB_OFFLINE` | | Set to `1` to never call Spansh or EDSM (tests use this) |
 | `ELITELAB_URL` | `http://127.0.0.1:8766` | Where the MCP proxy finds the lab |
 
-Bind to `0.0.0.0` to open the dashboard from a tablet on your LAN. There is no auth, so do not expose it to the internet.
+Without `ELITELAB_AUTH_TOKEN`, the server answers a POST only when its Host header is an IP address, `localhost`, the bind host, this machine's own name, or a name in `ELITELAB_ALLOWED_HOSTS`; any other gets 403 with the variable to set. This holds on every bind, so a DNS-rebinding web page (which always needs a DNS name) cannot change anything, while opening the dashboard by IP or by the machine's name keeps working. Bind to `0.0.0.0` to open the dashboard from a tablet on your LAN; this machine's own name is its short host name, so if you reach it by any other name, such as `nas.local`, a fully qualified name or a Tailscale MagicDNS name, add that name to `ELITELAB_ALLOWED_HOSTS`. Inside Docker the container's own name is not the host's name, so reaching the container by the host's name needs `ELITELAB_ALLOWED_HOSTS`. Without a token there is no auth, so do not expose it to the internet.
+
+The setup changes (`POST /api/setup`, `/api/setup/journals` and `/api/restart`) go one step further: without `ELITELAB_AUTH_TOKEN` they are answered only when the connection itself comes from this machine (a loopback address); from any other address they get 403 "Setup changes require a local connection or configured authentication." A tablet on your LAN can still use the dashboard and its other actions, such as the wishlist, but changing settings from it needs a token. In Docker the browser's connection reaches the container from the bridge network, not loopback, so the setup page can only save there with `ELITELAB_AUTH_TOKEN` set (or edit the settings file and environment instead). The same goes for an AI: the MCP proxy running on the host reaches a Docker lab through the bridge too, so `save_setup` and `restart_elitelab` need the token there (set it where the proxy runs as well).
 
 ## How it is built
 

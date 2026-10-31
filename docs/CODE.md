@@ -10,7 +10,8 @@ File by file, function by function. Line-level details change; the shapes below 
 
 `main(argv=None)`: argparse with subcommands.
 
-- `serve` (default): `--host`, `--port`, `--journals`, `-v`. Sets `config.JOURNAL_DIR` if `--journals` given, configures logging to stderr, builds `Core()` and calls `start()`.
+- `serve` (default): `--host`, `--port`, `--journals`, `-v`, `--open-browser`. Sets `config.JOURNAL_DIR` if `--journals` given, configures logging to stderr, builds `Core()` and calls `start(open_browser=...)`.
+- `--open-browser` is a top-level flag and is also accepted after `serve` (the subcommand copy uses `default=argparse.SUPPRESS` so it does not reset the top-level value). `scripts/serve-loop.cmd` runs `serve --open-browser ARGS` on its first run and `serve ARGS` after, so a restart does not open a second tab; `start.sh` inserts `serve` when its first argument is an option and drops `--open-browser` after its first run, keeping every other argument as given. `--settings` is also accepted after `serve` for that reason.
 - `mcp`: runs `elitelab.mcp.serve()` (stdio JSON-RPC).
 - `modules`: prints `loader.resolve_order(loader.discover())` without starting anything.
 - `tools`: prints the tool list from a running lab (`mcp._tools()`).
@@ -18,12 +19,18 @@ File by file, function by function. Line-level details change; the shapes below 
 
 ## elitelab/core/config.py
 
-Module-level constants read from environment at import time. Tests override `config.JOURNAL_DIR` etc. after import, which works because every consumer reads `config.X` at call time, not at import.
+Module-level constants read at import time. Precedence for `host`, `port`, `journal_dir`, `data_dir` and `browser`: command line flag (set by `__main__`), then the `ELITELAB_*` environment variable, then the settings file, then the default; an empty or invalid value is skipped. `save_settings(changes, path)` merges under a lock, writes through a temp file that is flushed and fsynced before `os.replace`, and keeps an unparseable file as `<path>.bad`; `valid_host(host)` is the IPv4-or-host-name check shared with the setup module. Tests override `config.JOURNAL_DIR` etc. after import, which works because every consumer reads `config.X` at call time, not at import.
 
 | Name | Env | Default |
 |---|---|---|
 | `ROOT` | | repo root (two levels up from this file) |
-| `HOST`, `PORT` | `ELITELAB_HOST`, `ELITELAB_PORT` | `127.0.0.1`, `8766` |
+| `SETTINGS_PATH` | `ELITELAB_SETTINGS` (or `--settings`) | `%APPDATA%\EliteLab\settings.json` on Windows, else `$XDG_CONFIG_HOME/elitelab/settings.json` (`~/.config/...`) |
+| `SETTINGS` | | the settings file as loaded at import (`{}` when missing or unparseable) |
+| `SOURCES` | | setting name -> `"flag"`, `"env"`, `"file"` or `"default"`, for `host`, `port`, `journal_dir`, `data_dir`, `browser` |
+| `HOST`, `PORT` | `ELITELAB_HOST`, `ELITELAB_PORT` | `127.0.0.1`, `8766`; an invalid host (not IPv4 or a host name) or port falls back with a warning |
+| `ALLOWED_HOSTS` | `ELITELAB_ALLOWED_HOSTS` | empty set; lower-cased extra names the mutation Host rule accepts |
+| `BROWSER` | `ELITELAB_BROWSER` | `""`; reserved for the launcher, read-only on the setup page |
+| `RESTART_EXIT_CODE` | | `75`; `start()` returns it after `request_restart()` and the start scripts loop on it |
 | `JOURNAL_DIR` | `ELITELAB_JOURNAL_DIR` | `/journals` if it exists, else `~/Saved Games/Frontier Developments/Elite Dangerous` |
 | `WEB_DIR`, `MODULES_DIR`, `DATA_DIR` | `ELITELAB_WEB_DIR`, `ELITELAB_MODULES_DIR`, `ELITELAB_DATA_DIR` | `web/`, `modules/`, `data/` under ROOT |
 | `USER_AGENT` | | sent to Spansh/EDSM |
@@ -32,6 +39,10 @@ Module-level constants read from environment at import time. Tests override `con
 | `POLL_SECONDS` | `ELITELAB_POLL_SECONDS` | 1.0 s journal tail interval |
 | `DISABLED_MODULES` | `ELITELAB_DISABLE` | comma list |
 | `OFFLINE` | `ELITELAB_OFFLINE` | truthy = `Services.fetch_json` raises instead of calling out |
+
+## elitelab/core/journals.py
+
+`candidates(home, platform, extra)` lists likely journal folders (saved, Windows, Steam Proton, Mac) with `exists`, `journals` and `newest`, de-duplicated by real path; `steam_libraries(home)` reads Steam roots and `libraryfolders.vdf`; `describe(path)` counts journals. Pure: it reads only under the paths it is given. `config._default_journal_dir(platform=None)` uses it with `platform` defaulting to `os.name` (tests pin it).
 
 ## elitelab/core/gamedata.py
 
@@ -99,7 +110,9 @@ Constants: `STARPORT_TYPES` (Coriolis, Orbis, Ocellus, Asteroid base, Planetary 
   - `_dispatch(method)`: percent-decodes the path; for POST reads the body first (always, so keep-alive connections stay in sync even on a 404; bodies over `MAX_BODY` = 1 MB are rejected with 400); `/events` -> SSE; else exact route match on `(method, path)`; handler is called as `fn(q)` where `q` is the query dict merged with the JSON body for POST (body wins). `ValueError` -> 400, other exceptions -> 500 with `{"error"}` and a logged traceback. Unknown `/api/*` -> 404. Everything else is static: mounted prefixes first, then `config.WEB_DIR`. `_static` normalises the path and refuses anything outside the directory (404).
   - No CORS headers, deliberately: the API has no auth, so a third-party page in the user's browser must not be able to read state or POST a wishlist. Same-origin dashboard, MCP and CLI are unaffected.
   - `_sse()`: writes `event: snapshot` with the full store, then one `event: state` per change `{ns, key, value, v}`, and a `: ping` comment every 15 s. The per-client queue holds 1000 messages and drops on overflow; the browser detects the gap in `v` and refetches `/api/state`. Subscription is removed in `finally` when the client disconnects. `protocol_version = HTTP/1.1` so keep-alive works.
-- `HttpServer(core).serve(host, port)`: `ThreadingHTTPServer` with daemon threads.
+- Setup peer check (before `_check_mutation`): without `config.AUTH_TOKEN`, a POST to a path in `LOCAL_ONLY_POSTS` (`/api/setup`, `/api/setup/journals`, `/api/restart`) from a peer for which `is_loopback_peer(client_address[0])` is false (loopback, or IPv4-mapped loopback) gets 403 "Setup changes require a local connection or configured authentication." and the connection is closed. Other routes are not affected.
+- `_check_mutation()` (every POST): without `config.AUTH_TOKEN`, `host_name()` strips the port (and IPv6 brackets) from the Host header and `host_allowed()` accepts IP literals, `localhost`, the bind host, `machine_name()` (`socket.gethostname()` lower-cased, cached on first use; no DNS lookups) and `config.ALLOWED_HOSTS`; otherwise 403. Then the Origin / `Sec-Fetch-Site` and JSON content-type checks. A GET of a mount prefix without its slash (`/setup`) redirects (302) to the slash.
+- `HttpServer(core).bind(host, port)` creates the `ThreadingHTTPServer` (daemon threads); `.serve()` runs it; `.stop()` before `serve()` is remembered.
 
 ## elitelab/core/loader.py
 
@@ -123,7 +136,7 @@ Constants: `STARPORT_TYPES` (Coriolis, Orbis, Ocellus, Asteroid base, Planetary 
 
 Built-in routes (`module="core"`): `/api/health` (`health`), `/api/state` (`get_state`), `/api/modules` (`list_modules`), `/api/schema` (`list_tools`), `/api/events` (`get_recent_events`, params `limit` <= 200, `event`). `_remember_event` keeps a ring of the last 500 journal events for `/api/events`.
 
-`start(host, port)`: `load_all`, start watcher thread, print banner, serve forever; stops the watcher on exit.
+`start(host, port, *, open_browser=False)`: `load_all`, start watcher thread, bind, print banner (with the port the socket really got, which matters for port 0), serve forever; with `open_browser`, after a successful bind it opens `http://HOST:PORT/` with `webbrowser.open` on a 0.1 s daemon timer (`127.0.0.1` when HOST is `0.0.0.0`), never after a failed bind, and the timer is cancelled when `start()` leaves (a stop requested before the bind makes `serve()` return at once, so it would otherwise open a closing server); stops the watcher on exit and returns `config.RESTART_EXIT_CODE` (75) if `request_restart()` was called, else 0. `request_restart()` marks a restart and stops the server; a request made before the server is bound is kept, not lost.
 
 ## elitelab/mcp.py
 
@@ -258,6 +271,10 @@ Routes: `/api/build` -> `get_build_progress`; `POST /api/build/pin` -> `pin_buil
 In the running server a daemon worker scans the archive and checks the pin every five minutes (or on a new pin). Network calls use the shared service cache and run outside bus handlers. `refresh()` rejects mismatched IDs, invalid timestamps and reports older than the current observation. A lock serializes refreshes; a selection generation prevents an in-flight response from restoring an old pin. Offline mode uses local observations only. The card retains ID `carrier` for saved layouts, displays owner data when unpinned, and contributes its own `pinned-carrier` map layer.
 
 Routes: `get_followed_carrier`, `pin_fleet_carrier`, `unpin_fleet_carrier`, `refresh_followed_carrier`.
+
+## modules/setup/module.py
+
+First-run setup. `get_setup` (`GET /api/setup`), `save_setup` (`POST /api/setup`), `inspect_journal_folder` (`POST /api/setup/journals`, the page's Test button) and `restart_elitelab` (`POST /api/restart`), the `setup` store namespace (see docs/STATE.md), and the page in `modules/setup/web/page/` mounted at `/setup/`. Saving writes only the settings file; `browser` cannot be saved here. `save` refuses an IPv6 host, a port in use and an address the lab could not listen on (a throwaway bind; on the running port only the address is checked, since this lab holds the port), turns a failed write into a `ValueError` naming the file, and warns when an environment variable or flag will override a saved value and, when the port changes, that `ELITELAB_URL` (the MCP proxy's address) does not follow it. The launchers need no warning: they let the server open the URL it bound.
 
 ## modules/map/module.py
 
