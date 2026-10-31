@@ -61,7 +61,8 @@ class JournalCandidates(unittest.TestCase):
         root = os.path.join(self.home, ".steam", "steam")
         os.makedirs(os.path.join(root, "steamapps"))
         shutil.copy(VDF, os.path.join(root, "steamapps", "libraryfolders.vdf"))
-        self.assertIn("/mnt/games", journals.steam_libraries(self.home))
+        # paths come back normalised: \\mnt\\games on Windows (normpath keeps it drive-less), /mnt/games elsewhere
+        self.assertIn(os.path.normpath("/mnt/games"), journals.steam_libraries(self.home))
         paths = [c["path"] for c in journals.candidates(self.home, platform="posix")]
         self.assertIn(os.path.normpath(os.path.join("/mnt/games", TAIL)), paths)
 
@@ -115,16 +116,40 @@ class JournalCandidates(unittest.TestCase):
                          {"exists": False, "journals": 0, "newest": None})
         self.assertEqual(journals.describe(self.home), {"exists": True, "journals": 0, "newest": None})
 
+    def fake_expanduser(self, p):
+        # only a leading ~: Windows temp folders can be 8.3 short names such as C:\\Users\\RUNNER~1
+        return self.home + p[1:] if p.startswith("~") else p
+
+    def home_default(self, platform):
+        with mock.patch.object(config.os.path, "expanduser", self.fake_expanduser):
+            return config._default_journal_dir(platform=platform)
+
     @unittest.skipIf(os.path.isdir("/journals"), "Docker folder present on this host")
     def test_default_journal_dir_prefers_existing_with_journals(self):
+        # Steam Proton folders are listed on Linux and macOS only, so pin the platform: CI runs this on Windows too
         proton = os.path.join(self.home, ".local", "share", "Steam", TAIL)
         touch(proton, "Journal.2026-10-30T100000.01.log")
-        with mock.patch.object(config.os.path, "expanduser", lambda p: p.replace("~", self.home, 1)):
-            self.assertEqual(config._default_journal_dir(), proton)
+        self.assertEqual(self.home_default("posix"), proton)
+
+    @unittest.skipIf(os.path.isdir("/journals"), "Docker folder present on this host")
+    def test_default_journal_dir_on_windows_prefers_saved_games_with_journals(self):
+        saved = os.path.join(self.home, "Saved Games", "Frontier Developments", "Elite Dangerous")
+        touch(saved, "Journal.2026-10-30T100000.01.log")
+        self.assertEqual(self.home_default("nt"), saved)
+        proton = os.path.join(self.home, ".local", "share", "Steam", TAIL)
+        touch(proton, "Journal.2026-10-30T100000.01.log")
+        self.assertEqual(self.home_default("nt"), saved)    # both hold journals: Windows lists Saved Games first
+        self.assertEqual(self.home_default("posix"), proton)
+
+    def test_default_journal_dir_uses_this_platform_by_default(self):
+        with mock.patch.object(journals, "candidates", return_value=[]) as cands, \
+                mock.patch.object(config.os.path, "isdir", return_value=False):
+            config._default_journal_dir()
+        self.assertEqual(cands.call_args.kwargs.get("platform"), os.name)
 
     @unittest.skipIf(os.path.isdir("/journals"), "Docker folder present on this host")
     def test_default_journal_dir_falls_back_to_saved_games(self):
-        with mock.patch.object(config.os.path, "expanduser", lambda p: p.replace("~", self.home, 1)):
+        with mock.patch.object(config.os.path, "expanduser", self.fake_expanduser):
             self.assertEqual(config._default_journal_dir(),
                              os.path.join(self.home, "Saved Games", "Frontier Developments", "Elite Dangerous"))
 

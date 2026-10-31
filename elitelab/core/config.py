@@ -108,12 +108,13 @@ def _host(value) -> str:
     return value
 
 
-def _default_journal_dir() -> str:
-    """Docker folder, else the first detected folder with journals, else one that exists, else the Windows path."""
+def _default_journal_dir(platform=None) -> str:
+    """Docker folder, else the first detected folder with journals, else one that exists, else the Windows path.
+    platform defaults to os.name; tests pin it, since Steam Proton folders are listed only off Windows."""
     if os.path.isdir("/journals"):          # Docker convention
         return "/journals"
     home = os.path.expanduser("~")
-    found = journals.candidates(home)
+    found = journals.candidates(home, platform=platform or os.name)
     for want in (lambda c: c["journals"] > 0, lambda c: c["exists"]):
         for c in found:
             if want(c):

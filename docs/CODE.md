@@ -42,7 +42,7 @@ Module-level constants read at import time. Precedence for `host`, `port`, `jour
 
 ## elitelab/core/journals.py
 
-`candidates(home, platform, extra)` lists likely journal folders (saved, Windows, Steam Proton, Mac) with `exists`, `journals` and `newest`, de-duplicated by real path; `steam_libraries(home)` reads Steam roots and `libraryfolders.vdf`; `describe(path)` counts journals. Pure: it reads only under the paths it is given. `config._default_journal_dir()` uses it.
+`candidates(home, platform, extra)` lists likely journal folders (saved, Windows, Steam Proton, Mac) with `exists`, `journals` and `newest`, de-duplicated by real path; `steam_libraries(home)` reads Steam roots and `libraryfolders.vdf`; `describe(path)` counts journals. Pure: it reads only under the paths it is given. `config._default_journal_dir(platform=None)` uses it with `platform` defaulting to `os.name` (tests pin it).
 
 ## elitelab/core/gamedata.py
 
