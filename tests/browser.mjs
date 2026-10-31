@@ -91,7 +91,7 @@ try {
   await evaluate("document.querySelector('[name=port]').value='8799';document.querySelector('[data-setup-form]').requestSubmit();true");
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!document.querySelector('[data-restart]').hidden"))break;}
   const setupSaved=await evaluate("({restartVisible:!document.querySelector('[data-restart]').hidden,status:document.querySelector('[data-status]').textContent})");
-  assert.ok(setupSaved.restartVisible); assert.match(setupSaved.status,/restart/i); assert.match(setupSaved.status,/still point at port \d+/);
+  assert.ok(setupSaved.restartVisible); assert.match(setupSaved.status,/restart/i); assert.match(setupSaved.status,/ELITELAB_URL .*set it to port 8799\b/); assert.doesNotMatch(setupSaved.status,/launcher/i);
   assert.deepEqual(JSON.parse(fs.readFileSync(settingsFile,'utf8')),{port:8799});
   const results={bannerProbe,setupPage,precedence,restartWait,journalTest,setupSaved,desktop:before,inputAfter,engineeringCards,mobile,crossOrigin,wishlistAfter,browserExceptions:errors};
   assert.equal(inputAfter.name,'arsenic'); assert.equal(inputAfter.qty,'5'); assert.equal(inputAfter.focus,'mat-q'); assert.equal(mobile.bodyWidth,390); assert.equal(wishlistAfter.wishlist[0].need,10); assert.deepEqual(errors,[]); assert.deepEqual(before.renderErrors,[]);console.log(JSON.stringify(results,null,2));
