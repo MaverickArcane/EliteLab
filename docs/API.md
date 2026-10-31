@@ -294,3 +294,25 @@ Galactic coordinates for one or more systems (EDSM).
 | Parameter | Type | Description |
 |---|---|---|
 | `names` | string | System names separated by | (**required**) |
+
+## Setup
+
+### get_setup
+
+`GET /api/setup`. Returns effective `values`, their `sources`, the settings file
+`path`, journal candidates, `journal_found`, saved `pending` changes and
+`restart_required`. Values remain those of the running process until restart.
+
+### save_setup
+
+`POST /api/setup`. Accepts changed `journal_dir`, `port`, `host`, `data_dir` and
+`browser` fields. Writes only changes, preserves unknown file keys and reserved
+connections, and returns status with `saved` and `warnings`. Nothing applies live.
+Environment variables and CLI flags continue to override saved settings.
+HTTP save and restart requests require a loopback peer unless token authentication
+is configured. Existing authentication checks still apply.
+
+### restart_elitelab
+
+`POST /api/restart`. Requests exit status 75 after replying. Start scripts restart
+on this status; a direct Python launch or external supervisor must restart it.

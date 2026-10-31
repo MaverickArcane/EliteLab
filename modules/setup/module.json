@@ -1,0 +1,1 @@
+{"name":"setup","version":"1.0.0","description":"First-run settings and journal folder detection.","requires":[],"provides":["setup"],"order":5,"cards":[]}

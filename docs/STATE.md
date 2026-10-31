@@ -189,3 +189,10 @@ Recomputed on `state.journal.star_pos` (distances) and `state.wishlist.needs` (`
 - `farming_ui` (client-only): `{systems{site id: 'loading' | find_hge_systems result | {error}}}`.
 - `localStorage.layouts.v1`: `{name: layout}` saved layouts.
 - `localStorage.loopManual`: see loop.
+
+## setup (module: setup)
+
+`journal_found` reports whether the configured folder contains journal files,
+independently of replay progress. `journal_dir` is the running folder;
+`settings_path` identifies the settings file. `restart_required` indicates saved
+changes that differ from this process. Saving never replaces live journal state.

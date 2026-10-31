@@ -55,3 +55,12 @@ For a manual check, enable the Fleet carrier card in Layout, pin a previously vi
 2. `python -m elitelab call get_commander_state` while the game is running and confirm the ship, system and cargo match the HUD.
 3. `docker compose up --build` and hit `/api/health`.
 4. In Claude Code, open the repo folder and ask for `get_powerplay_status`.
+
+## Setup tests
+
+`test_settings.py` checks precedence, malformed files and atomic merges;
+`test_journals.py` uses fabricated Windows, Steam/Proton and Mac folder trees.
+`test_restart.py` checks cooperative exit status 75 and launcher behavior.
+`test_setup.py` covers validation, pending settings, tool metadata and static pages.
+The browser harness checks the setup form and escaped missing-journal banner.
+Settings tests use temporary files, never the developer's settings file.

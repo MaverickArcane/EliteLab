@@ -2,6 +2,7 @@
 Server-Sent Events for live state, and static files for the shell and modules.
 """
 import json
+import ipaddress
 import hashlib
 import hmac
 import secrets
@@ -155,6 +156,11 @@ def make_handler(core):
                     self.close_connection = True
                     return self._send(401, {"error": "authentication required"})
                 if method == "POST":
+                    if path in ('/api/setup', '/api/restart') and not config.AUTH_TOKEN:
+                        peer = ipaddress.ip_address(self.client_address[0])
+                        if not (peer.is_loopback or getattr(peer, 'ipv4_mapped', None) and peer.ipv4_mapped.is_loopback):
+                            self.close_connection = True
+                            return self._send(403, {'error': 'Setup changes require a local connection or configured authentication.'})
                     error = self._check_mutation()
                     if error:
                         self.close_connection = True  # rejected body has not been consumed
@@ -236,9 +242,13 @@ class HttpServer:
         self.core = core
         self.srv = None
 
-    def serve(self, host, port):
+    def bind(self, host, port):
         self.srv = ThreadingHTTPServer((host, port), make_handler(self.core))
         self.srv.daemon_threads = True
+
+    def serve(self, host, port):
+        if self.srv is None:
+            self.bind(host, port)
         try:
             self.srv.serve_forever()
         finally:

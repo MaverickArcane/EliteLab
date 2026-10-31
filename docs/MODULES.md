@@ -94,3 +94,6 @@ python -m elitelab call get_mining_status
 ```
 
 Disable a module without deleting it: `ELITELAB_DISABLE=mining`.
+
+Modules may declare `cards: []` and mount additional static pages with
+`core.http.mount(prefix, directory)`, as the setup module does for `/setup/`.

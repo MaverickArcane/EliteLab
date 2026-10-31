@@ -158,3 +158,11 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 
 @media (max-width: 760px) { main { padding: 12px 14px; gap: 10px; } .map-wrap { height: 380px; } .pill { margin-left: 0; } .card .resize, .card h2 .grip { display: none; } header { gap: 8px 16px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+.setup { max-width:720px; margin:32px auto; padding:0 16px; }
+.setup section { margin:24px 0; }
+.setup label { display:block; margin:12px 0 4px; }
+.setup input:not([type=radio]) { display:block; width:100%; box-sizing:border-box; }
+.setup li { overflow-wrap:anywhere; }
+.setup small { color:var(--muted); }
+.journal-warning a { color:inherit; text-decoration:underline; }

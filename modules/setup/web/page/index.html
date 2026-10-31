@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EliteLab setup</title><link rel="stylesheet" href="/style.css"><script src="/setup/setup.js" defer></script></head>
+<body><main class="setup"><h1>EliteLab setup</h1><p>Choose your journal folder and server settings. Changes take effect after restart.</p>
+<form data-setup-form><section><h2>Journals</h2><ul data-candidates></ul><label>Journal folder<input name="journal_dir" required></label><small data-source="journal_dir"></small></section>
+<section><h2>Server</h2><label>Port<input name="port" type="number" min="1024" max="65535" required></label><small data-source="port"></small><label>Data folder<input name="data_dir" required></label><small data-source="data_dir"></small></section>
+<section><h2>Connections</h2><p>Nothing to connect yet. Inara and other services will appear here.</p></section>
+<button type="submit">Save</button></form><button data-restart hidden>Restart EliteLab</button><p data-status role="status"></p><a data-dashboard href="/">Open dashboard</a></main></body></html>

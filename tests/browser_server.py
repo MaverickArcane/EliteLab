@@ -5,6 +5,7 @@ sys.path.insert(0, str(ROOT))
 os.environ['ELITELAB_OFFLINE'] = '1'
 os.environ['ELITELAB_JOURNAL_DIR'] = str(ROOT / 'tests' / 'fixtures' / 'journals')
 os.environ['ELITELAB_DATA_DIR'] = tempfile.mkdtemp(prefix='elitelab-browser-data-')
+os.environ['ELITELAB_SETTINGS'] = os.path.join(os.environ['ELITELAB_DATA_DIR'], 'settings.json')
 from elitelab.core import Core, loader
 from elitelab.core.http import make_handler
 from http.server import ThreadingHTTPServer
