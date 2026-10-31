@@ -2,6 +2,7 @@
 
     python -m elitelab                 serve the dashboard + API (default)
     python -m elitelab serve --port 8766 --journals DIR
+    python -m elitelab serve --open-browser   also open the dashboard once the server is listening
     python -m elitelab mcp             run the MCP stdio server (proxies a running lab)
     python -m elitelab modules         list discovered modules and their dependency order
     python -m elitelab tools           list AI tools exposed by a running lab
@@ -17,9 +18,12 @@ import sys
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="elitelab", description="Self-hosted live dashboard for Elite Dangerous")
     ap.add_argument("--settings", help="settings file to use (sets ELITELAB_SETTINGS)")
+    ap.add_argument("--open-browser", action="store_true", help="open the dashboard in the browser once the server is listening")
     sub = ap.add_subparsers(dest="cmd")
     s = sub.add_parser("serve", help="run the server (default)")
     s.add_argument("--host"); s.add_argument("--port", type=int); s.add_argument("--journals"); s.add_argument("-v", "--verbose", action="store_true")
+    s.add_argument("--open-browser", action="store_true", default=argparse.SUPPRESS,   # also accepted after serve
+                   help="open the dashboard in the browser once the server is listening")
     sub.add_parser("mcp", help="MCP stdio server")
     sub.add_parser("modules", help="list modules")
     sub.add_parser("tools", help="list AI tools on a running lab")
@@ -68,7 +72,7 @@ def main(argv=None):
     if getattr(args, "port", None) is not None:
         config.PORT = args.port
         config.SOURCES["port"] = "flag"
-    return Core().start(getattr(args, "host", None), getattr(args, "port", None))
+    return Core().start(getattr(args, "host", None), getattr(args, "port", None), open_browser=args.open_browser)
 
 
 if __name__ == "__main__":

@@ -88,6 +88,79 @@ class StartReturnTests(_TmpMixin, unittest.TestCase):
         self.assertNotIn("listening on", out.getvalue())
 
 
+class OpenBrowserTests(_TmpMixin, unittest.TestCase):
+    def _serve(self, host, **kw):
+        tmp = self._tmp()
+        out = io.StringIO()
+        result = {}
+
+        def serve():
+            with contextlib.redirect_stdout(out):
+                result.update(rc=core.start(host, 0, **kw))
+        with mock.patch.object(config, "DATA_DIR", tmp), mock.patch("webbrowser.open") as opened:
+            core = Core()
+            t = threading.Thread(target=serve, daemon=True)
+            t.start()
+            deadline = time.time() + 5
+            while time.time() < deadline and not core.ready:
+                time.sleep(0.02)
+            self.assertTrue(core.ready)
+            port = core._server.srv.server_port
+            deadline = time.time() + 2
+            while time.time() < deadline and not opened.called and kw.get("open_browser"):
+                time.sleep(0.02)
+            time.sleep(0.3)                     # a second call, if any, would land in this window
+            core._server.stop()
+            t.join(5)
+            self.assertFalse(t.is_alive(), "start() did not return")
+        return opened, port, out.getvalue()
+
+    def test_open_browser_opens_the_bound_port_once(self):
+        opened, port, out = self._serve("127.0.0.1", open_browser=True)
+        opened.assert_called_once_with(f"http://127.0.0.1:{port}/")
+        self.assertIn(f"listening on http://127.0.0.1:{port}", out)
+
+    def test_open_browser_on_all_interfaces_opens_loopback(self):
+        opened, port, _ = self._serve("0.0.0.0", open_browser=True)
+        opened.assert_called_once_with(f"http://127.0.0.1:{port}/")
+
+    def test_no_browser_without_the_flag(self):
+        opened, _, _ = self._serve("127.0.0.1")
+        opened.assert_not_called()
+
+    def test_failed_bind_never_opens_the_browser(self):
+        tmp = self._tmp()
+        busy = socket.socket()
+        busy.bind(("127.0.0.1", 0))
+        busy.listen()
+        self.addCleanup(busy.close)
+        with mock.patch.object(config, "DATA_DIR", tmp), mock.patch("webbrowser.open") as opened:
+            core = Core()
+            with contextlib.redirect_stdout(io.StringIO()):
+                rc = core.start("127.0.0.1", busy.getsockname()[1], open_browser=True)
+            time.sleep(0.3)
+        self.assertNotIn(rc, (0, config.RESTART_EXIT_CODE))
+        opened.assert_not_called()
+
+
+class MainOpenBrowserFlagTests(unittest.TestCase):
+    def _flag(self, argv):
+        from elitelab.__main__ import main
+        with mock.patch.object(Core, "start", return_value=0) as start, mock.patch("logging.basicConfig"), \
+                mock.patch.dict(config.SOURCES), mock.patch.object(config, "HOST", config.HOST), \
+                mock.patch.object(config, "PORT", config.PORT), mock.patch.object(config, "JOURNAL_DIR", config.JOURNAL_DIR):
+            self.assertEqual(main(argv), 0)
+        start.assert_called_once()
+        return start.call_args.kwargs.get("open_browser")
+
+    def test_open_browser_flag_before_and_after_serve(self):
+        self.assertIs(self._flag(["--open-browser"]), True)
+        self.assertIs(self._flag(["--open-browser", "serve"]), True)
+        self.assertIs(self._flag(["serve", "--open-browser"]), True)
+        self.assertIs(self._flag(["serve"]), False)
+        self.assertIs(self._flag([]), False)
+
+
 class MainSettingsTests(_TmpMixin, unittest.TestCase):
     def test_main_settings_flag_sets_env_before_import(self):
         tmp = self._tmp()
@@ -113,8 +186,19 @@ class LauncherTests(unittest.TestCase):
         with open(os.path.join(ROOT, "Start EliteLab.cmd"), encoding="ascii") as f:
             text = f.read()
         self.assertIn('cd /d "%~dp0"', text)
-        self.assertIn("cmd /c scripts\\serve-loop.cmd", text)
+        self.assertIn("cmd /c \"scripts\\serve-loop.cmd %* & pause\"", text)
         self.assertNotIn("%~dp0scripts", text)
+
+    def test_windows_launcher_lets_the_server_open_the_browser(self):
+        # the server opens its real URL after a successful bind; the launcher must not guess a port or race the bind
+        with open(os.path.join(ROOT, "Start EliteLab.cmd"), encoding="ascii") as f:
+            text = f.read().lower()
+        for stale in ("8766", "timeout", "http://"):
+            self.assertNotIn(stale, text)
+        with open(os.path.join(ROOT, "scripts", "serve-loop.cmd"), "rb") as f:
+            loop = f.read()
+        self.assertIn(b"--open-browser", loop)
+        self.assertNotIn(b"\n", loop.replace(b"\r\n", b""), "serve-loop.cmd must keep CRLF line endings")
 
 @unittest.skipUnless(os.name == "posix", "start.sh is a POSIX shell script")
 class StartShTests(_TmpMixin, unittest.TestCase):

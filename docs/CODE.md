@@ -10,7 +10,8 @@ File by file, function by function. Line-level details change; the shapes below 
 
 `main(argv=None)`: argparse with subcommands.
 
-- `serve` (default): `--host`, `--port`, `--journals`, `-v`. Sets `config.JOURNAL_DIR` if `--journals` given, configures logging to stderr, builds `Core()` and calls `start()`.
+- `serve` (default): `--host`, `--port`, `--journals`, `-v`, `--open-browser`. Sets `config.JOURNAL_DIR` if `--journals` given, configures logging to stderr, builds `Core()` and calls `start(open_browser=...)`.
+- `--open-browser` is a top-level flag and is also accepted after `serve` (the subcommand copy uses `default=argparse.SUPPRESS` so it does not reset the top-level value). `scripts/serve-loop.cmd` passes it on its first run only, so a restart does not open a second tab.
 - `mcp`: runs `elitelab.mcp.serve()` (stdio JSON-RPC).
 - `modules`: prints `loader.resolve_order(loader.discover())` without starting anything.
 - `tools`: prints the tool list from a running lab (`mcp._tools()`).
@@ -134,7 +135,7 @@ Constants: `STARPORT_TYPES` (Coriolis, Orbis, Ocellus, Asteroid base, Planetary 
 
 Built-in routes (`module="core"`): `/api/health` (`health`), `/api/state` (`get_state`), `/api/modules` (`list_modules`), `/api/schema` (`list_tools`), `/api/events` (`get_recent_events`, params `limit` <= 200, `event`). `_remember_event` keeps a ring of the last 500 journal events for `/api/events`.
 
-`start(host, port)`: `load_all`, start watcher thread, print banner, serve forever; stops the watcher on exit and returns `config.RESTART_EXIT_CODE` (75) if `request_restart()` was called, else 0. `request_restart()` marks a restart and stops the server; a request made before the server is bound is kept, not lost.
+`start(host, port, *, open_browser=False)`: `load_all`, start watcher thread, bind, print banner (with the port the socket really got, which matters for port 0), serve forever; with `open_browser`, after a successful bind it opens `http://HOST:PORT/` with `webbrowser.open` on a 0.1 s daemon timer (`127.0.0.1` when HOST is `0.0.0.0`), and never after a failed bind; stops the watcher on exit and returns `config.RESTART_EXIT_CODE` (75) if `request_restart()` was called, else 0. `request_restart()` marks a restart and stops the server; a request made before the server is bound is kept, not lost.
 
 ## elitelab/mcp.py
 
@@ -272,7 +273,7 @@ Routes: `get_followed_carrier`, `pin_fleet_carrier`, `unpin_fleet_carrier`, `ref
 
 ## modules/setup/module.py
 
-First-run setup. `get_setup` (`GET /api/setup`), `save_setup` (`POST /api/setup`), `inspect_journal_folder` (`POST /api/setup/journals`, the page's Test button) and `restart_elitelab` (`POST /api/restart`), the `setup` store namespace (see docs/STATE.md), and the page in `modules/setup/web/page/` mounted at `/setup/`. Saving writes only the settings file; `browser` cannot be saved here. `save` refuses an IPv6 host, a port in use and an address the lab could not listen on (a throwaway bind; on the running port only the address is checked, since this lab holds the port), turns a failed write into a `ValueError` naming the file, and warns when an environment variable or flag will override a saved value and when the port changes away from the launcher and `ELITELAB_URL`.
+First-run setup. `get_setup` (`GET /api/setup`), `save_setup` (`POST /api/setup`), `inspect_journal_folder` (`POST /api/setup/journals`, the page's Test button) and `restart_elitelab` (`POST /api/restart`), the `setup` store namespace (see docs/STATE.md), and the page in `modules/setup/web/page/` mounted at `/setup/`. Saving writes only the settings file; `browser` cannot be saved here. `save` refuses an IPv6 host, a port in use and an address the lab could not listen on (a throwaway bind; on the running port only the address is checked, since this lab holds the port), turns a failed write into a `ValueError` naming the file, and warns when an environment variable or flag will override a saved value and, when the port changes, that `ELITELAB_URL` (the MCP proxy's address) does not follow it. The launchers need no warning: they let the server open the URL it bound.
 
 ## modules/map/module.py
 

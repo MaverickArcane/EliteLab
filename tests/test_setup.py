@@ -99,17 +99,19 @@ class SetupTests(unittest.TestCase):
             r = self.call("save_setup", journal_dir=self.tmp + "/other")
         self.assertIn("The --journals flag is set, so this value will not apply until it is removed.", r["warnings"])
 
-    def test_port_change_warns_about_the_launcher(self):
+    def test_port_change_warns_about_elitelab_url_only(self):
+        # the launchers open the URL the server really bound, so only the MCP proxy's ELITELAB_URL can go stale
         r = self.call("save_setup", port=8767)
-        self.assertIn(f"The launcher and ELITELAB_URL still point at port {config.PORT}; update them if you use them.",
-                      r["warnings"])
+        self.assertIn("ELITELAB_URL (where the MCP proxy finds the lab, default http://127.0.0.1:8766) "
+                      "does not follow this change; set it to port 8767 if you use it.", r["warnings"])
+        self.assertFalse([w for w in r["warnings"] if "launcher" in w.lower()])
         r = self.call("save_setup", host="0.0.0.0")
-        self.assertFalse([w for w in r["warnings"] if "launcher" in w])
+        self.assertFalse([w for w in r["warnings"] if "ELITELAB_URL" in w])
 
-    def test_saving_the_running_port_does_not_warn_about_the_launcher(self):
+    def test_saving_the_running_port_does_not_warn_about_elitelab_url(self):
         self.call("save_setup", port=8767)
         r = self.call("save_setup", port=config.PORT)
-        self.assertFalse([w for w in r["warnings"] if "launcher" in w])
+        self.assertFalse([w for w in r["warnings"] if "ELITELAB_URL" in w])
 
     def test_unwritable_settings_file_is_a_plain_error(self):
         os.makedirs(self.path)                              # a folder where the file should be
@@ -422,7 +424,7 @@ class MainFlagTests(unittest.TestCase):
         from elitelab.core import Core, loader
         seen = {}
 
-        def fake_start(core, host=None, port=None):
+        def fake_start(core, host=None, port=None, *, open_browser=False):
             loader.load_all(core)
             seen["setup"] = core.http.tools["get_setup"].fn({})
             server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(core))

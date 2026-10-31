@@ -103,9 +103,18 @@ class Core:
         t.daemon = True
         t.start()
 
-    def start(self, host=None, port=None):
+    @staticmethod
+    def _open_browser(host, port):
+        import webbrowser
+        url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}/"
+        t = threading.Timer(0.1, webbrowser.open, (url,))
+        t.daemon = True
+        t.start()
+
+    def start(self, host=None, port=None, *, open_browser=False):
         """Serve until stopped. Returns RESTART_EXIT_CODE if a restart was requested, 1 if the address could not be
-        bound (after printing one line naming the host, port, their sources and the settings file), else 0."""
+        bound (after printing one line naming the host, port, their sources and the settings file), else 0.
+        With open_browser, the dashboard opens in the default browser only after a successful bind."""
         from .. import __version__
         load_all(self)
         self.watcher.start()
@@ -118,11 +127,14 @@ class Core:
                 print(f"EliteLab could not listen on {host}:{port} ({e.strerror or e}); host from {src['host']}, "
                       f"port from {src['port']}; settings file: {config.SETTINGS_PATH}")
                 return 1
+            port = self._server.srv.server_port          # the real port, also when 0 asked the OS to pick one
             print(f"EliteLab {__version__} listening on http://{host}:{port}")
             print(f"Journal dir: {config.JOURNAL_DIR}  (found: {bool(journal_files())})")
             print(f"Modules: {', '.join(self.modules) or 'none'}")
             print("Ctrl+C to stop.")
             self.ready = True
+            if open_browser:
+                self._open_browser(host, port)
             self._server.serve()
         except KeyboardInterrupt:
             pass

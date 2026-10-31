@@ -172,7 +172,9 @@ class Setup:
                 # on the running port this lab holds the socket itself, so only check that the address is usable
                 _check_listen(target["host"], 0 if target["port"] == config.PORT else target["port"])
         if "port" in changes and changes["port"] != config.PORT:
-            warnings.append(f"The launcher and ELITELAB_URL still point at port {config.PORT}; update them if you use them.")
+            # the launchers open the URL the server really bound; only the MCP proxy's address can go stale
+            warnings.append("ELITELAB_URL (where the MCP proxy finds the lab, default http://127.0.0.1:8766) "
+                            f"does not follow this change; set it to port {changes['port']} if you use it.")
         if changes:
             try:
                 config.save_settings(changes, config.SETTINGS_PATH)

@@ -61,7 +61,7 @@ cd EliteLab
 "Start EliteLab.cmd"
 ```
 
-That opens http://localhost:8766. The journal folder is found automatically: `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous` on Windows, and on Linux and macOS the Steam Proton prefix in any Steam library (Flatpak Steam included) or the Mac Application Support folder, whichever holds journals. Change it on the setup page if it picked the wrong one.
+The launcher runs the server with `--open-browser`, so the dashboard opens once the server is listening, at the address it really bound (http://localhost:8766 unless you changed the port). The journal folder is found automatically: `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous` on Windows, and on Linux and macOS the Steam Proton prefix in any Steam library (Flatpak Steam included) or the Mac Application Support folder, whichever holds journals. Change it on the setup page if it picked the wrong one.
 
 ### Docker
 
@@ -78,7 +78,7 @@ Journals are mounted read-only. Wishlists and the selected loop persist in a nam
 ./start.sh --journals "/path/to/Saved Games/Frontier Developments/Elite Dangerous"
 ```
 
-`--journals` is optional: without it the lab looks for a Steam Proton prefix and the Mac Application Support folder, and the setup page can save the folder for next time.
+`--journals` is optional: without it the lab looks for a Steam Proton prefix and the Mac Application Support folder, and the setup page can save the folder for next time. `./start.sh serve --open-browser` also opens the dashboard in your browser once the server is listening; without the flag, open http://localhost:8766 yourself.
 
 ### First run
 
