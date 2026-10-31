@@ -122,6 +122,8 @@ See docs/AI.md.
 
 Without `ELITELAB_AUTH_TOKEN`, the server answers a POST only when its Host header is an IP address, `localhost`, the bind host, this machine's own name, or a name in `ELITELAB_ALLOWED_HOSTS`; any other gets 403 with the variable to set. This holds on every bind, so a DNS-rebinding web page (which always needs a DNS name) cannot change anything, while opening the dashboard by IP or by the machine's name keeps working. Bind to `0.0.0.0` to open the dashboard from a tablet on your LAN; this machine's own name is its short host name, so if you reach it by any other name, such as `nas.local`, a fully qualified name or a Tailscale MagicDNS name, add that name to `ELITELAB_ALLOWED_HOSTS`. Inside Docker the container's own name is not the host's name, so reaching the container by the host's name needs `ELITELAB_ALLOWED_HOSTS`. Without a token there is no auth, so do not expose it to the internet.
 
+The setup changes (`POST /api/setup`, `/api/setup/journals` and `/api/restart`) go one step further: without `ELITELAB_AUTH_TOKEN` they are answered only when the connection itself comes from this machine (a loopback address); from any other address they get 403 "Setup changes require a local connection or configured authentication." A tablet on your LAN can still use the dashboard and its other actions, such as the wishlist, but changing settings from it needs a token. In Docker the browser's connection reaches the container from the bridge network, not loopback, so the setup page can only save there with `ELITELAB_AUTH_TOKEN` set (or edit the settings file and environment instead).
+
 ## How it is built
 
 ```

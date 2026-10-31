@@ -63,6 +63,17 @@ def host_allowed(name):
             or name == machine_name() or name in config.ALLOWED_HOSTS)
 
 MAX_BODY = 1_000_000      # bytes; the largest legitimate POST is a wishlist
+LOCAL_ONLY_POSTS = ("/api/setup", "/api/setup/journals", "/api/restart")   # without a token, loopback peers only
+
+
+def is_loopback_peer(address):
+    """True for a loopback peer address, including an IPv4-mapped one (::ffff:127.0.0.1)."""
+    try:
+        ip = ipaddress.ip_address(address.split("%", 1)[0])
+    except (ValueError, AttributeError):
+        return False
+    mapped = getattr(ip, "ipv4_mapped", None)
+    return ip.is_loopback or bool(mapped and mapped.is_loopback)
 
 
 class Route:
@@ -208,6 +219,10 @@ def make_handler(core):
                     self.close_connection = True
                     return self._send(401, {"error": "authentication required"})
                 if method == "POST":
+                    # defence in depth for the setup routes: a LAN client passes the Host rule with an IP literal
+                    if path in LOCAL_ONLY_POSTS and not config.AUTH_TOKEN and not is_loopback_peer(self.client_address[0]):
+                        self.close_connection = True  # rejected body has not been consumed
+                        return self._send(403, {"error": "Setup changes require a local connection or configured authentication."})
                     error = self._check_mutation()
                     if error:
                         self.close_connection = True  # rejected body has not been consumed

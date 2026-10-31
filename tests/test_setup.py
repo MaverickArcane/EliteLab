@@ -408,6 +408,82 @@ class HostCheckTests(unittest.TestCase):
         self.assertEqual(self.get_path("/setup/../module.py")[0], 404)
 
 
+class PeerCheckTests(unittest.TestCase):
+    """Without a token, POSTs to the setup routes must come from a loopback peer (defence in depth next to the Host
+    rule, which a LAN client passes by using an IP literal). Other routes are unchanged."""
+    SETUP_POSTS = ("/api/setup", "/api/setup/journals", "/api/restart")
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="elitelab-peer-")
+        self.path = os.path.join(self.tmp, "settings.json")
+        saved = dict(os.environ)
+        self.addCleanup(SetupTests._restore, self, saved)
+        os.environ["ELITELAB_SETTINGS"] = self.path
+        importlib.reload(config)
+        self.core = make_core()
+        self.core.request_restart = mock.Mock()            # an accepted /api/restart must not stop anything here
+
+    def serve(self, peer):
+        base = make_handler(self.core)
+
+        class PeerHandler(base):
+            def setup(self):
+                super().setup()
+                if peer:
+                    self.client_address = (peer, self.client_address[1])
+        server = ThreadingHTTPServer(("127.0.0.1", 0), PeerHandler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return server.server_address[1]
+
+    def post(self, port, path, body=b'{"port": 8767}', headers=None, method="POST"):
+        host = f"192.168.1.5:{port}"
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        hdrs = {"Host": host, "Origin": "http://" + host, "Content-Type": "application/json", **(headers or {})}
+        conn.request(method, path, body=body if method == "POST" else None, headers=hdrs)
+        r = conn.getresponse()
+        data = r.read()
+        conn.close()
+        return r.status, json.loads(data or b"null")
+
+    def test_setup_posts_from_a_lan_peer_are_refused_without_a_token(self):
+        port = self.serve("192.168.1.20")
+        for path in self.SETUP_POSTS:
+            body = json.dumps({"path": config.JOURNAL_DIR}).encode() if path.endswith("journals") else b'{"port": 8767}'
+            status, reply = self.post(port, path, body=body)
+            self.assertEqual(status, 403, path)
+            self.assertEqual(reply, {"error": "Setup changes require a local connection or configured authentication."})
+        self.assertFalse(os.path.exists(self.path))
+        self.core.request_restart.assert_not_called()
+
+    def test_lan_peer_with_a_valid_token_is_accepted(self):
+        port = self.serve("192.168.1.20")
+        with mock.patch.object(config, "AUTH_TOKEN", "s3cret"):
+            self.assertEqual(self.post(port, "/api/setup", headers={"Authorization": "Bearer s3cret"})[0], 200)
+            self.assertEqual(self.post(port, "/api/setup")[0], 401)
+        with open(self.path, encoding="utf-8") as f:
+            self.assertEqual(json.load(f), {"port": 8767})
+
+    def test_loopback_peers_are_accepted(self):
+        for peer in (None, "127.0.0.1", "127.0.0.2", "::1", "::ffff:127.0.0.1"):
+            port = self.serve(peer)
+            self.assertEqual(self.post(port, "/api/setup")[0], 200, peer)
+            status, reply = self.post(port, "/api/setup/journals", body=json.dumps({"path": config.JOURNAL_DIR}).encode())
+            self.assertEqual(status, 200, (peer, reply))
+            self.assertEqual(self.post(port, "/api/restart", body=b"{}")[0], 200, peer)
+
+    def test_ipv4_mapped_lan_peer_is_refused(self):
+        port = self.serve("::ffff:192.168.1.20")
+        self.assertEqual(self.post(port, "/api/setup")[0], 403)
+
+    def test_other_routes_from_a_lan_peer_are_unchanged(self):
+        port = self.serve("192.168.1.20")
+        status, reply = self.post(port, "/api/wishlist/remove", body=b'{"id": "no-such-entry"}')
+        self.assertEqual(status, 200, reply)
+        self.assertEqual(self.post(port, "/api/setup", method="GET")[0], 200)
+
+
 class MainFlagTests(unittest.TestCase):
     """serve --host/--port are written back to config before the Core starts, like --journals."""
 
