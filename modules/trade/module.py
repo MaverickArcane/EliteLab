@@ -102,18 +102,19 @@ class Trade:
                 while self.saved >= self.version:
                     self.changed.wait()
                 version, snapshot = self.version, copy.deepcopy(self.data)
+                # Reserve disk order before exposing the captured snapshot to a
+                # synchronous commit/flush. Release I/O before reacquiring lock.
+                self.io.acquire()
             try:
-                with self.io:
-                    self.core.write_data(snapshot, "trade.json")
+                self.core.write_data(snapshot, "trade.json")
             except Exception:
                 self.core.log.exception("Could not save the carrier ledger; it is retried on the next change")
+            finally:
+                self.io.release()
             with self.lock:
-                # A synchronous commit that landed during this write may now be
-                # older on disk than our snapshot; write the current ledger again.
-                overtaken = self.saved > version
+                # Synchronous writes cannot be overtaken now. Do not enqueue a
+                # repair after flush/close has already saved a newer version.
                 self.saved = max(self.saved, version)
-                if overtaken:
-                    self.version += 1
                 self.changed.notify_all()
 
     def flush(self):
