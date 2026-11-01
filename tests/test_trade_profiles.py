@@ -271,7 +271,11 @@ class RouteTests(unittest.TestCase):
         module = self.core.modules["trade"].instance
         with patch.object(module, "now", return_value="2026-10-22T10:04:30Z"):
             self.call("reconcile_carrier_stock", commodity="gold", stock=50)
-        second = Core(); loader.load_all(second); second.watcher.replay()
+        # Route tests enable mocked market calls, but a new Core must not launch
+        # unrelated live coordinate fetches while replaying this offline fixture.
+        with patch.object(config, "OFFLINE", True):
+            second = Core(); loader.load_all(second); second.watcher.replay()
+        self.addCleanup(second.close)
         self.assertEqual(second.store.get("trade", "inventory")["gold"]["stock"], 40)
 
 
