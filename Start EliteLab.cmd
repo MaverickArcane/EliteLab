@@ -1,7 +1,34 @@
 @echo off
+setlocal
 title EliteLab
 cd /d "%~dp0"
-rem The server opens the dashboard itself once it is listening, on the host and port it really bound.
-rem Relative path on purpose: cmd /c strips quotes around a path with parentheses; we are already in this folder.
-rem The quotes keep "& pause" inside the server window, so a startup error stays readable.
-start "EliteLab server" /min cmd /c "scripts\serve-loop.cmd %* & pause"
+if exist "runtime\python.exe" (
+    set "lab_python=runtime\python.exe"
+    call scripts\serve-loop.cmd %*
+    goto finished
+)
+python -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>&1
+if not errorlevel 1 (
+    set "lab_python=python"
+    call scripts\serve-loop.cmd %*
+    goto finished
+)
+py -3 -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>&1
+if not errorlevel 1 (
+    set "lab_python=py -3"
+    call scripts\serve-loop.cmd %*
+    goto finished
+)
+echo Python 3.10 or newer was not found.
+echo Download the EliteLab Windows bundle with Python included, then extract it fully.
+echo The GitHub source ZIP requires Python to be installed separately.
+pause
+exit /b 1
+
+:finished
+if errorlevel 1 (
+    echo.
+    echo EliteLab could not start. The error is shown above.
+    pause
+    exit /b 1
+)

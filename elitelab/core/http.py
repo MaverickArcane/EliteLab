@@ -3,6 +3,7 @@ Server-Sent Events for live state, and static files for the shell and modules.
 """
 import functools
 import json
+import logging
 import hashlib
 import hmac
 import ipaddress
@@ -12,9 +13,11 @@ from http.cookies import SimpleCookie
 import mimetypes
 import os
 import queue
+import socket
 import threading
 import time
 import urllib.parse
+import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import config
@@ -301,6 +304,17 @@ def _put(qu, msg):
         pass
 
 
+class ExclusiveHTTPServer(ThreadingHTTPServer):
+    """Never let a second Windows process take over a listening port."""
+    allow_reuse_address = os.name != "nt"
+    daemon_threads = True
+
+    def server_bind(self):
+        if os.name == "nt":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 class HttpServer:
     def __init__(self, core):
         self.core = core
@@ -309,18 +323,29 @@ class HttpServer:
         self._lock = threading.Lock()
 
     def bind(self, host, port):
-        srv = ThreadingHTTPServer((host, port), make_handler(self.core))
-        srv.daemon_threads = True
-        self.srv = srv
+        self.srv = ExclusiveHTTPServer((host, port), make_handler(self.core))
 
-    def serve(self):
+    def serve(self, host=None, port=None, *, open_browser=False):
         """Run the bound server until stop(). A stop requested before this call returns at once."""
+        if self.srv is None:
+            self.bind(host, port)
         with self._lock:
             if self._stop_requested:
                 self._stop_requested = False
                 self.srv.server_close()
                 return
         try:
+            if open_browser:
+                browser_host = "127.0.0.1" if host == "0.0.0.0" else host
+                url = f"http://{browser_host}:{self.srv.server_address[1]}/"
+
+                def launch_browser():
+                    try:
+                        webbrowser.open(url)
+                    except Exception:
+                        logging.getLogger(__name__).warning("Could not open browser; visit %s", url, exc_info=True)
+
+                threading.Thread(target=launch_browser, name="open-browser", daemon=True).start()
             self.srv.serve_forever()
         finally:
             self.srv.server_close()

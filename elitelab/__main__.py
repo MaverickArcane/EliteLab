@@ -25,6 +25,7 @@ def main(argv=None):
     s.add_argument("--settings", default=argparse.SUPPRESS, help="settings file to use (the launchers put serve first)")
     s.add_argument("--open-browser", action="store_true", default=argparse.SUPPRESS,   # also accepted after serve
                    help="open the dashboard in the browser once the server is listening")
+    s.add_argument("--no-browser", dest="open_browser", action="store_false", default=argparse.SUPPRESS, help="keep the dashboard browser closed")
     sub.add_parser("mcp", help="MCP stdio server")
     sub.add_parser("modules", help="list modules")
     sub.add_parser("tools", help="list AI tools on a running lab")
@@ -73,7 +74,15 @@ def main(argv=None):
     if getattr(args, "port", None) is not None:
         config.PORT = args.port
         config.SOURCES["port"] = "flag"
-    return Core().start(getattr(args, "host", None), getattr(args, "port", None), open_browser=args.open_browser)
+    from .instance import serve
+    for key in ("host", "port", "journals", "open_browser"):
+        if not hasattr(args, key):
+            setattr(args, key, False if key == "open_browser" else None)
+    try:
+        return serve(args)
+    except (OSError, RuntimeError) as error:
+        print(str(error), file=sys.stderr)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":

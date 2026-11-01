@@ -163,6 +163,7 @@ class MainOpenBrowserFlagTests(unittest.TestCase):
     def _flag(self, argv):
         from elitelab.__main__ import main
         with mock.patch.object(Core, "start", return_value=0) as start, mock.patch("logging.basicConfig"), \
+                mock.patch("elitelab.instance.InstanceGuard"), mock.patch("elitelab.instance.health", return_value=None), \
                 mock.patch.dict(config.SOURCES), mock.patch.object(config, "HOST", config.HOST), \
                 mock.patch.object(config, "PORT", config.PORT), mock.patch.object(config, "JOURNAL_DIR", config.JOURNAL_DIR):
             self.assertEqual(main(argv), 0)
@@ -204,12 +205,11 @@ class MainSettingsTests(_TmpMixin, unittest.TestCase):
 
 class LauncherTests(unittest.TestCase):
     def test_windows_launcher_runs_the_loop_by_relative_path(self):
-        # cmd /c strips the outer quotes of "%~dp0scripts\serve-loop.cmd" and breaks on paths with parentheses;
-        # the launcher already cd's to its own folder, so a relative path needs no quotes.
+        # The foreground launcher calls the relative helper after selecting its interpreter.
         with open(os.path.join(ROOT, "Start EliteLab.cmd"), encoding="ascii") as f:
             text = f.read()
         self.assertIn('cd /d "%~dp0"', text)
-        self.assertIn("cmd /c \"scripts\\serve-loop.cmd %* & pause\"", text)
+        self.assertIn("call scripts\\serve-loop.cmd %*", text)
         self.assertNotIn("%~dp0scripts", text)
 
     def test_windows_launcher_lets_the_server_open_the_browser(self):

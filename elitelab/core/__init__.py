@@ -34,7 +34,9 @@ class Core:
         self.store = Store(self.bus)
         self.services = Services()
         self.http = Router()
+        self.ready = False
         self.modules = {}
+        self.shutdown_callbacks = []
         self.watcher = JournalWatcher(self.bus)
         self._server = HttpServer(self)
         self.ready = False
@@ -63,9 +65,12 @@ class Core:
     # -- built-in routes -----------------------------------------------------------
     def _register_builtin_routes(self):
         from .. import __version__
-        self.http.route("/api/health", lambda q: {"ok": True, "version": __version__, "journal_dir": config.JOURNAL_DIR,
+        self.http.route("/api/health", lambda q: {"ok": True, "application":"EliteLab", "ready":self.ready, "pid":os.getpid(), "source_dir":config.ROOT,
+                                                  "version": __version__, "journal_dir": config.JOURNAL_DIR,
                                                   "journal_found": bool(journal_files()), "modules": list(self.modules)},
                         tool="health", description="Server health, version, journal folder and loaded modules.")
+        self.http.route("/api/shutdown", self.shutdown, method="POST", tool="stop_elitelab",
+                        description="Stop this local EliteLab instance, close its party and release its ports. Does not change saved jobs or inventories.")
         self.http.route("/api/state", lambda q: self.store.snapshot(),
                         tool="get_state", description="Full live state snapshot: every module namespace (journal, powerplay, loop, materials...). Large; prefer the specific tools when you only need one thing.")
         self.http.route("/api/modules", lambda q: [m.to_json() for m in sorted(self.modules.values(), key=lambda m: (m.order, m.name))],
@@ -96,6 +101,13 @@ class Core:
         return [{k: v for k, v in e.items() if k != "_replay"} for e in evs[:limit]]
 
     # -- lifecycle -----------------------------------------------------------
+    def shutdown(self, q=None):
+        # Reply before the main loop closes sockets and notifies party members.
+        timer = threading.Timer(.1, self._server.stop)
+        timer.daemon = True
+        timer.start()
+        return {"stopping": True}
+
     def request_restart(self):
         """Ask the running server to stop and make start() return RESTART_EXIT_CODE."""
         self.restart_requested = True
@@ -117,8 +129,6 @@ class Core:
         bound (after printing one line naming the host, port, their sources and the settings file), else 0.
         With open_browser, the dashboard opens in the default browser only after a successful bind."""
         from .. import __version__
-        load_all(self)
-        self.watcher.start()
         host, port = host or config.HOST, port if port is not None else config.PORT
         browser = None
         try:
@@ -129,6 +139,8 @@ class Core:
                 print(f"EliteLab could not listen on {host}:{port} ({e.strerror or e}); host from {src['host']}, "
                       f"port from {src['port']}; settings file: {config.SETTINGS_PATH}")
                 return 1
+            load_all(self)
+            self.watcher.start()
             port = self._server.srv.server_port          # the real port, also when 0 asked the OS to pick one
             print(f"EliteLab {__version__} listening on http://{host}:{port}")
             print(f"Journal dir: {config.JOURNAL_DIR}  (found: {bool(journal_files())})")
@@ -144,5 +156,19 @@ class Core:
             self.ready = False
             if browser:
                 browser.cancel()        # a stop requested before serve() returns at once; do not open a closing server
-            self.watcher.stop()
+            self.close()
         return config.RESTART_EXIT_CODE if self.restart_requested else 0
+
+    def close(self):
+        """Stop watching journals and run module shutdown callbacks (flush writer
+        threads, leave parties). Safe before start() and safe to call twice."""
+        self.ready = False
+        self.watcher.stop()
+        if self._server.srv is not None:
+            self._server.srv.server_close()
+        callbacks, self.shutdown_callbacks = list(self.shutdown_callbacks), []
+        for callback in reversed(callbacks):
+            try:
+                callback()
+            except Exception:
+                log.exception("Shutdown cleanup failed")

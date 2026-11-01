@@ -1,0 +1,6 @@
+{
+  "name": "trade", "version": "1.0.0",
+  "description": "Inventory-based market searches, carrier orders and trade plans.",
+  "requires": ["journal", "powerplay"], "provides": ["trade"], "order": 26,
+  "cards": [{"id": "trade", "title": "Carrier job", "span": 12, "script": "card.js", "order": 45}]
+}

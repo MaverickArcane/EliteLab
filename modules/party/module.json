@@ -1,0 +1,9 @@
+{
+  "name": "party", "version": "1.0.0",
+  "description": "Private LAN and tailnet cargo reporting for a carrier leader.",
+  "requires": ["journal", "trade"], "provides": ["party"], "order": 27,
+  "cards": [
+    {"id": "haul", "title": "My next run", "span": 5, "script": "haul.js", "order": 43},
+    {"id": "party", "title": "Crew progress", "span": 7, "script": "card.js", "order": 44}
+  ]
+}
