@@ -14,10 +14,20 @@ class CoordCache:
         self.on_update = on_update
         self.coords = (core.read_data(cache_file, default={}) or {}) if cache_file else {}
         self._wanted = set()
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._retry = None
         self._fetching = False
         self._retry_delay = 5
+        self._closed = False
+        core.shutdown_callbacks.append(self.close)
+
+    def close(self):
+        """Cancel retries and discard late network results without waiting on EDSM."""
+        with self._lock:
+            self._closed = True
+            if self._retry:
+                self._retry.cancel()
+                self._retry = None
 
     def get(self, name):
         """{x, y, z} or None (unknown, or not fetched yet)."""
@@ -30,6 +40,8 @@ class CoordCache:
     def request(self, names=()):
         """Ask for ``names`` (plus anything still pending). Returns at once; ``on_update()`` runs when results land."""
         with self._lock:
+            if self._closed:
+                return
             self._wanted |= {n for n in names if n}
             if self.core.config.OFFLINE or self._fetching or not (self._wanted - self.coords.keys()):
                 return
@@ -41,6 +53,9 @@ class CoordCache:
 
     def _fetch(self):
         with self._lock:
+            if self._closed:
+                self._fetching = False
+                return
             names = self._wanted - self.coords.keys()
         found, answered = {}, False
         try:
@@ -49,6 +64,9 @@ class CoordCache:
         except Exception as ex:
             self.core.log.warning("%s: coords fetch failed: %s", self.label, ex)
         with self._lock:
+            if self._closed:
+                self._fetching = False
+                return
             self.coords.update(found)
             if answered:
                 for n in names - found.keys():
@@ -64,8 +82,8 @@ class CoordCache:
                 self._retry_delay = min(300, self._retry_delay * 2)
             else:
                 self._retry_delay = 5
-        if self.on_update:
-            try:
-                self.on_update()
-            except Exception as ex:
-                self.core.log.warning("%s: on_update failed: %s", self.label, ex)
+            if self.on_update:
+                try:
+                    self.on_update()
+                except Exception as ex:
+                    self.core.log.warning("%s: on_update failed: %s", self.label, ex)
