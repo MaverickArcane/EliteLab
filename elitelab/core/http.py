@@ -233,8 +233,14 @@ def make_handler(core):
                 return False
             try:
                 host = self.headers["Host"]
+                # Older urllib versions accept trailing text after an IPv6
+                # bracket. Validate the wire format before URL normalization.
+                hostname = host_name(host)
+                if not hostname or any(c.isspace() for c in host):
+                    return False
                 parsed = urllib.parse.urlsplit("//" + host)
-                hostname = (parsed.hostname or "").lower().rstrip(".")
+                if (parsed.hostname or "").lower().rstrip(".") != hostname:
+                    return False
                 if parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment or not hostname:
                     return False
                 _ = parsed.port  # validate port syntax
