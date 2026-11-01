@@ -79,6 +79,24 @@ class EngineeringTests(unittest.TestCase):
         self.assertEqual(self.call("get_build_context")["commander"]["fid"], "FTEST-A")
         self.assertEqual(self.engineer("Dweller")["rank"], 5)
 
+    def test_budget_keeps_startup_materials_but_rejects_previous_sessions(self):
+        def known():
+            return self.call("plan_engineering_upgrade", blueprint="Lightweight", module="Beam laser", grade=1)["inventory_has_current_session_baseline"]
+
+        self.emit("Commander", timestamp="2026-11-01T12:00:00Z", FID="AUDIT", Name="Audit Pilot")
+        self.assertFalse(known())
+        self.emit("Materials", timestamp="2026-11-01T12:00:01Z", Raw=[{"Name": "phosphorus", "Count": 50}], Manufactured=[], Encoded=[])
+        self.assertTrue(known())
+        self.emit("LoadGame", timestamp="2026-11-01T12:00:02Z", Commander="Audit Pilot")
+        self.assertTrue(known())
+        self.assertEqual(self.call("get_material_inventory")["inventory"]["phosphorus"], 50)
+        self.emit("Commander", timestamp="2026-11-02T12:00:00Z", FID="AUDIT", Name="Audit Pilot")
+        self.assertFalse(known())
+        self.emit("Materials", timestamp="2026-11-01T12:00:01Z", Raw=[{"Name": "phosphorus", "Count": 50}], _replay=True)
+        self.assertFalse(known())
+        self.emit("Commander", timestamp="2026-11-03T12:00:00Z", FID="OTHER", Name="Other Pilot")
+        self.assertFalse(known())
+
     def test_older_session_replay_does_not_change_active_identity_or_ship(self):
         self.emit("Loadout", Ship="smallcombat01_nx", ShipID=51, ShipName="Latest", Modules=[])
         self.emit("Commander", FID="FTEST-B", Name="Another Pilot")

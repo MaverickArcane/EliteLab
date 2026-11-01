@@ -34,6 +34,7 @@ class Engineering:
         self.commander = None
         self.stream_commander = None
         self.commander_at = None
+        self.session_started_at = None
         self.loadouts = {}
         self.loadout = None
         self.materials_observed = {}
@@ -80,6 +81,10 @@ class Engineering:
             # Stream identity scopes old replay events; active identity follows
             # the latest observed session, even while older files are replayed.
             if not self.commander or (at and (not self.commander_at or at >= self.commander_at)):
+                # Commander starts the session; its Materials snapshot may arrive
+                # before LoadGame. A later identity confirmation is not a reset.
+                if kind == "Commander" or not self.commander or self.commander["key"] != key:
+                    self.session_started_at = at
                 self.commander = identity
                 self.commander_at = at
                 self.loadout = self.loadouts.get(key)
@@ -235,7 +240,7 @@ class Engineering:
     def budget(self, q):
         with self.lock:
             at = self.materials_observed.get((self.commander or {}).get("key"))
-            known = bool(at and self.commander_at and at >= self.commander_at and self.inventory_owner == (self.commander or {}).get("key"))
+            known = bool(at and self.session_started_at and at >= self.session_started_at and self.inventory_owner == (self.commander or {}).get("key"))
             inventory = self.core.http.tools["get_material_inventory"].fn({})["inventory"] if known else None
             result = engineering_planning.plan(q, inventory, self.access({})["engineers"])
             result.update({"commander": copy.deepcopy(self.commander), "inventory_snapshot_observed_at": at,
