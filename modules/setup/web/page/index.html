@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EliteLab setup</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="setup">
+<h1>EliteLab setup</h1>
+<form data-setup-form novalidate>
+  <section class="card">
+    <h2>Journals</h2>
+    <p class="note">Pick the folder where Elite Dangerous writes its journal files, or type a path below.</p>
+    <ul data-candidates class="candidates"></ul>
+    <label class="field">Other folder
+      <input name="journal_dir_custom" type="text" autocomplete="off" spellcheck="false">
+      <span class="note" data-hint="journal_dir"></span>
+    </label>
+    <div class="field">
+      <button type="button" data-test-journal>Test</button>
+      <span class="note" data-result="journal_test" aria-live="polite"></span>
+    </div>
+  </section>
+  <section class="card">
+    <h2>Server</h2>
+    <label class="field">Port
+      <input name="port" type="number" min="1024" max="65535">
+      <span class="note" data-hint="port"></span>
+    </label>
+    <label class="field">Data folder
+      <input name="data_dir" type="text" autocomplete="off" spellcheck="false">
+      <span class="note" data-hint="data_dir"></span>
+    </label>
+    <div class="field">Browser
+      <span data-browser class="muted"></span>
+      <span class="note">Read-only here. Set it in the settings file or with ELITELAB_BROWSER.</span>
+    </div>
+  </section>
+  <section class="card">
+    <h2>Connections</h2>
+    <p class="note">Nothing to connect yet. Inara and other services will appear here.</p>
+  </section>
+  <div class="row">
+    <button type="submit" class="primary">Save</button>
+    <button type="button" data-restart hidden>Restart EliteLab</button>
+    <a href="/">Open dashboard</a>
+  </div>
+  <p data-status role="status" class="note"></p>
+</form>
+</main>
+<script src="setup.js"></script>
+</body>
+</html>

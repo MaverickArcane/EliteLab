@@ -1,0 +1,9 @@
+{
+  "name": "setup",
+  "version": "1.0.0",
+  "description": "First-run setup: journal folder, port, data folder and future connections, saved to the settings file.",
+  "requires": [],
+  "provides": ["setup"],
+  "order": 5,
+  "cards": []
+}

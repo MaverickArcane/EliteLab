@@ -19,6 +19,7 @@ sys.path.insert(0, ROOT)
 os.environ["ELITELAB_JOURNAL_DIR"] = FIXTURES
 os.environ["ELITELAB_OFFLINE"] = "1"
 os.environ["ELITELAB_DATA_DIR"] = tempfile.mkdtemp(prefix="elitelab-test-")
+os.environ["ELITELAB_SETTINGS"] = os.path.join(tempfile.mkdtemp(prefix="elitelab-test-settings-"), "settings.json")
 
 from elitelab.core import Core, config, loader  # noqa: E402
 

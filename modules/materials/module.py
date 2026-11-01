@@ -7,6 +7,7 @@ The material catalog (names, grades, caps, trader families) is the shared table 
 this module's data.json only holds the where-to-find hints.
 """
 import json
+import copy
 import os
 import threading
 from datetime import datetime, timezone
@@ -21,6 +22,7 @@ class Materials:
     def __init__(self, core):
         self.core = core
         self._lock = threading.RLock()
+        self._publish_lock = threading.RLock()
         with open(os.path.join(HERE, "data.json"), "r", encoding="utf-8") as f:
             data = json.load(f)
         self.caps = MATERIAL_CAPS
@@ -32,6 +34,9 @@ class Materials:
         self.session_at = ""
         self.commander_name = None
         self.commander_key = None
+        self.session_started_at = None
+        self.session_gained = {}
+        self.last_gain = None
         self._version = 0  # bumped on every publish; the store key other modules watch
         self.names = {}    # key -> display name seen in journal
         self.cats = {}     # key -> category seen in journal
@@ -80,8 +85,19 @@ class Materials:
             self.cats[k] = category
 
     def on_event(self, name, ev):
-        with self._lock:
-            self._on_event(name, ev)
+        with self._publish_lock:
+            with self._lock:
+                self._on_event(name, ev)
+                state = self._snapshot()
+            self.core.store.update(NS, state)
+
+    def gain(self, name, count, ev, category=None, localised=None):
+        self.add(name, count, category, localised)
+        if self.session_started_at and int(count or 0) > 0:
+            key = norm(name)
+            self.session_gained[key] = self.session_gained.get(key, 0) + int(count)
+            self.last_gain = {"key": key, "name": self.info(key)["name"], "count": int(count),
+                              "at": ev.get("timestamp"), "event": ev.get("event")}
 
     def _on_event(self, name, ev):
         e = ev.get("event")
@@ -94,6 +110,9 @@ class Materials:
             name = ev.get("Name") if e == "Commander" else ev.get("Commander")
             owner = ("fid:" + str(ev["FID"])) if ev.get("FID") else self.commander_key if name and name == self.commander_name else "name:" + str(name)
             if at and (at > self.session_at or (at == self.session_at and owner != self.commander_key)):
+                self.session_started_at = ev.get("timestamp") if e == "LoadGame" else None
+                self.session_gained = {}
+                self.last_gain = None
                 if e == "LoadGame" and name and owner == self.commander_key:
                     return  # Startup Materials can precede LoadGame after Commander.
                 self.session_at = at
@@ -101,7 +120,6 @@ class Materials:
                 self.commander_key = owner
                 self.inv, self.names, self.cats = {}, {}, {}
                 self.inventory_at = ""
-                self.publish()
             return
         replay_baseline = e == "Materials" and ev.get("_replay") and at and at >= self.session_at
         if at and (at < self.session_at or (at < self.inventory_at and not replay_baseline)):
@@ -114,13 +132,13 @@ class Materials:
                 for i in ev.get(cat) or []:
                     self.add(i.get("Name"), i.get("Count", 0), cat, i.get("Name_Localised"))
         elif e == "MaterialCollected":
-            self.add(ev.get("Name"), ev.get("Count", 0), ev.get("Category"), ev.get("Name_Localised"))
+            self.gain(ev.get("Name"), ev.get("Count", 0), ev, ev.get("Category"), ev.get("Name_Localised"))
         elif e == "MaterialDiscarded":
             self.add(ev.get("Name"), -ev.get("Count", 0), ev.get("Category"), ev.get("Name_Localised"))
         elif e == "MaterialTrade":
             p, r = ev.get("Paid") or {}, ev.get("Received") or {}
             self.add(p.get("Material"), -p.get("Quantity", 0), p.get("Category"), p.get("Material_Localised"))
-            self.add(r.get("Material"), r.get("Quantity", 0), r.get("Category"), r.get("Material_Localised"))
+            self.gain(r.get("Material"), r.get("Quantity", 0), ev, r.get("Category"), r.get("Material_Localised"))
         elif e in ("EngineerCraft", "Synthesis", "TechnologyBroker", "ScientificResearch"):
             for i in ev.get("Ingredients") or ev.get("Materials") or []:
                 if isinstance(i, dict):
@@ -129,8 +147,7 @@ class Materials:
             self.add(ev.get("Material"), -ev.get("Quantity", 0))
         elif e == "MissionCompleted":
             for i in ev.get("MaterialsReward") or []:
-                self.add(i.get("Name"), i.get("Count", 0), i.get("Category"), i.get("Name_Localised"))
-        self.publish()
+                self.gain(i.get("Name"), i.get("Count", 0), ev, i.get("Category"), i.get("Name_Localised"))
 
     # -- publishing ---------------------------------------------------------------
     def rows(self, category=None, grade=None, only_wishlist=False, only_short=False):
@@ -138,10 +155,11 @@ class Materials:
             return self._rows(category, grade, only_wishlist, only_short)
 
     def _rows(self, category=None, grade=None, only_wishlist=False, only_short=False):
-        keys = set(self.inv) | set(self.wishlist)
+        keys = set(self.inv) | set(self.wishlist) | set(self.session_gained)
         out = []
         for k in keys:
             r = self.info(k)
+            r["gained"] = self.session_gained.get(k, 0) if self.session_started_at else None
             w = self.wishlist.get(k)
             r["need"] = w["need"] if w else 0
             r["label"] = w.get("label") if w else None
@@ -159,21 +177,33 @@ class Materials:
         return out
 
     def publish(self):
-        with self._lock:
-            self._publish()
+        # Keep publication ordered, but release the inventory lock before
+        # synchronous callbacks read other modules (wishlist/build).
+        with self._publish_lock:
+            with self._lock:
+                state = self._snapshot()
+            self.core.store.update(NS, state)
 
-    def _publish(self):
+    def _snapshot(self):
         totals = {"Raw": 0, "Manufactured": 0, "Encoded": 0}
+        gains = {"Raw": 0, "Manufactured": 0, "Encoded": 0}
         for k, c in self.inv.items():
             cat = self.info(k)["category"]
             if cat in totals:
                 totals[cat] += c
+        for k, c in self.session_gained.items():
+            cat = self.info(k)["category"]
+            if cat in gains:
+                gains[cat] += c
         self._version += 1
         # The inventory itself is not in the store (it would go over SSE on every pickup); other modules read it through
         # the get_material_inventory tool and recompute on inventory_version.
-        self.core.store.update(NS, {"totals": totals, "wishlist": self.wishlist,
+        return {"totals": totals, "wishlist": copy.deepcopy(self.wishlist),
+                                    "session": {"started_at": self.session_started_at,
+                                                "gained": sum(self.session_gained.values()) if self.session_started_at else None,
+                                                "totals": gains, "last_gain": copy.deepcopy(self.last_gain)},
                                     "shortfalls": [r for r in self.rows(only_wishlist=True)],
-                                    "inventory_count": len(self.inv), "inventory_version": self._version})
+                                    "inventory_count": len(self.inv), "inventory_version": self._version}
 
     def inventory(self):
         with self._lock:
@@ -181,8 +211,12 @@ class Materials:
 
     # -- wishlist ------------------------------------------------------------------
     def set_wishlist(self, items, mode="replace", label=None):
-        with self._lock:
-            return self._set_wishlist(items, mode, label)
+        with self._publish_lock:
+            with self._lock:
+                result = self._set_wishlist(items, mode, label)
+                state = self._snapshot()
+            self.core.store.update(NS, state)
+            return result
 
     def _set_wishlist(self, items, mode, label):
         if mode not in ("replace", "add", "remove", "clear"):
@@ -217,7 +251,6 @@ class Materials:
         wishlist = {k: v for k, v in wishlist.items() if v["need"] > 0}
         self.core.write_data(wishlist, "wishlist.json")
         self.wishlist = wishlist
-        self.publish()
         return {"wishlist": self.rows(only_wishlist=True), "unknown": unknown}
 
     def source(self, name):
@@ -233,10 +266,13 @@ class Materials:
 def setup(core, module):
     m = Materials(core)
     core.http.route("/api/materials", lambda q: {"totals": core.store.get(NS, "totals"),
+                                                 "session": core.store.get(NS, "session"),
                                                  "materials": m.rows(q.get("category"), q.get("grade"), str(q.get("only_wishlist", "")).lower() in ("1", "true"),
                                                                      str(q.get("only_short", "")).lower() in ("1", "true"))},
                     tool="get_materials", module=module.name,
-                    description="Engineering materials inventory with grade, cap (300/250/200/150/100 for G1-G5), wishlist need and shortfall per material.",
+                    description="Engineering materials inventory with grade, cap (300/250/200/150/100 for G1-G5), wishlist need and shortfall per material. "
+                                "Each row also has gained: pickups, rewards and trader receipts since the latest LoadGame, rebuilt on replay; "
+                                "null if that session boundary is unavailable. Session totals and the latest gain are included.",
                     params={"category": {"type": "string", "description": "Raw, Manufactured or Encoded", "enum": ["Raw", "Manufactured", "Encoded"]},
                             "grade": {"type": "integer", "description": "1-5"},
                             "only_wishlist": {"type": "boolean", "description": "Only materials on the wishlist", "default": False},

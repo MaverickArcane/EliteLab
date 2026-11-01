@@ -69,7 +69,7 @@
       $('#wl-add').onclick = async () => {
         const body = { item: kind.value === 'build' ? 'build' : rec.value, kind: kind.value, qty: +qty.value || 1 };
         if (!body.item) return;
-        if (kind.value === 'experimental') body.module = mod.value;        // which of the effect's modules this is for
+        if (kind.value === 'experimental' || kind.value === 'blueprint') body.module = mod.value;
         if (kind.value === 'blueprint') { body.from_grade = +from.value; body.grade = +to.value; }
         try {
           const r = await Lab.post('/api/wishlist/add', body);

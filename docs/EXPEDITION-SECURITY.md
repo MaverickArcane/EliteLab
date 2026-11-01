@@ -14,7 +14,7 @@ review, not a claim that the application is free of every vulnerability.
 | Compressed Coriolis modification data expanded without a bound | Read at most 64 KiB plus one byte, reject larger output before parsing. Regression uses highly compressible input. |
 | Community API responses were read without a size bound | Cap JSON responses at 8 MiB before decoding; preserve request timeouts. |
 | Ambiguous body framing and unbounded socket waits | Reject duplicate Content-Length and Transfer-Encoding, validate lengths and incomplete bodies, set a 30-second socket timeout. |
-| Missing browser defense headers | Add CSP with same-origin scripts/connects, no frames/objects/base overrides; nosniff, DENY framing and no-referrer. Desktop/mobile browser checks exercise normal operation. |
+| Missing browser defense headers | Add CSP with same-origin scripts/connects (setup alone permits connections to other ports on the same hostname for restart detection), no frames/objects/base overrides; nosniff, DENY framing and no-referrer. Desktop/mobile browser checks exercise normal operation. |
 
 ## Controls verified
 

@@ -2321,6 +2321,7 @@
    "key": "Misc_LightWeight",
    "name": "Lightweight",
    "module": "Chaff launcher",
+   "modules": ["Chaff launcher", "Heat sink launcher"],
    "aliases": [
     "Cargo scanner",
     "ECM",
@@ -2385,6 +2386,7 @@
    "key": "Misc_Reinforced",
    "name": "Reinforced",
    "module": "Chaff launcher",
+   "modules": ["Chaff launcher", "Heat sink launcher"],
    "aliases": [
     "Cargo scanner",
     "ECM",
@@ -2431,6 +2433,7 @@
    "key": "Misc_Shielded",
    "name": "Shielded",
    "module": "Chaff launcher",
+   "modules": ["Chaff launcher", "Heat sink launcher"],
    "aliases": [
     "Cargo scanner",
     "ECM",

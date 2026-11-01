@@ -16,7 +16,7 @@ await new Promise(r => attacker.listen(0,'127.0.0.1',r));
 let ws, joinServer;
 try {
   for(let i=0;i<100 && (!serverText.trim() || !fs.existsSync(path.join(profile, 'DevToolsActivePort')));i++) await sleep(100);
-  const port = Number(serverText.trim());
+  const port = Number(serverText.split('\n')[0]);
   console.log('Server port', port);
   const debugPort = Number(fs.readFileSync(path.join(profile,'DevToolsActivePort'),'utf8').split('\n')[0]);
   const tabs = await (await fetch(`http://127.0.0.1:${debugPort}/json`, {signal:AbortSignal.timeout(10000)})).json();

@@ -3,6 +3,9 @@ data/
 __pycache__/
 *.pyc
 .venv/
+dist/
+artifacts/
+runtime/
 *.log
 .DS_Store
 Thumbs.db
