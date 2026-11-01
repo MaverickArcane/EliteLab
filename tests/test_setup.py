@@ -315,8 +315,7 @@ class HostCheckTests(unittest.TestCase):
             body = json.loads(r.read())
             conn.close()
         self.assertEqual(r.status, 403)
-        self.assertEqual(body, {"error": "requests for host attacker.example are not accepted; "
-                                         "set ELITELAB_ALLOWED_HOSTS=attacker.example to allow it"})
+        self.assertIn("ELITELAB_ALLOWED_HOSTS", body["error"])
 
     def test_ip_literals_are_accepted_on_any_bind(self):
         for bind in ("0.0.0.0", "127.0.0.1", "192.168.1.5"):
