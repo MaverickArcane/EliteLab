@@ -35,6 +35,7 @@ def smoke(bundle):
         env.update(PATH=str(system), PYTHONHOME=str(directory / "missing-python"),
                    PYTHONPATH=str(directory / "missing-packages"), ELITELAB_HOST="127.0.0.1",
                    ELITELAB_INSTANCE_DIR=str(directory / "instance"),
+                   ELITELAB_SETTINGS=str(directory / "settings.json"),
                    ELITELAB_OFFLINE="1", ELITELAB_JOURNAL_DIR=str(ROOT / "tests" / "fixtures" / "journals"))
         env["ELITELAB_INSTANCE_DIR"] = str(directory / "instance")
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -72,7 +73,22 @@ def smoke(bundle):
                 get("/modules/trade/card.js")
                 get("/modules/party/card.js")
                 assert b'Round trip' in get("/modules/personal/card.js")
-                print("Bundle passed: launcher, embedded Python, dashboard, modules and fixture journal; no system Python on PATH.")
+                original_pid = health["pid"]
+                request = urllib.request.Request(f"http://127.0.0.1:{port}/api/restart", data=b"{}",
+                                                 headers={"Content-Type": "application/json"})
+                with opener.open(request, timeout=2) as response:
+                    assert json.load(response)["exit_code"] == 75
+                deadline = time.monotonic() + 30
+                while True:
+                    try:
+                        restarted = json.loads(get("/api/health"))
+                        if restarted.get("ready") and restarted.get("pid") != original_pid:
+                            break
+                    except (OSError, ValueError):
+                        pass
+                    assert process.poll() is None and time.monotonic() < deadline, "Bundle failed to restart"
+                    time.sleep(.1)
+                print("Bundle passed: embedded Python, fixture replay and launcher restart without system Python on PATH.")
             finally:
                 subprocess.run([str(system / "taskkill.exe"), "/PID", str(process.pid), "/T", "/F"],
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
