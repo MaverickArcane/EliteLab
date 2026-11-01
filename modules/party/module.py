@@ -590,10 +590,11 @@ class Party:
             self.queue_write(snapshot, None)
             return
         with self.disk:
-            # This newer snapshot supersedes queued ones; only an in-flight disk
-            # write must finish first, and it never needs the party lock.
-            superseded, self.pending = self.pending, []
+            # Reserve the writer slot before releasing the condition. The worker
+            # reserves it when taking a batch, including before its disk I/O.
             self.disk.wait_for(lambda: not self.writing)
+            superseded, self.pending = self.pending, []
+            self.writing = True
         try:
             self.core.write_data(snapshot, "party-local.json")
         except BaseException:
@@ -601,6 +602,10 @@ class Party:
                 self.pending = superseded + self.pending
                 self.disk.notify_all()
             raise
+        finally:
+            with self.disk:
+                self.writing = False
+                self.disk.notify_all()
         self.work, self.auto_seen, self.last_auto = work, seen, last_auto
         self.receipts = receipts
         self.tracking = tracking
@@ -623,23 +628,22 @@ class Party:
     def writer(self):
         while True:
             with self.disk:
-                while not self.pending:
+                while not self.pending or self.writing:
                     self.disk.wait()
                 batch, self.pending = self.pending, []
                 self.busy = True
+                self.writing = True
             snapshot = next((s for s, _ in reversed(batch) if s is not None), None)
             failure = None
-            if snapshot is not None:
-                with self.disk:
-                    self.writing = True
-                try:
+            try:
+                if snapshot is not None:
                     self.core.write_data(snapshot, "party-local.json")
-                except Exception as ex:
-                    failure = ex
-                finally:
-                    with self.disk:
-                        self.writing = False
-                        self.disk.notify_all()
+            except Exception as ex:
+                failure = ex
+            finally:
+                with self.disk:
+                    self.writing = False
+                    self.disk.notify_all()
             try:
                 if failure is not None:
                     # Memory already holds the delivery; the next snapshot or a
