@@ -249,6 +249,9 @@
   const ALL = () => allCards.map(c => c.id);
   const ENG = ['recipes', 'wishlist', 'farming', 'build'];       // engineering cards, hidden by the non-engineering presets
   const PRESETS = {
+    'Expedition': () => ({ order: ['neutron', 'ship', 'synthesis', 'location', 'materials', 'map', 'feed'],
+      spans: { neutron: 8, ship: 4, synthesis: 8, location: 4, materials: 4, map: 8, feed: 4 },
+      hidden: ALL().filter(id => !['neutron', 'ship', 'synthesis', 'location', 'materials', 'map', 'feed'].includes(id)) }),
     'Default': () => ({ order: ['location', 'ship', 'build', 'wishlist', 'farming', 'recipes', 'materials', 'powerplay', 'merits', 'targets', 'combat', 'feed', 'cargo', 'market', 'carrier', 'loop', 'map'],
       spans: { location: 4, ship: 4, build: 4, wishlist: 6, farming: 6, recipes: 4, materials: 4, powerplay: 4, merits: 4, targets: 12, combat: 12, feed: 4, cargo: 4, market: 4, carrier: 4, loop: 4, map: 12 }, hidden: [] }),
     'Powerplay': () => ({ order: ['map', 'powerplay', 'merits', 'targets', 'combat', 'location', 'loop', 'cargo', 'ship', 'feed'],

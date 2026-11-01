@@ -55,3 +55,21 @@ For a manual check, enable the Fleet carrier card in Layout, pin a previously vi
 2. `python -m elitelab call get_commander_state` while the game is running and confirm the ship, system and cargo match the HUD.
 3. `docker compose up --build` and hit `/api/health`.
 4. In Claude Code, open the repo folder and ask for `get_powerplay_status`.
+
+## Expedition and security checks
+
+`python -m unittest discover -s tests -v` includes synthetic commander fixtures
+for research, missions, neutron navigation and synthesis. New tests cover Spansh
+job validation/retry, fit changes, persistence failure, boost consumption,
+commander isolation, shared-material budgets, HTTP/MCP round trips, DNS
+rebinding, compressed-build limits, static traversal and authentication.
+
+With Node 22+ and Chrome installed, run `node tests/expedition-browser.mjs`. Set
+PYTHON and CHROME_BIN for non-default executable paths. The test uses isolated
+fixture state and mocked Spansh responses, exercises desktop/mobile layouts and
+HTML escaping, and writes screenshots under ELITELAB_SCREENSHOT_DIR or the OS
+temporary folder. CI uploads those screenshots. The original browser suite
+continues to cover the existing dashboard.
+
+The static symlink test is skipped on Windows without symlink privileges; Linux
+CI runs it. Real Spansh smoke checks are manual and are not part of offline CI.

@@ -189,3 +189,27 @@ Recomputed on `state.journal.star_pos` (distances) and `state.wishlist.needs` (`
 - `farming_ui` (client-only): `{systems{site id: 'loading' | find_hge_systems result | {error}}}`.
 - `localStorage.layouts.v1`: `{name: layout}` saved layouts.
 - `localStorage.loopManual`: see loop.
+
+## Expedition and research state
+
+`engineering` owns commander-scoped engineer evidence and per-ship saved notes;
+`progression` owns permits, faction visits, mission/depot state, cargo evidence,
+statistics and unlock contributions. Its `exploration` key publishes the dated
+Exploration statistics subset. See ENGINEERING-RESEARCH.md and UNLOCK-RESEARCH.md.
+
+`flight.context` publishes matching commander/session identity, raw dated Loadout,
+loadout-dirty timestamp and location atomically. Status snapshots remain internal
+to flight reports and do not rebroadcast the loadout every second.
+
+`missions.plan` is a cargo-allocation and shopping checklist; `sourcing` provides
+read-only, explicitly bounded market searches. See MISSION-SUPPLIES.md.
+
+`neutron.summary` contains preparation, Palin evidence, current saved job metadata,
+progress and the next five waypoints for the card/map. Full plans are persisted
+per commander in `neutron.json`; fit signatures stay out of API responses.
+
+`synthesis.summary` contains boost evidence, last ship jump, three injection
+recipes with craftability, inventory observation/revision, recent craft history
+and counts over the retained window. `synthesis.json` stores up to 200 observed
+crafts per commander. Current boost and inventory evidence are rebuilt from the
+current session and are unknown without supporting events.

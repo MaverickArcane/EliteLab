@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Expedition layout: persistent Spansh neutron jobs, ship-aware 4x/6x routing, next-waypoint copies, upcoming map layer, CSV export and evidence-based Palin distance progress.
+- Synthesis: 35 supply and ammunition recipes, current-stock craftability, combined material budgets, injection/jet-cone journal evidence and per-commander craft history.
+- Research MCP: engineer access and comparisons, per-ship build notes, explicit upgrade budgets, permit evidence, unlock requirements, actual fitted modules and plotted routes.
+- Mission supplies: allocate cargo across active missions and find nearby suppliers within an explicit radius, keeping salvage and assigned delivery cargo distinct.
+- Security: reject untrusted Host headers and ambiguous request framing, bound compressed builds and API responses, resolve static paths before boundary checks, redact internal errors and add browser security headers.
+
+
 ## 0.5.0 (2026-10-25)
 
 - Merit rate: three rates instead of one. The headline is the pace while earning (time between merit gains, gaps capped at 20 min), beside the rate while playing (any journal activity; a 10 min silence is a break) and the elapsed-session rate, plus the break count and an idle flag. A three-hour engineering stop used to halve the only figure shown.

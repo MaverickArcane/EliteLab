@@ -103,7 +103,7 @@
   }
 
   Lab.card({
-    id: 'map', requires: ['journal', 'history', 'loop', 'targets'],
+    id: 'map', requires: ['journal', 'history', 'loop', 'targets', 'neutron'],
     mount(root) {
       el = root;
       el.innerHTML = `<div class="map-wrap"><canvas></canvas>

@@ -1,0 +1,647 @@
+{
+  "schema_version": 1,
+  "coverage": "Curated subset, not a validation of the entire legacy catalog. Blueprint and experimental modifiers are separate; no combined heat or firing simulation.",
+  "blueprints": [
+    {
+      "module": "Beam laser",
+      "key": "Weapon_LightWeight",
+      "source": {
+        "url": "https://inara.cz/elite/blueprint/99/",
+        "checked_at": "2026-10-31",
+        "kind": "community_database",
+        "scope": "Reviewed: grade 1-5 ingredient costs, engineer grade caps and listed completed-grade percent modifiers for this concrete module. Standard modules only; percentages relative to unengineered base. Unlisted unchanged cost/load properties are zero only where explicitly recorded."
+      },
+      "engineers": {
+        "The Dweller": 3,
+        "Broo Tarquin": 5,
+        "Mel Brandon": 5
+      },
+      "grades": {
+        "1": {
+          "power_draw": 0,
+          "distributor_draw": 0,
+          "thermal_load": 0,
+          "integrity": -20,
+          "mass": -30
+        },
+        "2": {
+          "power_draw": -10,
+          "distributor_draw": -20,
+          "thermal_load": 0,
+          "integrity": -30,
+          "mass": -45
+        },
+        "3": {
+          "power_draw": -20,
+          "distributor_draw": -25,
+          "thermal_load": 0,
+          "integrity": -40,
+          "mass": -60
+        },
+        "4": {
+          "power_draw": -30,
+          "distributor_draw": -30,
+          "thermal_load": 0,
+          "integrity": -50,
+          "mass": -75
+        },
+        "5": {
+          "power_draw": -40,
+          "distributor_draw": -35,
+          "thermal_load": 0,
+          "integrity": -60,
+          "mass": -90
+        }
+      },
+      "notes": [],
+      "reviewed_recipe": {
+        "1": {
+          "phosphorus": 1
+        },
+        "2": {
+          "manganese": 1,
+          "salvagedalloys": 1
+        },
+        "3": {
+          "conductiveceramics": 1,
+          "manganese": 1,
+          "salvagedalloys": 1
+        },
+        "4": {
+          "conductivecomponents": 1,
+          "phasealloys": 1,
+          "protolightalloys": 1
+        },
+        "5": {
+          "conductiveceramics": 1,
+          "protolightalloys": 1,
+          "protoradiolicalloys": 1
+        }
+      }
+    },
+    {
+      "module": "Beam laser",
+      "key": "Weapon_LongRange",
+      "source": {
+        "url": "https://inara.cz/elite/blueprint/84/",
+        "checked_at": "2026-10-31",
+        "kind": "community_database",
+        "scope": "Reviewed: grade 1-5 ingredient costs, engineer grade caps and listed completed-grade percent modifiers for this concrete module. Standard modules only; percentages relative to unengineered base. Unlisted unchanged cost/load properties are zero only where explicitly recorded."
+      },
+      "engineers": {
+        "The Dweller": 3,
+        "Broo Tarquin": 5,
+        "Mel Brandon": 5
+      },
+      "grades": {
+        "1": {
+          "power_draw": 3,
+          "distributor_draw": 0,
+          "thermal_load": 0,
+          "maximum_range": 20,
+          "mass": 10
+        },
+        "2": {
+          "power_draw": 6,
+          "distributor_draw": 0,
+          "thermal_load": 0,
+          "maximum_range": 40,
+          "mass": 15
+        },
+        "3": {
+          "power_draw": 9,
+          "distributor_draw": 0,
+          "thermal_load": 0,
+          "maximum_range": 60,
+          "mass": 20
+        },
+        "4": {
+          "power_draw": 12,
+          "distributor_draw": 0,
+          "thermal_load": 0,
+          "maximum_range": 80,
+          "mass": 25
+        },
+        "5": {
+          "power_draw": 15,
+          "distributor_draw": 0,
+          "thermal_load": 0,
+          "maximum_range": 100,
+          "mass": 30
+        }
+      },
+      "notes": [
+        "Damage falloff starts at maximum range; do not apply a simple percent to the base falloff distance."
+      ],
+      "reviewed_recipe": {
+        "1": {
+          "sulphur": 1
+        },
+        "2": {
+          "consumerfirmware": 1,
+          "sulphur": 1
+        },
+        "3": {
+          "focuscrystals": 1,
+          "consumerfirmware": 1,
+          "sulphur": 1
+        },
+        "4": {
+          "conductivepolymers": 1,
+          "focuscrystals": 1,
+          "consumerfirmware": 1
+        },
+        "5": {
+          "biotechconductors": 1,
+          "industrialfirmware": 1,
+          "thermicalloys": 1
+        }
+      }
+    },
+    {
+      "module": "Beam laser",
+      "key": "Weapon_ShortRange",
+      "source": {
+        "url": "https://inara.cz/elite/blueprint/85/",
+        "checked_at": "2026-10-31",
+        "kind": "community_database",
+        "scope": "Reviewed: grade 1-5 ingredient costs, engineer grade caps and listed completed-grade percent modifiers for this concrete module. Standard modules only; percentages relative to unengineered base. Unlisted unchanged cost/load properties are zero only where explicitly recorded."
+      },
+      "engineers": {
+        "The Dweller": 3,
+        "Broo Tarquin": 5,
+        "Mel Brandon": 5
+      },
+      "grades": {
+        "1": {
+          "damage": 27,
+          "maximum_range": -10,
+          "thermal_load": 0,
+          "power_draw": 0,
+          "distributor_draw": 0
+        },
+        "2": {
+          "damage": 39,
+          "maximum_range": -20,
+          "thermal_load": 10,
+          "power_draw": 0,
+          "distributor_draw": 0
+        },
+        "3": {
+          "damage": 51,
+          "maximum_range": -30,
+          "thermal_load": 20,
+          "power_draw": 0,
+          "distributor_draw": 0
+        },
+        "4": {
+          "damage": 63,
+          "maximum_range": -40,
+          "thermal_load": 30,
+          "power_draw": 0,
+          "distributor_draw": 0
+        },
+        "5": {
+          "damage": 75,
+          "maximum_range": -50,
+          "thermal_load": 40,
+          "power_draw": 0,
+          "distributor_draw": 0
+        }
+      },
+      "notes": [],
+      "reviewed_recipe": {
+        "1": {
+          "nickel": 1
+        },
+        "2": {
+          "consumerfirmware": 1,
+          "nickel": 1
+        },
+        "3": {
+          "electrochemicalarrays": 1,
+          "consumerfirmware": 1,
+          "nickel": 1
+        },
+        "4": {
+          "conductivepolymers": 1,
+          "electrochemicalarrays": 1,
+          "consumerfirmware": 1
+        },
+        "5": {
+          "biotechconductors": 1,
+          "configurablecomponents": 1,
+          "industrialfirmware": 1
+        }
+      }
+    },
+    {
+      "module": "Beam laser",
+      "key": "Weapon_Efficient",
+      "source": {
+        "url": "https://inara.cz/elite/blueprint/170/",
+        "checked_at": "2026-10-31",
+        "kind": "community_database",
+        "scope": "Reviewed: grade 1-5 ingredient costs, engineer grade caps and listed completed-grade percent modifiers for this concrete module. Standard modules only; percentages relative to unengineered base. Unlisted unchanged cost/load properties are zero only where explicitly recorded."
+      },
+      "engineers": {
+        "The Dweller": 3,
+        "Broo Tarquin": 5,
+        "Mel Brandon": 5
+      },
+      "grades": {
+        "1": {
+          "damage": 8,
+          "thermal_load": -37.5,
+          "power_draw": 0,
+          "distributor_draw": 0
+        },
+        "2": {
+          "damage": 12,
+          "thermal_load": -42.5,
+          "power_draw": -12,
+          "distributor_draw": -15
+        },
+        "3": {
+          "damage": 16,
+          "thermal_load": -47.5,
+          "power_draw": -24,
+          "distributor_draw": -25
+        },
+        "4": {
+          "damage": 20,
+          "thermal_load": -52.5,
+          "power_draw": -36,
+          "distributor_draw": -35
+        },
+        "5": {
+          "damage": 24,
+          "thermal_load": -60,
+          "power_draw": -48,
+          "distributor_draw": -45
+        }
+      },
+      "notes": [],
+      "reviewed_recipe": {
+        "1": {
+          "sulphur": 1
+        },
+        "2": {
+          "heatdispersionplate": 1,
+          "sulphur": 1
+        },
+        "3": {
+          "chromium": 1,
+          "scrambledemissiondata": 1,
+          "heatexchangers": 1
+        },
+        "4": {
+          "heatvanes": 1,
+          "archivedemissiondata": 1,
+          "selenium": 1
+        },
+        "5": {
+          "cadmium": 1,
+          "protoheatradiators": 1,
+          "emissiondata": 1
+        }
+      }
+    },
+    {
+      "module": "Power distributor",
+      "key": "PowerDistributor_HighFrequency",
+      "source": {
+        "url": "https://inara.cz/elite/blueprint/67/",
+        "checked_at": "2026-10-31",
+        "kind": "community_database",
+        "scope": "Reviewed: grade 1-5 ingredient costs, engineer grade caps and listed completed-grade percent modifiers for this concrete module. Standard modules only; percentages relative to unengineered base. Unlisted unchanged cost/load properties are zero only where explicitly recorded."
+      },
+      "engineers": {
+        "The Dweller": 5,
+        "Marco Qwent": 3,
+        "Hera Tani": 3,
+        "Etienne Dorn": 5
+      },
+      "grades": {
+        "1": {
+          "weapons_capacity": -1,
+          "systems_capacity": -1,
+          "engines_capacity": -1,
+          "weapons_recharge": 9,
+          "systems_recharge": 9,
+          "engines_recharge": 9
+        },
+        "2": {
+          "weapons_capacity": -2,
+          "systems_capacity": -2,
+          "engines_capacity": -2,
+          "weapons_recharge": 18,
+          "systems_recharge": 18,
+          "engines_recharge": 18
+        },
+        "3": {
+          "weapons_capacity": -3,
+          "systems_capacity": -3,
+          "engines_capacity": -3,
+          "weapons_recharge": 27,
+          "systems_recharge": 27,
+          "engines_recharge": 27
+        },
+        "4": {
+          "weapons_capacity": -4,
+          "systems_capacity": -4,
+          "engines_capacity": -4,
+          "weapons_recharge": 36,
+          "systems_recharge": 36,
+          "engines_recharge": 36
+        },
+        "5": {
+          "weapons_capacity": -5,
+          "systems_capacity": -5,
+          "engines_capacity": -5,
+          "weapons_recharge": 45,
+          "systems_recharge": 45,
+          "engines_recharge": 45
+        }
+      },
+      "notes": [],
+      "reviewed_recipe": {
+        "1": {
+          "legacyfirmware": 1
+        },
+        "2": {
+          "chemicalprocessors": 1,
+          "legacyfirmware": 1
+        },
+        "3": {
+          "chemicaldistillery": 1,
+          "gridresistors": 1,
+          "consumerfirmware": 1
+        },
+        "4": {
+          "chemicalmanipulators": 1,
+          "industrialfirmware": 1,
+          "hybridcapacitors": 1
+        },
+        "5": {
+          "chemicalmanipulators": 1,
+          "industrialfirmware": 1,
+          "exquisitefocuscrystals": 1
+        }
+      }
+    },
+    {
+      "module": "Power distributor",
+      "key": "PowerDistributor_PriorityWeapons",
+      "source": {
+        "url": "https://inara.cz/elite/blueprint/70/",
+        "checked_at": "2026-10-31",
+        "kind": "community_database",
+        "scope": "Reviewed: grade 1-5 ingredient costs, engineer grade caps and listed completed-grade percent modifiers for this concrete module. Standard modules only; percentages relative to unengineered base. Unlisted unchanged cost/load properties are zero only where explicitly recorded."
+      },
+      "engineers": {
+        "The Dweller": 5,
+        "Marco Qwent": 3,
+        "Hera Tani": 3,
+        "Etienne Dorn": 5
+      },
+      "grades": {
+        "1": {
+          "weapons_capacity": 20,
+          "weapons_recharge": 16,
+          "systems_capacity": -3,
+          "engines_capacity": -3,
+          "systems_recharge": -1,
+          "engines_recharge": -3
+        },
+        "2": {
+          "weapons_capacity": 30,
+          "weapons_recharge": 23,
+          "systems_capacity": -6,
+          "engines_capacity": -6,
+          "systems_recharge": -2,
+          "engines_recharge": -6
+        },
+        "3": {
+          "weapons_capacity": 40,
+          "weapons_recharge": 30,
+          "systems_capacity": -9,
+          "engines_capacity": -9,
+          "systems_recharge": -3,
+          "engines_recharge": -9
+        },
+        "4": {
+          "weapons_capacity": 50,
+          "weapons_recharge": 37,
+          "systems_capacity": -12,
+          "engines_capacity": -12,
+          "systems_recharge": -4,
+          "engines_recharge": -12
+        },
+        "5": {
+          "weapons_capacity": 60,
+          "weapons_recharge": 44,
+          "systems_capacity": -15,
+          "engines_capacity": -15,
+          "systems_recharge": -5,
+          "engines_recharge": -15
+        }
+      },
+      "notes": [],
+      "reviewed_recipe": {
+        "1": {
+          "sulphur": 1
+        },
+        "2": {
+          "conductivecomponents": 1,
+          "sulphur": 1
+        },
+        "3": {
+          "bulkscandata": 1,
+          "hybridcapacitors": 1,
+          "selenium": 1
+        },
+        "4": {
+          "scanarchives": 1,
+          "electrochemicalarrays": 1,
+          "cadmium": 1
+        },
+        "5": {
+          "scandatabanks": 1,
+          "polymercapacitors": 1,
+          "tellurium": 1
+        }
+      }
+    },
+    {
+      "module": "Power plant",
+      "key": "PowerPlant_Armoured",
+      "source": {
+        "url": "https://inara.cz/elite/blueprint/12/",
+        "checked_at": "2026-10-31",
+        "kind": "community_database",
+        "scope": "Reviewed: grade 1-5 ingredient costs, engineer grade caps and listed completed-grade percent modifiers for this concrete module. Standard modules only; percentages relative to unengineered base. Unlisted unchanged cost/load properties are zero only where explicitly recorded."
+      },
+      "engineers": {
+        "Felicity Farseer": 1,
+        "Marco Qwent": 4,
+        "Hera Tani": 5,
+        "Etienne Dorn": 5
+      },
+      "grades": {
+        "1": {
+          "power_generation": 4,
+          "integrity": 40,
+          "heat_efficiency": -4,
+          "mass": 4
+        },
+        "2": {
+          "power_generation": 6,
+          "integrity": 60,
+          "heat_efficiency": -6,
+          "mass": 8
+        },
+        "3": {
+          "power_generation": 8,
+          "integrity": 80,
+          "heat_efficiency": -8,
+          "mass": 12
+        },
+        "4": {
+          "power_generation": 10,
+          "integrity": 100,
+          "heat_efficiency": -10,
+          "mass": 16
+        },
+        "5": {
+          "power_generation": 12,
+          "integrity": 120,
+          "heat_efficiency": -12,
+          "mass": 20
+        }
+      },
+      "notes": [],
+      "reviewed_recipe": {
+        "1": {
+          "wornshieldemitters": 1
+        },
+        "2": {
+          "carbon": 1,
+          "shieldemitters": 1
+        },
+        "3": {
+          "carbon": 1,
+          "highdensitycomposites": 1,
+          "shieldemitters": 1
+        },
+        "4": {
+          "fedproprietarycomposites": 1,
+          "shieldingsensors": 1,
+          "vanadium": 1
+        },
+        "5": {
+          "compoundshielding": 1,
+          "fedcorecomposites": 1,
+          "tungsten": 1
+        }
+      }
+    }
+  ],
+  "effects": [
+    {
+      "key": "special_thermal_vent",
+      "module": "Beam laser",
+      "source": {
+        "url": "https://inara.cz/elite/blueprint/84/",
+        "checked_at": "2026-10-31",
+        "kind": "community_database",
+        "scope": "Reviewed: ingredient costs, listed experimental modifiers and qualitative effect for this concrete module. Modifiers are separate from blueprint values; no combined ship calculation."
+      },
+      "modifiers": {},
+      "ingredients": {
+        "uncutfocuscrystals": 5,
+        "conductivepolymers": 3,
+        "precipitatedalloys": 3
+      },
+      "notes": [
+        "Cools when hitting a target; heats when missing. No whole-ship cooling rate is predicted."
+      ]
+    },
+    {
+      "key": "special_powerdistributor_fast",
+      "module": "Power distributor",
+      "source": {
+        "url": "https://inara.cz/elite/blueprint/67/",
+        "checked_at": "2026-10-31",
+        "kind": "community_database",
+        "scope": "Reviewed: ingredient costs, listed experimental modifiers and qualitative effect for this concrete module. Modifiers are separate from blueprint values; no combined ship calculation."
+      },
+      "modifiers": {
+        "weapons_capacity": -4,
+        "systems_capacity": -4,
+        "engines_capacity": -4,
+        "weapons_recharge": 4,
+        "systems_recharge": 4,
+        "engines_recharge": 4
+      },
+      "ingredients": {
+        "phosphorus": 5,
+        "heatresistantceramics": 3,
+        "securityfirmware": 1
+      },
+      "notes": []
+    },
+    {
+      "key": "special_powerplant_highcharge",
+      "module": "Power plant",
+      "source": {
+        "url": "https://inara.cz/elite/blueprint/12/",
+        "checked_at": "2026-10-31",
+        "kind": "community_database",
+        "scope": "Reviewed: ingredient costs, listed experimental modifiers and qualitative effect for this concrete module. Modifiers are separate from blueprint values; no combined ship calculation."
+      },
+      "modifiers": {
+        "mass": 10,
+        "power_generation": 5
+      },
+      "ingredients": {
+        "gridresistors": 5,
+        "vanadium": 3,
+        "polymercapacitors": 1
+      },
+      "notes": []
+    },
+    {
+      "key": "special_powerplant_cooled",
+      "module": "Power plant",
+      "source": {
+        "url": "https://inara.cz/elite/blueprint/12/",
+        "checked_at": "2026-10-31",
+        "kind": "community_database",
+        "scope": "Reviewed: ingredient costs, listed experimental modifiers and qualitative effect for this concrete module. Modifiers are separate from blueprint values; no combined ship calculation."
+      },
+      "modifiers": {
+        "heat_efficiency": -10
+      },
+      "ingredients": {
+        "gridresistors": 5,
+        "vanadium": 3,
+        "heatvanes": 1
+      },
+      "notes": []
+    }
+  ],
+  "mechanics": [
+    {
+      "key": "thermal_vent_load",
+      "applies_to": "special_thermal_vent",
+      "summary": "Community testing found venting strength depends on the beam's thermal load; Efficient reduces venting strength. Not a formula for total ship cooling.",
+      "source": {
+        "url": "https://www.patreon.com/cmdrexigeous/posts/thermal-vent-and-34968171",
+        "published_at": "2020-03-17",
+        "checked_at": "2026-10-31",
+        "kind": "community_test"
+      }
+    }
+  ]
+}

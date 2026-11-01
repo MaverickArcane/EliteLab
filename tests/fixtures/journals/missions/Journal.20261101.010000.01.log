@@ -1,0 +1,10 @@
+{"timestamp":"2026-11-01T01:00:00Z","event":"Fileheader"}
+{"timestamp":"2026-11-01T01:00:01Z","event":"Commander","FID":"FMISSIONS","Name":"Mission Pilot"}
+{"timestamp":"2026-11-01T01:00:02Z","event":"Location","StarSystem":"EZ Aquarii","StarPos":[0,0,0],"StationName":"Magnus Gateway","Docked":true}
+{"timestamp":"2026-11-01T01:00:03Z","event":"Loadout","Ship":"anaconda","ShipID":1,"CargoCapacity":100,"Modules":[]}
+{"timestamp":"2026-11-01T01:01:00Z","event":"MissionAccepted","MissionID":1,"Name":"Mission_Collect","LocalisedName":"Source Bauxite","Commodity":"$Bauxite_Name;","Commodity_Localised":"Bauxite","Count":81,"DestinationSystem":"EZ Aquarii","DestinationStation":"Magnus Gateway","Expiry":"2099-01-01T00:00:00Z"}
+{"timestamp":"2026-11-01T01:01:01Z","event":"MissionAccepted","MissionID":2,"Name":"Mission_Collect_Outbreak","Commodity":"$OnionHeadC_Name;","Commodity_Localised":"Onionhead Gamma Strain","Count":72,"DestinationSystem":"EZ Aquarii","DestinationStation":"Magnus Gateway","Expiry":"2099-01-02T00:00:00Z"}
+{"timestamp":"2026-11-01T01:01:02Z","event":"MissionAccepted","MissionID":3,"Name":"MISSION_Salvage_Illegal","Commodity":"$USSCargoBlackBox_Name;","Commodity_Localised":"Black Box","Count":2,"DestinationSystem":"Ross 780","Expiry":"2099-01-03T00:00:00Z"}
+{"timestamp":"2026-11-01T01:01:03Z","event":"MissionAccepted","MissionID":4,"Name":"Mission_Delivery_Boom","Commodity":"$AdvancedMedicines_Name;","Commodity_Localised":"Advanced Medicines","Count":98,"DestinationSystem":"LHS 449","DestinationStation":"Fisher Point","Expiry":"2099-01-04T00:00:00Z"}
+{"timestamp":"2026-11-01T01:01:04Z","event":"CargoDepot","MissionID":4,"UpdateType":"Collect","ItemsCollected":98,"ItemsDelivered":0,"TotalItemsToDeliver":98,"Progress":1.0}
+{"timestamp":"2026-11-01T01:01:05Z","event":"Cargo","Vessel":"Ship","Inventory":[{"Name":"advancedmedicines","MissionID":4,"Count":98,"Stolen":0}]}

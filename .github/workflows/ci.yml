@@ -5,6 +5,9 @@ on:
     branches: [ main, master, development ]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Tests (Python ${{ matrix.python }})
@@ -50,3 +53,26 @@ jobs:
           for i in $(seq 1 20); do curl -fs http://localhost:8766/api/health && break; sleep 1; done
           curl -fs http://localhost:8766/api/journal | python3 -c "import sys,json; j=json.load(sys.stdin); assert j['cmdr']=='Testpilot', j; print('ok', j['ship'])"
           docker rm -f lab
+
+  expedition-browser:
+    name: Expedition browser and security UI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Desktop and mobile browser checks
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
+          ELITELAB_SCREENSHOT_DIR: expedition-screenshots
+        run: node tests/expedition-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: expedition-browser-screenshots
+          path: expedition-screenshots/
+          if-no-files-found: ignore

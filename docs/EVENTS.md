@@ -91,3 +91,25 @@ Observed in a Medium Powerplay conflict zone (LP 673-42, 2026-10-23): `Powerplay
 ## Snapshot files watched but not yet used
 
 `ModulesInfo.json`, `ShipLocker.json`, `Backpack.json`, `NavRoute.json` (the plotted route; a natural input for a route card), `Shipyard.json`, `Outfitting.json`. The watcher emits `journal.file.<Name>` for each when it changes.
+
+## Expedition evidence
+
+The flight module now consumes `NavRoute.json` and `ModulesInfo.json`; those are
+no longer unused snapshots. It dates observations and rejects snapshots older
+than the active commander session.
+
+- `Synthesis`: Name plus exact Materials Name/Count identifies a reviewed recipe;
+  Materials owns deductions, synthesis reads the resulting inventory.
+- `Materials` and subsequent material-changing events: require a current-session
+  baseline before reporting craftability.
+- `JetConeBoost`: BoostValue records a cone-boost observation, replacing earlier
+  injection evidence rather than multiplying it.
+- `FSDJump`: preserve BoostUsed and clear previous boost evidence. CarrierJump
+  changes location/waypoint progress but does not consume injection evidence.
+- `Loadout`, `LoadGame`, `ShipyardSwap`, `Died`, `Shutdown`: invalidate boost
+  certainty when the ship/session changes or observation ends.
+- `Statistics.Exploration.Greatest_Distance_From_Start`: dated Palin milestone
+  evidence; total hyperspace distance is not a substitute.
+
+Research and mission event fields are documented in FLIGHT-RESEARCH.md,
+UNLOCK-RESEARCH.md and MISSION-SUPPLIES.md.

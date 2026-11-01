@@ -1,0 +1,1 @@
+{"name":"progression","version":"1.0.0","description":"Commander-scoped permit evidence, faction reputation, missions and engineer unlock steps.","requires":["journal","engineering"],"provides":["progression"],"order":65,"cards":[]}

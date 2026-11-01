@@ -51,6 +51,29 @@ You do not need to own a fleet carrier to use the Fleet carrier card. Choose a c
 
 ## Quick start
 
+### Expedition and research
+
+Choose **Layout > Expedition** for neutron routing, ship readiness, synthesis
+supplies and upcoming waypoints on the star map. Spansh plans use normal jump
+range and detect the Caspian special FSD's 6x multiplier from the actual loadout.
+Routes survive restarts. The Palin bar uses recorded maximum distance from
+career start, with unknown evidence kept explicit.
+
+Search 35 synthesis recipes, see how many your materials support, and combine
+several recipes into one budget. FSD injections and jet-cone boosts have separate
+journal evidence; their bonuses are never stacked. See the
+[expedition guide](docs/NEUTRON-HIGHWAY.md).
+
+The MCP can also resume [ship engineering](docs/ENGINEERING-RESEARCH.md), check
+[actual modules and routes](docs/FLIGHT-RESEARCH.md), investigate
+[engineer unlocks](docs/UNLOCK-RESEARCH.md), and build a
+[mission supply checklist](docs/MISSION-SUPPLIES.md).
+
+For access through a trusted DNS name, set `ELITELAB_ALLOWED_HOSTS` to that
+hostname. IP-address URLs continue to work. See the
+[security review and network boundary](docs/EXPEDITION-SECURITY.md).
+
+
 ### Windows, no Docker
 
 Requires Python 3.10 or newer (python.org, tick "Add to PATH").
