@@ -24,12 +24,12 @@
 
   function render(d) {
     loaded = d;
-    const v = d.values;
+    const v = {...d.values, ...d.pending};
     const list = $('[data-candidates]');
-    const known = d.journal_candidates.some(c => c.selected);
+    const known = d.journal_candidates.some(c => c.path === v.journal_dir);
     list.innerHTML = d.journal_candidates.map((c, i) => {
       const info = c.exists && c.journals ? `${c.journals} journals, newest ${c.newest || 'unknown'}` : 'not found';
-      return `<li><label class="chk"><input type="radio" name="journal_dir" value="${esc(c.path)}" ${c.selected ? 'checked' : ''}>
+      return `<li><label class="chk"><input type="radio" name="journal_dir" value="${esc(c.path)}" ${c.path === v.journal_dir ? 'checked' : ''}>
         <span class="n"><b>${esc(c.path)}</b><br><span class="muted">${esc(info)}</span></span></label></li>`;
     }).join('');
     form.elements.journal_dir_custom.value = known ? '' : v.journal_dir;
@@ -41,15 +41,16 @@
   }
 
   function changes() {
+    const baseline = {...loaded.values, ...loaded.pending};
     const custom = form.elements.journal_dir_custom.value.trim();
     const picked = form.querySelector('[data-candidates] input:checked');
     const now = {
-      journal_dir: custom || (picked ? picked.value : loaded.values.journal_dir),
+      journal_dir: custom || (picked ? picked.value : baseline.journal_dir),
       port: form.elements.port.value.trim(),
       data_dir: form.elements.data_dir.value.trim(),
     };
     const out = {};
-    for (const k of Object.keys(now)) if (String(now[k]) !== String(loaded.values[k])) out[k] = k === 'port' ? Number(now[k]) : now[k];
+    for (const k of Object.keys(now)) if (String(now[k]) !== String(baseline[k])) out[k] = k === 'port' ? Number(now[k]) : now[k];
     return out;
   }
 
@@ -98,13 +99,18 @@
     }
     return 'timeout';
   }
-  window.SetupPage = { waitForRestart };
+  function restartBase(state, current) {
+    // Environment and command-line overrides survive a launcher restart.
+    const overridden = ['env', 'flag'].includes(state.sources.port);
+    const port = (!overridden && state.pending?.port) || state.values.port;
+    const same = Number(port) === Number(current.port || (current.protocol === 'https:' ? 443 : 80));
+    return same ? '' : `${current.protocol}//${current.hostname}:${port}`;
+  }
+  window.SetupPage = { waitForRestart, restartBase };
 
   restartBtn.addEventListener('click', async () => {
     restartBtn.disabled = true;
-    const port = (loaded.pending && loaded.pending.port) || loaded.values.port;
-    const same = Number(port) === Number(location.port || (location.protocol === 'https:' ? 443 : 80));
-    const base = same ? '' : `${location.protocol}//${location.hostname}:${port}`;
+    const base = restartBase(loaded, location);
     try { await api('/api/restart', {}); } catch (err) {
       if (!(err instanceof TypeError)) { restartBtn.disabled = false; say(err.message, 'bad'); return; }   // HTTP refusal: show it now
       /* a dropped connection is the server exiting */

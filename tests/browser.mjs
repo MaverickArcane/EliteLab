@@ -93,6 +93,19 @@ try {
   const setupSaved=await evaluate("({restartVisible:!document.querySelector('[data-restart]').hidden,status:document.querySelector('[data-status]').textContent})");
   assert.ok(setupSaved.restartVisible); assert.match(setupSaved.status,/restart/i); assert.match(setupSaved.status,/ELITELAB_URL .*set it to port 8799\b/); assert.doesNotMatch(setupSaved.status,/launcher/i);
   assert.deepEqual(JSON.parse(fs.readFileSync(settingsFile,'utf8')),{port:8799});
+  // Pending values remain visible after save/reload and can be reverted before a restart.
+  assert.equal(await evaluate("document.querySelector('[name=port]').value"),'8799');
+  await send('Page.reload');
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[name=port]')?.value === '8799'"))break;}
+  assert.equal(await evaluate("document.querySelector('[name=port]').value"),'8799');
+  const runningSetup=await (await fetch(`http://127.0.0.1:${port}/api/setup`)).json();
+  await evaluate(`document.querySelector('[name=port]').value=${JSON.stringify(String(runningSetup.values.port))};document.querySelector('[data-setup-form]').requestSubmit();true`);
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[data-restart]').hidden"))break;}
+  assert.equal(await evaluate("document.querySelector('[data-restart]').hidden"),true);
+  assert.equal(JSON.parse(fs.readFileSync(settingsFile,'utf8')).port,runningSetup.values.port);
+  // The redirect uses the port that will actually apply, including persistent overrides.
+  const restartTargets=await evaluate(`['default','file','env','flag'].map(source=>SetupPage.restartBase({values:{port:8766},pending:{port:8799},sources:{port:source}},{port:'8766',protocol:'http:',hostname:'localhost'}))`);
+  assert.deepEqual(restartTargets,['http://localhost:8799','http://localhost:8799','','']);
   const results={bannerProbe,setupPage,precedence,restartWait,journalTest,setupSaved,desktop:before,inputAfter,engineeringCards,mobile,crossOrigin,wishlistAfter,browserExceptions:errors};
   assert.equal(inputAfter.name,'arsenic'); assert.equal(inputAfter.qty,'5'); assert.equal(inputAfter.focus,'mat-q'); assert.equal(mobile.bodyWidth,390); assert.equal(wishlistAfter.wishlist[0].need,10); assert.deepEqual(errors,[]); assert.deepEqual(before.renderErrors,[]);console.log(JSON.stringify(results,null,2));
   await send('Browser.close').catch(()=>{});
