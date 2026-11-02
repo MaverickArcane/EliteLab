@@ -272,3 +272,7 @@ Journal index and real-CLI browser tests: see [HISTORY.md](HISTORY.md#validation
 CI retains desktop/mobile history screenshots as an artifact.
 
 test_material_plan.py and material-plan-browser.mjs cover the unified plan, authenticated MCP, old saved data/layouts, live changes and desktop/mobile evidence. See [MATERIAL-PLAN.md](MATERIAL-PLAN.md).
+
+`test_rares_workflow.py` and `rares-browser.mjs` cover rare-buying evidence,
+authenticated HTTP/MCP parity, journal updates, local visit marks, market
+freshness and responsive screenshots. See [RARE-GOODS.md](RARE-GOODS.md).

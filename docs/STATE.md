@@ -124,7 +124,8 @@ Response: `{power, ref, kind, radius, jump_range, results[{kind, system, dist, j
 |---|---|
 | `id`, `name`, `note`, `origin` | loop identity |
 | `stations` | `[{system, station, type, ls, rares[{name,key}], keys[str], tons, in_hold, dist, docked_here, done, coords{x,y,z} or null}]` sorted (done, dist) |
-| `done_count`, `tons_total` | ints |
+| `done_count`, `tons_total` | int; `tons_total` is null when cargo is unknown |
+| `workflow` | `{cargo_known, free_capacity, market:{status,message,station,system,timestamp,rares:[{name,buy,stock}]}}`; see [RARE-GOODS.md](RARE-GOODS.md) |
 | `next` | `{system, station, dist}` or null |
 | `complete` | bool |
 | `available` | `[{id, name, origin}]` |

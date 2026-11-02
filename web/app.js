@@ -71,7 +71,7 @@ import {StateFeed} from './state-feed.js';
     overview:{label:'Overview',description:'Ship, location and recent activity',cards:['location','ship','cargo','feed','map']},
     materials:{label:'Materials / Recipes',description:'Saved recipes, shared materials and recorded synthesis',cards:['wishlist','build']},
     flight:{label:'Flight',description:'Route planning and ship status',cards:['neutron','ship','location','map','feed']},
-    trade:{label:'Trading',description:'Commodity routes, cargo and carrier operations',cards:['personal','haul','party','trade','cargo','market','carrier']},
+    trade:{label:'Trading',description:'Commodity routes, cargo and carrier operations',cards:['personal','loop','cargo','market','targets','haul','party','trade','carrier']},
     mining:{label:'Mining',description:'Mining sessions, locations and buyers',cards:['mining','cargo','map']},
     powerplay:{label:'Powerplay',description:'Pledge, merits, sell targets and combat',cards:['powerplay','merits','targets','loop','combat']},
     history:{label:'History',description:'Recorded balances, merit cycles and collection locations',cards:['history']},
@@ -295,6 +295,9 @@ import {StateFeed} from './state-feed.js';
       spans: { neutron: 8, ship: 4, wishlist: 12, location: 4, map: 8, feed: 4 },
       hidden: ALL().filter(id => !['neutron', 'ship', 'wishlist', 'location', 'map', 'feed'].includes(id)) }),
 
+    'Rare goods': () => ({ order: ['loop', 'cargo', 'market', 'targets', 'map', 'location'],
+        spans: { loop: 12, cargo: 6, market: 6, targets: 12, map: 8, location: 4 },
+        hidden: ALL().filter(id => !['loop', 'cargo', 'market', 'targets', 'map', 'location'].includes(id)) }),
     'Trading': () => ({ order: ['personal', 'cargo', 'ship', 'location', 'market', 'map', 'feed'],
       spans: { personal: 12, cargo: 4, ship: 4, location: 4, market: 4, map: 8, feed: 4 },
       hidden: ALL().filter(id => !['personal', 'cargo', 'ship', 'location', 'market', 'map', 'feed'].includes(id)) }),
