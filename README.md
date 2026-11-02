@@ -42,7 +42,7 @@ tab alone does not stop the server. Windows dashboard and party ports are exclus
 | powerplay | Power, rank, merits, merits this session, cycle countdown | `get_powerplay_status` |
 | merits | Merits per hour and per activity, worked out from the journal | `get_merits_summary` |
 | combat | Where combat pays merits: contested systems with combat zones, acquisition, undermining, reinforcement | `find_combat_systems` |
-| targets | Powerplay sell-target finder with jump counts, market freshness, and warnings about rares a station will not buy; power comparison | `find_sell_targets`, `compare_powers`, `get_system_info` |
+| targets | [Rare sell targets: per-good source distances, price curves, conditional merits per jump, freshness and cargo restrictions](docs/SELL-TARGETS.md); power comparison | `find_sell_targets`, `compare_powers`, `get_system_info` |
 | loop | Rare goods loop that ticks itself from your hold, sorted by distance, with the next stop | `get_rares_loop`, `select_rares_loop` |
 | materials | Inventory as the game reports it, filterable; where-to-farm hints; a flat per-material wishlist for scripts | `get_materials`, `set_wishlist`, `get_wishlist`, `material_sources` |
 | recipes | Engineering blueprints G1-G5 and experimental effects with materials per grade and which engineers offer them; searchable | `list_recipes`, `get_recipe` |

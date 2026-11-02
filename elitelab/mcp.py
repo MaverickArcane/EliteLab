@@ -143,9 +143,14 @@ PROMPTS = {
         "description": "Plan a rare goods run from where the commander is: which loop, what to buy, where to sell for Powerplay merits.",
         "arguments": [],
         "text": ("Plan a rare goods run for me. Call get_commander_state (where I am, my ship, cargo and jump range), get_rares_loop "
-                 "(the active loop and what is already aboard), get_powerplay_status (my power) and find_sell_targets with min=125 "
-                 "max=165 (acquisition starports that pay merits; check the refuses list against my hold). Then give me the route: "
-                 "the next buy stops in order, then the sell stop, with jump counts, and anything that would stop a station buying.")},
+                 "(the active loop and what is already aboard) and get_powerplay_status. Use find_sell_targets for cargo currently aboard, "
+                 "with an explicit distance band and sort=merits_per_jump. Leave rate_mode=unknown unless I choose a conversion assumption; "
+                 "mahon_observed is a 667 Cr/merit October 2026 Mahon-with-bonus observation, not a universal rule. A custom rate requires "
+                 "credits_per_merit. Inspect per-good source distances, price status, quote age, demand and cargo restrictions. "
+                 "Missing listings and incomplete loads stay unknown. interpolate=true is optional, only between observed price points; "
+                 "never silently enable it. Distinguish source distance from travel distance. Explain that jumps are straight-line lower "
+                 "bounds and forecasts are conditional, separate from recorded merits. Give next buy stops and candidate sell targets "
+                 "with assumptions and local Powerplay eligibility still to verify; do not promise rewards or change the recorded counter.")},
     "engineering_plan": {
         "description": "Work out what to farm, trade or buy for an engineering goal (a pinned build, or a blueprint such as 'G5 dirty drives').",
         "arguments": [{"name": "goal", "description": "What to engineer, e.g. 'the pinned build' or 'G5 dirty drives on my thrusters'", "required": False,

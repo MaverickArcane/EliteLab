@@ -373,16 +373,21 @@ Where this session's Powerplay merits came from (rares, trade, bounty hunting, c
 
 ## `find_sell_targets`  -  `GET /api/targets`  -  module: targets
 
-Stations with a market in Unoccupied systems that a power can acquire (where Powerplay trade and rare goods sales earn merits), nearest the reference system first. Rare goods pay best 125-165 Ly from where they were bought. Includes market data age so stale stations can be avoided.
+Compare up to 100 reported orbital markets in a power's Unoccupied systems for rare cargo currently aboard. Rank conditional merits per lower-bound laden jump, total merits, or travel distance. Fresh legal quotes with adequate demand supply sale estimates; incomplete loads stay unknown. Optional source-distance interpolation never extrapolates or invents acceptance. All eligibility remains conditional. [Evidence and limitations](SELL-TARGETS.md).
 
 | Parameter | Type | Description |
 |---|---|---|
 | `power` | string | Power name; default = the pledged power (one of `Edmund Mahon`, `Li Yong-Rui`, `Aisling Duval`, `Pranav Antal`, `Denton Patreus`, `Nakato Kaine`, `Felicia Winters`, `Jerome Archer`, `Zemina Torval`, `Yuri Grom`, `A. Lavigny-Duval`, `Archon Delaine`) |
 | `ref` | string | Reference system; default = current system |
-| `min` | number | Minimum distance in Ly |
-| `max` | number | Maximum distance in Ly |
+| `min` | number | Minimum travel distance, 0-500 Ly; default 125 |
+| `max` | number | Maximum travel distance, positive and at most 500 Ly; default 200 |
 | `pad` | string | L = large starports only (default), M = include outposts (default `L`; one of `L`, `M`) |
 | `limit` | integer | Max results (<=100) (default `40`) |
+| `hours` | number | Maximum usable quote age, 0.01-168 hours; default 24 |
+| `sort` | string | `merits_per_jump` (default), `merits`, or `distance`; unknown metrics sort last |
+| `rate_mode` | string | `unknown` (default), `mahon_observed` (667 Cr/merit, Mahon only), or `custom` |
+| `credits_per_merit` | number | Required for custom mode, 0.01-1e9; a user assumption |
+| `interpolate` | boolean | Default false; opt in to linear interpolation between fresh source-distance observations |
 
 ## `compare_powers`  -  `GET /api/powers`  -  module: targets
 

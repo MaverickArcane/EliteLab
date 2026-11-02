@@ -1,85 +1,91 @@
-/* targets card: Powerplay sell-target finder + power comparison. Publishes results to Lab.state.targets (client side)
-   and registers a map layer. */
+/* Rare-goods target planning. Quotes, modeled prices and merit assumptions stay separate. */
 (() => {
-  const { esc, fmt, inaraSt, spanshSys } = Lab.util;
-  let refTouched = false;
+  const {esc,fmt,ls,inaraSt,spanshSys}=Lab.util;
+  const key='elitelab.targets.filters.v2';
+  const money=n=>n==null?'Unknown':`${fmt(Math.round(n))} Cr`;
+  const metric=n=>n==null?'Unknown':fmt(Math.round(n));
+  const identity=r=>r ? `${r.system}\n${r.station}` : '';
+  const field=(title,name,value='',type='text')=>`<label>${title}<input name="${name}" value="${value}" type="${type}" ${type==='number'?'min="0" step="any"':'maxlength="160"'}></label>`;
+  const fields=f=>Object.fromEntries(new FormData(f));
+  const context=S=>JSON.stringify([S.journal?.system,S.journal?.cmdr,S.journal?.cargo,S.journal?.jump_range_laden,S.journal?.jump_range_now,S.targets?.pledge,S.targets?.origins,S.targets?.evidence_revision]);
+  const statusName=s=>({reported:'Reported quote',interpolated:'Interpolated price',not_reported:'Not reported',quantity_unknown:'Quantity unknown',stale_or_undated:'Stale or undated',prohibited:'Prohibited',demand_unknown:'Demand unknown',insufficient_demand:'Demand below load',price_unknown:'Price unknown'}[s]||'Unknown');
 
-  Lab.card({
-    id: 'targets', requires: ['journal', 'powerplay', 'targets'],
+  function curve(el,d) {
+    const select=el.querySelector('[data-target-curve]');
+    const c=(d?.curves||[]).find(c=>c.key===select.value), out=el.querySelector('[data-target-chart]');
+    if(!c||c.points.length<2){out.innerHTML='<p class="note">At least two fresh source-distance observations are needed. No curve is invented for missing data.</p>';return;}
+    const points=c.points, minX=points[0].distance,maxX=points.at(-1).distance,maxY=Math.max(...points.map(p=>p.price));
+    const xy=p=>[50+(p.distance-minX)/(maxX-minX||1)*520,150-p.price/(maxY||1)*125];
+    out.innerHTML=`<svg viewBox="0 0 600 185" role="img" aria-label="${esc(c.name)} reported prices by source distance"><path d="M50 15V150H575" fill="none" stroke="currentColor" opacity=".4"/><polyline points="${points.map(p=>xy(p).join(',')).join(' ')}" fill="none" stroke="#ff9d32" stroke-dasharray="5 3"/>${points.map(p=>{const [x,y]=xy(p);return `<circle cx="${x}" cy="${y}" r="3" fill="#6fb3ff"><title>${esc(c.name)}: ${fmt(p.distance)} Ly from ${esc(c.origin)}, ${money(p.price)} / t (${p.observations} reports)</title></circle>`;}).join('')}<text x="50" y="175" fill="currentColor" font-size="11">${fmt(minX)} Ly</text><text x="570" y="175" text-anchor="end" fill="currentColor" font-size="11">${fmt(maxX)} Ly from ${esc(c.origin)}</text><text x="55" y="12" fill="currentColor" font-size="11">${money(maxY)} / t</text></svg><p class="note">${esc(c.note)} No extrapolation beyond observed distances.</p>`;
+  }
+
+  function show(el,d) {
+    const u=el._targets;u.display=d;Lab.set('targets',{visible:d.results,selected:null});
+    el.querySelector('[data-target-results]').innerHTML=d.results.length?d.results.map((r,i)=>`<article class="target-result" data-target-index="${i}">
+      <div class="target-title"><div><small>${i+1}. ${esc(r.system)}</small><b>${esc(r.station)}</b></div><div><strong>${metric(r.merits_per_jump)}</strong><small>est. merits / jump</small></div></div>
+      <div class="target-stats"><span>${metric(r.estimated_merits)} estimated merits</span><span>${money(r.estimated_sale)} load value</span><span>${fmt(r.dist)} Ly travel</span><span>${r.jumps==null?'Jumps unknown':`~${fmt(r.jumps)} jumps`}</span><span>Pad ${esc(r.pad)}</span><span>${r.ls==null?'Arrival unknown':`${fmt(r.ls)} ls`}</span></div>
+      <p class="note">${r.age_hours==null?'Market date unknown/future':`Market ${fmt(Math.round(r.age_hours))}h old`}. ${r.priced_goods}/${r.goods_count} goods priced. ${r.estimated_sale==null?`Known subtotal: ${money(r.priced_subtotal)}; full load unknown.`:'Conditional forecast; confirm local Powerplay activity and cargo provenance.'} ${r.merit_eligibility==='blocked'?'Known cargo restriction blocks merit estimates.':''}</p>
+      <details><summary>Per-good prices and origin distances</summary><div class="target-table"><table><thead><tr><th>Rare / tons</th><th>Origin / distance</th><th>Price / basis</th></tr></thead><tbody>${Object.values(r.goods).map(g=>`<tr><td>${esc(g.name)}<br>${fmt(g.tons)} t</td><td>${esc(g.origin||'Unknown origin')}<br>${g.source_distance==null?'Unknown':`${fmt(g.source_distance)} Ly`}</td><td>${money(g.price)} / t<br>${esc(statusName(g.status))}${g.eligibility==='blocked'?'<br>Merits blocked':''}</td></tr>`).join('')}</tbody></table></div></details>
+      <div class="row"><button class="mini primary" data-target-select="${i}">Select sell target</button><button class="mini" data-copy="${esc(r.system)}">Copy system</button><a href="${inaraSt(r.station)}" target="_blank" rel="noopener noreferrer">Check station</a></div>
+    </article>`).join(''):'<p class="note">No reported markets matched this power, distance band and pad. Adjust the filters and retry.</p>';
+    const select=el.querySelector('[data-target-curve]'), previous=select.value;
+    select.innerHTML=(d.curves||[]).map(c=>`<option value="${esc(c.key)}">${esc(c.name)}</option>`).join('');
+    if((d.curves||[]).some(c=>c.key===previous))select.value=previous;
+    el.querySelector('[data-target-limits]').textContent=`${d.rate_note} ${d.note}`;
+    el.querySelector('[data-target-status]').textContent=`${d.results.length} shown from ${d.stations_checked} markets checked near ${d.ref}. ${d.manual_origin?'Manual planning origin; travel is not from your current location.':''} ${d.partial?'Partial provider results.':''}`;
+    curve(el,d);
+  }
+
+  Lab.card({id:'targets',requires:['journal','powerplay','targets'],
     mount(el) {
-      el.innerHTML = `
-        <div class="row">
-          <label>Power <select id="t-power"></select></label>
-          <label>From <input id="t-ref" size="18" placeholder="current system" title="Follows your current system until you type your own"></label>
-          <label>Min Ly <input id="t-min" size="4" value="125"></label>
-          <label>Max Ly <input id="t-max" size="4" value="165"></label>
-          <label>Pad <select id="t-pad"><option value="L">Large starports</option><option value="M">Include outposts</option></select></label>
-          <button class="primary" id="t-go">Find targets</button>
-          <button id="t-here">Use current system</button>
-          <button id="t-compare">Compare powers</button>
-          <span class="muted" id="t-status"></span>
-        </div>
-        <table><thead><tr><th>System</th><th>Station</th><th class="num">Ly</th><th class="num" title="at max unladen jump range; laden needs more">Jumps</th><th class="num">ls</th><th>Type</th><th>Pad</th><th class="num">Pop</th><th>Market data</th><th></th></tr></thead>
-        <tbody id="t-body"><tr><td class="muted" colspan="10">Rare goods pay best around 130 to 160 Ly from where you bought them. Set the band and hit Find; results also plot on the map.</td></tr></tbody></table>
-        <div id="t-compare-out"></div>
-        <div class="note">Data from Spansh (community-updated). An old market date means nobody has docked there recently. Rares must be bought outside the system you sell them in and must not have been on a fleet carrier.</div>`;
-      const $ = s => el.querySelector(s);
-      const sel = $('#t-power');
-      (Lab.state.powerplay?.powers || []).forEach(p => { const o = document.createElement('option'); o.value = o.textContent = p; sel.appendChild(o); });
-      $('#t-ref').addEventListener('input', () => { refTouched = $('#t-ref').value.trim() !== ''; });
-      $('#t-here').onclick = () => { refTouched = false; $('#t-ref').value = Lab.state.journal?.system || ''; find(); };
-      $('#t-go').onclick = find;
-      $('#t-compare').onclick = compare;
-      $('#t-body').addEventListener('click', e => {
-        const tr = e.target.closest('tr[data-i]'); if (!tr || e.target.closest('a,button')) return;
-        const t = (Lab.state.targets?.last?.results || [])[+tr.dataset.i]; select(t);
-      });
-
-      async function find() {
-        const params = { power: sel.value, ref: $('#t-ref').value.trim() || undefined, min: $('#t-min').value, max: $('#t-max').value, pad: $('#t-pad').value };
-        $('#t-status').textContent = 'querying Spansh…'; $('#t-compare-out').innerHTML = '';
-        try {
-          const d = await Lab.api('/api/targets', params); if (d.error) throw new Error(d.error);
-          // The server stores the result as targets.last and pushes it over SSE; the card renders from there, so a
-          // search made by an AI tool call shows up here too. Only the selection is client-side.
-          Lab.set('targets', { selected: null });
-          $('#t-status').textContent = `${fmt(d.count)} stations match; showing nearest ${d.results.length} from ${d.ref}${d.jump_range ? ` · jumps at ${d.jump_range.toFixed(1)} Ly max range` : ''}`;
-        } catch (e) { $('#t-status').textContent = 'error: ' + e.message; }
-      }
-      async function compare() {
-        $('#t-status').textContent = 'comparing all powers (first run takes ~20 s)…';
-        try {
-          const d = await Lab.api('/api/powers', { ref: $('#t-ref').value.trim() || undefined });
-          $('#t-compare-out').innerHTML = `<table style="margin-top:10px"><thead><tr><th>Power</th><th class="num">Acquisition starports</th><th>Nearest to ${esc(d.ref)}</th></tr></thead><tbody>` +
-            d.powers.map(p => `<tr><td><b>${esc(p.power)}</b></td><td class="num">${p.error ? '<span class="bad">error</span>' : fmt(p.count)}</td><td>${(p.nearest || []).map(n => `${esc(n.system)} <span class="muted">${n.dist} Ly</span>`).join(' · ')}</td></tr>`).join('') + '</tbody></table>';
-          $('#t-status').textContent = 'comparison ready';
-        } catch (e) { $('#t-status').textContent = 'error: ' + e.message; }
-      }
-      function select(t) { const cur = Lab.state.targets?.selected; Lab.set('targets', { selected: cur === t ? null : t }); }
-      el._select = select;
+      el.classList.add('target-desk');
+      const u=el._targets={generation:0,compareGeneration:0,dead:false,dirty:false,pending:false,display:null};
+      el.innerHTML=`<p data-target-context class="note"></p><form class="target-form" data-target-form>
+        <label>Power<select name="power"><option value="">Use observed pledge</option>${(Lab.state.powerplay?.powers||[]).map(p=>`<option>${esc(p)}</option>`).join('')}</select></label>${field('Travel from','ref')}${field('Min distance (Ly)','min',125,'number')}${field('Max distance (Ly)','max',200,'number')}
+        <label>Minimum pad<select name="pad"><option value="L">Large</option><option value="M">Medium</option></select></label>${field('Max quote age (hours)','hours',24,'number')}
+        <label>Order by<select name="sort"><option value="merits_per_jump">Estimated merits / jump</option><option value="merits">Estimated merits</option><option value="distance">Travel distance</option></select></label>
+        <label>Merit conversion<select name="rate_mode"><option value="unknown">Unknown rate</option><option value="mahon_observed">Mahon observation: 667 Cr / merit</option><option value="custom">My measured rate</option></select></label>${field('Custom Cr per merit','credits_per_merit','','number')}
+        <label>Missing prices<select name="interpolate"><option value="false">Reported prices only</option><option value="true">Interpolate between observations</option></select></label>
+        <button class="primary" type="submit">Find sell targets</button><button type="button" data-target-here>Use current system</button>
+      </form><p class="note">Choose a merit conversion to calculate conditional rewards. The Mahon setting assumes the bonus conditions of the recorded observation still apply. Missing data stays unknown.</p>
+      <p role="status" class="note" data-target-status>Load rare goods, choose a power and search for sell destinations.</p>
+      <div data-target-results class="target-results"></div><div data-target-selection class="target-selection"></div>
+      <details class="target-curves"><summary>Distance-price observations</summary><label>Rare <select data-target-curve></select></label><div data-target-chart></div></details>
+      <details><summary>Forecast assumptions and coverage</summary><p class="note" data-target-limits>Prices and merit rates are estimates. Your recorded merit counter is separate.</p></details>
+      <button class="mini" data-target-compare>Compare powers</button><div data-target-compare-out></div>`;
+      const f=el.querySelector('form'), status=el.querySelector('[data-target-status]');
+      for(const [name,value] of Object.entries(ls.get(key,{})||{})){const input=f.elements.namedItem(name);if(input&&typeof value==='string'&&value.length<=160)input.value=value;}
+      const clear=()=>{u.display=null;el.querySelector('[data-target-results]').innerHTML='';el.querySelector('[data-target-chart]').innerHTML='';el.querySelector('[data-target-curve]').innerHTML='';Lab.set('targets',{selected:null,visible:[]});};
+      u.invalidate=()=>{++u.generation;++u.compareGeneration;u.pending=false;clear();};
+      f.addEventListener('input',()=>{u.dirty=true;u.invalidate();status.textContent='Filters changed. Search to refresh results.';ls.set(key,fields(f));});
+      f.onsubmit=async event=>{
+        event.preventDefault();u.context=context(Lab.state);++u.compareGeneration;const generation=++u.generation;clear();u.pending=true;u.dirty=false;status.textContent='Searching community markets...';
+        try{const d=await Lab.api('/api/targets',fields(f));if(u.dead||generation!==u.generation)return;show(el,d);u.lastSeen=d.request_id;}
+        catch(e){if(!u.dead&&generation===u.generation){clear();status.textContent=e.message;}}
+        finally{if(generation===u.generation)u.pending=false;}
+      };
+      el.querySelector('[data-target-here]').onclick=()=>{f.elements.ref.value=Lab.state.journal?.system||'';f.dispatchEvent(new Event('input'));};
+      el.querySelector('[data-target-curve]').onchange=()=>curve(el,u.display);
+      el.addEventListener('click',e=>{const b=e.target.closest('[data-target-select]');if(b&&u.display?.results[+b.dataset.targetSelect])Lab.set('targets',{selected:u.display.results[+b.dataset.targetSelect]});});
+      el.querySelector('[data-target-compare]').onclick=async()=>{const generation=++u.compareGeneration;status.textContent='Comparing reported acquisition markets...';try{const d=await Lab.api('/api/powers',{ref:f.elements.ref.value});if(u.dead||generation!==u.compareGeneration)return;el.querySelector('[data-target-compare-out]').innerHTML=d.powers.map(p=>`<p>${esc(p.power)}: ${p.error?'unavailable':fmt(p.count)} reported markets</p>`).join('');status.textContent='Power comparison ready; this does not change your pledge.';}catch(e){if(!u.dead&&generation===u.compareGeneration)status.textContent=e.message;}};
     },
-    render(el, S) {
-      const $ = s => el.querySelector(s);
-      const j = S.journal || {}, pp = S.powerplay || {}, T = S.targets || {};
-      if (j.system && !refTouched && $('#t-ref').value !== j.system) $('#t-ref').value = j.system;
-      const sel = $('#t-power'); if (pp.power && sel.value !== pp.power && !sel.dataset.touched) sel.value = pp.power;
-      sel.onchange = () => sel.dataset.touched = '1';
-      const rows = T.last?.results || [];
-      if (rows.length) $('#t-body').innerHTML = rows.map((s, i) => {
-        const age = s.updated ? Math.round((Date.now() - Date.parse(s.updated)) / 864e5) : null; const cls = age == null ? 'muted' : (age > 60 ? 'bad' : (age > 14 ? 'warn' : 'ok'));
-        const ref = s.refuses === null || s.refuses === undefined ? '' : (s.refuses.length ? ` <span class="tag bad" title="not in this station's market list">won't buy: ${esc(s.refuses.join(', '))}</span>` : ' <span class="tag ok" title="all rares in your hold are listed here">buys all</span>');
-        return `<tr data-i="${i}" class="${T.selected === s ? 'sel' : ''}"><td><b>${esc(s.system)}</b></td><td>${esc(s.station)}${ref}</td><td class="num">${s.dist}</td><td class="num">${s.jumps != null ? '~' + s.jumps : '—'}</td><td class="num">${fmt(s.ls)}</td><td>${esc(s.type)}</td><td>${s.pad}</td><td class="num">${fmt(s.pop)}</td><td class="${cls}">${age == null ? 'unknown' : age + ' d ago'}</td><td><button class="mini" data-copy="${esc(s.system)}">copy</button> <a href="${inaraSt(s.station)}" target="_blank">Inara</a> <a href="${spanshSys(s.system)}" target="_blank">Spansh</a></td></tr>`;
-      }).join('');
+    render(el,S) {
+      const u=el._targets,f=el.querySelector('form'), next=context(S), changed=u.context!==undefined&&u.context!==next;
+      if(changed){u.invalidate();u.lastSeen=Math.max(u.lastSeen||0,S.targets?.last?.request_id||0);el.querySelector('[data-target-status]').textContent='Cargo, ship, location or pledge changed. Search to refresh estimates.';}
+      u.context=next;
+      if(!f.elements.ref.value||f.elements.ref.value===u.lastSystem)f.elements.ref.value=S.journal?.system||'';
+      u.lastSystem=S.journal?.system;
+      const rares=(S.journal?.cargo?.items||[]).filter(r=>r.rare);
+      el.querySelector('[data-target-context]').textContent=`${rares.length?rares.map(r=>`${r.count} t ${r.name}`).join(' | '):'No rare goods reported aboard.'} Pledge: ${S.targets?.pledge||'unknown'}. Search uses unboosted laden range; unknown range leaves merits/jump unknown.`;
+      const d=S.targets?.last;
+      if(d&&d.request_id>(u.lastSeen||0)&&!u.pending&&!u.dirty&&!changed){show(el,d);u.lastSeen=d.request_id;}
+      const selected=S.targets?.selected;
+      el.querySelector('[data-target-selection]').innerHTML=selected?`<b>Selected sell target: ${esc(selected.station)}</b><p class="note">${esc(selected.system)}. Highlighted in EliteLab; no in-game route is plotted.</p><button class="mini" data-copy="${esc(selected.system)}">Copy system</button><a href="${spanshSys(selected.system)}" target="_blank" rel="noopener noreferrer">Spansh</a>`:'';
+      el.querySelectorAll('[data-target-index]').forEach(row=>row.classList.toggle('selected',identity(u.display?.results[+row.dataset.targetIndex])===identity(selected)));
     },
+    unmount(el){el._targets.dead=true;}
   });
-
-  Lab.map.addLayer('targets', {
-    label: 'sell targets', color: '#6fb3ff', z: 1,
-    points: S => (S.targets?.last?.results || []).filter(t => t.x != null).map(t => {
-      const age = t.updated ? Math.round((Date.now() - Date.parse(t.updated)) / 864e5) : null;
-      return { name: t.system, x: t.x, y: t.y, z: t.z, r: 4, color: age == null ? '#4b6f9c' : (age > 60 ? '#8a4b5c' : (age > 14 ? '#c9a23a' : '#6fb3ff')),
-               sub: `${t.station} · ${t.type} · ${t.dist} Ly${t.jumps != null ? ` (~${t.jumps} jumps)` : ''} · market ${age == null ? 'unknown' : age + ' d ago'}${t.refuses && t.refuses.length ? ` · WON'T BUY ${t.refuses.join(', ')}` : ''}`, selected: S.targets?.selected === t, onClick: () => Lab.set('targets', { selected: S.targets?.selected === t ? null : t }) };
-    }),
-    lines: S => { const t = S.targets?.selected, p = Lab.shipPos(S); return t && p ? [{ a: p, b: t, color: 'rgba(111,179,255,.8)', dash: [4, 4], label: Lab.util.dist3(p, t).toFixed(1) + ' Ly' }] : []; },
+  Lab.map.addLayer('targets',{label:'sell targets',color:'#6fb3ff',z:1,
+    points:S=>(S.targets?.visible||[]).filter(r=>[r.x,r.y,r.z].every(Number.isFinite)).map(r=>({name:r.system,x:r.x,y:r.y,z:r.z,r:4,sub:`${r.station} | ${r.dist} Ly | estimated merits/jump: ${metric(r.merits_per_jump)}`,selected:identity(S.targets?.selected)===identity(r),onClick:()=>Lab.set('targets',{selected:r})}))
   });
 })();
