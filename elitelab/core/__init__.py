@@ -33,7 +33,9 @@ class Core:
         self.store = Store(self.bus)
         self.services = Services()
         self.http = Router()
+        self.ready = False
         self.modules = {}
+        self.shutdown_callbacks = []
         self.watcher = JournalWatcher(self.bus)
         self._server = HttpServer(self)
         self._register_builtin_routes()
@@ -60,9 +62,12 @@ class Core:
     # -- built-in routes -----------------------------------------------------------
     def _register_builtin_routes(self):
         from .. import __version__
-        self.http.route("/api/health", lambda q: {"ok": True, "version": __version__, "journal_dir": config.JOURNAL_DIR,
+        self.http.route("/api/health", lambda q: {"ok": True, "application":"EliteLab", "ready":self.ready, "pid":os.getpid(), "source_dir":config.ROOT,
+                                                  "version": __version__, "journal_dir": config.JOURNAL_DIR,
                                                   "journal_found": bool(journal_files()), "modules": list(self.modules)},
                         tool="health", description="Server health, version, journal folder and loaded modules.")
+        self.http.route("/api/shutdown", self.shutdown, method="POST", tool="stop_elitelab",
+                        description="Stop this local EliteLab instance, close its party and release its ports. Does not change saved jobs or inventories.")
         self.http.route("/api/state", lambda q: self.store.snapshot(),
                         tool="get_state", description="Full live state snapshot: every module namespace (journal, powerplay, loop, materials...). Large; prefer the specific tools when you only need one thing.")
         self.http.route("/api/modules", lambda q: [m.to_json() for m in sorted(self.modules.values(), key=lambda m: (m.order, m.name))],
@@ -93,18 +98,42 @@ class Core:
         return [{k: v for k, v in e.items() if k != "_replay"} for e in evs[:limit]]
 
     # -- lifecycle -----------------------------------------------------------
-    def start(self, host=None, port=None):
+    def shutdown(self, q=None):
+        # Reply before the main loop closes sockets and notifies party members.
+        timer = threading.Timer(.1, self._server.stop)
+        timer.daemon = True
+        timer.start()
+        return {"stopping": True}
+
+    def start(self, host=None, port=None, *, open_browser=False):
         from .. import __version__
-        load_all(self)
-        self.watcher.start()
         host, port = host or config.HOST, port or config.PORT
-        print(f"EliteLab {__version__} listening on http://{host}:{port}")
-        print(f"Journal dir: {config.JOURNAL_DIR}  (found: {bool(journal_files())})")
-        print(f"Modules: {', '.join(self.modules) or 'none'}")
-        print("Ctrl+C to stop.")
+        # Own the port before loading modules or replaying/writing journal data.
+        self._server.bind(host, port)
         try:
-            self._server.serve(host, port)
+            load_all(self)
+            self.watcher.start()
+            self.ready = True
+            print(f"EliteLab {__version__} listening on http://{host}:{port}")
+            print(f"Journal dir: {config.JOURNAL_DIR}  (found: {bool(journal_files())})")
+            print(f"Modules: {', '.join(self.modules) or 'none'}")
+            print("Ctrl+C or Quit EliteLab in the dashboard stops this instance.")
+            self._server.serve(host, port, open_browser=open_browser)
         except KeyboardInterrupt:
             pass
         finally:
-            self.watcher.stop()
+            self.close()
+
+    def close(self):
+        """Stop watching journals and run module shutdown callbacks (flush writer
+        threads, leave parties). Safe before start() and safe to call twice."""
+        self.ready = False
+        self.watcher.stop()
+        if self._server.srv is not None:
+            self._server.srv.server_close()
+        callbacks, self.shutdown_callbacks = list(self.shutdown_callbacks), []
+        for callback in reversed(callbacks):
+            try:
+                callback()
+            except Exception:
+                log.exception("Shutdown cleanup failed")

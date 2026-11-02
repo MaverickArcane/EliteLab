@@ -381,12 +381,19 @@ def _key_words(key):
     return _WORDS.findall(spaced.lower())
 
 
+def blueprint_modules(blueprint):
+    """Explicit supported modules; aliases remain search terms, not applicability."""
+    return blueprint.get("modules") or [blueprint["module"]]
+
+
 def _build_index():
     out = []
     for b in BLUEPRINTS:
         words = set(_WORDS.findall(b["module"].lower()) + _WORDS.findall(b["name"].lower()) + _key_words(b["key"]))
         for a in b["aliases"]:
             words |= set(_WORDS.findall(a.lower()))
+        for m in blueprint_modules(b):
+            words |= set(_WORDS.findall(m.lower()))
         out.append(("blueprint", b, words))
     for e in EXPERIMENTALS:
         words = set(_WORDS.findall(e["name"].lower()) + _key_words(e["key"]))
@@ -402,7 +409,7 @@ def _build_index():
 RECIPE_INDEX = _build_index()
 
 
-RECIPE_MODULES = sorted({b["module"] for b in BLUEPRINTS} | {m for e in EXPERIMENTALS for m in e["modules"]} | {u["module"] for u in UNLOCKS})
+RECIPE_MODULES = sorted({m for b in BLUEPRINTS for m in blueprint_modules(b)} | {m for e in EXPERIMENTALS for m in e["modules"]} | {u["module"] for u in UNLOCKS})
 ENGINEERS = sorted({e for b in BLUEPRINTS for e in b["engineers"]})
 _MODULE_NAMES = {m.lower() for m in RECIPE_MODULES}
 
@@ -421,13 +428,18 @@ def find_recipes(query, kind=None, module=None, engineer=None, limit=20):
         if kind and kind_ != kind:
             continue
         mod_name = r.get("module") or ", ".join(r.get("modules") or [])
+        fits = blueprint_modules(r) if kind_ == "blueprint" else ([r["module"]] if r.get("module") else r.get("modules") or [])
+        matching = fits
         if exact_mod:                       # a known module name (the UI select) matches that module only
-            if exact_mod not in [m.lower() for m in ([r["module"]] if r.get("module") else r.get("modules") or [])]:
+            matching = [m for m in fits if m.lower() == exact_mod]
+            if not matching:
                 continue
         elif mod:
-            mwords = set(_WORDS.findall(mod_name.lower()))
-            if not all(any(w.startswith(t) for w in mwords) for t in mod):
+            matching = [m for m in fits if all(any(w.startswith(t) for w in tokens(m)) for t in mod)]
+            if not matching:
                 continue
+        if kind_ == "blueprint":
+            mod_name = next((m for m in matching if all(t in q for t in tokens(m))), matching[0])
         eng_grade = None
         if eng:
             if kind_ != "blueprint":
@@ -467,8 +479,8 @@ def resolve_recipe(query, kind=None, module=None):
     else {"candidates": [hits...]} (empty when nothing matched)."""
     query = (query or "").strip()
     if query in BLUEPRINT_BY_KEY or query in EXPERIMENTAL_BY_KEY or query in UNLOCK_BY_KEY:
-        hits = [h for h in find_recipes("", limit=0) if h["key"] == query]
-        return {"match": hits[0]}
+        hits = [h for h in find_recipes("", kind=kind, module=module, limit=0) if h["key"] == query]
+        return {"match": hits[0]} if hits else {"candidates": []}
     hits = find_recipes(query, kind=kind, module=module, limit=0)
     if len(hits) == 1 or (len(hits) > 1 and hits[0]["score"] > hits[1]["score"]):
         return {"match": hits[0]}

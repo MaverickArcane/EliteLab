@@ -18,6 +18,8 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd")
     s = sub.add_parser("serve", help="run the server (default)")
     s.add_argument("--host"); s.add_argument("--port", type=int); s.add_argument("--journals"); s.add_argument("-v", "--verbose", action="store_true")
+    s.add_argument("--open-browser", dest="open_browser", action="store_true", help="open the dashboard after the server binds")
+    s.add_argument("--no-browser", dest="open_browser", action="store_false", help="keep the dashboard browser closed")
     sub.add_parser("mcp", help="MCP stdio server")
     sub.add_parser("modules", help="list modules")
     sub.add_parser("tools", help="list AI tools on a running lab")
@@ -53,10 +55,15 @@ def main(argv=None):
 
     logging.basicConfig(level=logging.DEBUG if getattr(args, "verbose", False) else logging.INFO,
                         format="%(asctime)s %(name)s %(levelname)s %(message)s", stream=sys.stderr)
-    from .core import Core, config
-    if getattr(args, "journals", None):
-        config.JOURNAL_DIR = args.journals
-    Core().start(getattr(args, "host", None), getattr(args, "port", None))
+    from .instance import serve
+    for key in ("host", "port", "journals", "open_browser"):
+        if not hasattr(args, key):
+            setattr(args, key, False if key == "open_browser" else None)
+    try:
+        serve(args)
+    except (OSError, RuntimeError) as error:
+        print(str(error), file=sys.stderr)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":

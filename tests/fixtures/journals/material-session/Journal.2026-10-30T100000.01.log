@@ -1,0 +1,8 @@
+{"timestamp":"2026-10-30T10:00:00Z","event":"LoadGame","Commander":"MaterialTestpilot","Ship":"sidewinder"}
+{"timestamp":"2026-10-30T10:00:01Z","event":"Materials","Raw":[{"Name":"iron","Count":10}],"Manufactured":[],"Encoded":[]}
+{"timestamp":"2026-10-30T10:01:00Z","event":"MaterialCollected","Category":"Raw","Name":"iron","Count":3}
+{"timestamp":"2026-10-30T10:02:00Z","event":"MissionCompleted","MaterialsReward":[{"Name":"nickel","Category":"Raw","Count":5}]}
+{"timestamp":"2026-10-30T10:03:00Z","event":"MaterialTrade","Paid":{"Material":"iron","Category":"Raw","Quantity":2},"Received":{"Material":"carbon","Category":"Raw","Quantity":6}}
+{"timestamp":"2026-10-30T10:04:00Z","event":"Synthesis","Name":"Test synthesis","Materials":[{"Name":"iron","Count":1}]}
+{"timestamp":"2026-10-30T10:05:00Z","event":"MaterialDiscarded","Category":"Raw","Name":"nickel","Count":1}
+{"timestamp":"2026-10-30T10:06:00Z","event":"Materials","Raw":[{"Name":"iron","Count":10},{"Name":"nickel","Count":4},{"Name":"carbon","Count":6}],"Manufactured":[],"Encoded":[]}

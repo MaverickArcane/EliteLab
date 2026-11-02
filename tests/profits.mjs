@@ -1,0 +1,27 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const source=fs.readFileSync(new URL('../modules/trade/web/earnings.js',import.meta.url),'utf8');
+const {profit,profitTable}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const plan={crew_enabled:true,crew_split:{loading_per_ton:14790,unloading_per_ton:14865,owner_profit:200000}};
+const assignment={loading_target:1000,unloading_target:800};
+const report={loading:250,unloading:0,reported:{loading:300},adjustments:{loading:-50}};
+const p=profit(plan,report,assignment,'loading');
+assert.equal(p.recorded,3697500); // Only credited tonnes, including corrections.
+assert.equal(p.remaining,750*14790+800*14865);
+assert.equal(p.estimated,1000*14790+800*14865);
+assert.equal(profit(plan,report,assignment,'transit').remaining,800*14865);
+assert.equal(profit(plan,report,assignment,'cancelled').estimated,p.recorded);
+assert.equal(profit(plan,report,null,'loading').remaining,null);
+assert.equal(profit(plan,{loading:1200},assignment,'loading').estimated,1200*14790+800*14865);
+assert.equal(profit({crew_enabled:false,carrier_price_known:false},{loading:5},assignment).recorded,null);
+assert.equal(profit({}, {}, null).recorded,0);
+assert.equal(profit(null, {loading:5}, {}).recorded,null);
+assert.equal(profit(plan, {}, {}).remaining,null);
+assert.equal(profit({mode:'unload',carrier_price_known:true,carrier_price:200,destination_price:350,price_includes_bonus:true,bonus_per_ton:50},{unloading:10},null,'complete').recorded,1000);
+const html=profitTable(plan,{stage:'loading',reports:{old:{cmdr:'Old crew',loading:250}}},null,[{id:'owner',cmdr:'Owner',leader:true}],v=>v);
+assert.ok(html.includes('Old crew') && html.includes('3,697,500 Cr'));
+assert.ok(html.includes('Est. job profit: 200,000 Cr') && html.includes('Direct transfers are not crew pay'));
+const unsafe='<img src=x onerror=alert(1)>';
+const escaped=profitTable({crew_enabled:true,crew_split:{owner_profit:unsafe}}, {reports:{a:{cmdr:unsafe,loading:unsafe,owner:true}}}, null, [],v=>String(v).replaceAll('<','&lt;').replaceAll('>','&gt;'));
+assert.ok(!escaped.includes('<img') && escaped.includes('&lt;img'));
+console.log('Individual profit calculations passed.');
