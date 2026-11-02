@@ -7,6 +7,12 @@ per event). `LoadGame` and changed `Commander` identity reset the session;
 `Shutdown` ends it. Timestamped journal events advance recorded elapsed time.
 See [MINING.md](MINING.md) for replay and rate semantics.
 
+The mining ledger also consumes Cargo.Inventory (with timestamp/Vessel),
+MarketBuy/MarketSell/EjectCargo (Type/Count and TotalSale or SellPrice),
+CollectCargo, CargoTransfer.Transfers, CargoDepot, Died, BuyDrones.TotalCost,
+SellDrones.TotalSale and station-service Cost (fuel, repairs, ammunition).
+Mixed cargo and missing baselines are disclosed as estimated attribution.
+
 Frontier's Player Journal manual is the source of truth for the format (https://hosting.zaonce.net/community/journal/). This file lists only what EliteLab actually reads, the fields it uses, and what we learned about them in practice. Every line in a journal file is one JSON object with `timestamp` and `event`.
 
 Replay: at startup the watcher re-emits events from the newest `RECENT_JOURNALS` files with `_replay: true`. Modules treat replayed events exactly like live ones, except `history` does not bump its version for them and `merits` counts them (a `LoadGame` resets the session, so only the current session's gains survive).

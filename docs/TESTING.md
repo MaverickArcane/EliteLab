@@ -1,9 +1,13 @@
 # Testing
 
-Mining: `python -m unittest discover -s tests -p test_mining.py -v` checks the
-journal-derived tool contract; `node tests/mining-browser.mjs` starts the real
-CLI and checks journal tailing/SSE, desktop/mobile rendering, saved layout and
-HTML escaping. See [MINING.md](MINING.md) for fixture limits and in-game checks.
+Mining: `python -m unittest discover -s tests -p 'test_mining*.py' -v` checks the
+journal-derived tool contract, profit attribution and bounded provider searches.
+`node tests/mining-browser.mjs` starts the real CLI and checks journal tailing/SSE,
+profit, rings, buyers, quote valuation, retry, response ordering, saved filters,
+desktop/mobile rendering and HTML escaping. Provider responses are fixtures by
+default; `ELITELAB_MINING_LIVE=1` opts into live Spansh searches. Commander journal
+data remains synthetic in both modes. See [MINING.md](MINING.md) for evidence
+capture instructions, fixture limits and remaining in-game checks.
 
 `tests/test_personal.py` checks Spansh station snapshots: exact starting-system
 supply, explicit A-B-A loops (not A-B-C or another port in A), independent return

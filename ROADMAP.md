@@ -46,7 +46,7 @@ These follow the next-release work, in the proposed order below. Move an item fo
 | Order | Work | Why it comes here | Issue |
 | --- | --- | --- | --- |
 | 4 | Standalone app with Python included | Remove the separate Python installation; add tray and optional auto-start behavior in manageable steps | [#9][9] |
-| 5 | Mining module | Journal-based prospector/refinery tracking and recorded session rate implemented for the next release in #62; in-game validation and a destination finder remain | [#3][3] |
+| 5 | Mining module | Mining desk in #62: ring/hotspot discovery, map destinations, buyer quotes, journal production and profit ledger; real in-game validation remains | [#3][3] |
 | 6 | Persistent journal index | Support historical analytics and address measured slowdowns with large journal collections; evaluate SQLite as a persistence building block | [#7][7] |
 | 7 | Frontier companion API | Investigate access and coverage when a concrete feature needs data the journal and current providers cannot supply | [#6][6] |
 

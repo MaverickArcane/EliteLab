@@ -1,4 +1,4 @@
-"""Mining session rebuilt from journals; no network requests or persistent writes.
+"""Mining session rebuilt from journals, plus explicit community searches.
 
 Frontier Player Journal manual v34, sections 7.7 and 13.33:
 https://hosting.zaonce.net/community/journal/v34/Journal_Manual_v34.pdf
@@ -9,6 +9,8 @@ import datetime as dt
 import math
 
 from elitelab.core.gamedata import norm
+from modules.mining.ledger import Ledger
+from modules.mining.discovery import Discovery, RINGS
 
 NS = "mining"
 MAX_COMMODITIES = 256
@@ -51,6 +53,7 @@ class Mining:
         self.prospected = self.tons = self.other_tons = 0
         self.last = None
         self.output = {}
+        self.ledger = Ledger()
 
     def on_event(self, name, ev):
         # The watcher serializes journal events. HTTP reads only the store copy.
@@ -74,6 +77,7 @@ class Mining:
             return
         mining = event in ("ProspectedAsteroid", "MiningRefined")
         ts = timestamp(ev.get("timestamp"))
+        self.ledger.event(ev, ts)
         if mining:
             if ts is None:
                 self.timing_incomplete = True
@@ -108,19 +112,21 @@ class Mining:
                     row["name"] = text(ev["Type_Localised"])
         elif event == "Shutdown":
             self.ended = True
-        if mining or self.started_ts is not None or event == "Shutdown":
-            if not ev.get("_replay"):
-                self.publish()
+        if not ev.get("_replay"):
+            self.publish()
 
     def publish(self):
         seconds = max(0, self.as_of_ts - self.started_ts) if self.as_of_ts is not None and self.started_ts is not None else 0
         rate = round(self.tons * 3600 / seconds, 1) if seconds >= 60 and not self.timing_incomplete else None
+        profit = self.ledger.summary()
+        profit["net_per_hour"] = round(profit["net_profit"] * 3600 / seconds, 2) if seconds >= 60 and not self.timing_incomplete else None
         self.core.store.set(NS, "summary", {
             "commander": self.commander, "partial": self.partial, "ended": self.ended,
             "started_at": self.started, "as_of": self.as_of, "elapsed_seconds": seconds,
             "timing_incomplete": self.timing_incomplete, "tons_per_hour": rate,
             "prospector_reports": self.prospected, "last_prospect": self.last,
             "refined_tons": self.tons, "other_tons": self.other_tons,
+            "profit": profit,
             "commodities": sorted(self.output.values(), key=lambda r: (-r["tons"], r["key"])),
             "rate_note": "Refined tons / recorded hours from the first mining event through the latest journal event. "
                          "Includes travel and idle time; available after 60 seconds. Resets when you reload the game or change commander.",
@@ -132,8 +138,30 @@ def setup(core, module):
     core.bus.on("journal.replay.done", lambda n, v: mining.publish())
     core.http.route("/api/mining", lambda q: core.store.get(NS, "summary"),
                     tool="get_mining_status", module=module.name,
-                    description="Latest prospector composition and refinery output by commodity for the current game session. "
+                    description="Latest prospector composition, refinery output and journal-attributed sales less recorded operating costs for the current game session. "
+                                "Profit can be estimated with mixed cargo; missing sale prices are flagged. Unsold quotes are excluded. "
                                 "Each MiningRefined event adds one ton, regardless of current cargo or sales. Prospector reports "
                                 "are not unique asteroids. Rate includes recorded idle/travel time from first mining event to "
                                 "as_of, stops at Shutdown, and is unavailable below 60 seconds or with missing mining timestamps. "
                                 "LoadGame/commander change resets totals; partial means replay did not include LoadGame.")
+    discovery = Discovery(core)
+    core.http.route("/api/mining/spots", discovery.spots, tool="find_mining_spots", module=module.name,
+                    description="Nearby Spansh-reported rings with type, reserves, hotspots, distance, lower-bound jumps and observation dates. "
+                                "Searches at most 100 bodies, returns at most 30 rings. Hotspots do not prove overlaps or yields. "
+                                "Optional power restricts to provider-reported acquisition systems; does not guarantee merits.",
+                    params={"ref": {"type": "string", "description": "Reference system; defaults to journal location"},
+                            "radius": {"type": "number", "default": 50, "description": "Search radius in Ly, up to 200"},
+                            "ring_type": {"type": "string", "default": "Metallic", "enum": [*RINGS, "Any"]},
+                            "hotspot": {"type": "string", "description": "Optional exact reported hotspot commodity name"},
+                            "pristine": {"type": "boolean", "default": False},
+                            "power": {"type": "string", "description": "Optional Powerplay power for acquisition candidates"}})
+    core.http.route("/api/mining/buyers", discovery.buyers, tool="find_mining_buyers", module=module.name,
+                    description="Compare reported sale quotes for one commodity and load among up to 100 nearby orbital station markets. "
+                                "Requires fresh prices and reported demand covering the load; excludes carriers/surface ports. "
+                                "Returns at most 20 quotes, sorted by estimated sale value. Quotes are not realized profit or guarantees.",
+                    params={"ref": {"type": "string", "description": "Reference system; defaults to journal location"},
+                            "commodity": {"type": "string", "required": True, "description": "Market display name, e.g. Platinum"},
+                            "quantity": {"type": "integer", "default": 1, "description": "Tons to sell, up to 1000000"},
+                            "radius": {"type": "number", "default": 100, "description": "Search radius in Ly, up to 200"},
+                            "hours": {"type": "number", "default": 24, "description": "Maximum market age in hours, up to 72"},
+                            "pad": {"type": "string", "default": "L", "enum": ["S", "M", "L"]}})

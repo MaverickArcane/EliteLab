@@ -24,7 +24,7 @@ const env={...process.env,ELITELAB_SETTINGS:path.join(temporary,'settings.json')
 let server,chrome,ws,serverLog='';
 const append=events=>fs.appendFileSync(journal,events.map(e=>JSON.stringify(e)).join('\n')+'\n');
 try {
-  server=spawn(process.env.PYTHON||'python',['-u','-m','elitelab','serve','--no-browser'],{cwd:root,env,windowsHide:true});
+  server=spawn(process.env.PYTHON||'python',['-u',path.join(root,'tests/mining_desk_server.py')],{cwd:root,env,windowsHide:true});
   server.stdout.on('data',d=>serverLog+=d);server.stderr.on('data',d=>serverLog+=d);
   let ready=false;
   for(let i=0;i<200;i++) {
@@ -51,7 +51,7 @@ try {
     ws.send(JSON.stringify({id,method,params}));
   });
   const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
-  const waitFor=async expression=>{for(let i=0;i<100;i++){if(await evaluate(expression))return;await sleep(100);}assert.fail('Timed out: '+expression+'\n'+serverLog);};
+  const waitFor=async expression=>{for(let i=0;i<450;i++){if(await evaluate(expression))return;await sleep(100);}assert.fail('Timed out: '+expression+'\n'+serverLog);};
   await send('Runtime.enable');await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await send('Page.navigate',{url:base});
@@ -69,7 +69,34 @@ try {
   assert.match(await evaluate("document.querySelector('#card-mining').textContent"),/Alexandrite/);
   const api=await (await fetch(base+'/api/mining')).json();
   assert.equal(api.refined_tons,3);assert.equal(api.ended,true);
+  const demo=[{event:'LoadGame',timestamp:'2026-10-22T14:00:00Z',Commander:'Test Miner',FID:'F2'},
+    {event:'Location',timestamp:'2026-10-22T14:00:01Z',StarSystem:'Delkar',StarPos:[67.8125,32.65625,35.25]},
+    {event:'Cargo',timestamp:'2026-10-22T14:00:02Z',Vessel:'Ship',Inventory:[]},
+    {event:'BuyDrones',timestamp:'2026-10-22T14:01:00Z',TotalCost:20000},
+    {event:'ProspectedAsteroid',timestamp:'2026-10-22T14:05:00Z',Materials:[{Name:'Platinum',Proportion:51.67},{Name:'Palladium',Proportion:12.5}],Content_Localised:'Material Content: High',Remaining:82.4}];
+  for(let i=0;i<48;i++)demo.push({event:'MiningRefined',timestamp:'2026-10-22T14:20:00Z',Type:'Platinum'});
+  for(let i=0;i<6;i++)demo.push({event:'MiningRefined',timestamp:'2026-10-22T14:25:00Z',Type:'Painite'});
+  demo.push({event:'MarketSell',timestamp:'2026-10-22T15:00:00Z',Type:'Platinum',Count:8,TotalSale:2224000},
+    {event:'RefuelAll',timestamp:'2026-10-22T15:01:00Z',Cost:2400},{event:'RepairAll',timestamp:'2026-10-22T15:02:00Z',Cost:5800},
+    {event:'BuyAmmo',timestamp:'2026-10-22T15:03:00Z',Cost:1200},{event:'Shutdown',timestamp:'2026-10-22T15:05:00Z'});
+  append(demo);
+  await waitFor("Lab.state.mining?.summary?.profit?.net_profit===2194600 && Lab.state.mining.summary.ended");
+  await evaluate("document.querySelector('[data-form=spots] [name=ref]').value='Delkar';document.querySelector('[data-form=spots]').requestSubmit();true");
+  await waitFor("document.querySelectorAll('[data-results=spots] [data-pin]').length>0");
+  assert.match(await evaluate("document.querySelector('[data-results=spots]').textContent"),/Delkar 7 A Ring/);
+  await evaluate("document.querySelector('[data-pin]').click();true");
+  assert.equal(await evaluate("Lab.state.mining.selected.ring"),'Delkar 7 A Ring');
+  assert.equal(await evaluate("document.querySelector('[data-form=buyers] [name=ref]').value"),'Delkar');
+  await evaluate("document.querySelector('[data-tab=buyers]').click();document.querySelector('[data-load]').click();document.querySelector('[data-form=buyers]').requestSubmit();true");
+  await waitFor("document.querySelectorAll('[data-results=buyers] [data-quote]').length>0");
+  assert.equal(await evaluate("document.querySelector('[data-form=buyers] [name=quantity]').value"),'40');
+  await evaluate("document.querySelector('[data-quote]').click();true");
+  assert.match(await evaluate("document.querySelector('[data-valuation]').textContent"),/Unsold estimate/);
+  if(process.env.ELITELAB_MINING_LIVE!=='1')assert.match(await evaluate("document.querySelector('[data-valuation]').textContent"),/11,660,000/);
+  const planned=(await (await fetch(base+'/api/mining')).json()).profit;
+  assert.equal(planned.net_profit,2194600,'A quote must never become realized profit');
   const outputDir=process.env.ELITELAB_SCREENSHOT_DIR||path.join(temporary,'screenshots');fs.mkdirSync(outputDir,{recursive:true});
+  await evaluate("document.querySelector('[data-tab=spots]').click();true");
   for(const [name,width,height] of [['desktop',1440,1000],['mobile',390,844]]) {
     await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});await sleep(200);
     await evaluate("scrollTo(0,0);true");
@@ -78,6 +105,26 @@ try {
     const shot=await send('Page.captureScreenshot',{format:'png'});
     fs.writeFileSync(path.join(outputDir,`mining-${name}.png`),Buffer.from(shot.data,'base64'));
   }
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
+  await evaluate("document.querySelector('[data-tab=buyers]').click();scrollTo(0,0);true");await sleep(100);
+  const buyerShot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(outputDir,'mining-buyers.png'),Buffer.from(buyerShot.data,'base64'));
+  // A provider error clears results, and retrying works through the actual backend.
+  await evaluate("document.querySelector('[data-form=spots] [name=ref]').value='Unavailable test';document.querySelector('[data-form=spots]').requestSubmit();true");
+  await waitFor("document.querySelector('[data-search-status=spots]').textContent.includes('unavailable')");
+  assert.equal(await evaluate("document.querySelectorAll('[data-results=spots] [data-pin]').length"),0);
+  await evaluate("document.querySelector('[data-form=spots] [name=ref]').value='Delkar';document.querySelector('[data-form=spots]').requestSubmit();true");
+  await waitFor("document.querySelectorAll('[data-results=spots] [data-pin]').length>0");
+  // Simulate reversed network completion and provider-controlled HTML at the UI boundary.
+  await evaluate("window.miningApi=Lab.api;window.miningResolvers=[];Lab.api=(p,q)=>p==='/api/mining/spots'?new Promise(r=>window.miningResolvers.push(r)):window.miningApi(p,q);document.querySelector('[data-form=spots]').requestSubmit();document.querySelector('[data-form=spots]').requestSubmit();true");
+  await evaluate("window.miningResolvers[1]({results:[],note:'Newest result',bodies_checked:0,ref:'Delkar'});true");
+  await waitFor("document.querySelector('[data-results=spots]').textContent.includes('Newest result')");
+  await evaluate("window.miningResolvers[0]({results:[],note:'Old result',bodies_checked:0,ref:'Delkar'});true");await sleep(100);
+  assert.equal(await evaluate("document.querySelector('[data-results=spots]').textContent.includes('Old result')"),false);
+  await evaluate(`document.querySelector('[data-form=spots]').requestSubmit();window.miningResolvers[2]({results:[{ring:'<img src=x onerror="window.providerInjected=true">',system:'<img src=x>',ring_type:'Metallic',reserve:'Pristine',distance:1,signals:[{name:'<svg onload=alert(1)>',count:2}],updated_at:'bad',signals_updated_at:'bad',power_state:'Unknown'}],note:'<img src=x>',bodies_checked:1,ref:'Delkar'});true`);
+  await waitFor("document.querySelector('[data-results=spots]').textContent.includes('<img')");
+  assert.equal(await evaluate("document.querySelectorAll('[data-results=spots] img,[data-results=spots] svg').length"),0);
+  assert.equal(await evaluate('!!window.providerInjected'),false);
+  await evaluate("Lab.api=window.miningApi;document.querySelector('[data-form=spots] [name=hotspot]').value='Keep this filter';document.querySelector('[data-form=spots] [name=hotspot]').dispatchEvent(new Event('input',{bubbles:true}));true");
   const hostile='<img src=x onerror="window.miningInjected=true">';
   append([{event:'LoadGame',timestamp:'2026-10-22T14:00:00Z',Commander:'Test Miner',FID:'F2'},
     {event:'ProspectedAsteroid',timestamp:'2026-10-22T14:01:00Z',Content_Localised:hostile,MotherlodeMaterial:hostile,Remaining:100,Materials:[{Name:hostile,Proportion:25}]},
@@ -86,14 +133,17 @@ try {
   assert.equal(await evaluate("document.querySelectorAll('#card-mining img').length"),0);
   assert.equal(await evaluate('!!window.miningInjected'),false);
   assert.ok(await evaluate("document.querySelector('#card-mining').textContent.includes('<img')"));
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await sleep(150);
   assert.ok(await evaluate('document.body.scrollWidth')<=390);
+  assert.equal(await evaluate("document.querySelector('[data-form=spots] [name=hotspot]').value"),'Keep this filter');
   await send('Page.reload');
   await waitFor("document.querySelector('#card-mining [data-mining-total]')?.textContent==='1 t'");
   assert.equal(await evaluate("!!document.querySelector('#card-cargo') && !document.querySelector('#card-ship')"),true);
+  assert.equal(await evaluate("document.querySelector('[data-form=spots] [name=hotspot]').value"),'Keep this filter');
   assert.deepEqual(await evaluate("[...document.querySelectorAll('.render-error')].map(e=>e.textContent)"),[]);
   assert.deepEqual(errors,[]);
   assert.doesNotMatch(serverLog,/Traceback|handler failed/);
-  console.log('Mining CLI, API, live journal/SSE, replay, session reset, desktop/mobile, saved layout and HTML escaping passed. Screenshots: '+outputDir);
+  console.log('Mining CLI, API, journal/SSE, profit ledger, ring search, buyers, quote valuation, retry, response ordering, saved filters/layout, desktop/mobile and HTML escaping passed. Provider: '+(process.env.ELITELAB_MINING_LIVE==='1'?'live Spansh':'synthetic fixture')+'. Screenshots: '+outputDir);
   await send('Browser.close').catch(()=>{});
 } finally {
   ws?.close();chrome?.kill();

@@ -274,7 +274,7 @@ import {StateFeed} from './state-feed.js';
     'Combat': () => ({ order: ['merits', 'ship', 'location', 'combat', 'map', 'feed', 'powerplay'],
       spans: { merits: 4, ship: 4, location: 4, combat: 12, map: 8, feed: 4, powerplay: 4 }, hidden: ['loop', 'targets', 'materials', 'market', 'cargo', 'carrier', ...ENG] }),
     'Mining & trade': () => ({ order: ['mining', 'cargo', 'ship', 'trade', 'party', 'carrier', 'market', 'targets', 'map', 'location', 'merits', 'feed'],
-      spans: { mining: 4, trade: 8, party: 4, cargo: 4, carrier: 4, market: 4, ship: 4, targets: 12, map: 8, location: 4, merits: 4, feed: 4 }, hidden: ['loop', 'combat', 'materials', 'powerplay', ...ENG] }),
+      spans: { mining: 12, trade: 8, party: 4, cargo: 4, carrier: 4, market: 4, ship: 4, targets: 12, map: 8, location: 4, merits: 4, feed: 4 }, hidden: ['loop', 'combat', 'materials', 'powerplay', ...ENG] }),
     'Engineering': () => ({ order: ['materials', 'wishlist', 'build', 'farming', 'recipes', 'ship', 'location', 'map', 'feed'],
       spans: { build: 6, wishlist: 6, farming: 6, recipes: 6, materials: 6, ship: 4, location: 4, map: 12, feed: 4 },
       hidden: ['loop', 'targets', 'combat', 'market', 'powerplay', 'merits', 'carrier', 'cargo'] }),

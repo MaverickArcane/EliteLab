@@ -54,6 +54,11 @@ class ExpeditionSecurityTests(unittest.TestCase):
             for path in ["/api/neutron/route", "/api/synthesis/status", "/api/synthesis/recipes", "/api/mining"]:
                 self.assertEqual(self.request("GET", path)[0], 401)
                 self.assertEqual(self.request("GET", path, headers={"Authorization":"Bearer fixture-secret"})[0], 200)
+            for path in ["/api/mining/spots?ref=Delkar", "/api/mining/buyers?ref=Delkar&commodity=Platinum"]:
+                self.assertEqual(self.request("GET", path)[0], 401)
+                self.assertEqual(self.request("GET", path, headers={"Host":"rebind.attacker.example"})[0], 403)
+                with patch.object(config, "OFFLINE", False), patch.object(self.core.services, "fetch_json", side_effect=lambda url, *args, **kwargs: {"min_max":{"Platinum":{}}} if "field_values" in url else {"results":[],"count":0}):
+                    self.assertEqual(self.request("GET", path, headers={"Authorization":"Bearer fixture-secret"})[0], 200)
         def failure(q):
             raise RuntimeError("private C:/secret/token.txt")
         self.core.http.route("/api/fixture-failure", failure)
