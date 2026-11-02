@@ -1,0 +1,1 @@
+{"name":"sourcing","version":"1.0.0","description":"Bounded nearby commodity sourcing including fleet carriers.","requires":["journal"],"provides":["sourcing"],"order":66,"cards":[]}

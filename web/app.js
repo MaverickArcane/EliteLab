@@ -255,6 +255,10 @@ import {StateFeed} from './state-feed.js';
   const ALL = () => allCards.map(c => c.id);
   const ENG = ['recipes', 'wishlist', 'farming', 'build'];       // engineering cards, hidden by the non-engineering presets
   const PRESETS = {
+    'Expedition': () => ({ order: ['neutron', 'ship', 'synthesis', 'location', 'materials', 'map', 'feed'],
+      spans: { neutron: 8, ship: 4, synthesis: 8, location: 4, materials: 4, map: 8, feed: 4 },
+      hidden: ALL().filter(id => !['neutron', 'ship', 'synthesis', 'location', 'materials', 'map', 'feed'].includes(id)) }),
+
     'Trading': () => ({ order: ['personal', 'cargo', 'ship', 'location', 'market', 'map', 'feed'],
       spans: { personal: 12, cargo: 4, ship: 4, location: 4, market: 4, map: 8, feed: 4 },
       hidden: ALL().filter(id => !['personal', 'cargo', 'ship', 'location', 'market', 'map', 'feed'].includes(id)) }),

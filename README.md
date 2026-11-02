@@ -59,6 +59,29 @@ You do not need to own a fleet carrier to use the Fleet carrier card. Choose a c
 
 ## Quick start
 
+### Expedition and research
+
+Choose **Layout > Expedition** for neutron routing, ship readiness, synthesis
+supplies and upcoming waypoints on the star map. Spansh plans use normal jump
+range and detect the Caspian special FSD's 6x multiplier from the actual loadout.
+Routes survive restarts. The Palin bar uses recorded maximum distance from
+career start, with unknown evidence kept explicit.
+
+Search 35 synthesis recipes, see how many your materials support, and combine
+several recipes into one budget. FSD injections and jet-cone boosts have separate
+journal evidence; their bonuses are never stacked. See the
+[expedition guide](docs/NEUTRON-HIGHWAY.md).
+
+The MCP can also resume [ship engineering](docs/ENGINEERING-RESEARCH.md), check
+[actual modules and routes](docs/FLIGHT-RESEARCH.md), investigate
+[engineer unlocks](docs/UNLOCK-RESEARCH.md), and build a
+[mission supply checklist](docs/MISSION-SUPPLIES.md).
+
+For access through a trusted DNS name, set `ELITELAB_ALLOWED_HOSTS` to that
+hostname. IP-address URLs continue to work. See the
+[security review and network boundary](docs/EXPEDITION-SECURITY.md).
+
+
 ### Carrier operations and hauling parties
 
 Choose **Layout > Carrier ops**. The layout starts with **My next run** and
@@ -394,7 +417,7 @@ See docs/AI.md.
 |---|---|---|
 | `ELITELAB_SETTINGS` / `--settings PATH` | platform path (see First run) | Settings file to read and write. Order of precedence: flag, environment, settings file, default |
 | `ELITELAB_HOST` / `ELITELAB_PORT` | `127.0.0.1` / `8766` | Bind address (`0.0.0.0` in Docker) and port; an IPv4 address or a host name. Empty means the default |
-| `ELITELAB_AUTH_TOKEN` | | When set, `/api/*` and `/events` need `Authorization: Bearer TOKEN` or the session cookie from `POST /api/login`, and the Host rule below is skipped |
+| `ELITELAB_AUTH_TOKEN` | | When set, `/api/*` and `/events` need `Authorization: Bearer TOKEN` or the session cookie from `POST /api/login`; Host validation still applies |
 | `ELITELAB_ALLOWED_HOSTS` | | Comma-separated extra host names a POST may use in its Host header, for example `nas.local` (see below) |
 | `ELITELAB_JOURNAL_DIR` | `/journals` in Docker, else the first detected folder with journals (Windows Saved Games, Steam Proton, Mac Application Support), else the Windows Saved Games path | Where the game writes `Journal.*.log` |
 | `ELITELAB_BROWSER` | | Browser executable setting, reserved for the launcher (nothing reads it yet); the setup page shows it but cannot change it, so set it here or as `browser` in the settings file |
@@ -404,7 +427,7 @@ See docs/AI.md.
 | `ELITELAB_OFFLINE` | | Set to `1` to never call Spansh or EDSM (tests use this) |
 | `ELITELAB_URL` | `http://127.0.0.1:8766` | Where the MCP proxy finds the lab |
 
-Without `ELITELAB_AUTH_TOKEN`, the server answers a POST only when its Host header is an IP address, `localhost`, the bind host, this machine's own name, or a name in `ELITELAB_ALLOWED_HOSTS`; any other gets 403 with the variable to set. This holds on every bind, so a DNS-rebinding web page (which always needs a DNS name) cannot change anything, while opening the dashboard by IP or by the machine's name keeps working. Bind to `0.0.0.0` to open the dashboard from a tablet on your LAN; this machine's own name is its short host name, so if you reach it by any other name, such as `nas.local`, a fully qualified name or a Tailscale MagicDNS name, add that name to `ELITELAB_ALLOWED_HOSTS`. Inside Docker the container's own name is not the host's name, so reaching the container by the host's name needs `ELITELAB_ALLOWED_HOSTS`. Without a token there is no auth, so do not expose it to the internet.
+The server answers a request only when its Host header is an IP address, `localhost`, the bind host, this machine's own name, or a name in `ELITELAB_ALLOWED_HOSTS`; any other gets 403 with the variable to set. This holds on every bind, so a DNS-rebinding web page (which always needs a DNS name) cannot change anything, while opening the dashboard by IP or by the machine's name keeps working. Bind to `0.0.0.0` to open the dashboard from a tablet on your LAN; this machine's own name is its short host name, so if you reach it by any other name, such as `nas.local`, a fully qualified name or a Tailscale MagicDNS name, add that name to `ELITELAB_ALLOWED_HOSTS`. Inside Docker the container's own name is not the host's name, so reaching the container by the host's name needs `ELITELAB_ALLOWED_HOSTS`. Without a token there is no auth, so do not expose it to the internet.
 
 The setup changes (`POST /api/setup`, `/api/setup/journals` and `/api/restart`) go one step further: without `ELITELAB_AUTH_TOKEN` they are answered only when the connection itself comes from this machine (a loopback address); from any other address they get 403 "Setup changes require a local connection or configured authentication." A tablet on your LAN can still use the dashboard and its other actions, such as the wishlist, but changing settings from it needs a token. In Docker the browser's connection reaches the container from the bridge network, not loopback, so the setup page can only save there with `ELITELAB_AUTH_TOKEN` set (or edit the settings file and environment instead). The same goes for an AI: the MCP proxy running on the host reaches a Docker lab through the bridge too, so `save_setup` and `restart_elitelab` need the token there (set it where the proxy runs as well).
 

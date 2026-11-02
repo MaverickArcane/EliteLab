@@ -1,0 +1,1 @@
+{"name":"missions","version":"1.0.0","description":"Active mission checklist, shared cargo allocation and nearby supply planning.","requires":["progression","sourcing"],"provides":["missions"],"order":68,"cards":[{"id":"missions","title":"Mission supplies","span":6,"script":"card.js","order":43}]}

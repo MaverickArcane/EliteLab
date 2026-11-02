@@ -1,0 +1,3 @@
+{"timestamp":"2026-10-01T00:00:00Z","event":"Commander","FID":"FTEST-A","Name":"Research Pilot"}
+{"timestamp":"2026-10-01T00:00:01Z","event":"EngineerProgress","Engineers":[{"Engineer":"The Dweller","EngineerID":300180,"Progress":"Unlocked","Rank":5,"RankProgress":0},{"Engineer":"Elvira Martuuk","EngineerID":300160,"Progress":"Unlocked","Rank":2,"RankProgress":34}]}
+{"timestamp":"2026-10-01T00:00:02Z","event":"Loadout","Ship":"smallcombat01_nx","ShipID":50,"ShipName":"Research Kestrel","Modules":[]}

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Expedition layout: persistent Spansh neutron jobs, ship-aware 4x/6x routing, next-waypoint copies, upcoming map layer, CSV export and evidence-based Palin distance progress.
+- Synthesis: 35 supply and ammunition recipes, current-stock craftability, combined material budgets, injection/jet-cone journal evidence and per-commander craft history.
+- Research MCP: engineer access and comparisons, per-ship build notes, explicit upgrade budgets, permit evidence, unlock requirements, actual fitted modules and plotted routes.
+- Mission supplies: allocate cargo across active missions and find nearby suppliers within an explicit radius, keeping salvage and assigned delivery cargo distinct.
+- Security: reject untrusted Host headers and ambiguous request framing, bound compressed builds and API responses, resolve static paths before boundary checks, redact internal errors and add browser security headers.
+
+
 - Setup: a settings file read by the server, journal folder detection for Windows, Steam Proton and Mac, a first-run page at /setup/ with a reserved Connections section, and a restart that the start scripts honour (exit status 75). Without `ELITELAB_AUTH_TOKEN`, a POST whose Host header is not an IP address, `localhost`, the bind host, this machine's name or a name in the new `ELITELAB_ALLOWED_HOSTS` now gets 403, on every bind including 0.0.0.0. `--host` and `--port` now reach the running config. `ELITELAB_HOST=""` (and an empty `ELITELAB_PORT`) now means the default. The setup page has a Test button for a typed journal folder, and saving refuses a host or port the lab could not start with.
 
 - Add Trading (`find_personal_trade_routes`, `/api/personal/routes`): search

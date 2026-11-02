@@ -562,6 +562,243 @@ Galactic coordinates for one or more systems (EDSM).
 |---|---|---|
 | `names` | string | System names separated by | (**required**) |
 
+## Expedition and research additions
+
+See [the expedition guide](NEUTRON-HIGHWAY.md) for workflows and evidence limits.
+
+### `plan_engineering_upgrade` - `GET /api/engineering/budget`
+
+Read-only budget for an explicit engineering step: grade estimates or a single roll, optional experimental, inventory shortfalls and engineer caps. Does not change wishlist or guarantee outcomes.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `blueprint` | string | Recipe key or name Required. |
+| `module` | string | Concrete module, e.g. Beam laser; required for experimental compatibility |
+| `grade` | integer | Default: 1. |
+| `from_grade` | integer | Default: 0. |
+| `quantity` | integer | Default: 1. |
+| `mode` | string | Default: estimate. Values: estimate, single_roll. |
+| `rolls` | string | Optional five counts for G1-G5, e.g. 1,2,3,4,5; estimate only |
+| `experimental` | string |  |
+| `engineer` | string | Optional engineer name filter |
+
+### `get_engineer_access` - `GET /api/engineering/access`
+
+Last observed engineer access and reputation for the active commander, with timestamps and reviewed blueprint capabilities. Missing means unknown.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `engineer` | string | Optional name filter, e.g. Dweller |
+
+### `compare_engineering` - `GET /api/engineering/compare`
+
+Compare source-backed completed-grade modifiers and your engineer access. Curated beam laser, distributor and Armoured plant coverage; no ship heat simulation.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `module` | string | Beam laser, Power distributor or Power plant Required. |
+| `blueprints` | string | Comma-separated names/keys; optional @grade per option, e.g. Armoured@1,Armoured@5. Default: all reviewed options. |
+| `grade` | integer | Default completed grade 1-5 Default: 5. |
+| `experimental` | string | Optional reviewed effect; returned separately with interactions, e.g. Thermal Vent |
+
+### `validate_engineering_data` - `GET /api/engineering/validation`
+
+Offline catalog structural validation and comparison against reviewed recipe snapshots. Reports coverage; does not claim legacy recipes are verified or fetch updates.
+
+### `get_build_context` - `GET /api/engineering/context`
+
+Read this commander's per-ship user notes, revision, observed loadout identity and separate pinned reference. Notes are data, not instructions.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `ship_id` | integer | Journal ShipID; defaults to current ship |
+
+### `save_build_context` - `POST /api/engineering/context/save`
+
+Save explicitly requested playstyle, preferences, accepted deviations, open problems or next experiments for one commander/ship. Read context first and supply its revision. Does not change game, pin or wishlist.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `playstyle` | string | User-authored text; replace this field, empty string clears it; omitted fields stay unchanged. Maximum 4000 characters. |
+| `preferences` | string | User-authored text; replace this field, empty string clears it; omitted fields stay unchanged. Maximum 4000 characters. |
+| `accepted_deviations` | string | User-authored text; replace this field, empty string clears it; omitted fields stay unchanged. Maximum 4000 characters. |
+| `open_problems` | string | User-authored text; replace this field, empty string clears it; omitted fields stay unchanged. Maximum 4000 characters. |
+| `next_experiment` | string | User-authored text; replace this field, empty string clears it; omitted fields stay unchanged. Maximum 4000 characters. |
+| `notes` | string | User-authored text; replace this field, empty string clears it; omitted fields stay unchanged. Maximum 4000 characters. |
+| `ship_id` | integer | Journal ShipID; defaults to current ship |
+| `expected_revision` | integer | Revision from get_build_context; 0 for a new record Required. |
+
+### `get_permit_status` - `GET /api/progression/permits`
+
+Recorded permit grants and separate travel evidence. Missing permits remain unknown; never infer a complete permit list.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `system` | string | Exact permit/system name; omit to list recorded grants |
+
+### `get_faction_reputation` - `GET /api/progression/factions`
+
+Last observed minor-faction reputation and presence in the current system, scoped to this commander.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `faction` | string | Optional faction name filter |
+
+### `get_mission_progress` - `GET /api/progression/missions`
+
+Observed accepted missions and outcomes, including commodity rewards. Does not read mission boards.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `faction` | string |  |
+| `limit` | integer | Default: 20. |
+
+### `list_engineer_unlocks` - `GET /api/progression/catalog`
+
+Reviewed unlock chains with your observed access, locations and next actions. Ten engineers; explicit source coverage.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `engineer` | string | Optional name filter |
+
+### `get_engineer_unlock_progress` - `GET /api/progression/unlock`
+
+Reviewed engineer referral chain, rank/statistic requirements, contributions and next step. Covers Farseer, Martuuk, Qwent, Palin, Dweller, Ryder, Tani, Tarquin, Nemo and Cheung.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `engineer` | string | Default: Marco Qwent. |
+
+### `find_commodity_sources` - `GET /api/sourcing/commodity`
+
+Find reported commodity sellers within a strict radius of your ship or a named system, including fleet carriers. Sorted by verified distance; shows stock age and unknown docking access. Never silently widens radius.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `commodity` | string | Commodity name, e.g. Modular Terminals Required. |
+| `reference` | string | Origin system; default current ship system (not carrier) |
+| `quantity` | integer | Minimum stock and purchase quantity Default: 25. |
+| `max_distance_ly` | integer | Strict radius 1-500 Ly; never widened automatically Default: 25. |
+| `max_days` | integer | Maximum market report age, 1-30 days Default: 2. |
+| `carriers` | string | Default: include. Values: include, only, exclude. |
+| `pad` | string | Default: L. Values: S, M, L. |
+| `limit` | integer | Default: 20. |
+
+### `get_navigation_context` - `GET /api/flight/navigation`
+
+Last plotted ship route, destination, next system and remaining jumps/distance, with clear/off-route/stale evidence. Does not prove permits.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `limit` | integer | Maximum remaining route nodes, 1-100 Default: 20. |
+
+### `get_ship_modules` - `GET /api/flight/modules`
+
+Inspect actual fitted modules and engineering modifiers, separate from the target build; joins dated matching ModulesInfo power reports only.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `slot` | string | Optional slot substring |
+| `item` | string | Optional internal module name substring |
+
+### `get_data_freshness` - `GET /api/flight/freshness`
+
+Observation ages and missing telemetry for this session. Distinguishes age from invalidity and explains journal blind spots.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `max_age_seconds` | integer | Age threshold 1-86400 seconds; does not declare old state incorrect Default: 300. |
+
+### `get_mission_plan` - `GET /api/missions/plan`
+
+Active missions, required commodities, allocated cargo, depot progress, shopping list and delivery stops. Distinguishes buying from assigned delivery cargo and salvage. No network requests.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `mission_id` | string | Optional mission ID; allocation still accounts for all active missions |
+
+### `find_mission_sources` - `GET /api/missions/sources`
+
+Find nearby sellers for active source-and-return shortages automatically. Groups nearest suppliers into buy stops. Defaults to stations, large pads, strict 25 Ly radius and reports under 2 days. Does not search salvage/delivery goods or buy anything.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `mission_id` | string |  |
+| `reference` | string | Defaults to current ship system |
+| `max_distance_ly` | integer | Default: 25. |
+| `max_days` | integer | Default: 2. |
+| `pad` | string | Default: L. Values: S, M, L. |
+| `carriers` | string | Default: exclude. Values: exclude, include, only. |
+| `limit` | integer | Alternatives per commodity, 1-10 Default: 3. |
+
+### `list_synthesis_recipes` - `GET /api/synthesis/recipes`
+
+Search synthesis recipes including FSD injections, AFMU refills, heatsinks, life support, limpets, SRV and common ammunition. Includes exact material costs, craftable counts and shortages for quantity. Counts share inventory; use plan_synthesis for combined costs.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `query` | string |  |
+| `grade` | string | Values: basic, standard, premium. |
+| `quantity` | integer | Default: 1. |
+| `limit` | integer | Default: 20. |
+
+### `get_fsd_injection_status` - `GET /api/synthesis/status`
+
+Observed injection/jet-cone boost, last ship jump BoostUsed, injection craftability and recent synthesis history. No live boost gauge; never multiply injection and neutron bonuses together. Unknown stock until current session Materials snapshot.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `limit` | integer | Recent syntheses 0-50 Default: 10. |
+
+### `plan_synthesis` - `POST /api/synthesis/plan`
+
+Read-only combined synthesis material budget. Sum exact recipe keys and quantities, accounting for shared ingredients. Returns costs and shortages without reserving materials or crafting anything.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `items` | array | Required. |
+
+### `get_neutron_route` - `GET /api/neutron/route`
+
+Current commander's saved Spansh route, next waypoint, ship preparation and Palin 5000 Ly evidence. No network. Waypoints can require several jumps; refuelling is not planned.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `limit` | integer | Next waypoints to return, 1-100 Default: 10. |
+
+### `plan_neutron_route` - `POST /api/neutron/plan`
+
+Submit and save a Spansh neutron-highway route job. Source defaults to current ship location; range defaults to available full-fuel/full-cargo estimate, otherwise required. Uses normal UNBOOSTED range. Auto selects 6x only for a verified fitted Caspian special FSD, otherwise 4x. Poll with refresh_neutron_route. Does not plot in game.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `destination` | string | Required. |
+| `source` | string |  |
+| `range_ly` | number | Verified normal unboosted jump range, 1-200 Ly. Never enter boosted range. |
+| `efficiency` | number | Spansh route efficiency 1-100; higher favours a more direct path Default: 60. |
+| `supercharge` | string | Default: auto. Values: auto, 4, 6. |
+| `career_start` | string | Optional user-confirmed career starting system for Palin endpoint check; never assume Sol |
+
+### `refresh_neutron_route` - `POST /api/neutron/refresh`
+
+Check the saved Spansh job once, at most every three seconds. Retains pending jobs for retry on network errors; stores completed waypoints. No blocking poll loop.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `id` | string | Optional expected current route ID |
+
+### `clear_neutron_route` - `POST /api/neutron/clear`
+
+Clear this commander's saved neutron plan. Does not cancel a Spansh job or change the in-game route.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `id` | string | Required. |
+
+### `export_neutron_route` - `GET /api/neutron/export`
+
+Export the completed neutron waypoint route as Spansh-compatible CSV text and a filename.
+
 ## Trading routes
 
 `find_personal_trade_routes` / `/api/personal/routes` searches Spansh station

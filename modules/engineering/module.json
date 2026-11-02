@@ -1,0 +1,9 @@
+{
+  "name": "engineering",
+  "version": "1.0.0",
+  "description": "Engineer access, reviewed engineering comparisons and user-authored per-ship build context.",
+  "requires": ["journal", "recipes", "materials"],
+  "provides": ["engineering"],
+  "order": 64,
+  "cards": []
+}

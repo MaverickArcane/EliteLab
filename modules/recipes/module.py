@@ -4,6 +4,7 @@ Read-only. The tables live in elitelab/core/gamedata.py (engineering.json). Stat
 and the rolls-per-grade planning hint; the data is served by the routes so it never goes over SSE.
 """
 from elitelab.core import gamedata as gd
+from elitelab.core import engineering_research as research
 
 NS = "recipes"
 
@@ -63,7 +64,9 @@ def setup(core, module):
         r = gd.resolve_recipe(key, kind=q.get("kind") or None, module=q.get("module") or None)
         if "match" not in r:
             return {"error": "no single recipe matches; be more specific or pass a key", "candidates": r["candidates"]}
-        return detail(r["match"], q.get("grade"), q.get("from_grade") or 0, max(1, int(q.get("qty", 1) or 1)))
+        result = detail(r["match"], q.get("grade"), q.get("from_grade") or 0, max(1, int(q.get("qty", 1) or 1)))
+        result["provenance"] = research.provenance(r["match"]["key"], q.get("module"))
+        return result
 
     core.http.route("/api/recipes", listing, tool="list_recipes", module=module.name,
                     description="Search engineering blueprints, experimental effects and technology broker unlocks (Guardian modules and "

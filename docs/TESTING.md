@@ -137,6 +137,24 @@ binding, custom ports, and no browser launch on bind failure.
 3. `docker compose up --build` and hit `/api/health`.
 4. In Claude Code, open the repo folder and ask for `get_powerplay_status`.
 
+## Expedition and security checks
+
+`python -m unittest discover -s tests -v` includes synthetic commander fixtures
+for research, missions, neutron navigation and synthesis. New tests cover Spansh
+job validation/retry, fit changes, persistence failure, boost consumption,
+commander isolation, shared-material budgets, HTTP/MCP round trips, DNS
+rebinding, compressed-build limits, static traversal and authentication.
+
+With Node 22+ and Chrome installed, run `node tests/expedition-browser.mjs`. Set
+PYTHON and CHROME_BIN for non-default executable paths. The test uses isolated
+fixture state and mocked Spansh responses, exercises desktop/mobile layouts and
+HTML escaping, and writes screenshots under ELITELAB_SCREENSHOT_DIR or the OS
+temporary folder. CI uploads those screenshots. The original browser suite
+continues to cover the existing dashboard.
+
+The static symlink test is skipped on Windows without symlink privileges; Linux
+CI runs it. Real Spansh smoke checks are manual and are not part of offline CI.
+
 
 `test_instance.py` verifies OS-lock ownership, reuse across requested ports,
 rejection of changed builds/copies, and legacy detection before module loading.
@@ -207,3 +225,17 @@ spending, inventory snapshots and restarts. Missing session boundaries stay
 unknown. `node tests/materials-feed.mjs` delays inventory responses to check
 stale-response rejection, current filters and refresh after a failure; the
 browser suite imports it and checks the visible live pickup and session totals.
+
+## Integrated review regressions
+
+`test_party_persistence.py` forces a scheduler pause between deferred batch
+capture and disk I/O, then checks that a newer synchronous receipt wins.
+Engineering tests preserve a Commander/Materials/LoadGame baseline while
+rejecting previous sessions. The setup browser checks preserve pending values
+across reload and cancellation.
+
+`node tests/restart-browser.mjs` runs the real CLI with isolated settings and
+data, saves a new port through the setup page, clicks Restart, supervises exit
+75 and verifies navigation to the new dashboard under its real CSP headers.
+It also checks that other hostnames stay blocked and the dashboard policy
+retains same-origin connections. This runs in CI alongside the owner/crew suite.

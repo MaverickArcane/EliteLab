@@ -3,7 +3,9 @@ Server-Sent Events for live state, and static files for the shell and modules.
 """
 import functools
 import json
+import copy
 import logging
+import re
 import hashlib
 import hmac
 import ipaddress
@@ -13,7 +15,6 @@ from http.cookies import SimpleCookie
 import mimetypes
 import os
 import queue
-import socket
 import threading
 import time
 import urllib.parse
@@ -92,7 +93,10 @@ class Route:
                 p["enum"] = spec["enum"]
             if "default" in spec:
                 p["default"] = spec["default"]
-            elif spec.get("required"):
+            for key in ("items", "properties", "additionalProperties", "minimum", "maximum", "minItems", "maxItems"):
+                if key in spec:
+                    p[key] = copy.deepcopy(spec[key])
+            if spec.get("required"):
                 required.append(name)
             props[name] = p
         return {"tool": self.tool, "path": self.path, "method": self.method, "module": self.module,
@@ -123,6 +127,10 @@ def make_handler(core):
         server_version = "EliteLab"
         protocol_version = "HTTP/1.1"
 
+        def setup(self):
+            super().setup()
+            self.connection.settimeout(30)
+
         def log_message(self, fmt, *args):
             pass
 
@@ -136,6 +144,18 @@ def make_handler(core):
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Referrer-Policy", "no-referrer")
+            connections = "'self'"
+            # Setup alone probes a saved port before navigating after restart.
+            # Restrict that exception to the current hostname, never other hosts
+            # or script/style sources. Validate again before forming a CSP source.
+            hostname = host_name(self.headers.get("Host"))
+            if urllib.parse.urlsplit(self.path).path in ("/setup/", "/setup/index.html") and hostname and self._trusted_host():
+                if re.fullmatch(r"[a-z0-9.-]+", hostname):
+                    connections += f" http://{hostname}:* https://{hostname}:*"
+            self.send_header("Content-Security-Policy", f"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src {connections}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'")
             for key, value in (headers or {}).items():
                 self.send_header(key, value)
             # No CORS headers: cross-origin reads are disabled. POSTs also
@@ -145,8 +165,8 @@ def make_handler(core):
 
         def _static(self, directory, rel):
             rel = rel.lstrip("/") or "index.html"
-            base = os.path.normpath(directory)
-            path = os.path.normpath(os.path.join(base, rel))
+            base = os.path.realpath(directory)
+            path = os.path.realpath(os.path.join(base, rel))
             if not path.startswith(base + os.sep) and path != base or not os.path.isfile(path):
                 return self._send(404, {"error": "not found"})
             ctype = mimetypes.guess_type(path)[0] or "application/octet-stream"
@@ -157,13 +177,24 @@ def make_handler(core):
 
         def _body(self):
             """Read the request body (always, so keep-alive connections stay in sync) and parse JSON if possible."""
-            n = int(self.headers.get("Content-Length") or 0)
+            lengths = self.headers.get_all("Content-Length", [])
+            if self.headers.get("Transfer-Encoding") or len(lengths) > 1:
+                self.close_connection = True
+                raise ValueError("Ambiguous request framing is not supported")
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                self.close_connection = True
+                raise ValueError("Invalid Content-Length") from None
             if n < 0 or n > MAX_BODY:
                 self.close_connection = True
                 raise ValueError(f"request body too large ({n} bytes, max {MAX_BODY})")
             if not n:
                 return None
             raw = self.rfile.read(n)
+            if len(raw) != n:
+                self.close_connection = True
+                raise ValueError("Incomplete request body")
             try:
                 return json.loads(raw.decode("utf-8"))
             except (ValueError, UnicodeError):
@@ -172,13 +203,6 @@ def make_handler(core):
         def _check_mutation(self):
             origin = self.headers.get("Origin")
             host = self.headers.get("Host", "")
-            # DNS rebinding, on every bind: without a token only known names may be the Host (a token or cookie is proof enough)
-            if not config.AUTH_TOKEN:
-                name = host_name(host)
-                if name is None:
-                    return 403, "the Host header is missing or malformed"
-                if not host_allowed(name):
-                    return 403, f"requests for host {name} are not accepted; set ELITELAB_ALLOWED_HOSTS={name} to allow it"
             # same host over http or https (a reverse proxy may terminate TLS in front of us)
             if ((origin is not None and origin not in ("http://" + host, "https://" + host))
                     or self.headers.get("Sec-Fetch-Site") == "cross-site"):
@@ -203,6 +227,32 @@ def make_handler(core):
             except Exception:                       # no/invalid cookie, or SimpleCookie's CookieError on a junk Cookie header
                 return False
 
+        def _trusted_host(self):
+            """Reject DNS rebinding even when the browser sends a matching Origin."""
+            if len(self.headers.get_all("Host", [])) != 1:
+                return False
+            try:
+                host = self.headers["Host"]
+                # Older urllib versions accept trailing text after an IPv6
+                # bracket. Validate the wire format before URL normalization.
+                hostname = host_name(host)
+                if not hostname or any(c.isspace() for c in host):
+                    return False
+                parsed = urllib.parse.urlsplit("//" + host)
+                if (parsed.hostname or "").lower().rstrip(".") != hostname:
+                    return False
+                if parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment or not hostname:
+                    return False
+                _ = parsed.port  # validate port syntax
+                allowed = {machine_name(), "localhost", "127.0.0.1", "::1", str(config.HOST).lower().rstrip("."), str(self.server.server_address[0]).lower()}
+                if hostname in allowed | config.ALLOWED_HOSTS:
+                    return True
+                # Explicit IP URLs cannot use a hostile DNS rebinding name. This also supports LAN/Docker binds.
+                ipaddress.ip_address(hostname)
+                return True
+            except (ValueError, TypeError):
+                return False
+
         def _login(self, body):
             token = body.get("token", "") if isinstance(body, dict) else ""
             if not isinstance(token, str) or not config.AUTH_TOKEN or not hmac.compare_digest(token.encode(), config.AUTH_TOKEN.encode()):
@@ -213,11 +263,17 @@ def make_handler(core):
                 "Set-Cookie": f"elitelab_session={value}.{signature}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200"})
 
         def _dispatch(self, method):
+            if not self._trusted_host():
+                self.close_connection = True
+                return self._send(403, {"error": "Untrusted Host. Use localhost, an IP address, or configure ELITELAB_ALLOWED_HOSTS for your trusted DNS name."})
             u = urllib.parse.urlparse(self.path)
             path = urllib.parse.unquote(u.path)
             q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
             body = None
             try:
+                if method == "GET" and (path.startswith("/api/") or path == "/events") and self.headers.get("Sec-Fetch-Site") == "cross-site":
+                    self.close_connection = True
+                    return self._send(403, {"error": "cross-site API requests are not allowed"})
                 if (path.startswith("/api/") or path == "/events") and path != "/api/login" and not self._authorized():
                     self.close_connection = True
                     return self._send(401, {"error": "authentication required"})
@@ -256,7 +312,7 @@ def make_handler(core):
                 return self._send(400, {"error": str(ex)})
             except Exception as ex:
                 core.log.exception("request failed: %s %s", method, path)
-                return self._send(500, {"error": str(ex)})
+                return self._send(500, {"error": "Request failed; details are in the local server log"})
 
         def do_GET(self):
             self._dispatch("GET")

@@ -1,0 +1,6 @@
+{"event": "Commander", "FID": "FPROGRESS-A", "Name": "Unlock Pilot", "timestamp": "2026-10-03T10:00:00Z"}
+{"event": "Loadout", "Ship": "explorer_nx", "ShipID": 56, "ShipName": "Caspian", "MaxJumpRange": 80, "Modules": [{"Slot": "FrameShiftDrive", "Item": "int_hyperdrive_overcharge_size8_class5_overchargebooster_mkii", "Health": 1}, {"Slot": "Slot01", "Item": "int_fuelscoop_size6_class5"}, {"Slot": "Slot02", "Item": "int_repairer_size5_class5"}], "timestamp": "2026-10-03T10:00:01Z"}
+{"event": "Location", "StarSystem": "Origin", "StarPos": [0, 0, 0], "timestamp": "2026-10-03T10:00:02Z"}
+{"event": "Materials", "Raw": [{"Name": "carbon", "Count": 10}, {"Name": "vanadium", "Count": 4}, {"Name": "germanium", "Count": 3}, {"Name": "cadmium", "Count": 2}, {"Name": "niobium", "Count": 2}, {"Name": "arsenic", "Count": 2}, {"Name": "yttrium", "Count": 1}, {"Name": "polonium", "Count": 1}], "Manufactured": [], "Encoded": [], "timestamp": "2026-10-03T10:00:03Z"}
+{"event": "Synthesis", "Name": "FSD Basic", "Materials": [{"Name": "carbon", "Count": 1}, {"Name": "vanadium", "Count": 1}, {"Name": "germanium", "Count": 1}], "timestamp": "2026-10-03T10:00:04Z"}
+{"event": "CarrierJump", "StarSystem": "Origin", "StarPos": [0, 0, 0], "timestamp": "2026-10-03T10:00:05Z"}

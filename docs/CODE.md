@@ -28,7 +28,7 @@ Module-level constants read at import time. Precedence for `host`, `port`, `jour
 | `SETTINGS` | | the settings file as loaded at import (`{}` when missing or unparseable) |
 | `SOURCES` | | setting name -> `"flag"`, `"env"`, `"file"` or `"default"`, for `host`, `port`, `journal_dir`, `data_dir`, `browser` |
 | `HOST`, `PORT` | `ELITELAB_HOST`, `ELITELAB_PORT` | `127.0.0.1`, `8766`; an invalid host (not IPv4 or a host name) or port falls back with a warning |
-| `ALLOWED_HOSTS` | `ELITELAB_ALLOWED_HOSTS` | empty set; lower-cased extra names the mutation Host rule accepts |
+| `ALLOWED_HOSTS` | `ELITELAB_ALLOWED_HOSTS` | empty set; lower-cased extra names the request Host rule accepts |
 | `BROWSER` | `ELITELAB_BROWSER` | `""`; reserved for the launcher, read-only on the setup page |
 | `RESTART_EXIT_CODE` | | `75`; `start()` returns it after `request_restart()` and the start scripts loop on it |
 | `JOURNAL_DIR` | `ELITELAB_JOURNAL_DIR` | `/journals` if it exists, else `~/Saved Games/Frontier Developments/Elite Dangerous` |
@@ -111,7 +111,7 @@ Constants: `STARPORT_TYPES` (Coriolis, Orbis, Ocellus, Asteroid base, Planetary 
   - No CORS headers, deliberately: the API has no auth, so a third-party page in the user's browser must not be able to read state or POST a wishlist. Same-origin dashboard, MCP and CLI are unaffected.
   - `_sse()`: writes `event: snapshot` with the full store, then one `event: state` per change `{ns, key, value, v}`, and a `: ping` comment every 15 s. The per-client queue holds 1000 messages and drops on overflow; the browser detects the gap in `v` and refetches `/api/state`. Subscription is removed in `finally` when the client disconnects. `protocol_version = HTTP/1.1` so keep-alive works.
 - Setup peer check (before `_check_mutation`): without `config.AUTH_TOKEN`, a POST to a path in `LOCAL_ONLY_POSTS` (`/api/setup`, `/api/setup/journals`, `/api/restart`) from a peer for which `is_loopback_peer(client_address[0])` is false (loopback, or IPv4-mapped loopback) gets 403 "Setup changes require a local connection or configured authentication." and the connection is closed. Other routes are not affected.
-- `_check_mutation()` (every POST): without `config.AUTH_TOKEN`, `host_name()` strips the port (and IPv6 brackets) from the Host header and `host_allowed()` accepts IP literals, `localhost`, the bind host, `machine_name()` (`socket.gethostname()` lower-cased, cached on first use; no DNS lookups) and `config.ALLOWED_HOSTS`; otherwise 403. Then the Origin / `Sec-Fetch-Site` and JSON content-type checks. A GET of a mount prefix without its slash (`/setup`) redirects (302) to the slash.
+- `_trusted_host()` validates one well-formed Host authority on every request, even with authentication. IP literals, loopback, the bind address, this machine's cached hostname and `ALLOWED_HOSTS` are accepted. `_check_mutation()` checks Origin / `Sec-Fetch-Site` and JSON content type for POSTs. A GET of `/setup` redirects to `/setup/`. Setup documents alone allow CSP connections to other ports on their own hostname for restart detection; all other documents keep same-origin connections.
 - `HttpServer(core).bind(host, port)` creates the `ThreadingHTTPServer` (daemon threads); `.serve()` runs it; `.stop()` before `serve()` is remembered.
 
 ## elitelab/core/loader.py

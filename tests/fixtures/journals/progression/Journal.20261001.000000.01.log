@@ -1,0 +1,7 @@
+{"timestamp":"2026-10-01T10:00:00Z","event":"Commander","FID":"FPROGRESS-A","Name":"Unlock Pilot"}
+{"timestamp":"2026-10-01T10:00:01Z","event":"Location","StarSystem":"Procyon","StarPos":[0,0,0],"Factions":[{"Name":"Sirius Corporation","MyReputation":29.0625},{"Name":"Neutral Faction","MyReputation":0}]}
+{"timestamp":"2026-10-01T10:00:02Z","event":"MissionAccepted","MissionID":101,"Faction":"Sirius Corporation","Name":"Mission_Delivery","LocalisedName":"Deliver goods","DestinationSystem":"Sirius"}
+{"timestamp":"2026-10-01T10:00:03Z","event":"MissionCompleted","MissionID":101,"Faction":"Sirius Corporation","PermitsAwarded":["Sirius"],"FactionEffects":[{"Faction":"Sirius Corporation","Reputation":"+++++"}],"CommodityReward":[{"Name":"ModularTerminals","Count":25}]}
+{"timestamp":"2026-10-01T10:00:04Z","event":"EngineerProgress","Engineers":[{"Engineer":"Marco Qwent","Progress":"Known"}]}
+{"timestamp":"2026-10-01T10:00:05Z","event":"EngineerContribution","Engineer":"Marco Qwent","Type":"Commodity","Commodity":"modularterminals","Quantity":5,"TotalQuantity":5}
+{"timestamp":"2026-10-01T10:00:06Z","event":"Cargo","Vessel":"Ship","Count":20,"Inventory":[{"Name":"modularterminals","Count":20,"Stolen":0}]}

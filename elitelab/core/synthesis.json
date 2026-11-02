@@ -1,0 +1,514 @@
+{
+  "source": "https://github.com/EDDiscovery/EliteDangerousCore/blob/master/EliteDangerous/FrontierData/Items/RecipesSynthesis.cs",
+  "checked_at": "2026-11-01",
+  "scope": "Exploration supplies and common combat ammunition; not a complete synthesis catalogue. FSD costs cross-checked against https://inara.cz/elite/synthesis/.",
+  "recipes": [
+    {
+      "key": "afm_refill_basic",
+      "name": "AFM Refill",
+      "grade": "basic",
+      "journal_name": "Module Repair Basic",
+      "materials": {
+        "vanadium": 3,
+        "nickel": 2,
+        "chromium": 2,
+        "zinc": 2
+      },
+      "aliases": [
+        "AFMU",
+        "auto field maintenance unit"
+      ]
+    },
+    {
+      "key": "afm_refill_standard",
+      "name": "AFM Refill",
+      "grade": "standard",
+      "journal_name": "Module Repair Standard",
+      "materials": {
+        "vanadium": 6,
+        "manganese": 2,
+        "molybdenum": 1,
+        "zirconium": 1,
+        "tin": 1
+      },
+      "aliases": [
+        "AFMU",
+        "auto field maintenance unit"
+      ]
+    },
+    {
+      "key": "afm_refill_premium",
+      "name": "AFM Refill",
+      "grade": "premium",
+      "journal_name": "Module Repair Premium",
+      "materials": {
+        "vanadium": 6,
+        "chromium": 4,
+        "zinc": 2,
+        "zirconium": 2,
+        "tellurium": 1,
+        "ruthenium": 1
+      },
+      "aliases": [
+        "AFMU",
+        "auto field maintenance unit"
+      ]
+    },
+    {
+      "key": "chaff_premium",
+      "name": "Chaff",
+      "grade": "premium",
+      "journal_name": "Chaff Premium",
+      "materials": {
+        "compactcomposites": 1,
+        "filamentcomposites": 2,
+        "thermicalloys": 1,
+        "protoradiolicalloys": 1
+      },
+      "aliases": []
+    },
+    {
+      "key": "chaff_standard",
+      "name": "Chaff",
+      "grade": "standard",
+      "journal_name": "Chaff Standard",
+      "materials": {
+        "compactcomposites": 1,
+        "filamentcomposites": 2,
+        "thermicalloys": 1
+      },
+      "aliases": []
+    },
+    {
+      "key": "chaff_basic",
+      "name": "Chaff",
+      "grade": "basic",
+      "journal_name": "Chaff Basic",
+      "materials": {
+        "compactcomposites": 1,
+        "filamentcomposites": 1
+      },
+      "aliases": []
+    },
+    {
+      "key": "fsd_injection_basic",
+      "name": "FSD Injection",
+      "grade": "basic",
+      "journal_name": "FSD Basic",
+      "materials": {
+        "carbon": 1,
+        "vanadium": 1,
+        "germanium": 1
+      },
+      "range_multiplier": 1.25,
+      "aliases": [
+        "jumponium",
+        "jump boost"
+      ]
+    },
+    {
+      "key": "fsd_injection_standard",
+      "name": "FSD Injection",
+      "grade": "standard",
+      "journal_name": "FSD Standard",
+      "materials": {
+        "carbon": 1,
+        "vanadium": 1,
+        "germanium": 1,
+        "cadmium": 1,
+        "niobium": 1
+      },
+      "range_multiplier": 1.5,
+      "aliases": [
+        "jumponium",
+        "jump boost"
+      ]
+    },
+    {
+      "key": "fsd_injection_premium",
+      "name": "FSD Injection",
+      "grade": "premium",
+      "journal_name": "FSD Premium",
+      "materials": {
+        "carbon": 1,
+        "germanium": 1,
+        "niobium": 1,
+        "arsenic": 1,
+        "polonium": 1,
+        "yttrium": 1
+      },
+      "range_multiplier": 2,
+      "aliases": [
+        "jumponium",
+        "jump boost"
+      ]
+    },
+    {
+      "key": "heat_sinks_premium",
+      "name": "Heat Sinks",
+      "grade": "premium",
+      "journal_name": "Heat Sink Premium",
+      "materials": {
+        "basicconductors": 2,
+        "heatconductionwiring": 2,
+        "heatexchangers": 2,
+        "protoheatradiators": 1
+      },
+      "aliases": [
+        "heatsink",
+        "heat sink launcher"
+      ]
+    },
+    {
+      "key": "heat_sinks_standard",
+      "name": "Heat Sinks",
+      "grade": "standard",
+      "journal_name": "Heat Sink Standard",
+      "materials": {
+        "basicconductors": 2,
+        "heatconductionwiring": 2,
+        "heatexchangers": 2
+      },
+      "aliases": [
+        "heatsink",
+        "heat sink launcher"
+      ]
+    },
+    {
+      "key": "heat_sinks_basic",
+      "name": "Heat Sinks",
+      "grade": "basic",
+      "journal_name": "Heat Sink Basic",
+      "materials": {
+        "basicconductors": 2,
+        "heatconductionwiring": 2
+      },
+      "aliases": [
+        "heatsink",
+        "heat sink launcher"
+      ]
+    },
+    {
+      "key": "high_velocity_munitions_basic",
+      "name": "High Velocity Munitions",
+      "grade": "basic",
+      "journal_name": "Railgun Ammo Basic",
+      "materials": {
+        "iron": 2,
+        "vanadium": 1
+      },
+      "aliases": [
+        "railgun"
+      ]
+    },
+    {
+      "key": "high_velocity_munitions_standard",
+      "name": "High Velocity Munitions",
+      "grade": "standard",
+      "journal_name": "Railgun Ammo Standard",
+      "materials": {
+        "iron": 4,
+        "vanadium": 3,
+        "zirconium": 2,
+        "tungsten": 2
+      },
+      "aliases": [
+        "railgun"
+      ]
+    },
+    {
+      "key": "high_velocity_munitions_premium",
+      "name": "High Velocity Munitions",
+      "grade": "premium",
+      "journal_name": "Railgun Ammo Premium",
+      "materials": {
+        "vanadium": 4,
+        "zirconium": 2,
+        "tungsten": 4,
+        "yttrium": 2
+      },
+      "aliases": [
+        "railgun"
+      ]
+    },
+    {
+      "key": "large_calibre_munitions_basic",
+      "name": "Large Calibre Munitions",
+      "grade": "basic",
+      "journal_name": "Cannon Ammo Basic",
+      "materials": {
+        "sulphur": 2,
+        "nickel": 4,
+        "carbon": 3
+      },
+      "aliases": [
+        "frag cannon",
+        "fragment cannon"
+      ]
+    },
+    {
+      "key": "large_calibre_munitions_standard",
+      "name": "Large Calibre Munitions",
+      "grade": "standard",
+      "journal_name": "Cannon Ammo Standard",
+      "materials": {
+        "phosphorus": 3,
+        "zirconium": 2,
+        "zinc": 3,
+        "arsenic": 1,
+        "tin": 2
+      },
+      "aliases": [
+        "frag cannon",
+        "fragment cannon"
+      ]
+    },
+    {
+      "key": "large_calibre_munitions_premium",
+      "name": "Large Calibre Munitions",
+      "grade": "premium",
+      "journal_name": "Cannon Ammo Premium",
+      "materials": {
+        "zinc": 8,
+        "arsenic": 1,
+        "mercury": 1,
+        "tungsten": 2,
+        "antimony": 2
+      },
+      "aliases": [
+        "frag cannon",
+        "fragment cannon"
+      ]
+    },
+    {
+      "key": "life_support_basic",
+      "name": "Life Support",
+      "grade": "basic",
+      "journal_name": "Life Support Basic",
+      "materials": {
+        "iron": 2,
+        "nickel": 1
+      },
+      "aliases": [
+        "oxygen"
+      ]
+    },
+    {
+      "key": "limpets_basic",
+      "name": "Limpets",
+      "grade": "basic",
+      "journal_name": "Limpet Basic",
+      "materials": {
+        "iron": 10,
+        "nickel": 10
+      },
+      "aliases": []
+    },
+    {
+      "key": "plasma_munitions_basic",
+      "name": "Plasma Munitions",
+      "grade": "basic",
+      "journal_name": "Plasma Ammo Basic",
+      "materials": {
+        "phosphorus": 4,
+        "sulphur": 3,
+        "manganese": 1
+      },
+      "aliases": []
+    },
+    {
+      "key": "plasma_munitions_standard",
+      "name": "Plasma Munitions",
+      "grade": "standard",
+      "journal_name": "Plasma Ammo Standard",
+      "materials": {
+        "phosphorus": 5,
+        "selenium": 1,
+        "manganese": 3,
+        "molybdenum": 4
+      },
+      "aliases": []
+    },
+    {
+      "key": "plasma_munitions_premium",
+      "name": "Plasma Munitions",
+      "grade": "premium",
+      "journal_name": "Plasma Ammo Premium",
+      "materials": {
+        "selenium": 5,
+        "molybdenum": 4,
+        "cadmium": 4,
+        "technetium": 2
+      },
+      "aliases": []
+    },
+    {
+      "key": "small_calibre_munitions_basic",
+      "name": "Small Calibre Munitions",
+      "grade": "basic",
+      "journal_name": "Ammo Basic",
+      "materials": {
+        "sulphur": 2,
+        "iron": 2,
+        "nickel": 1
+      },
+      "aliases": [
+        "multicannon",
+        "multi-cannon"
+      ]
+    },
+    {
+      "key": "small_calibre_munitions_standard",
+      "name": "Small Calibre Munitions",
+      "grade": "standard",
+      "journal_name": "Ammo Standard",
+      "materials": {
+        "phosphorus": 2,
+        "iron": 2,
+        "zirconium": 2,
+        "zinc": 2,
+        "selenium": 2
+      },
+      "aliases": [
+        "multicannon",
+        "multi-cannon"
+      ]
+    },
+    {
+      "key": "small_calibre_munitions_premium",
+      "name": "Small Calibre Munitions",
+      "grade": "premium",
+      "journal_name": "Ammo Premium",
+      "materials": {
+        "phosphorus": 2,
+        "sulphur": 2,
+        "zirconium": 2,
+        "mercury": 2,
+        "tungsten": 2,
+        "antimony": 1
+      },
+      "aliases": [
+        "multicannon",
+        "multi-cannon"
+      ]
+    },
+    {
+      "key": "srv_ammo_basic",
+      "name": "SRV Ammo",
+      "grade": "basic",
+      "journal_name": "Ammo Basic",
+      "materials": {
+        "phosphorus": 1,
+        "sulphur": 2
+      },
+      "aliases": []
+    },
+    {
+      "key": "srv_ammo_standard",
+      "name": "SRV Ammo",
+      "grade": "standard",
+      "journal_name": "Ammo Standard",
+      "materials": {
+        "phosphorus": 1,
+        "selenium": 1,
+        "manganese": 1,
+        "molybdenum": 1
+      },
+      "aliases": []
+    },
+    {
+      "key": "srv_ammo_premium",
+      "name": "SRV Ammo",
+      "grade": "premium",
+      "journal_name": "Ammo Premium",
+      "materials": {
+        "phosphorus": 2,
+        "selenium": 2,
+        "molybdenum": 1,
+        "technetium": 1
+      },
+      "aliases": []
+    },
+    {
+      "key": "srv_refuel_basic",
+      "name": "SRV Refuel",
+      "grade": "basic",
+      "journal_name": "Fuel Basic",
+      "materials": {
+        "phosphorus": 1,
+        "sulphur": 1
+      },
+      "aliases": [
+        "buggy fuel"
+      ]
+    },
+    {
+      "key": "srv_refuel_standard",
+      "name": "SRV Refuel",
+      "grade": "standard",
+      "journal_name": "Fuel Standard",
+      "materials": {
+        "phosphorus": 1,
+        "sulphur": 1,
+        "arsenic": 1,
+        "mercury": 1
+      },
+      "aliases": [
+        "buggy fuel"
+      ]
+    },
+    {
+      "key": "srv_refuel_premium",
+      "name": "SRV Refuel",
+      "grade": "premium",
+      "journal_name": "Fuel Premium",
+      "materials": {
+        "sulphur": 1,
+        "arsenic": 1,
+        "mercury": 1,
+        "technetium": 1
+      },
+      "aliases": [
+        "buggy fuel"
+      ]
+    },
+    {
+      "key": "srv_repair_basic",
+      "name": "SRV Repair",
+      "grade": "basic",
+      "journal_name": "Repair Basic",
+      "materials": {
+        "iron": 2,
+        "nickel": 1
+      },
+      "aliases": []
+    },
+    {
+      "key": "srv_repair_standard",
+      "name": "SRV Repair",
+      "grade": "standard",
+      "journal_name": "Repair Standard",
+      "materials": {
+        "nickel": 3,
+        "vanadium": 2,
+        "manganese": 1,
+        "molybdenum": 1
+      },
+      "aliases": []
+    },
+    {
+      "key": "srv_repair_premium",
+      "name": "SRV Repair",
+      "grade": "premium",
+      "journal_name": "Repair Premium",
+      "materials": {
+        "vanadium": 2,
+        "zinc": 1,
+        "chromium": 2,
+        "tungsten": 1,
+        "tellurium": 1
+      },
+      "aliases": []
+    }
+  ]
+}

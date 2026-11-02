@@ -10,6 +10,7 @@ Tables (``coriolis.json``) come from EDCD/coriolis-data.
 """
 import base64
 import gzip
+import io
 import json
 import os
 import re
@@ -23,6 +24,7 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "coriolis.jso
 SHIPS, STANDARD, HARDPOINTS, INTERNAL = _DB["ships"], _DB["standard"], _DB["hardpoints"], _DB["internal"]
 BLUEPRINTS, SPECIALS, STANDARD_ORDER = _DB["blueprints"], _DB["specials"], _DB["standard_order"]
 ID_BLUEPRINT, ID_GRADE, ID_SPECIAL, ID_DONE = -2, -3, -4, -1
+MAX_MODIFICATION_BYTES = 65536
 EDSY_ARMOUR_IDS = ["40131", "40122", "40113", "40114", "40115"]      # EDSY module ids of bulkhead grades 1..5 (lightweight .. reactive)
 
 
@@ -49,7 +51,13 @@ def _mods(part):
     if not part or ":" in part:                       # the pre-2017 text format carried no blueprints
         return out
     try:
-        raw = gzip.decompress(base64.b64decode(part.replace("-", "+").replace("_", "/") + "=" * (-len(part) % 4)))
+        if len(part) > MAX_MODIFICATION_BYTES:
+            raise ValueError("Modification data too large")
+        compressed = base64.b64decode(part.replace("-", "+").replace("_", "/") + "=" * (-len(part) % 4))
+        with gzip.GzipFile(fileobj=io.BytesIO(compressed)) as stream:
+            raw = stream.read(MAX_MODIFICATION_BYTES + 1)
+        if len(raw) > MAX_MODIFICATION_BYTES:
+            raise ValueError("Expanded modification data too large")
         return _parse_mods(raw)
     except (OSError, EOFError, ValueError, struct.error) as ex:   # BadGzipFile is an OSError; binascii.Error a ValueError
         raise ValueError(f"the Coriolis link's modification data is damaged ({ex.__class__.__name__}); copy the link again") from None

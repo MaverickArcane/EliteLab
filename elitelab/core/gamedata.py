@@ -419,7 +419,10 @@ def find_recipes(query, kind=None, module=None, engineer=None, limit=20):
     (prefix match, so 'boost' finds 'boosted'). Exact words score higher. Empty query lists everything.
     ``module`` restricts by module words, ``engineer`` to blueprints that engineer offers (adds engineer_grade).
     Returns [{kind, key, name, module, max_grade, score}] best first."""
+    from . import engineering_research as research
     q = tokens(query)
+    if module:
+        module = research.module_name(module)
     mod = tokens(module) if module else []
     exact_mod = (module or "").strip().lower() if (module or "").strip().lower() in _MODULE_NAMES else None
     eng = tokens(engineer) if engineer else []
@@ -430,7 +433,10 @@ def find_recipes(query, kind=None, module=None, engineer=None, limit=20):
         mod_name = r.get("module") or ", ".join(r.get("modules") or [])
         fits = blueprint_modules(r) if kind_ == "blueprint" else ([r["module"]] if r.get("module") else r.get("modules") or [])
         matching = fits
-        if exact_mod:                       # a known module name (the UI select) matches that module only
+        reviewed = research.lookup(r["key"], module) if module else None
+        if reviewed:
+            matching = [module]
+        elif exact_mod:                       # a known module name (the UI select) matches that module only
             matching = [m for m in fits if m.lower() == exact_mod]
             if not matching:
                 continue
@@ -482,6 +488,9 @@ def resolve_recipe(query, kind=None, module=None):
         hits = [h for h in find_recipes("", kind=kind, module=module, limit=0) if h["key"] == query]
         return {"match": hits[0]} if hits else {"candidates": []}
     hits = find_recipes(query, kind=kind, module=module, limit=0)
+    named = [h for h in hits if h["name"].lower() == query.lower()]
+    if len(named) == 1:
+        return {"match": named[0]}            # broad legacy aliases must not obscure an exact display name
     if len(hits) == 1 or (len(hits) > 1 and hits[0]["score"] > hits[1]["score"]):
         return {"match": hits[0]}
     return {"candidates": hits[:12]}

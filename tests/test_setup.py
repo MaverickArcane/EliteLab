@@ -299,8 +299,8 @@ class HostCheckTests(unittest.TestCase):
         with open(self.path, encoding="utf-8") as f:
             self.assertEqual(json.load(f), {"port": 8767})
 
-    def test_get_is_unaffected_by_the_host_rule(self):
-        self.assertEqual(self.request("GET", f"attacker.example:{self.port}"), 200)
+    def test_get_also_rejects_untrusted_hosts(self):
+        self.assertEqual(self.request("GET", f"attacker.example:{self.port}"), 403)
         self.assertEqual(self.request("GET", f"127.0.0.1:{self.port}"), 200)
 
     def post(self, host, **kw):
@@ -315,8 +315,7 @@ class HostCheckTests(unittest.TestCase):
             body = json.loads(r.read())
             conn.close()
         self.assertEqual(r.status, 403)
-        self.assertEqual(body, {"error": "requests for host attacker.example are not accepted; "
-                                         "set ELITELAB_ALLOWED_HOSTS=attacker.example to allow it"})
+        self.assertIn("ELITELAB_ALLOWED_HOSTS", body["error"])
 
     def test_ip_literals_are_accepted_on_any_bind(self):
         for bind in ("0.0.0.0", "127.0.0.1", "192.168.1.5"):
@@ -362,10 +361,10 @@ class HostCheckTests(unittest.TestCase):
         for host in ("", "[::1", "::1", "[::1]x", "[nothost]:80", "a:b:c"):
             self.assertEqual(self.post(host), 403, host)
 
-    def test_any_host_is_accepted_with_a_valid_token(self):
+    def test_token_does_not_bypass_host_validation(self):
         with mock.patch.object(config, "HOST", "0.0.0.0"), mock.patch.object(config, "AUTH_TOKEN", "s3cret"):
-            self.assertEqual(self.post(f"attacker.example:{self.port}", headers={"Authorization": "Bearer s3cret"}), 200)
-            self.assertEqual(self.post(f"attacker.example:{self.port}"), 401)
+            self.assertEqual(self.post(f"attacker.example:{self.port}", headers={"Authorization": "Bearer s3cret"}), 403)
+            self.assertEqual(self.post(f"attacker.example:{self.port}"), 403)
 
     def get_path(self, path, header="Content-Type"):
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
