@@ -325,3 +325,5 @@ market ID, or returns one-way legs. It keeps the existing HTTP/tool identity.
 Starting funds for a loop are max(outbound cost, return cost - outbound profit).
 The browser keeps filters across refreshes, migrates old search settings, and
 renders both legs without replacing the form on journal updates.
+
+Shared synthesis facts live in core/synthesis_catalog.py. Wishlist resolves synthesis keys, previews additions and atomically updates quantities. Materials.observation reads inventory and coverage under one lock. See [MATERIAL-PLAN.md](MATERIAL-PLAN.md).

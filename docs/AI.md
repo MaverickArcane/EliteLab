@@ -40,7 +40,7 @@ python -m elitelab call set_wishlist items='{"Datamined Wake Exceptions": 15}' l
 | `get_system_info` | Spansh summary of any system |
 | `get_materials`, `get_wishlist`, `set_wishlist`, `material_sources` | Inventory with caps, a flat per-material wishlist, and where to farm |
 | `list_recipes`, `get_recipe` | Engineering blueprints and experimental effects: materials per grade, engineers, total cost to a grade |
-| `get_engineering_wishlist`, `wishlist_add`, `wishlist_remove` | Track blueprints ("2x g5 fsd increased range"), effects and materials against live inventory |
+| `get_engineering_wishlist`, `preview_material_plan`, `wishlist_add`, `wishlist_update`, `wishlist_remove` | Track blueprints ("2x g5 fsd increased range"), effects and materials against live inventory |
 | `plan_material_trades`, `find_material_traders` | Which trader exchanges cover the shortfalls from current surplus, and the nearest traders by type |
 | `find_farm_sites` | Where to farm a material: known sites with system, body, surface coordinates and method, nearest first; `for_wishlist=true` for the current shortfalls |
 | `find_hge_systems` | Nearest populated systems in the state or allegiance a High Grade Emissions material needs (Boom, War, Outbreak, Empire...) |
@@ -70,7 +70,7 @@ prices. Native MCP boolean arguments are encoded as lowercase HTTP booleans.
 ## Example conversations
 
 **"I want to work on getting materials for an FSD G5 Increased Range roll."**
-The assistant calls `wishlist_add item="g5 fsd increased range"`; the reply already lists have/need/short per material. `plan_material_trades` says which surplus to hand to which trader, `find_material_traders` says where, and `material_sources` covers what trading cannot. The Engineering wishlist card shows the shortfalls and ticks down as you collect. If the text is ambiguous ("shield reinforced" matches a generator and a booster), the reply has `status: ambiguous` with candidates; repeat with a key.
+The assistant calls `wishlist_add item="g5 fsd increased range"`; the reply already lists have/need/short per material. `plan_material_trades` says which surplus to hand to which trader, `find_material_traders` says where, and `material_sources` covers what trading cannot. The Materials / Recipe Wishlist shows the shortfalls and ticks down as you collect. If the text is ambiguous ("shield reinforced" matches a generator and a booster), the reply has `status: ambiguous` with candidates; repeat with a key.
 
 **"Here is my EDSY build, what do I still need?"**
 `pin_build url=...` (EDSY link, Coriolis link or SLEF JSON) then `get_build_progress`: every slot is `ok`, `engineer` (with "Increased Range G3 to G5, apply Mass Manager") or `buy` (with credits), plus every material with have/need/short. `build_to_wishlist` tracks the build as one wishlist entry that follows progress, after which `plan_material_trades` and `find_farm_sites for_wishlist=true` answer "trade or farm what, where".
@@ -113,3 +113,7 @@ research/craft evidence. None of these tools controls Elite Dangerous.
 
 The `journal_history` prompt guides historical questions and coverage checks.
 See [HISTORY.md](HISTORY.md); snapshots are not profits and collections are not inventory.
+
+Use the `materials_recipe_plan` prompt for saved synthesis, FSD and engineering
+plans. Check inventory_known and allocate stock once in displayed order.
+See [MATERIAL-PLAN.md](MATERIAL-PLAN.md) for preview, update and legacy-target semantics.

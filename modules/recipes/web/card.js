@@ -1,5 +1,5 @@
 /* recipes card: look up blueprints, experimental effects and tech broker unlocks (materials per grade, engineers).
-   Read-only; "+ wishlist" hands the recipe to the Engineering wishlist card, where grade and quantity are picked. */
+   Read-only; "+ wishlist" hands the recipe to the Materials / Recipe Wishlist card, where grade and quantity are picked. */
 (() => {
   const { esc, fmt } = Lab.util;
   let timer = null;
@@ -11,7 +11,7 @@
           <select id="rc-kind"><option value="">blueprints, effects, unlocks</option><option value="blueprint">blueprints only</option><option value="experimental">experimental effects only</option><option value="unlock">tech broker unlocks only</option></select>
           <select id="rc-eng"><option value="">any engineer</option></select><button class="mini" id="rc-reset">reset</button></div>
         <div class="rc-results"></div>
-        <div class="note">Click a recipe for its materials per grade and who offers it. "add to wishlist" adds an effect or unlock right away; blueprints go to the Engineering wishlist card first so you can pick the from/to grades.</div>`;
+        <div class="note">Click a recipe for its materials per grade and who offers it. "add to wishlist" adds an effect or unlock right away; blueprints go to the Materials / Recipe Wishlist card first so you can pick the from/to grades.</div>`;
       const q = el.querySelector('#rc-q'), res = el.querySelector('.rc-results');
       const sel = { module: el.querySelector('#rc-module'), kind: el.querySelector('#rc-kind'), engineer: el.querySelector('#rc-eng') };
       const search = async () => {
@@ -60,10 +60,10 @@
             return;
           }
           // blueprints need from/to grades: hand over to the wishlist card's picker (client-only namespace) and say so
-          Lab.set('wishlist_ui', { preselect: { key: add.dataset.key, kind: add.dataset.kind, module: add.dataset.module, at: Date.now() } });
+          Lab.focusCard?.('wishlist'); Lab.set('wishlist_ui', { preselect: { key: add.dataset.key, kind: add.dataset.kind, module: add.dataset.module, at: Date.now() } });
           const card = document.getElementById('card-wishlist');
-          if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); Lab.toast('Not added yet: it is selected in the Engineering wishlist card. Set from/to grade and quantity there, then press add.'); }
-          else Lab.toast('Show the Engineering wishlist card (Layout menu) to add blueprints', 'bad');
+          if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); Lab.toast('Not added yet: it is selected in the Materials / Recipe Wishlist card. Set from/to grade and quantity there, then press add.'); }
+          else Lab.toast('Show the Materials / Recipe Wishlist card (Layout menu) to add blueprints', 'bad');
         }
       };
     },

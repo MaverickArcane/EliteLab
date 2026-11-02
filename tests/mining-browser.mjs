@@ -54,6 +54,7 @@ try {
   const waitFor=async expression=>{for(let i=0;i<450;i++){if(await evaluate(expression))return;await sleep(100);}assert.fail('Timed out: '+expression+'\n'+serverLog);};
   await send('Runtime.enable');await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  await send('Page.addScriptToEvaluateOnNewDocument',{source:"localStorage.setItem('workspace.v1',JSON.stringify('all'))"});
   await send('Page.navigate',{url:base});
   await waitFor("!!document.querySelector('#card-mining [data-mining-total]')");
   assert.match(await evaluate("document.querySelector('#card-mining').textContent"),/No refinery output recorded/);

@@ -37,6 +37,7 @@ try {
   const evaluate=async expression=> {const v=await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true}); if(v.exceptionDetails)throw new Error(JSON.stringify(v.exceptionDetails));return v.result.value;};
   await send('Runtime.enable');await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  await send('Page.addScriptToEvaluateOnNewDocument',{source:"localStorage.setItem('workspace.v1',JSON.stringify('all'))"});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}`});
   console.log('Navigated to dashboard');
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!!document.querySelector('#mat-q') && !!document.querySelector('#wl-qty')"))break;}
@@ -51,7 +52,7 @@ try {
   assert.ok(response.headers.get('content-security-policy').includes("script-src 'self'"));
   await evaluate("document.querySelector('[data-preset=Expedition]').click();true");
   await sleep(200);
-  assert.equal(await evaluate("!!document.querySelector('#card-neutron') && !!document.querySelector('#card-synthesis')"), true);
+  assert.equal(await evaluate("!!document.querySelector('#card-neutron') && !!document.querySelector('#card-wishlist')"), true);
   await evaluate(`(() => {
     window.realPost = Lab.post; window.realApi = Lab.api; window.tripCalls = [];
     window.sampleTrip = {location:{system:'UGPS 0722-05'},ship:{suggested_range_ly:73.17,suggested_supercharge_multiplier:6,fuel_scoop_fitted:true,afmu_fitted:true,fsd_health_at_loadout:1,notices:[]},
@@ -64,9 +65,9 @@ try {
       if(path==='/api/neutron/refresh') {window.sampleTrip.route.status='ready';return structuredClone(window.sampleTrip);}
       if(path==='/api/neutron/clear') return {...structuredClone(window.sampleTrip),route:null,waypoints:[],next_waypoint:null};
       if(path==='/api/synthesis/plan') return {affordable:false,materials:[{name:'Germanium',required:4,have:2,short:2}],note:'Nothing reserved.'};
-      return window.realPost(path,body);
+      return window.realPost.call(Lab,path,body);
     };
-    Lab.api = async (path,q) => path==='/api/synthesis/recipes' ? {note:'Counts share inventory.',recipes:[{key:'fsd_injection_basic',name:'FSD Injection',grade:'basic',quantity:Number(q.quantity),craftable:2,ingredients:[{name:'Germanium',have:2,required:Number(q.quantity),short:0}]}]} : window.realApi(path,q);
+    Lab.api = async (path,q) => path==='/api/synthesis/recipes' ? {note:'Counts share inventory.',recipes:[{key:'fsd_injection_basic',name:'FSD Injection',grade:'basic',quantity:Number(q.quantity),craftable:2,ingredients:[{name:'Germanium',have:2,required:Number(q.quantity),short:0}]}]} : window.realApi.call(Lab,path,q);
     Lab.set('neutron',{summary:{...structuredClone(window.sampleTrip),route:null}});
     const d=structuredClone(Lab.state.synthesis.summary); d.boost={status:'unknown'};
     d.injections.forEach((r,i)=>r.craftable=[2,2,1][i]);Lab.set('synthesis',{summary:d});
@@ -79,28 +80,14 @@ try {
   assert.equal(await evaluate("document.querySelector('[name=range_ly]').value"),'70');
   await evaluate("document.querySelector('[data-neutron-plan]').requestSubmit();true");
   await sleep(150);
-  assert.equal(await evaluate('window.tripCalls[0].body.range_ly'),70);
+  assert.equal(await evaluate("window.tripCalls.find(c=>c.path==='/api/neutron/plan').body.range_ly"),70);
   assert.equal(await evaluate("document.querySelector('#card-neutron img')===null"),true);
   assert.equal(await evaluate("document.querySelector('#card-neutron [data-copy]').dataset.copy"),'<img src=x onerror=alert(1)>');
   for(let i=0;i<65;i++){await sleep(100);if(await evaluate("window.tripCalls.some(c=>c.path==='/api/neutron/refresh')"))break;}
   assert.equal(await evaluate("!!document.querySelector('[data-neutron-export]')"),true);
-  await evaluate("document.querySelector('[data-synthesis-search] [name=query]').value='FSD';document.querySelector('[data-synthesis-search] [name=quantity]').value='2';document.querySelector('[data-synthesis-search]').requestSubmit();true");
-  await sleep(100);
-  await evaluate("document.querySelector('[data-synthesis-add]').click();document.querySelector('[data-synthesis-add]').click();document.querySelector('[data-synthesis-budget]').click();true");
-  await sleep(150);
-  assert.equal(await evaluate("document.querySelector('[data-synthesis-budget-result]').textContent.includes('short 2')"),true);
-  assert.equal(await evaluate("window.tripCalls.find(c=>c.path==='/api/synthesis/plan').body.items.length"),2);
-  await evaluate("Lab.set('synthesis',{summary:{...Lab.state.synthesis.summary,inventory_revision:999}});true");
-  await sleep(100);
-  assert.equal(await evaluate("document.querySelector('[data-synthesis-search] [name=query]').value"),'FSD');
-  assert.equal(await evaluate("document.querySelector('[data-synthesis-budget-result]').textContent.includes('again')"),true);
-  // Old searches must not replace a newer result when replies arrive out of order.
-  await evaluate(`window.workingRecipeApi=Lab.api;window.recipeResolvers=[];Lab.api=(path,q)=>path==='/api/synthesis/recipes'?new Promise(resolve=>window.recipeResolvers.push(resolve)):window.workingRecipeApi(path,q);document.querySelector('[data-synthesis-search]').requestSubmit();document.querySelector('[data-synthesis-search]').requestSubmit();window.recipeResolvers[1]({recipes:[],note:'Newest search'});true`);
-  await sleep(100);
-  await evaluate("window.recipeResolvers[0]({recipes:[],note:'Older search'});true");
-  await sleep(100);
-  assert.equal(await evaluate("document.querySelector('[data-synthesis-results]').textContent.includes('Newest search')"),true);
-  await evaluate("Lab.api=window.workingRecipeApi;window.sampleTrip.next_waypoint.system='PSR J1752-2806';window.sampleTrip.waypoints[0].system='PSR J1752-2806';Lab.set('neutron',{summary:structuredClone(window.sampleTrip)});true");
+  // Unified synthesis planning is exercised end to end in material-plan-browser.mjs.
+  assert.equal(await evaluate("!!document.querySelector('[data-plan-form]')"),true);
+  await evaluate("window.sampleTrip.next_waypoint.system='PSR J1752-2806';window.sampleTrip.waypoints[0].system='PSR J1752-2806';Lab.set('neutron',{summary:structuredClone(window.sampleTrip)});true");
   await sleep(100);
   const outputDir=process.env.ELITELAB_SCREENSHOT_DIR || path.join(os.tmpdir(),'elitelab-expedition-review');
   fs.mkdirSync(outputDir,{recursive:true});

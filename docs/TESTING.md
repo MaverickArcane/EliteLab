@@ -270,3 +270,5 @@ retains same-origin connections. This runs in CI alongside the owner/crew suite.
 
 Journal index and real-CLI browser tests: see [HISTORY.md](HISTORY.md#validation).
 CI retains desktop/mobile history screenshots as an artifact.
+
+test_material_plan.py and material-plan-browser.mjs cover the unified plan, authenticated MCP, old saved data/layouts, live changes and desktop/mobile evidence. See [MATERIAL-PLAN.md](MATERIAL-PLAN.md).

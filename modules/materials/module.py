@@ -31,6 +31,7 @@ class Materials:
         self.sources = data.get("sources", {})
         self.inv = {}      # key -> count
         self.inventory_at = ""
+        self.snapshot_at = None
         self.session_at = ""
         self.commander_name = None
         self.commander_key = None
@@ -120,6 +121,7 @@ class Materials:
                 self.commander_key = owner
                 self.inv, self.names, self.cats = {}, {}, {}
                 self.inventory_at = ""
+                self.snapshot_at = None
             return
         replay_baseline = e == "Materials" and ev.get("_replay") and at and at >= self.session_at
         if at and (at < self.session_at or (at < self.inventory_at and not replay_baseline)):
@@ -127,6 +129,7 @@ class Materials:
         if at:
             self.inventory_at = at
         if e == "Materials":
+            self.snapshot_at = ev.get("timestamp") or "observed"
             self.inv = {}
             for cat in ("Raw", "Manufactured", "Encoded"):
                 for i in ev.get(cat) or []:
@@ -198,7 +201,7 @@ class Materials:
         self._version += 1
         # The inventory itself is not in the store (it would go over SSE on every pickup); other modules read it through
         # the get_material_inventory tool and recompute on inventory_version.
-        return {"totals": totals, "wishlist": copy.deepcopy(self.wishlist),
+        return {"inventory_known": self.snapshot_at is not None, "inventory_observed_at": self.snapshot_at, "totals": totals, "wishlist": copy.deepcopy(self.wishlist),
                                     "session": {"started_at": self.session_started_at,
                                                 "gained": sum(self.session_gained.values()) if self.session_started_at else None,
                                                 "totals": gains, "last_gain": copy.deepcopy(self.last_gain)},
@@ -208,6 +211,11 @@ class Materials:
     def inventory(self):
         with self._lock:
             return dict(self.inv)
+
+    def observation(self):
+        with self._lock:
+            return {"inventory":dict(self.inv), "version":self._version,
+                    "inventory_known":self.snapshot_at is not None, "observed_at":self.snapshot_at}
 
     # -- wishlist ------------------------------------------------------------------
     def set_wishlist(self, items, mode="replace", label=None):
@@ -219,8 +227,8 @@ class Materials:
             return result
 
     def _set_wishlist(self, items, mode, label):
-        if mode not in ("replace", "add", "remove", "clear"):
-            raise ValueError("mode must be replace, add, remove, or clear")
+        if mode not in ("replace", "add", "remove", "clear", "set"):
+            raise ValueError("mode must be replace, add, set, remove, or clear")
         if items is None:
             items = {}
         if isinstance(items, str):
@@ -277,7 +285,7 @@ def setup(core, module):
                             "grade": {"type": "integer", "description": "1-5"},
                             "only_wishlist": {"type": "boolean", "description": "Only materials on the wishlist", "default": False},
                             "only_short": {"type": "boolean", "description": "Only materials where need exceeds stock", "default": False}})
-    core.http.route("/api/materials/inventory", lambda q: {"inventory": m.inventory(), "version": core.store.get(NS, "inventory_version")},
+    core.http.route("/api/materials/inventory", lambda q: m.observation(),
                     tool="get_material_inventory", module=module.name,
                     description="The raw inventory as {journal key: count} for every material ever seen, plus a version that changes on "
                                 "every update. Small and fast; get_materials has names, grades and caps.")
@@ -288,7 +296,7 @@ def setup(core, module):
                     description="Set the materials wishlist, e.g. everything needed for a blueprint. Names may be display names "
                                 "('Datamined Wake Exceptions') or journal keys. The dashboard then shows shortfalls live as materials are collected.",
                     params={"items": {"type": "object", "description": "Map of material name -> quantity needed", "required": True},
-                            "mode": {"type": "string", "description": "replace (default), add (increase needs), remove (drop these), clear (empty the list first)", "enum": ["replace", "add", "remove", "clear"], "default": "replace"},
+                            "mode": {"type": "string", "description": "replace (default), add (increase needs), set (update selected targets without removing others), remove (drop these), clear (empty the list first)", "enum": ["replace", "add", "set", "remove", "clear"], "default": "replace"},
                             "label": {"type": "string", "description": "What this is for, e.g. 'FSD G5 Increased Range x3'"}})
     core.http.route("/api/materials/sources", lambda q: m.source(q.get("name")),
                     tool="material_sources", module=module.name,

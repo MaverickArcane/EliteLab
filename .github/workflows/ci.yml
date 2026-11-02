@@ -96,6 +96,17 @@ jobs:
           path: history-screenshots/
           if-no-files-found: ignore
 
+      - name: Unified materials and recipes workflow
+        env:
+          ELITELAB_SCREENSHOT_DIR: material-plan-screenshots
+        run: node tests/material-plan-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: material-plan-browser-screenshots
+          path: material-plan-screenshots/
+          if-no-files-found: ignore
+
   windows-bundle:
     name: Portable Windows bundle
     runs-on: windows-latest

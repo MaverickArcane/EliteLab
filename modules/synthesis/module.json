@@ -1,1 +1,15 @@
-{"name":"synthesis","version":"1.0.0","description":"Synthesis recipes, material budgets and observed FSD boosts.","requires":["materials","flight","progression"],"provides":["synthesis"],"order":68,"cards":[{"id":"synthesis","title":"Synthesis and FSD injections","span":6,"script":"card.js","order":45}]}
+{
+  "name": "synthesis",
+  "version": "1.0.0",
+  "description": "Synthesis recipe data and observed FSD boosts; planning UI lives in Materials / Recipe Wishlist.",
+  "requires": [
+    "materials",
+    "flight",
+    "progression"
+  ],
+  "provides": [
+    "synthesis"
+  ],
+  "order": 68,
+  "cards": []
+}

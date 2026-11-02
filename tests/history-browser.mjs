@@ -54,6 +54,7 @@ try {
   const waitFor=async expression=>{for(let i=0;i<450;i++){if(await evaluate(expression))return;await sleep(100);}assert.fail('Timed out: '+expression+'\n'+JSON.stringify(await evaluate("({map:document.querySelector('#card-map')?.textContent,history:Lab.state.history,errors:[...document.querySelectorAll('.render-error')].map(e=>e.textContent)})"))+'\n'+serverLog);};
   await send('Runtime.enable');await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  await send('Page.addScriptToEvaluateOnNewDocument',{source:"localStorage.setItem('workspace.v1',JSON.stringify('all'))"});
   await send('Page.navigate',{url:base});
 
   await waitFor("!!document.querySelector('#card-history [data-history-results]')");

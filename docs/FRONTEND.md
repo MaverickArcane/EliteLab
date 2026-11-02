@@ -121,3 +121,5 @@ The look is a cockpit instrument panel: near-black blue background with a faint 
 `web/style.css` defines tokens on `:root` (`--bg, --bg-2, --card, --card-2, --line, --line-2, --fg, --muted, --dim, --accent (HUD orange), --accent-soft, --accent-2 (cyan), --ok, --warn, --bad, --link, --radius, --gap, --font, --mono`). Reusable classes: `.big, .muted, .ok/.warn/.bad/.accent, .k (micro-label), .grid2 / .grid3 (.k/.v), .note, table/.num, .tag(.rare/.ok/.bad/.warn), .bar > i, .row, .mini, .primary, .feed, label.chk, .links, .chips > .chip(.eng/.off, .lbl, .sub), .ship-head/.ship-range/.ship-bar/.ship-sec`.
 
 Dark theme only. No light theme is planned; it is a cockpit tool.
+
+Workspace navigation separates panel visibility/order from custom layout. Old synthesis layouts reveal the unified wishlist. The planner keeps inputs stable, guards asynchronous responses and separates recorded evidence. See [MATERIAL-PLAN.md](MATERIAL-PLAN.md).

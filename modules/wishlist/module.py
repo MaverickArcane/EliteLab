@@ -15,6 +15,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 from elitelab.core import gamedata as gd
+from elitelab.core.synthesis_catalog import BY_KEY as SYNTHESIS, RECIPES as SYNTHESIS_RECIPES
 from modules.wishlist.trading import plan_trades
 
 NS = "wishlist"
@@ -74,9 +75,14 @@ class Wishlist:
     def inventory(self):
         """{key: count} from the materials module's tool (the inventory is not in the store; see materials)."""
         t = self.core.http.tools.get("get_material_inventory")
-        return (t.fn({}).get("inventory") if t else None) or {}
+        data = t.fn({}) if t else {}
+        self._inventory_known = bool(data.get("inventory_known"))
+        self._inventory_at = data.get("observed_at")
+        return data.get("inventory") or {}
 
     def entry_needs(self, e):
+        if e["kind"] == "synthesis":
+            return {k: c * e["qty"] for k, c in SYNTHESIS[e["key"]]["materials"].items()}
         if e["kind"] == "material":
             return {e["key"]: int(e["qty"])}
         if e["kind"] == "build":
@@ -93,19 +99,85 @@ class Wishlist:
 
     # -- computing ------------------------------------------------------------------
     def compute(self, reserve=0):
+        with self._lock:
+            return self._compute(reserve)
+
+    def _compute(self, reserve=0, extra=None):
         inv = self.inventory()
-        need, entries = {}, []
-        for e in self.entries:
+        known = self._inventory_known
+        # Legacy material targets stay in their original file/API; include them
+        # as explicit first-priority reservations instead of silently migrating.
+        legacy = self.core.store.get("materials", "wishlist") or {}
+        source = [{"id":"legacy:"+k, "kind":"material", "key":k, "name":gd.material_name(k),
+                   "qty":v["need"], "label":v.get("label"), "legacy":True}
+                  for k,v in sorted(legacy.items()) if v.get("need",0)>0]
+        source += self.entries + ([extra] if extra else [])
+        need, entries, remaining = {}, [], dict(inv)
+        for e in source:
             n = self.entry_needs(e)
-            for k, c in n.items():
-                need[k] = need.get(k, 0) + c
-            short = sum(max(0, c - inv.get(k, 0)) for k, c in n.items())
-            entries.append({**e, "materials": len(n), "units": sum(n.values()), "short": short, "complete": short == 0})
-        rows = [self.material_row(k, c, inv.get(k, 0)) for k, c in need.items()]
-        rows.sort(key=lambda r: (r["short"] == 0, r["category"] or "", -(r["grade"] or 0), r["name"]))
-        summary = {"entries": len(entries), "materials": len(rows), "short": sum(1 for r in rows if r["short"]),
-                   "units_short": sum(r["short"] for r in rows), "complete": all(r["short"] == 0 for r in rows)}
-        return {"entries": entries, "needs": rows, "summary": summary, "trades": self.plan_trades(rows, inv, reserve)}
+            ingredients = []
+            for k,c in n.items():
+                available = max(0, remaining.get(k,0))
+                allocated = min(c, available)
+                ingredients.append({**self.material_row(k,c,inv.get(k,0)),
+                                    "reserved_before":need.get(k,0), "available":available,
+                                    "allocated":allocated, "short":max(0,c-available)})
+                need[k] = need.get(k,0) + c
+                remaining[k] = available-allocated
+            short = sum(r["short"] for r in ingredients)
+            craftable = None
+            if known and e["kind"] == "synthesis":
+                craftable = min(r["available"]//SYNTHESIS[e["key"]]["materials"][r["key"]] for r in ingredients)
+            entries.append({**e, "materials":len(n), "units":sum(n.values()), "ingredients":ingredients,
+                            "short":short, "complete":short==0 if known else None,
+                            "craftable":craftable, "inventory_known":known})
+        rows = [self.material_row(k,c,inv.get(k,0)) for k,c in need.items()]
+        rows.sort(key=lambda r:(r["short"]==0,r["category"] or "",-(r["grade"] or 0),r["name"]))
+        summary = {"entries":len(entries), "materials":len(rows), "short":sum(1 for r in rows if r["short"]),
+                   "units_short":sum(r["short"] for r in rows), "complete":all(r["short"]==0 for r in rows) if known else None}
+        return {"entries":entries, "needs":rows, "summary":summary, "inventory_known":known,
+                "inventory_observed_at":self._inventory_at,
+                "trades":{**self.plan_trades(rows,inv,reserve),"inventory_known":True} if known else {"trades":[],"unresolved":[],"by_trader":{},"inventory_known":False,"note":"Observe a Materials snapshot before planning exchanges."},
+                "note":"Planning only: nothing is crafted or spent. Stock is allocated once, in displayed order; legacy material targets come first. Plans do not auto-decrement after game crafts. Without a Materials snapshot, have/short are provisional and readiness is unknown."}
+
+    def preview(self, q):
+        with self._lock:
+            entry = self._resolve(q)
+            if entry.get("status") == "ambiguous": return entry
+            if entry["kind"] == "build":
+                raise ValueError("Use the pinned build panel to inspect build requirements.")
+            result = self._compute(extra=entry)
+            return {"entry":result["entries"][-1], "needs":result["needs"], "summary":result["summary"],
+                    "inventory_known":result["inventory_known"], "note":result["note"]}
+
+    def update(self, q):
+        ident = q.get("id")
+        if not isinstance(ident,str) or len(ident)>200: raise ValueError("Choose a saved entry id.")
+        qty = self.quantity(q.get("qty"))
+        if ident.startswith("legacy:"):
+            # Do not hold our lock during another module's publish callbacks.
+            key = ident[7:]
+            target = (self.core.store.get("materials","wishlist") or {}).get(key)
+            if not target: raise ValueError("Entry is no longer present.")
+            return self.core.http.tools["set_wishlist"].fn({"items":{key:qty},"mode":"set"})
+        with self._lock:
+            current = next((e for e in self.entries if e["id"]==ident),None)
+            if not current: raise ValueError("Entry is no longer present.")
+            if current["kind"]=="build": raise ValueError("Pinned build quantities follow the build panel.")
+            entries = [{**e,"qty":qty} if e["id"]==ident else e for e in self.entries]
+            self.core.write_data(entries,FILE)
+            self.entries = entries
+            self.publish()
+            return self.compute()
+
+    @staticmethod
+    def quantity(value):
+        try:
+            n=int(value)
+            if isinstance(value,bool) or str(n)!=str(value) or not 1<=n<=10000: raise ValueError()
+            return n
+        except (TypeError,ValueError,OverflowError):
+            raise ValueError("qty must be an integer from 1 to 10000") from None
 
     plan_trades = staticmethod(plan_trades)
 
@@ -119,13 +191,38 @@ class Wishlist:
             return self._add(q)
 
     def _add(self, q):
+        if len(self.entries)>=200: raise ValueError("Keep at most 200 saved plan entries.")
+        if q.get("kind")=="build" or str(q.get("item","")).strip().lower() in ("build","pinned build"):
+            return self._add_build(q.get("label"))
+        entry = self._resolve(q)
+        if entry.get("status")=="ambiguous": return entry
+        if entry.get("kind")=="build": return self._add_build(q.get("label"))
+        entries = self.entries + [entry]
+        self.core.write_data(entries, FILE)
+        self.entries = entries
+        self.publish()
+        st = self.core.store.get(NS)
+        out = next(e for e in st["entries"] if e["id"]==entry["id"])
+        return {"status":"added", "entry":out, "needs":out["ingredients"], "summary":st["summary"]}
+
+    def _resolve(self, q):
         text = q.get("item") or q.get("query") or q.get("name") or q.get("key")
         if (q.get("kind") == "build") or (isinstance(text, str) and text.strip().lower() in ("build", "pinned build")):
-            return self._add_build(q.get("label"))
+            return {"kind":"build"}
         if not text or not isinstance(text, str):
             raise ValueError("item is required: a blueprint ('2x g5 fsd increased range'), an effect ('mass manager'), a material ('50 tellurium') or 'build'")
+        if len(text)>500: raise ValueError("item must be at most 500 characters")
+        label=q.get("label")
+        if label is not None and (not isinstance(label,str) or len(label)>500):
+            raise ValueError("label must be text up to 500 characters")
+        if q.get("kind")=="synthesis" or text in SYNTHESIS:
+            if text not in SYNTHESIS: raise ValueError("Use an exact synthesis key from wishlist_options.")
+            r=SYNTHESIS[text]
+            return {"id":uuid.uuid4().hex[:8], "kind":"synthesis", "key":text, "name":r["name"],
+                    "module":None, "tier":r["grade"], "qty":self.quantity(q.get("qty",1)),
+                    "label":label, "added":time.strftime("%Y-%m-%dT%H:%M:%SZ",time.gmtime())}
         query, qty, grade, from_text = parse_item(text)
-        qty = int(q.get("qty") or qty or 1)
+        qty = self.quantity(q.get("qty", qty or 1))
         grade = q.get("grade") or grade
         grade = int(grade) if grade not in (None, "") else None
         from_grade = int(q.get("from_grade") or from_text or 0)
@@ -134,8 +231,8 @@ class Wishlist:
             raise ValueError("qty must be at least 1")
         rolls = self._rolls(q.get("rolls"))
         label = q.get("label")
-        if label is not None and not isinstance(label, str):
-            raise ValueError("label must be a string")
+        if label is not None and (not isinstance(label, str) or len(label)>500):
+            raise ValueError("label must be text up to 500 characters")
 
         # Resolution: exact recipe key, then a material by name, then a recipe search; a tie is reported, not guessed.
         key = text.strip()
@@ -182,19 +279,12 @@ class Wishlist:
         else:
             raise ValueError(f"nothing matches '{text}'; try list_recipes or a material name")
         entry.update({"id": uuid.uuid4().hex[:8], "qty": qty, "label": label, "added": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
-        entries = self.entries + [entry]
-        self.core.write_data(entries, FILE)
-        self.entries = entries
-        self.publish()
-        st = self.core.store.get(NS)
-        out = [e for e in st["entries"] if e["id"] == entry["id"]][0]
-        needs = self.entry_needs(entry)
-        inv = self.inventory()
-        return {"status": "added", "entry": out, "needs": [self.material_row(k, c, inv.get(k, 0)) for k, c in needs.items()],
-                "summary": st["summary"]}
+        return entry
 
     def _add_build(self, label):
         """Track the pinned build as one entry whose needs follow build.progress.materials (so it shrinks as you engineer)."""
+        if label is not None and (not isinstance(label,str) or len(label)>500):
+            raise ValueError("label must be text up to 500 characters")
         pinned = self.core.store.get("build", "pinned")
         if not pinned:
             raise ValueError("no build is pinned; pin an EDSY link first")
@@ -228,6 +318,9 @@ class Wishlist:
         return v
 
     def remove(self, q):
+        ident=q.get("id")
+        if isinstance(ident,str) and ident.startswith("legacy:"):
+            return self.core.http.tools["set_wishlist"].fn({"items":{ident[7:]:0},"mode":"remove"})
         with self._lock:
             ids = q.get("id")
             if str(q.get("all", "")).lower() in ("1", "true") or ids in ("all", "*"):
@@ -298,23 +391,23 @@ def options(q):
         rows.sort(key=lambda r: (-(r["grade"] or 0), r["name"]))
     return {"modules": sorted(mods.values(), key=lambda x: x["module"]),
             "unlocks": [{"key": u["key"], "name": u["name"], "module": u["module"], "broker": u["broker"]} for u in gd.UNLOCKS],
-            "materials": mats, "max_grade": 5}
+            "materials": mats, "synthesis": SYNTHESIS_RECIPES, "max_grade": 5}
 
 
 def setup(core, module):
     w = Wishlist(core)
     core.http.route("/api/wishlist/options", options, tool="wishlist_options", module=module.name,
-                    description="Pick-lists behind the wishlist card: every module with its blueprint keys (and max grade) and "
+                    description="Pick-lists behind Materials / Recipe Wishlist, including exact synthesis keys, tiers and costs: every module with its blueprint keys (and max grade) and "
                                 "experimental effect keys, every technology broker unlock key, and every material key by category. "
                                 "Use the keys with wishlist_add when free text is ambiguous.")
     core.http.route("/api/wishlist", lambda q: {**w.compute(int(q.get("reserve", 0) or 0))},
                     tool="get_engineering_wishlist", module=module.name,
-                    description="The engineering wishlist: every entry (blueprint to a grade, experimental effect, or material) with "
+                    description="Unified materials/recipe plan: synthesis, engineering and legacy material targets. Stock is allocated once in entry order. Unknown inventory has provisional numeric shortages, not confirmed readiness. Every entry (blueprint to a grade, experimental effect, or material) with "
                                 "its completeness, the per-material needs vs live inventory (have/need/short), a summary, and a material "
                                 "trader plan for the shortfalls. Use wishlist_add / wishlist_remove to change it.",
                     params={"reserve": {"type": "integer", "description": "Units of each material to keep back when planning trades", "default": 0}})
     core.http.route("/api/wishlist/add", w.add, tool="wishlist_add", method="POST", module=module.name,
-                    description="Add an entry. item is free text or a recipe key: '2x g5 fsd increased range', 'dirty drives 2-5', "
+                    description="Add a saved planning entry, never craft in game. For synthesis use kind=synthesis and an exact wishlist_options synthesis key with qty (1-10000). item is free text or a recipe key: '2x g5 fsd increased range', 'dirty drives 2-5', "
                                 "'mass manager', '50 tellurium', 'FSD_LongRange', 'unlock_guardian_fsd_booster', or 'build' to track the "
                                 "pinned EDSY build as one entry whose needs follow the build's progress. Quantity, grade and a grade range "
                                 "('2-5', 'g2 to g5' = the module already has G2, buy the rolls for G3, G4 and G5) can be in the text or as "
@@ -324,14 +417,14 @@ def setup(core, module):
                             "qty": {"type": "integer", "description": "How many modules / units", "default": 1},
                             "grade": {"type": "integer", "description": "Target grade 1-5 for a blueprint; default = max"},
                             "from_grade": {"type": "integer", "description": "Grade the module already has (0 = unengineered)", "default": 0},
-                            "kind": {"type": "string", "description": "Force the kind when the text is ambiguous", "enum": ["blueprint", "experimental", "unlock", "material", "build"]},
+                            "kind": {"type": "string", "description": "Force the kind when the text is ambiguous", "enum": ["blueprint", "experimental", "unlock", "material", "build", "synthesis"]},
                             "module": {"type": "string", "description": "Restrict the recipe search to a module"},
                             "rolls": {"type": "string", "description": "Override rolls per grade as a list, e.g. [1,2,3,4,6]; default is the rolls_per_grade hint"},
                             "label": {"type": "string", "description": "Free note, e.g. the ship this is for"}})
     core.http.route("/api/wishlist/remove", w.remove, tool="wishlist_remove", method="POST", module=module.name,
-                    description="Remove entries by id (comma-separated) or everything with all=true.",
+                    description="Remove saved entries by id (comma-separated), or saved plan entries with all=true. Legacy material targets use individual legacy: ids or set_wishlist mode=clear.",
                     params={"id": {"type": "string", "description": "Entry id(s) from get_engineering_wishlist"},
-                            "all": {"type": "boolean", "description": "Clear the whole list", "default": False}})
+                            "all": {"type": "boolean", "description": "Clear saved plan entries; legacy targets remain", "default": False}})
     core.http.route("/api/wishlist/trades", lambda q: w.compute(int(q.get("reserve", 0) or 0))["trades"],
                     tool="plan_material_trades", module=module.name,
                     description="Estimate which material trader exchanges would cover the wishlist shortfalls from current surplus: "
@@ -348,3 +441,10 @@ def setup(core, module):
                             "ref": {"type": "string", "description": "Reference system; default = current system"},
                             "limit": {"type": "integer", "description": "Traders per type (<=10)", "default": 3},
                             "pad": {"type": "string", "description": "L = large pads only", "enum": ["L"]}})
+
+    preview_params = core.http.tools["wishlist_add"].params
+    core.http.route("/api/wishlist/preview", w.preview, tool="preview_material_plan", method="POST", module=module.name,
+                    description="Preview an additional recipe/material target against stock left after the saved plan. Same parameters as wishlist_add. No persistence or crafting. Includes shared requirements, shortages and inventory_known.", params=preview_params)
+    core.http.route("/api/wishlist/update", w.update, tool="wishlist_update", method="POST", module=module.name,
+                    description="Set the quantity of a saved material/recipe entry by id. Preserves its identity and other plans. Does not craft or change inventory.",
+                    params={"id":{"type":"string","required":True},"qty":{"type":"integer","required":True,"minimum":1,"maximum":10000}})
