@@ -55,7 +55,7 @@ try {
     ws.send(JSON.stringify({id,method,params}));
   });
   const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
-  const waitFor=async expression=>{for(let i=0;i<150;i++){if(await evaluate(expression))return;await sleep(100);}assert.fail('Timed out: '+expression+'\nStatuses: '+await evaluate("[...document.querySelectorAll('[data-search-status]')].map(e=>e.textContent).join(' | ')")+'\n'+serverLog);};
+  const waitFor=async expression=>{for(let i=0;i<150;i++){if(await evaluate(expression)){await evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(true))))');return;}await sleep(100);}assert.fail('Timed out: '+expression+'\nStatuses: '+await evaluate("[...document.querySelectorAll('[data-search-status]')].map(e=>e.textContent).join(' | ')")+'\n'+serverLog);};
   await send('Runtime.enable');await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await send('Page.addScriptToEvaluateOnNewDocument',{source:"localStorage.setItem('workspace.v1',JSON.stringify('all'))"});
