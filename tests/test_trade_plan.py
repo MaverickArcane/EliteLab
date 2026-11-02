@@ -186,6 +186,10 @@ class TradePlanTests(unittest.TestCase):
 
     def test_saved_plan_is_validated_before_use(self):
         self.core.write_data({'plan': {'id': 'x', 'legs': [{'commodity': 'Gold'}], 'quantity': 1}}, 'personal.json')
+        bad = self.select()['plan']
+        bad['legs'][0]['buy']['volume'] = 'lots'
+        self.assertFalse(planning.valid_plan(bad))
+        self.core.write_data({'plan': bad}, 'personal.json')
         from elitelab.core import Core, loader
         again = Core()
         self.addCleanup(again.close)

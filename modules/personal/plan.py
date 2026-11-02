@@ -57,7 +57,8 @@ def route_id(row):
 def valid_stop(stop):
     return (isinstance(stop, dict) and type(stop.get("market_id")) is int and stop["market_id"] > 0
             and label(stop.get("station")) and label(stop.get("system"))
-            and qty(stop.get("price")) is not None and (stop.get("pos") is None or xyz(stop.get("pos"))))
+            and qty(stop.get("price")) is not None and (stop.get("volume") is None or qty(stop.get("volume")) is not None)
+            and (stop.get("pos") is None or xyz(stop.get("pos"))))
 
 
 def valid_plan(plan):
@@ -178,8 +179,8 @@ def progress(plan, j, events, now):
     buying = stage in ("buy", "travel_buy")
     stop = leg["buy"] if buying else leg["sell"]
     dist = round(math.dist(ship, stop["pos"]), 1) if ship and stop.get("pos") else None
-    supply = f"{int(leg['buy']['volume'] or 0):,} t supply"
-    demand = f"{int(leg['sell']['volume'] or 0):,} t demand"
+    supply = f"{int(qty(leg['buy']['volume']) or 0):,} t supply"
+    demand = f"{int(qty(leg['sell']['volume']) or 0):,} t demand"
     tons = f"{have:,} t" if known and have else f"{leg['quantity']:,} t"
     unseen = "" if known else " Cargo has not been observed; confirm the hold in game."
     if stage == "buy":
