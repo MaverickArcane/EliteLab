@@ -110,6 +110,7 @@ try {
   append([{event:'Synthesis',timestamp:'2026-11-01T10:02:00Z',Name:'FSD Basic',Materials:[{Name:'carbon',Count:1},{Name:'vanadium',Count:1},{Name:'germanium',Count:1}]}]);
   await waitFor("Lab.state.synthesis.summary?.boost.status==='injection_observed'");
   await evaluate("document.querySelector('[data-plan-tab=evidence]').click();scrollTo(0,0);true");
+  await waitFor("document.querySelector('[data-plan-evidence]').textContent.includes('FSD Basic')");
   assert.match(await evaluate("document.querySelector('[data-plan-evidence]').textContent"),/FSD Basic/);
   await capture('materials-fsd-evidence',1440,1100);
   await evaluate("document.querySelector('[data-plan-tab=inventory]').click();true");
