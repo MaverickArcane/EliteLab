@@ -155,13 +155,24 @@ def setup(core, module):
     core.http.route("/api/mining/spots", discovery.spots, tool="find_mining_spots", module=module.name,
                     description="Nearby Spansh-reported rings with type, reserves, hotspots, distance, lower-bound jumps and observation dates. "
                                 "Searches at most 100 bodies, returns at most 30 rings. Hotspots do not prove overlaps or yields. "
-                                "Optional power restricts to provider-reported acquisition systems; does not guarantee merits.",
+                                "Radius is capped server-side by unboosted laden/current ship range; missing range fails closed. "
+                                "Manual ref is a planning origin, not reachability from the ship. Optional power selects owned mining systems. "
+                                "sort=merits requires hotspot and known power (blank resolves pledge); pairs rings with fresh orbital markets. "
+                                "Reinforcement pairs same-system sales; acquisition needs a fortified/stronghold source within 20/30 Ly of the target. "
+                                "merit_estimate is conditional on a matching recent journal sale association; unknown is null, never zero. "
+                                "Unknown yields use candidate/price/distance fallback, not a merit ranking. Check ranking_note, merit_note and buyer. "
+                                "At most 100 bodies, nearest 30 rings and 100 markets; local activities and cargo provenance still need in-game checks.",
                     params={"ref": {"type": "string", "description": "Reference system; defaults to journal location"},
-                            "radius": {"type": "number", "default": 50, "description": "Search radius in Ly, up to 200"},
+                            "radius": {"type": "number", "description": "Defaults to ship laden/current range cap; requested radius up to 200 is clamped to that cap"},
                             "ring_type": {"type": "string", "default": "Metallic", "enum": [*RINGS, "Any"]},
                             "hotspot": {"type": "string", "description": "Optional exact reported hotspot commodity name"},
                             "pristine": {"type": "boolean", "default": False},
-                            "power": {"type": "string", "description": "Optional Powerplay power for acquisition candidates"}})
+                            "power": {"type": "string", "description": "Power owning the mining source; blank uses pledge for merit sorting"},
+                            "sort": {"type": "string", "default": "distance", "enum": ["distance", "merits"]},
+                            "powerplay_mode": {"type": "string", "default": "reinforcement", "enum": ["reinforcement", "acquisition"]},
+                            "quantity": {"type": "integer", "default": 1, "description": "Planned tons for merit opportunities, up to 1000000"},
+                            "pad": {"type": "string", "default": "L", "enum": ["S", "M", "L"]},
+                            "hours": {"type": "number", "default": 24, "description": "Maximum market age for merit opportunities, up to 72 hours"}})
     core.http.route("/api/mining/buyers", discovery.buyers, tool="find_mining_buyers", module=module.name,
                     description="Compare reported sale quotes for one commodity and load among up to 100 nearby orbital station markets. "
                                 "Requires fresh prices and reported demand covering the load; excludes carriers/surface ports. "

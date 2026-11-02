@@ -64,6 +64,22 @@ class Discovery:
     def reference(self, q):
         return name_param(q.get("ref") or self.core.store.get("journal", "system"), "a reference system")
 
+    def range_limit(self, journal):
+        laden = number(journal.get("jump_range_laden"), 1000)
+        current = number(journal.get("jump_range_now"), 1000)
+        if not laden or current is None:
+            raise ValueError("Laden jump range unavailable. Load the current ship in game before searching for mining spots.")
+        if not current:
+            raise ValueError("Current jump range is zero. Refuel before searching for mining spots.")
+        return min(laden, current, 200)
+
+    def context(self, journal=None):
+        journal = journal if journal is not None else (self.core.store.get("journal") or {})
+        pp = ((self.core.store.get("mining", "summary") or {}).get("powerplay") or {})
+        return (journal.get("cmdr"), journal.get("system"), (journal.get("ship_info") or {}).get("id"),
+                journal.get("jump_range_laden"), journal.get("jump_range_now"),
+                (journal.get("status") or {}).get("cargo_tons"), (journal.get("status") or {}).get("fuel"), pp.get("power"))
+
     def search(self, endpoint, filters, ref):
         if self.core.config.OFFLINE:
             raise ValueError("Community searches are unavailable in offline mode. Session tracking still works.")
@@ -90,7 +106,17 @@ class Discovery:
         return {"results": records, "count": available, "partial": partial}
 
     def spots(self, q):
-        ref, radius = self.reference(q), parameter(q, "radius", 50, 200)
+        journal = self.core.store.get("journal") or {}
+        limit, context = self.range_limit(journal), self.context(journal)
+        origin = journal.get("system")
+        ref = name_param(q.get("ref") or origin, "a reference system")
+        radius = min(parameter(q, "radius", limit, 200), limit)
+        sort = q.get("sort", "distance")
+        if not isinstance(sort, str) or sort not in ("distance", "merits"):
+            raise ValueError("Sort must be distance or merits.")
+        mode = q.get("powerplay_mode", "reinforcement")
+        if not isinstance(mode, str) or mode not in POWER_MODES:
+            raise ValueError("Choose acquisition or reinforcement for mining opportunities.")
         ring_type = q.get("ring_type", "Metallic")
         if ring_type not in (*RINGS, "Any"):
             raise ValueError("Choose Metallic, Metal Rich, Icy, Rocky or Any rings.")
@@ -102,16 +128,27 @@ class Discovery:
             raise ValueError("pristine must be true or false.")
         pristine = pristine in (True, "true")
         power = q.get("power", "")
+        if not isinstance(power, str):
+            raise ValueError("Choose a known Powerplay power or leave power blank.")
+        if sort == "merits" and not power:
+            power = ((self.core.store.get("mining", "summary") or {}).get("powerplay") or {}).get("power")
         if not isinstance(power, str) or (power and power not in POWERS):
             raise ValueError("Choose a known Powerplay power or leave power blank.")
+        if sort == "merits" and (not power or not hotspot.strip()):
+            raise ValueError("Merit planning needs a known power and a hotspot commodity, such as Platinum.")
+        if sort == "merits":
+            parameter(q, "quantity", 1, 1000000, True)
+            parameter(q, "hours", 24, 72)
+            if q.get("pad", "L") not in ("S", "M", "L"):
+                raise ValueError("Pad must be S, M or L.")
         filters = {"distance": {"min": 0, "max": radius}, "rings": [{}] if ring_type == "Any" else [{"type": ring_type}]}
         if pristine:
             filters["reserve_level"] = {"value": ["Pristine"]}
         if power:
-            filters.update({"system_power": {"value": [power]}, "system_power_state": {"value": ["Unoccupied"]}})
+            filters.update({"system_power": {"value": [power]}, "system_power_state": {"value": POWER_MODES["reinforcement"]}})
         data = self.search("bodies", filters, ref)
         now, rows, seen = time.time(), [], set()
-        jump = number(self.core.store.get("journal", "jump_range_now"))
+        jump = limit
         for body in data["results"][:100]:
             if not isinstance(body, dict):
                 continue
@@ -120,7 +157,7 @@ class Discovery:
                 continue
             if pristine and body.get("reserve_level") != "Pristine":
                 continue
-            if power and (body.get("system_power_state") != "Unoccupied" or power not in reported_powers(body)):
+            if power and (body.get("system_power_state") not in POWER_MODES["reinforcement"] or power not in reported_powers(body)):
                 continue
             rings = body.get("rings")
             for ring in (rings[:16] if isinstance(rings, list) else []):
@@ -145,18 +182,31 @@ class Discovery:
                     "signals": signals, "signals_updated_at": text(ring.get("signals_updated_at")) or None,
                     "updated_at": text(body.get("updated_at")) or None, "age_hours": age(body.get("updated_at"), now),
                     "power_state": text(body.get("system_power_state")) or "Unknown",
+                    "powers": reported_powers(body),
                     "permit_required": body.get("system_is_permit_required") if type(body.get("system_is_permit_required")) is bool else None,
                     "x": coords[0] if valid_coords else None, "y": coords[1] if valid_coords else None, "z": coords[2] if valid_coords else None})
         rows.sort(key=lambda r: (r["distance"], r["arrival_ls"] if r["arrival_ls"] is not None else math.inf, r["ring"]))
-        return {"ref": ref, "radius": radius, "power": power, "results": rows[:30], "matched_rings": len(rows),
+        matched = len(rows)
+        rows = rows[:30]
+        planning = {}
+        if sort == "merits":
+            from .opportunities import rank
+            planning = rank(self, rows, q, ref, radius, power, mode, hotspot)
+        # Reject a response calculated for a ship/location that changed during I/O.
+        if self.context() != context:
+            raise ValueError("Ship range or location changed during the search. Search again.")
+        return {"ref": ref, "radius": radius, "range_limit": limit, "manual_origin": ref.casefold() != text(origin).casefold(),
+                "range_basis": "Unboosted full-hold/full-tank range, capped by current fuel/cargo range and 200 Ly.",
+                "sort": sort, "power": power, "results": rows, "matched_rings": matched, **planning,
                 "bodies_checked": min(len(data["results"]), 100), "bodies_available": number(data.get("count")),
                 "source": "Spansh", "fetched_at": dt.datetime.now(dt.timezone.utc).isoformat(),
                 "note": "Nearest matching rings among up to 100 reported bodies; at most 30 shown. Community data can be incomplete. "
                         "Hotspot counts do not establish overlaps, yield or mining method. DSS-scan and prospect on arrival. "
-                        "Jump counts are straight-line lower bounds. Acquisition filter is provider-reported, not a merit guarantee; check permits in game. "
+                        "The radius is capped by the current ship's laden range; manual origins are planning locations, not reachability from your ship. "
+                        "Jump counts are straight-line lower bounds; check permits and fuel in game. "
                         + ("A provider page failed; results are partial." if data["partial"] else "")}
 
-    def buyers(self, q):
+    def buyers(self, q, *, _limit=20):
         ref, radius = self.reference(q), parameter(q, "radius", 100, 200)
         commodity = name_param(q.get("commodity"), "a commodity name")
         quantity = parameter(q, "quantity", 1, 1000000, True)
@@ -231,10 +281,12 @@ class Discovery:
                     "price": price, "demand": demand, "estimated_sale": price * quantity,
                     "powers": reported_powers(station), "power_state": text(station.get("system_power_state")) or "Unknown",
                     "merit_eligibility": "unverified",
+                    "coordinates": [station.get("system_" + axis) if type(station.get("system_" + axis)) in (int, float)
+                                    and number(abs(station["system_" + axis]), 1000000) is not None else None for axis in "xyz"],
                     "updated_at": text(station.get("market_updated_at")), "age_hours": round(updated, 2)})
                 break
         rows.sort(key=lambda r: (-r["estimated_sale"], r["distance"], r["station"]))
-        return {"ref": ref, "commodity": commodity, "quantity": quantity, "results": rows[:20],
+        return {"ref": ref, "commodity": commodity, "quantity": quantity, "results": rows[:_limit],
                 "powerplay_mode": mode, "power": power, "merit_estimate": None,
                 "stations_checked": min(100, len(data["results"])), "stations_available": number(data.get("count")),
                 "source": "Spansh", "note": "Best reported quotes among up to 100 nearby orbital markets, not a galaxy-wide best price. "

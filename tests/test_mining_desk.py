@@ -13,7 +13,9 @@ NOW = dt.datetime(2026, 11, 2, 3, tzinfo=dt.timezone.utc).timestamp()
 
 
 class MiningDeskTests(unittest.TestCase):
-    setUp = test_mining.MiningTests.setUp
+    def setUp(self):
+        test_mining.MiningTests.setUp(self)
+        self.core.store.update("journal", {"system":"Delkar", "jump_range_laden":80, "jump_range_now":90})
     state = test_mining.MiningTests.state
     emit = test_mining.MiningTests.emit
     def call(self, tool, **q):
@@ -37,11 +39,11 @@ class MiningDeskTests(unittest.TestCase):
         self.assertEqual(out["results"][0]["signals"][0]["count"], 2)
         self.assertIsNone(out["results"][0]["permit_required"])
 
-    def test_acquisition_filter_and_unknown_jump_range(self):
+    def test_power_filter_selects_owned_mining_sources(self):
         out, body = self.search("find_mining_spots", DATA["bodies"], radius=100, power="Edmund Mahon")
-        self.assertEqual(body["filters"]["system_power_state"]["value"], ["Unoccupied"])
-        self.assertEqual([r["system"] for r in out["results"]], ["Andvarites"])
-        self.assertIsNone(out["results"][0]["jumps"])
+        self.assertEqual(body["filters"]["system_power_state"]["value"], ["Exploited", "Fortified", "Stronghold"])
+        self.assertEqual([r["system"] for r in out["results"]], ["Delkar", "LTT 4487"])
+        self.assertEqual(out["results"][0]["jumps"], 0)
 
     def test_spots_bound_and_sanitize_provider_input(self):
         raw = copy.deepcopy(DATA["bodies"])
@@ -49,7 +51,7 @@ class MiningDeskTests(unittest.TestCase):
         raw["results"][0]["system_x"] = 10**400
         raw["results"][0]["rings"][0]["signals"].append({"name":"<img onerror=x>","count":float("inf")})
         out, _ = self.search("find_mining_spots", raw)
-        self.assertEqual(len(out["results"]), 2)
+        self.assertEqual(len(out["results"]), 3)
         self.assertIsNone(out["results"][0]["x"])
         json.dumps(out, allow_nan=False)
 

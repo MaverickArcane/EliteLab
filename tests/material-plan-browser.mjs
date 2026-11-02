@@ -65,6 +65,9 @@ try {
   const layoutBefore=await evaluate("localStorage.getItem('layout.v1')");
   await evaluate("document.querySelector('#wl-qty').value='4';document.querySelector('#wl-qty').dispatchEvent(new Event('input'));document.querySelector('[data-plan-form]').requestSubmit();true");
   await waitFor("Lab.state.wishlist.entries?.some(e=>e.kind==='synthesis'&&e.qty===4)");
+  // SSE can publish the entry before the submit handler finishes its refresh.
+  // Wait for the same enabled control a user needs before the next submission.
+  await waitFor("!document.querySelector('#wl-add').disabled");
   await evaluate("document.querySelector('#wl-recipe').value='fsd_injection_standard';document.querySelector('#wl-recipe').dispatchEvent(new Event('change'));document.querySelector('#wl-qty').value='2';document.querySelector('#wl-qty').dispatchEvent(new Event('input'));document.querySelector('[data-plan-form]').requestSubmit();true");
   await waitFor("Lab.state.wishlist.entries?.filter(e=>e.kind==='synthesis').length===2");
   const plan=await (await fetch(base+'/api/wishlist')).json();

@@ -50,6 +50,7 @@ class ExpeditionSecurityTests(unittest.TestCase):
                 self.assertEqual(status, 400)
 
     def test_auth_covers_new_endpoints_and_error_redaction(self):
+        self.core.store.update("journal", {"jump_range_laden":25, "jump_range_now":30})
         with patch.object(config, "AUTH_TOKEN", "fixture-secret"):
             for path in ["/api/neutron/route", "/api/synthesis/status", "/api/synthesis/recipes", "/api/mining"]:
                 self.assertEqual(self.request("GET", path)[0], 401)

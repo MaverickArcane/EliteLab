@@ -118,7 +118,11 @@ body.no-select, body.no-select * { user-select: none !important; }
 .mine-destination { border-left:3px solid var(--accent); margin-top:16px; }
 .mine-destination > b { display:block; margin:5px 0; }
 .mine-valuation { background:rgba(111,179,255,.05); }
-.mine-results { max-height:560px; overflow-y:auto; }
+.mine-results { max-height:560px; overflow-y:auto; padding-right:6px; }
+.mining-desk form, .mine-results { scroll-margin-top:64px; }
+.mine-title > div { min-width:0; }
+.mine-title > strong { flex-shrink:0; }
+@media(max-width:600px) { .mine-results { max-height:none; overflow:visible; padding-right:0; } }
 .mine-result { padding:14px 0; border-bottom:1px solid var(--line); }
 .mine-result > .row { margin-top:12px; margin-bottom:0; }
 .mine-tags, .mine-signals { display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:9px; font-size:11px; color:var(--muted); }
