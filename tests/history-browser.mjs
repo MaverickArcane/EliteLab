@@ -113,9 +113,9 @@ try {
   response.totals.merits.amount=99999;
   await evaluate(`window.historyResolvers[0](${JSON.stringify(response)});true`);await sleep(100);
   assert.equal(await evaluate("document.querySelector('[data-history-merits]').textContent"),'7,550');
-  await evaluate("Lab.api=window.historyApi;document.querySelector('#layout-menu input[data-id=map]').click();true");
+  await evaluate("Lab.api=window.historyApi;document.querySelector('#layout-menu input[data-id=map]').click();document.querySelector('#map-range').value='0';document.querySelector('#map-range').dispatchEvent(new Event('change'));true");
   await waitFor("document.querySelector('#card-map .map-stats')?.textContent.includes('2 systems')");
-  await evaluate("document.querySelector('#layout-menu input[data-id=map]').click();document.querySelector('#layout-menu input[data-id=map]').click();true");
+  await evaluate("document.querySelector('#layout-menu input[data-id=map]').click();document.querySelector('#layout-menu input[data-id=map]').click();document.querySelector('#map-range').value='0';document.querySelector('#map-range').dispatchEvent(new Event('change'));true");
   await waitFor("document.querySelector('#card-map .map-stats')?.textContent.includes('2 systems')");
   assert.deepEqual(errors,[]);
   assert.deepEqual(await evaluate("[...document.querySelectorAll('.render-error')].map(e=>e.textContent)"),[]);
