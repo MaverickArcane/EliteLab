@@ -142,10 +142,16 @@ class Journal:
             for s in (ev.get("ShipsHere") or []) + (ev.get("ShipsRemote") or []):
                 self._learn(s.get("ShipType"), s.get("ShipType_Localised"))
         elif e in ("ShipyardSwap", "ShipyardNew", "ShipyardBuy"):
+            self._fsd = None
+            st["jump_range"] = st["jump_range_now"] = st["jump_range_laden"] = None
+            changed |= {"jump_range", "jump_range_now", "jump_range_laden"}
             self._learn(ev.get("ShipType"), ev.get("ShipType_Localised"))
             if e == "ShipyardSwap":
                 self._ship_internal = ev.get("ShipType"); st["ship"] = self.ship_name(ev.get("ShipType")); changed.add("ship")
         elif e == "LoadGame":
+            self._fsd = None
+            st["jump_range"] = st["jump_range_now"] = st["jump_range_laden"] = None
+            changed |= {"jump_range", "jump_range_now", "jump_range_laden"}
             st["game_running"] = True; st["status"] = {}; st["hull_health"] = None; st["hull_at"] = None
             changed |= {"game_running", "status", "hull_health", "hull_at"}
             st["cmdr"] = ev.get("Commander"); st["credits"] = ev.get("Credits")
@@ -180,6 +186,8 @@ class Journal:
                 optmass = (edsy.MODULE_BY_FDNAME.get((fsd.get("Item") or "").lower()) or {}).get("fsdoptmass")
             self._fsd = {"item": (fsd or {}).get("Item"), "optmass": optmass, "unladen": ev.get("UnladenMass"), "fuel_cap": fuel.get("Main") or 0,
                          "cargo_cap": ev.get("CargoCapacity") or 0,
+                         "range_complete": all(type(v) in (int, float) and 0 <= v <= 10**9
+                                               for v in (ev.get("CargoCapacity"), fuel.get("Main"), ev.get("UnladenMass"))),
                          "booster": next((m.get("Item") for m in mods if (m.get("Item") or "").lower().startswith("int_guardianfsdbooster")), None)}
             self._ranges()
             changed |= {"ship", "ship_name", "ship_ident", "cargo_capacity", "jump_range", "jump_range_now", "jump_range_laden", "ship_info", "ship_internal"}
@@ -245,7 +253,7 @@ class Journal:
         f = getattr(self, "_fsd", None) or {}
         st = self.st
         laden = now = None
-        if f.get("item") and f.get("unladen"):
+        if f.get("item") and f.get("unladen") and f.get("range_complete"):
             stt = st.get("status") or {}
             fuel_now = stt.get("fuel") if stt.get("fuel") is not None else f["fuel_cap"]
             cargo_now = stt.get("cargo_tons") if stt.get("cargo_tons") is not None else 0

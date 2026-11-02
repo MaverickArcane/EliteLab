@@ -93,6 +93,11 @@ PROMPTS = {
         "arguments": [],
         "text": ("Help me plan or review a mining run. Read get_commander_state, get_mining_status and get_powerplay_status. "
                  "Use find_mining_spots for rings and find_mining_buyers with my commodity, tracked remaining quantity, pad and radius. "
+                 "Spot searches are capped by the current ship's unboosted laden range; missing range requires a fresh ship loadout. "
+                 "A manual ref is a planning location, not reachability from the ship. Use sort merits with hotspot Platinum (or my chosen commodity) "
+                 "and powerplay_mode to pair mining sources and markets. A blank spot power resolves my pledge. Read ranking_note: "
+                 "unknown yield is null, and price fallback is not a merit prediction. Conditional merit_estimate values extrapolate only "
+                 "matching recent sale associations; explain their evidence and assumptions. Selecting a spot does not plot an in-game route. "
                  "For Powerplay use powerplay_mode acquisition or reinforcement and power pledged (or my explicit power). "
                  "An unknown pledge needs clarification, not an invented power. These are reported candidates: verify local activities, "
                  "mining origin and source-to-destination requirements in game. Do not promise eligibility or forecast merits from prices. "

@@ -8,9 +8,9 @@ Spansh. The forms retain edits during live updates and save filters in this brow
 ## Workflow
 
 1. Search near your current system. Filter ring type, reserve level, optional
-   reported hotspot, and optional Powerplay acquisition candidate for a power.
+   reported hotspot, and optional power owning the mining source.
 2. Compare distance, approximate jumps, arrival distance, reserves and dated
-   hotspot reports. Set a destination to highlight it on the map and prefill
+   hotspot reports. Select mining spot highlights it on the map and prefills
    the buyer search origin; copy the system into the game's navigation search.
 3. Prospect and refine. Composition bars, produced tons, tracked unsold units,
    tons/hour and the session ledger update from journals.
@@ -73,7 +73,83 @@ Each `MiningRefined` event adds one ton. Output is grouped by normalized
 commodity key; localized journal names are used for display. Buying, selling,
 ejecting or transferring cargo never changes production totals. Unknown
 commodity types appear in Other / unknown. Production is separate from current
-cargo, attributed sales, and quote estimates. There is no forecast of Powerplay merits.
+cargo, attributed sales, and quote estimates. Conditional planning forecasts never change recorded merits.
+
+## Ship range and merit opportunities
+
+Mining searches default to `min(jump_range_laden, jump_range_now, 200)` Ly.
+The laden calculation uses a full hold and tank; the current calculation can
+reduce it for low fuel or current mass. No neutron/synthesis boost is assumed.
+A supplied smaller radius is honored; a larger valid radius is clamped by the
+same backend used by HTTP and MCP. Missing reliable loadout data or zero range
+blocks the search. Ship swaps and LoadGame clear old range data until Loadout.
+The journal publishes current fuel/cargo range updates; the UI clears stale
+results and pending responses when ship, cargo, fuel, pledge or location changes.
+A search whose context changes during provider I/O fails with a retry message.
+A manual reference system still uses this cap but explicitly represents a
+planning origin, not a destination reachable from the current ship location.
+
+Choose **Merit opportunities**, a hotspot commodity (Platinum is a useful starting
+point), a power or current pledge, goal, planned load, pad and market age.
+`find_mining_spots` exposes the same `sort=merits`, `hotspot`, `power`,
+`powerplay_mode`, `quantity`, `pad` and `hours` parameters. It compares the nearest
+30 matching rings from at most 100 bodies with at most 100 orbital markets:
+
+- Reinforcement: a reported owned mining system and market in that same system.
+- Acquisition: an owned Fortified or Stronghold source, with an Unoccupied
+  destination reporting the selected power within 20 or 30 Ly respectively.
+  Missing coordinates cannot establish the cross-system link.
+- Both: a matching commodity, adequate reported demand/pad and a fresh quote.
+  These are reported candidates; local activities, current system control,
+  pledge prerequisites and actual cargo provenance remain in-game checks.
+
+The planner makes one shared bounded market search, not a request for each
+ring: at most nine provider calls including the catalogue. The market radius
+can include acquisition destinations up to 30 Ly beyond the mining search,
+within the provider's existing 200 Ly cap. It never widens the mining radius.
+`buyer.from_ring_ly` is source-to-sale distance; `buyer.distance` is from the
+search origin. Partial market coverage is disclosed with the data limits.
+
+Numerical forecasts require a sale-associated merit event within 24 hours in
+the current session and pledge, matching commodity, mining source and its
+reported state, sell system/station/state, and the exact reported unit price.
+The source must be consistently known from refinery events. Mixed origins or
+carrier transfers invalidate reusable origin evidence. Forecasts scale that
+sample's merits per ton to the planned load and disclose sample size/time.
+They remain conditional: temporal association is not causation, and bonuses,
+bulk effects or cycle changes may alter the result. Unknown yield is `null`,
+not zero. A candidate without such evidence still shows its market and price.
+Conditional forecasts rank first by merits; unknowns follow with compatible
+markets first, then price and distance as an explicitly labeled fallback.
+No extraction-rate or merits/hour claim is made from hotspot counts.
+
+Selecting a spot, including through the map, highlights it and updates the buyer
+origin, commodity/load/goal when present, and clears stale buyer results/quotes.
+It does not plot a route in Elite Dangerous. Copy system remains available for
+both the source and proposed sell destination.
+
+### Research basis (reviewed 2026-11-02 UTC)
+
+[Merit Miner's own search guide](https://meritminer.cc/templates/how_to.html)
+describes same-system reinforcement and the 20/30 Ly acquisition source rules.
+Its search uses market prices as a practical comparison, not a published
+universal numerical conversion. We apply these as candidate rules and preserve
+unknown eligibility where evidence is absent.
+
+The [EDC Academy laser-mining guide, January 2026](https://siriuscorp.cc/guides/laser-mining.html)
+recommends platinum and explains that yield depends on equipment, technique and
+market conditions. [First-hand player reports, July 2026](https://www.reddit.com/r/EliteDangerous/comments/1uxf6ds/how_are_people_getting_to_1m_merits_what_am_i/)
+show materially different merit returns at similar prices and point to acquisition
+versus reinforcement, source geography and market conditions. These support
+platinum as a candidate, not a universal fastest-method or per-ton guarantee.
+
+Frontier's [Dodec update, November 2025](https://store.steampowered.com/news/posts/?appids=359320&enddate=1763037221&feed=steam_community_announcements)
+changed single-unit/bulk commodity merit behavior; its
+[Caspian Explorer update, December 2025](https://store.steampowered.com/news/posts/?enddate=1764670144&feed=steam_community_announcements)
+fixed under-rewarded trade activities. Consequently this planner does not reuse
+old community conversion constants or EliteLab's unrelated rare-goods rate.
+Current game validation remains under #3; synthetic browser sales are never
+presented as measurements of actual game merit yields.
 
 ## Profit accounting
 
@@ -176,3 +252,8 @@ cargo, chronology, competing events, power/session resets, malformed numbers,
 bounded history, replay and provider power/state validation. Its authenticated
 MCP subprocess test exercises tool schemas/calls, native boolean query encoding,
 state resources, the planning prompt, validation errors and wrong-token denial.
+
+`test_mining_options.py` covers range caps and boundaries, live loadout/status changes,
+missing range, source/destination eligibility, unknown yields, matching sale evidence
+and changed price/state/pledge/freshness. The browser flow also tests map selection,
+conditional versus recorded merits, ship-swap invalidation and stale responses.

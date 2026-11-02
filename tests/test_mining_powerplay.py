@@ -53,7 +53,7 @@ class MiningPowerplayTests(unittest.TestCase):
 
     def test_competing_activity_travel_and_nonmined_sales_break_association(self):
         for event, fields in [("Bounty", {}), ("MissionCompleted", {}), ("FSDJump", {}), ("Docked", {}),
-                              ("PowerplayDeliver", {}), ("MarketSell", {"Type":"Gold", "Count":1, "TotalSale":10})]:
+                              ("CarrierJump", {"StarSystem":"Elsewhere"}), ("PowerplayDeliver", {}), ("MarketSell", {"Type":"Gold", "Count":1, "TotalSale":10})]:
             with self.subTest(event=event):
                 self.prepare(); self.emit(event, **fields); self.gain()
                 self.assertEqual(self.state()["powerplay"]["sale_associated_merits"], 0)
@@ -134,6 +134,7 @@ class MiningPowerplayTests(unittest.TestCase):
 
     def test_authenticated_mcp_schema_calls_resource_prompt_and_errors(self):
         self.prepare(); self.gain()
+        self.core.store.update("journal", {"jump_range_laden":25, "jump_range_now":30})
         with patch.object(config, "AUTH_TOKEN", "mining-test-token"), patch.object(config, "OFFLINE", False), patch("modules.mining.discovery.time.time", return_value=NOW), patch.object(self.core.services, "fetch_json", side_effect=self.fetch):
             server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(self.core))
             server.daemon_threads = True
@@ -142,7 +143,7 @@ class MiningPowerplayTests(unittest.TestCase):
                 requests = [
                     ("initialize", {}), ("tools/list", {}),
                     ("tools/call", {"name":"get_mining_status"}),
-                    ("tools/call", {"name":"find_mining_spots", "arguments":{"ref":"Delkar","pristine":True}}),
+                    ("tools/call", {"name":"find_mining_spots", "arguments":{"ref":"Delkar","pristine":True,"radius":200,"sort":"merits","hotspot":"Platinum","power":"Edmund Mahon","powerplay_mode":"reinforcement"}}),
                     ("tools/call", {"name":"find_mining_buyers", "arguments":{"ref":"Delkar","commodity":"Platinum","powerplay_mode":"acquisition"}}),
                     ("resources/read", {"uri":"elitelab://state/mining"}), ("prompts/get", {"name":"mining_run"}),
                     ("tools/call", {"name":"find_mining_buyers", "arguments":{"commodity":"Platinum","powerplay_mode":"bad"}})]
@@ -152,8 +153,14 @@ class MiningPowerplayTests(unittest.TestCase):
                 replies = [json.loads(line)["result"] for line in run.stdout.splitlines()]
                 schema = next(t["inputSchema"] for t in replies[1]["tools"] if t["name"] == "find_mining_buyers")
                 self.assertEqual(schema["properties"]["powerplay_mode"]["enum"], ["none","acquisition","reinforcement"])
+                spot_schema = next(t["inputSchema"] for t in replies[1]["tools"] if t["name"] == "find_mining_spots")
+                self.assertEqual(spot_schema["properties"]["sort"]["enum"], ["distance", "merits"])
                 for i in (2,3,4): self.assertFalse(replies[i]["isError"], replies[i])
                 self.assertEqual(json.loads(replies[2]["content"][0]["text"])["powerplay"]["sale_associated_merits"], 100)
+                spots = json.loads(replies[3]["content"][0]["text"])
+                self.assertEqual(spots["radius"], 25)
+                self.assertEqual(spots["results"][0]["buyer"]["system"], "Delkar")
+                self.assertIsNone(spots["results"][0]["merit_estimate"])
                 self.assertEqual(json.loads(replies[4]["content"][0]["text"])["power"], "Edmund Mahon")
                 self.assertEqual(json.loads(replies[5]["contents"][0]["text"])["summary"]["powerplay"]["session_merits"], 100)
                 self.assertIn("Do not promise eligibility", replies[6]["messages"][0]["content"]["text"])

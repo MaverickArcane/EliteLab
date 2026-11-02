@@ -51,7 +51,7 @@ try {
     ws.send(JSON.stringify({id,method,params}));
   });
   const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
-  const waitFor=async expression=>{for(let i=0;i<450;i++){if(await evaluate(expression))return;await sleep(100);}assert.fail('Timed out: '+expression+'\n'+serverLog);};
+  const waitFor=async expression=>{for(let i=0;i<(process.env.ELITELAB_MINING_LIVE==='1'?1800:450);i++){if(await evaluate(expression))return;await sleep(100);}assert.fail('Timed out: '+expression+'\nStatuses: '+await evaluate("[...document.querySelectorAll('[data-search-status]')].map(e=>e.textContent).join(' | ')")+'\n'+serverLog);};
   await send('Runtime.enable');await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await send('Page.addScriptToEvaluateOnNewDocument',{source:"localStorage.setItem('workspace.v1',JSON.stringify('all'))"});
@@ -71,6 +71,7 @@ try {
   const api=await (await fetch(base+'/api/mining')).json();
   assert.equal(api.refined_tons,3);assert.equal(api.ended,true);
   const demo=[{event:'LoadGame',timestamp:'2026-10-22T14:00:00Z',Commander:'Test Miner',FID:'F2'},
+    {event:'Loadout',timestamp:'2026-10-22T14:00:01Z',Ship:'Python',ShipID:12,UnladenMass:500,CargoCapacity:128,FuelCapacity:{Main:32},MaxJumpRange:30,Modules:[{Item:'int_hyperdrive_size5_class5',Slot:'FrameShiftDrive'}]},
     {event:'Location',timestamp:'2026-10-22T14:00:01Z',StarSystem:'Delkar',StarPos:[67.8125,32.65625,35.25]},
     {event:'Cargo',timestamp:'2026-10-22T14:00:02Z',Vessel:'Ship',Inventory:[]},
     {event:'Powerplay',timestamp:'2026-10-22T14:00:03Z',Power:'Edmund Mahon',Merits:10000},
@@ -102,7 +103,7 @@ try {
   assert.equal(await evaluate("document.querySelector('[data-mining-merits]').textContent"),'1,800');
   // The provider fixture is synthetic. The live run allows empty candidate
   // results, since current market coverage cannot guarantee a nearby match.
-  await evaluate("const f=document.querySelector('[data-form=buyers]');f.elements.powerplay_mode.value='acquisition';f.dispatchEvent(new Event('input'));f.requestSubmit();true");
+  await evaluate("var f=document.querySelector('[data-form=buyers]');f.elements.powerplay_mode.value='acquisition';f.dispatchEvent(new Event('input'));f.requestSubmit();true");
   await waitFor("document.querySelector('[data-search-status=buyers]').textContent.includes('quotes from')");
   assert.match(await evaluate("document.querySelector('[data-results=buyers]').textContent"),/Edmund Mahon.*acquisition candidates/);
   assert.doesNotMatch(await evaluate("document.querySelector('[data-valuation]').textContent"),/Unsold estimate/,'Changing Powerplay filters clears the previous market quote');
@@ -123,6 +124,43 @@ try {
   // Capture the buyer controls/results lower in the taller mining panel.
   await evaluate("document.querySelector('[data-form=buyers]').scrollIntoView({block:'start'});true");await sleep(100);
   const powerShot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(outputDir,'mining-powerplay-buyers.png'),Buffer.from(powerShot.data,'base64'));
+  // Merit planning uses real HTTP/tool handlers with synthetic provider records.
+  await evaluate("document.querySelector('[data-tab=spots]').click();var f=document.querySelector('[data-form=spots]');f.elements.sort.value='merits';f.elements.hotspot.value='Platinum';f.elements.power.value='Edmund Mahon';f.elements.quantity.value='40';f.dispatchEvent(new Event('input'));f.requestSubmit();true");
+  await waitFor("document.querySelector('[data-search-status=spots]').textContent.includes('rings from')");
+  if(process.env.ELITELAB_MINING_LIVE!=='1') {
+    assert.match(await evaluate("document.querySelector('[data-results=spots]').textContent"),/Merit yield unknown/);
+    assert.match(await evaluate("document.querySelector('[data-results=spots]').textContent"),/Test Prospect Exchange/);
+    // Map selection must apply exactly the same origin/commodity/load changes.
+    await evaluate("document.querySelector('[data-form=buyers] [name=ref]').value='Sol';Lab.map.layers.mining.points(Lab.state)[0].onClick();true");
+    assert.equal(await evaluate("document.querySelector('[data-form=buyers] [name=ref]').value"),'Delkar');
+    assert.match(await evaluate("document.querySelector('[data-destination]').textContent"),/does not plot an in-game route/);
+    // A new local sale provides fresh temporal evidence; it is still conditional.
+    const stamp=new Date().toISOString();
+    append([{event:'LoadGame',timestamp:stamp,Commander:'Test Miner',FID:'F2'},
+      {...demo.find(e=>e.event==='Loadout'),timestamp:stamp},
+      {event:'Powerplay',timestamp:stamp,Power:'Edmund Mahon',Merits:0},
+      {event:'Location',timestamp:stamp,StarSystem:'Delkar',StarPos:[67.8125,32.65625,35.25],StationName:'Test Prospect Exchange',PowerplayState:'Stronghold'},
+      {event:'Cargo',timestamp:stamp,Inventory:[]},
+      {event:'MiningRefined',timestamp:stamp,Type:'Platinum'}, {event:'MiningRefined',timestamp:stamp,Type:'Platinum'},
+      {event:'MarketSell',timestamp:stamp,Type:'Platinum',Count:2,TotalSale:556000},
+      {event:'PowerplayMerits',timestamp:stamp,Power:'Edmund Mahon',MeritsGained:200,TotalMerits:200}]);
+    await waitFor("Lab.state.mining?.summary?.powerplay?.session_merits===200 && Lab.state.journal.jump_range_laden>0");
+    await evaluate("document.querySelector('[data-form=spots]').requestSubmit();true");
+    await waitFor("document.querySelector('[data-results=spots]').textContent.includes('Conditional estimate: 4,000 merits')");
+    assert.equal((await (await fetch(base+'/api/mining')).json()).powerplay.session_merits,200);
+    await evaluate("document.querySelector('[data-pin]').click();true");
+    for(const [name,width,height] of [['planning-desktop',1440,1100],['planning-mobile',390,1000]]) {
+      await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
+      await evaluate("document.querySelector('[data-form=spots]').scrollIntoView({block:'start'});true");await sleep(100);
+      assert.ok(await evaluate('document.body.scrollWidth')<=width);
+      const shot=await send('Page.captureScreenshot',{format:'png'});
+      fs.writeFileSync(path.join(outputDir,`mining-${name}.png`),Buffer.from(shot.data,'base64'));
+    }
+    await evaluate("document.querySelector('[data-results=spots]').scrollIntoView({block:'start'});true");await sleep(100);
+    const detail=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(outputDir,'mining-merit-mobile.png'),Buffer.from(detail.data,'base64'));
+  }
+  // Keep later persistence checks independent of the selected opportunity.
+  await evaluate("var f=document.querySelector('[data-form=buyers]');f.elements.powerplay_mode.value='acquisition';f.elements.power.value='pledged';f.dispatchEvent(new Event('input'));document.querySelector('[data-form=spots] [name=sort]').value='distance';document.querySelector('[data-form=spots] [name=power]').value='';true");
   // A provider error clears results, and retrying works through the actual backend.
   await evaluate("document.querySelector('[data-form=spots] [name=ref]').value='Unavailable test';document.querySelector('[data-form=spots]').requestSubmit();true");
   await waitFor("document.querySelector('[data-search-status=spots]').textContent.includes('unavailable')");
@@ -140,6 +178,15 @@ try {
   assert.equal(await evaluate("document.querySelectorAll('[data-results=spots] img,[data-results=spots] svg').length"),0);
   assert.equal(await evaluate('!!window.providerInjected'),false);
   await evaluate("Lab.api=window.miningApi;document.querySelector('[data-form=spots] [name=hotspot]').value='Keep this filter';document.querySelector('[data-form=spots] [name=hotspot]').dispatchEvent(new Event('input',{bubbles:true}));true");
+  // A real journal ship swap disables search and invalidates an in-flight response.
+  await evaluate("window.pendingRangeResolve=null;Lab.api=(p,q)=>p==='/api/mining/spots'?new Promise(r=>window.pendingRangeResolve=r):window.miningApi(p,q);document.querySelector('[data-form=spots]').requestSubmit();true");
+  append([{event:'ShipyardSwap',timestamp:new Date().toISOString(),ShipType:'SideWinder',ShipID:99}]);
+  await waitFor("document.querySelector('[data-form=spots] [type=submit]').disabled");
+  await evaluate("window.pendingRangeResolve({results:[],note:'Stale ship result',bodies_checked:0,ref:'Delkar'});Lab.api=window.miningApi;true");await sleep(100);
+  assert.equal(await evaluate("document.querySelector('[data-results=spots]').textContent.includes('Stale ship result')"),false);
+  const unavailable=await fetch(base+'/api/mining/spots?ref=Delkar&radius=200');
+  assert.equal(unavailable.status,400);
+  assert.match((await unavailable.json()).error,/Laden jump range unavailable/);
   const hostile='<img src=x onerror="window.miningInjected=true">';
   append([{event:'LoadGame',timestamp:'2026-10-22T14:00:00Z',Commander:'Test Miner',FID:'F2'},
     {event:'ProspectedAsteroid',timestamp:'2026-10-22T14:01:00Z',Content_Localised:hostile,MotherlodeMaterial:hostile,Remaining:100,Materials:[{Name:hostile,Proportion:25}]},

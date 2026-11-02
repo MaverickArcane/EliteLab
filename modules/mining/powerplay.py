@@ -2,6 +2,7 @@
 
 PowerplayMerits supplies MeritsGained/TotalMerits but no sale identifier. Never
 derive merits from credits or turn this association into confirmed causation.
+The planner may disclose a conditional projection from matching recent evidence.
 """
 from elitelab.core.gamedata import POWERS
 from .ledger import count, key, number
@@ -10,13 +11,13 @@ from .ledger import count, key, number
 INTERRUPTS = {"Bounty", "FactionKillBond", "PVPKill", "PowerplayDeliver", "PowerplayCollect",
               "MultiSellExplorationData", "SellExplorationData", "SellOrganicData", "MissionCompleted",
               "SearchAndRescue", "DatalinkScan", "DataScanned", "SellMicroResources",
-              "SupercruiseEntry", "SupercruiseDestinationDrop", "FSDJump", "Location", "Docked", "Undocked",
+              "SupercruiseEntry", "SupercruiseDestinationDrop", "FSDJump", "CarrierJump", "Location", "Docked", "Undocked",
               "Died", "Resurrect", "CargoTransfer", "EjectCargo"}
 
 
 class MiningPowerplay:
     def __init__(self):
-        self.system = self.station = ""
+        self.system = self.station = self.power_state = ""
         self.reset()
 
     def reset(self):
@@ -25,6 +26,7 @@ class MiningPowerplay:
         self.session = self.associated = 0
         self.pending = None
         self.recent = []
+        self.origins = {}
 
     def event(self, ev, ts, sold_delta, ledger):
         event = ev.get("event")
@@ -40,9 +42,24 @@ class MiningPowerplay:
                 self.reset()
             self.power = power
             self.total = self.integer(ev.get("Merits"))
-        if event in ("Location", "FSDJump", "Docked"):
+        if event in ("Location", "FSDJump", "CarrierJump", "Docked"):
+            if self.system != self.label(ev.get("StarSystem")):
+                self.power_state = ""
             self.system = self.label(ev.get("StarSystem"))
             self.station = self.label(ev.get("StationName"))
+            if event != "Docked" or "PowerplayState" in ev:
+                self.power_state = self.label(ev.get("PowerplayState"))
+        if event == "MiningRefined":
+            commodity = key(ev.get("Type"))
+            origin = (self.system, self.power_state)
+            if commodity in self.origins:
+                if self.origins[commodity] != origin:
+                    self.origins[commodity] = None
+            elif len(self.origins) < 64:
+                self.origins[commodity] = origin
+        if event in ("CargoTransfer", "Died", "Resurrect"):
+            # Never promote transferred/unknown cargo into a reusable forecast.
+            self.origins = {k: None for k in self.origins}
         if event in INTERRUPTS:
             self.pending = None
         if event == "MarketSell":
@@ -50,8 +67,12 @@ class MiningPowerplay:
             quantity = count(ev.get("Count"))
             # Mixed/unknown provenance is not enough evidence for mining attribution.
             if ts is not None and quantity and sold_delta == quantity and not ledger.estimated:
+                origin = self.origins.get(key(ev.get("Type"))) or (None, None)
+                proceeds = number(ev.get("TotalSale"))
                 self.pending = {"time": ts, "commodity": key(ev.get("Type")), "tons": quantity,
-                                "system": self.system, "station": self.station}
+                                "system": self.system, "station": self.station, "power_state": self.power_state,
+                                "origin": origin[0], "origin_state": origin[1],
+                                "price": proceeds / quantity if proceeds is not None else None}
         if event != "PowerplayMerits":
             return
         gained = self.integer(ev.get("MeritsGained"))
