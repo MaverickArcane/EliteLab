@@ -15,7 +15,7 @@
     // do not imply the external website shares unsupported search filters.
     return `https://inara.cz/elite/market-traderoutes-search/?${p}`;
   };
-  const oldest = r => Math.max(...r.legs.flatMap(l => [hours(l.buy.observed_at), hours(l.sell.observed_at)]).map(h => h == null ? Infinity : h));
+  const oldest = r => { const ages = r.legs.flatMap(l => [hours(l.buy.observed_at), hours(l.sell.observed_at)]); return ages.some(h => h == null) ? null : Math.max(...ages); };
   const stop = (m, label) => `<div class="trade-pair-stop"><div class="row"><span class="tag">${label}</span><strong>${price(m.price)}/t</strong></div>
     <div class="trading-station">${esc(m.station)}</div><div class="muted">${esc(m.system)}</div>
     <div class="row trading-actions"><button type="button" class="mini" data-copy="${esc(m.system)}">Copy system</button><button type="button" class="mini" data-copy="${esc(m.station)}">Copy station</button>${external(Lab.util.inaraMarket(m.station, m.system), 'Inara market')}</div>
