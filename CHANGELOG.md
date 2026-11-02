@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Mining: a journal-based card and `get_mining_status` tool show the latest prospector composition, refinery tons by commodity and a recorded session rate. Replay and commander/session resets preserve the same counting rules; synthetic desktop/mobile browser checks cover live updates and escaping (#62, first slice of #3).
 - Source setup: `Setup EliteLab.cmd` and `setup.sh` check Python 3.10+, open the existing setup page after a ready health response, and preserve settings and data across restarts and repeat launches. Linux/macOS can fall back from `python3` to a supported `python`; macOS setup now has CI coverage (#40).
 - Material trader plans combine surplus donors through an intermediate material, preserve exchange order, and count only wishlist shortfalls covered. Plans respect reserves and storage caps and explain when further routes may exist (#57).
 - Expedition layout: persistent Spansh neutron jobs, ship-aware 4x/6x routing, next-waypoint copies, upcoming map layer, CSV export and evidence-based Palin distance progress.

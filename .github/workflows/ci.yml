@@ -74,6 +74,8 @@ jobs:
         run: node tests/browser.mjs
       - name: Changed-port setup restart under CSP
         run: node tests/restart-browser.mjs
+      - name: Mining journal session and responsive card
+        run: node tests/mining-browser.mjs
 
   windows-bundle:
     name: Portable Windows bundle

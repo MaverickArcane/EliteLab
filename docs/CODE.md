@@ -1,5 +1,10 @@
 # Code reference
 
+`modules/mining/module.py`: `Mining` folds journal events into a bounded
+`mining.summary` store snapshot; `timestamp`, `percentage` and `text` normalize
+journal fields. `setup` exposes read-only `get_mining_status`. The card in
+`modules/mining/web/card.js` renders the snapshot. See [MINING.md](MINING.md).
+
 File by file, function by function. Line-level details change; the shapes below are the contract. When you change a signature, change it here.
 
 ## elitelab/__init__.py

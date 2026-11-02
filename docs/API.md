@@ -1,5 +1,12 @@
 # API / AI tools
 
+## `get_mining_status` - `GET /api/mining` - module: mining
+
+No parameters. Latest prospector composition and refinery output by commodity
+for the current game session, with a recorded elapsed-time rate. Resets on
+LoadGame or changed commander; `partial` marks an incomplete replay window.
+Returns `mining.summary`; see [MINING.md](MINING.md) for fields and limitations.
+
 Generated from `GET /api/schema` (EliteLab 0.5.0). Every tool is an HTTP route: `GET` with query parameters or `POST` with a JSON body. Responses are JSON; errors are `{"error": "..."}`. `GET /events` streams state changes as Server-Sent Events (`snapshot` then `state` events).
 
 ## `health`  -  `GET /api/health`  -  module: core

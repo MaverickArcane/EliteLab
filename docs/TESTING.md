@@ -1,5 +1,10 @@
 # Testing
 
+Mining: `python -m unittest discover -s tests -p test_mining.py -v` checks the
+journal-derived tool contract; `node tests/mining-browser.mjs` starts the real
+CLI and checks journal tailing/SSE, desktop/mobile rendering, saved layout and
+HTML escaping. See [MINING.md](MINING.md) for fixture limits and in-game checks.
+
 `tests/test_personal.py` checks Spansh station snapshots: exact starting-system
 supply, explicit A-B-A loops (not A-B-C or another port in A), independent return
 cargo, one-way searches, optional destination/station, fully laden range,

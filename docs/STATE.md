@@ -1,5 +1,9 @@
 # State reference
 
+Mining publishes `mining.summary`, an atomic snapshot of session refinery output,
+latest prospector composition and recorded rate. See [MINING.md](MINING.md) for
+fields, limits, session boundaries and timing semantics.
+
 Every namespace in the store, every key, its type, who writes it and who reads it. The browser mirrors all of this in `Lab.state[ns][key]` via SSE. Client-only namespaces (never on the server) are marked.
 
 Conventions: `null` means unknown/not yet seen. Timestamps are the journal's ISO strings (`2026-10-23T02:14:28Z`). Credits are integers. Distances are light-years, floats.

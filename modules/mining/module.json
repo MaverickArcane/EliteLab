@@ -1,0 +1,6 @@
+{
+  "name": "mining", "version": "1.0.0",
+  "description": "Journal-based prospecting and refinery output for the current game session.",
+  "requires": ["journal"], "provides": ["mining"], "order": 80,
+  "cards": [{"id": "mining", "title": "Mining", "span": 4, "script": "card.js", "order": 47}]
+}
