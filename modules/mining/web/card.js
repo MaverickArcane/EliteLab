@@ -75,9 +75,9 @@
       el.querySelectorAll('form').forEach(form => {
         const kind = form.dataset.form, status = el.querySelector(`[data-search-status="${kind}"]`);
         for (const [name, value] of Object.entries(saved?.[kind] || {})) {const field = form.elements.namedItem(name); if (field && typeof value === 'string' && value.length <= 160 && name !== 'power') field.value = value;}
-        form.addEventListener('input', () => {++u.generation[kind]; status.textContent = 'Filters changed. Search to refresh results.'; el.querySelector(`[data-results="${kind}"]`).innerHTML = ''; if (kind === 'spots') Lab.set('mining', {spots: [], selected: null}); ls.set(prefKey, Object.fromEntries([...el.querySelectorAll('form')].map(f => [f.dataset.form, fields(f)])));});
+        form.addEventListener('input', () => {if (kind === 'buyers') {u.quote = null; drawSession(el, Lab.state);} ++u.generation[kind]; status.textContent = 'Filters changed. Search to refresh results.'; el.querySelector(`[data-results="${kind}"]`).innerHTML = ''; if (kind === 'spots') Lab.set('mining', {spots: [], selected: null}); ls.set(prefKey, Object.fromEntries([...el.querySelectorAll('form')].map(f => [f.dataset.form, fields(f)])));});
         form.onsubmit = async event => {
-          event.preventDefault(); const generation = ++u.generation[kind]; status.textContent = 'Searching community reports...'; el.querySelector(`[data-results="${kind}"]`).innerHTML = '';
+          event.preventDefault(); if (kind === 'buyers') {u.quote = null; drawSession(el, Lab.state);} const generation = ++u.generation[kind]; status.textContent = 'Searching community reports...'; el.querySelector(`[data-results="${kind}"]`).innerHTML = '';
           try {const d = await Lab.api('/api/mining/' + kind, fields(form)); if (u.destroyed || generation !== u.generation[kind]) return; drawResults(el, kind, d); status.textContent = kind === 'spots' ? `${d.results.length} rings from ${d.bodies_checked} bodies checked near ${d.ref}.` : `${d.results.length} quotes from ${d.stations_checked} markets checked. ${fmt(d.quantity)} t ${d.commodity}.`;}
           catch (error) {if (u.destroyed || generation !== u.generation[kind]) return; status.textContent = error.message; if (kind === 'spots') Lab.set('mining', {spots: [], selected: null});}
         };

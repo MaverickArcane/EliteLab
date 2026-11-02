@@ -104,6 +104,7 @@ try {
   await evaluate("const f=document.querySelector('[data-form=buyers]');f.elements.powerplay_mode.value='acquisition';f.dispatchEvent(new Event('input'));f.requestSubmit();true");
   await waitFor("document.querySelector('[data-search-status=buyers]').textContent.includes('quotes from')");
   assert.match(await evaluate("document.querySelector('[data-results=buyers]').textContent"),/Edmund Mahon.*acquisition candidates/);
+  assert.doesNotMatch(await evaluate("document.querySelector('[data-valuation]').textContent"),/Unsold estimate/,'Changing Powerplay filters clears the previous market quote');
   if(process.env.ELITELAB_MINING_LIVE!=='1')assert.equal(await evaluate("document.querySelectorAll('[data-results=buyers] [data-quote]').length"),1);
   const outputDir=process.env.ELITELAB_SCREENSHOT_DIR||path.join(temporary,'screenshots');fs.mkdirSync(outputDir,{recursive:true});
   await evaluate("document.querySelector('[data-tab=spots]').click();true");
