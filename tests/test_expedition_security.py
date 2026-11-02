@@ -34,6 +34,7 @@ class ExpeditionSecurityTests(unittest.TestCase):
         headers = {"Host":"rebind.attacker.example", "Origin":"http://rebind.attacker.example", "Content-Type":"application/json"}
         self.assertEqual(self.request("POST", "/api/materials/wishlist", body, headers)[0], 403)
         self.assertEqual(self.request("GET", "/api/state", headers={"Host":"rebind.attacker.example"})[0], 403)
+        self.assertEqual(self.request("GET", "/api/mining", headers={"Host":"rebind.attacker.example"})[0], 403)
         with patch.object(config, "ALLOWED_HOSTS", {"lab.example"}):
             self.assertEqual(self.request("GET", "/api/health", headers={"Host":"lab.example"})[0], 200)
         for host in ["localhost@evil.example", "localhost/evil", "localhost:bad", "evil.example#localhost"]:
@@ -42,6 +43,7 @@ class ExpeditionSecurityTests(unittest.TestCase):
 
     def test_framing_and_cross_site_api_read_rejected(self):
         self.assertEqual(self.request("GET", "/api/state", headers={"Sec-Fetch-Site":"cross-site"})[0], 403)
+        self.assertEqual(self.request("GET", "/api/mining", headers={"Sec-Fetch-Site":"cross-site"})[0], 403)
         for headers in [{"Content-Length":"invalid"}, {"Content-Length":"-1"}, {"Content-Length":"1000001"}, {"Transfer-Encoding":"chunked"}]:
             with self.subTest(headers=headers):
                 status, _ = self.request("POST", "/api/synthesis/plan", "{}", {"Content-Type":"application/json", **headers})
@@ -49,9 +51,14 @@ class ExpeditionSecurityTests(unittest.TestCase):
 
     def test_auth_covers_new_endpoints_and_error_redaction(self):
         with patch.object(config, "AUTH_TOKEN", "fixture-secret"):
-            for path in ["/api/neutron/route", "/api/synthesis/status", "/api/synthesis/recipes"]:
+            for path in ["/api/neutron/route", "/api/synthesis/status", "/api/synthesis/recipes", "/api/mining"]:
                 self.assertEqual(self.request("GET", path)[0], 401)
                 self.assertEqual(self.request("GET", path, headers={"Authorization":"Bearer fixture-secret"})[0], 200)
+            for path in ["/api/mining/spots?ref=Delkar", "/api/mining/buyers?ref=Delkar&commodity=Platinum"]:
+                self.assertEqual(self.request("GET", path)[0], 401)
+                self.assertEqual(self.request("GET", path, headers={"Host":"rebind.attacker.example"})[0], 403)
+                with patch.object(config, "OFFLINE", False), patch.object(self.core.services, "fetch_json", side_effect=lambda url, *args, **kwargs: {"min_max":{"Platinum":{}}} if "field_values" in url else {"results":[],"count":0}):
+                    self.assertEqual(self.request("GET", path, headers={"Authorization":"Bearer fixture-secret"})[0], 200)
         def failure(q):
             raise RuntimeError("private C:/secret/token.txt")
         self.core.http.route("/api/fixture-failure", failure)

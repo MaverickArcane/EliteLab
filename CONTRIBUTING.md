@@ -42,3 +42,9 @@ No virtualenv or dependencies needed. Node is only used in CI for `node --check`
 ## Pull requests
 
 One topic per PR. Say what you tested against a real journal if the fixture cannot cover it. CI runs the tests on Linux and Windows, syntax-checks the scripts, and builds the Docker image.
+
+For visible changes, post screenshots from the local browser run in a dedicated
+PR testing comment, with desktop and narrow-screen views where applicable. Label the
+tested state and whether it uses fixture or real game data. Keep personal paths
+and credentials out of shared captures. Link the test/CI evidence as well;
+screenshots complement the checks rather than replace them.

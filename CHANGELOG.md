@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Mining Powerplay: buyer filters for reported acquisition/reinforcement candidates, journal-recorded merit counters and explicitly estimated mining-sale associations. Adds the `mining_run` MCP prompt and authenticated MCP integration coverage; fixes boolean query encoding.
+- Mining desk: nearby ring/hotspot discovery and map destinations, fresh buyer comparisons, separate unsold-value estimates, prospector composition bars, refinery output, and a journal-based profit ledger. Sales attribution handles mixed cargo, transfers and ejection; recorded operating costs are explicit. Adds `get_mining_status`, `find_mining_spots` and `find_mining_buyers`, with bounded cached Spansh searches and desktop/mobile browser coverage (#62/#3).
 - Source setup: `Setup EliteLab.cmd` and `setup.sh` check Python 3.10+, open the existing setup page after a ready health response, and preserve settings and data across restarts and repeat launches. Linux/macOS can fall back from `python3` to a supported `python`; macOS setup now has CI coverage (#40).
 - Material trader plans combine surplus donors through an intermediate material, preserve exchange order, and count only wishlist shortfalls covered. Plans respect reserves and storage caps and explain when further routes may exist (#57).
 - Expedition layout: persistent Spansh neutron jobs, ship-aware 4x/6x routing, next-waypoint copies, upcoming map layer, CSV export and evidence-based Palin distance progress.

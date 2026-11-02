@@ -1,0 +1,11 @@
+{"timestamp":"2026-10-22T09:00:00Z","event":"LoadGame","Commander":"Previous Miner","FID":"F1"}
+{"timestamp":"2026-10-22T09:01:00Z","event":"MiningRefined","Type":"Gold"}
+{"timestamp":"2026-10-22T09:10:00Z","event":"Shutdown"}
+{"timestamp":"2026-10-22T10:00:00Z","event":"LoadGame","Commander":"Test Miner","FID":"F2"}
+{"timestamp":"2026-10-22T10:01:00Z","event":"Location","StarSystem":"Delkar","Body":"Delkar 7 A Ring"}
+{"timestamp":"2026-10-22T10:05:00Z","event":"ProspectedAsteroid","Materials":[{"Name":"Platinum","Proportion":51.67},{"Name":"Palladium","Proportion":12.5}],"Content":"$AsteroidMaterialContent_High;","Content_Localised":"Material Content: High","Remaining":100.0}
+{"timestamp":"2026-10-22T10:06:00Z","event":"MiningRefined","Type":"Platinum"}
+{"timestamp":"2026-10-22T10:06:00Z","event":"MiningRefined","Type":"$platinum_name;","Type_Localised":"Platinum"}
+{"timestamp":"2026-10-22T10:07:00Z","event":"MiningRefined","Type":"Palladium"}
+{"timestamp":"2026-10-22T10:10:00Z","event":"ProspectedAsteroid","Materials":[{"Name":"LowTemperatureDiamond","Name_Localised":"Low Temperature Diamonds","Proportion":22.25}],"Content":"$AsteroidMaterialContent_Low;","Content_Localised":"Material Content: Low","MotherlodeMaterial":"Alexandrite","Remaining":0.0}
+{"timestamp":"2026-10-22T10:35:00Z","event":"Shutdown"}

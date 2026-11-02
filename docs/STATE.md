@@ -1,5 +1,12 @@
 # State reference
 
+Mining publishes `mining.summary`, an atomic snapshot of session refinery output,
+latest prospector composition, recorded rate and `profit` (attributed sales,
+operating costs, remaining units and recent transactions), plus `powerplay`
+(observed merits, estimated sale associations and recent evidence). `mining.spots` and
+`mining.selected` are client-only map state; quote estimates stay separate from
+profit. See [MINING.md](MINING.md) for fields, limits and timing semantics.
+
 Every namespace in the store, every key, its type, who writes it and who reads it. The browser mirrors all of this in `Lab.state[ns][key]` via SSE. Client-only namespaces (never on the server) are marked.
 
 Conventions: `null` means unknown/not yet seen. Timestamps are the journal's ISO strings (`2026-10-23T02:14:28Z`). Credits are integers. Distances are light-years, floats.

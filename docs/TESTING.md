@@ -1,5 +1,17 @@
 # Testing
 
+Mining: `python -m unittest discover -s tests -p 'test_mining*.py' -v` checks the
+journal-derived tool contract, profit attribution and bounded provider searches.
+`node tests/mining-browser.mjs` starts the real CLI and checks journal tailing/SSE,
+profit, rings, buyers, quote valuation, retry, response ordering, saved filters,
+desktop/mobile rendering and HTML escaping. Provider responses are fixtures by
+default; `ELITELAB_MINING_LIVE=1` opts into live Spansh searches. Commander journal
+data remains synthetic in both modes. See [MINING.md](MINING.md) for evidence
+capture instructions, fixture limits and remaining in-game checks.
+The Powerplay checks cover conservative sale association and buyer filtering.
+`test_mining_powerplay.py` also runs the actual authenticated MCP stdio-to-HTTP
+path for schemas, tools, the mining resource, prompt and error responses.
+
 `tests/test_personal.py` checks Spansh station snapshots: exact starting-system
 supply, explicit A-B-A loops (not A-B-C or another port in A), independent return
 cargo, one-way searches, optional destination/station, fully laden range,

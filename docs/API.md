@@ -1,5 +1,37 @@
 # API / AI tools
 
+## `get_mining_status` - `GET /api/mining` - module: mining
+
+No parameters. Latest prospector composition and refinery output by commodity
+for the current game session, with a recorded elapsed-time rate. Resets on
+LoadGame or changed commander; `partial` marks an incomplete replay window.
+Returns `mining.summary`; see [MINING.md](MINING.md) for fields and limitations.
+
+The summary includes attributed sale proceeds, operating costs, net profit,
+remaining tracked units and a bounded transaction ledger. Quotes are separate.
+`powerplay` adds recorded session/total merits, estimated mining-sale associations,
+unassociated gains and bounded recent evidence. Association is not confirmed causation.
+
+## `find_mining_spots` - `GET /api/mining/spots` - module: mining
+
+`ref` defaults to current system; `radius` defaults to 50 Ly (max 200),
+`ring_type` to Metallic (also Metal Rich, Icy, Rocky, Any). Optional `hotspot`,
+`pristine` and `power` filter reported hotspots, pristine reserves and a power's
+provider-reported acquisition systems. Returns at most 30 rings from 100 bodies.
+
+## `find_mining_buyers` - `GET /api/mining/buyers` - module: mining
+
+Required `commodity`; optional `ref`, `quantity` (default 1), `radius` (100 Ly,
+max 200), `hours` (24, max 72), and `pad` (L; also M/S). Returns at most 20 fresh
+orbital buyer quotes with enough demand, sorted by estimated sale value, among
+100 nearby matching stations. Both searches use cached Spansh reports and expose
+coverage/estimate limits. See [MINING.md](MINING.md).
+`powerplay_mode` defaults to `none`; `acquisition` and `reinforcement` filter
+reported candidate systems. `power` defaults to `pledged` or accepts a known
+power; an unknown pledge errors when filtering. Results return selected power/mode,
+reported powers/state and unverified eligibility. Mining origin, control links
+and local activities are not verified; `merit_estimate` is null.
+
 Generated from `GET /api/schema` (EliteLab 0.5.0). Every tool is an HTTP route: `GET` with query parameters or `POST` with a JSON body. Responses are JSON; errors are `{"error": "..."}`. `GET /events` streams state changes as Server-Sent Events (`snapshot` then `state` events).
 
 ## `health`  -  `GET /api/health`  -  module: core

@@ -1,5 +1,15 @@
 # Code reference
 
+`modules/mining/module.py`: `Mining` folds journal events into a bounded
+`mining.summary` store snapshot; `timestamp`, `percentage` and `text` normalize
+journal fields. `setup` exposes read-only `get_mining_status`.
+`modules/mining/ledger.py` attributes inventory movements, sales and costs;
+`modules/mining/discovery.py` provides bounded cached Spansh searches and
+catalogue resolution. `modules/mining/powerplay.py` tracks observed gains and
+conservative temporal sale associations without predicting merits.
+`modules/mining/web/card.js` owns stable search forms,
+session panels, quote valuation and map selection. See [MINING.md](MINING.md).
+
 File by file, function by function. Line-level details change; the shapes below are the contract. When you change a signature, change it here.
 
 ## elitelab/__init__.py

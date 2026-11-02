@@ -37,7 +37,7 @@ For #2, validate the merit and pricing assumptions against current observations 
 | Player experience | Extract, run setup, choose journals, launch | Download an app and launch it |
 | Priority | Next release | Later, after the initial setup and trading work |
 
-Both remain open. The first makes the current source release approachable; the second adds packaged builds and their release maintenance.
+Source setup is implemented for the next release (#40). Standalone distribution remains open; it adds packaged builds and their release maintenance.
 
 ## Later 0.x releases
 
@@ -46,7 +46,7 @@ These follow the next-release work, in the proposed order below. Move an item fo
 | Order | Work | Why it comes here | Issue |
 | --- | --- | --- | --- |
 | 4 | Standalone app with Python included | Remove the separate Python installation; add tray and optional auto-start behavior in manageable steps | [#9][9] |
-| 5 | Mining module | Add prospector/refinery tracking, session output, and useful mining destinations once the existing workflows are stronger | [#3][3] |
+| 5 | Mining module | Mining desk in #62: ring/hotspot discovery, map destinations, buyer quotes, journal production and profit ledger; real in-game validation remains | [#3][3] |
 | 6 | Persistent journal index | Support historical analytics and address measured slowdowns with large journal collections; evaluate SQLite as a persistence building block | [#7][7] |
 | 7 | Frontier companion API | Investigate access and coverage when a concrete feature needs data the journal and current providers cannot supply | [#6][6] |
 
