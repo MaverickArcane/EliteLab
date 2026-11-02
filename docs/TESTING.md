@@ -1,5 +1,13 @@
 # Testing
 
+`tests/test_personal.py` checks Spansh station snapshots: exact starting-system
+supply, explicit A-B-A loops (not A-B-C or another port in A), independent return
+cargo, one-way searches, optional destination/station, fully laden range,
+fractional distance limits, pad/surface/volume/age filters, malformed reports,
+starting credit requirements, offline mode and bounded/partial station searches.
+No journal parsing is added. Browser tests verify both leg sections, Inara route
+parameters, escaping, preserved input and Trading layout at mobile width.
+
 ```
 python -m unittest discover -s tests -v
 ```

@@ -215,6 +215,22 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 .trade-pair-stop .row { margin-bottom: 5px; }
 .trade-pair-footer { margin-top: 10px; }
 .trade-filters input { width: 100px; }
+/* Trading keeps leg prices and station actions readable at every card width. */
+.trading-body { min-width: 0; }
+.trading-form { grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }
+.trading-form [hidden] { display: none; }
+.trading-status { line-height: 1.6; overflow-wrap: anywhere; }
+.trading-route { border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 14px; }
+.trading-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+.trading-summary > div { min-width: 0; }
+.trading-summary h3 { margin: 8px 0; font-size: 16px; overflow-wrap: anywhere; }
+.trading-total { display: flex; flex-direction: column; gap: 4px; }
+.trading-total strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.trading-metrics { display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--muted); font-size: 12px; margin: 6px 0 14px; }
+.trading-leg { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
+.trading-station { font-weight: 600; overflow-wrap: anywhere; }
+.trading-actions { margin-top: 10px; flex-wrap: wrap; }
+.trading-route .trade-pair-heading { flex-wrap: wrap; }
 @media (max-width: 600px) { .trade-pair-stops { grid-template-columns: minmax(0, 1fr); } }
 
 .trade-crew-controls { padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 10px 0; }
