@@ -155,10 +155,17 @@ The tables themselves are served by `/api/recipes` and `/api/recipes/get`, never
 | `entries` | `[{id, kind (blueprint/experimental/unlock/material/build), key, name, module, grade, from_grade, qty, rolls, label, added, commodities?, broker?, materials, units, short, complete}]`; a `build` entry's needs are `build.progress.materials` |
 | `needs` | `[{key, name, category, grade, family, cap, have, need, short}]`, short first |
 | `summary` | `{entries, materials, short, units_short, complete}` |
-| `trades` | `{trades[{category, ratio, same_family, give{key,name,grade,qty}, get{...}}], by_trader{type: {trades, give, get}}, unresolved[{key,name,grade,category,short,note?}], covered, reserve, note}` |
+| `trades` | `{trades[{category, ratio, same_family, give{key,name,grade,qty}, get{...}}], by_trader{type: {trades, give, get}}, unresolved[{key,name,grade,category,short,note?}], covered, reserve, search_limited, note}` |
 | `updated` | ISO timestamp of the last recompute |
 
 Raw entries persist in `data/engineering_wishlist.json`; everything else is recomputed from the materials inventory (via `get_material_inventory`) on `state.materials.inventory_version` and `state.build.progress`. The card keeps a client-only `wishlist_ui.traders` with the last `find_material_traders` result.
+
+Execute `trades` in array order; intermediate receipts fund later steps. `covered`
+is the reduction of original wishlist shortfalls, excluding intermediate receipts
+and overfill. `by_trader` counts all exchanges, including intermediate ones.
+Plans try direct trades, then bounded chains through one intermediate material.
+`search_limited` means candidate work was cut short; even when false, this greedy
+estimate is not exhaustive. Neither the inventory nor saved wishlist is changed.
 
 ## farming (module: farming)
 

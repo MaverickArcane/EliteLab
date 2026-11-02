@@ -237,7 +237,19 @@ Routes: `/api/recipes` -> `list_recipes` (`query`, `kind`, `module`, `engineer`,
 
 `Wishlist(core)`: `entries` persisted raw in `data/engineering_wishlist.json`; everything else is recomputed by `compute()` on every `state.materials.inventory` change and on every edit. `parse_item(text)` pulls quantity (`2x`, `x2`, leading number) and grade (`g5`, `grade 5`, trailing 1-5) out of free text. `_add()` resolves in this order: exact recipe key, exact material name, recipe search (`resolve_recipe`); a tie returns `status: ambiguous` with candidates and adds nothing. Blueprints default to `max_grade` from `from_grade` 0; `rolls` can override the per-grade roll counts.
 
-`plan_trades(rows, inv, reserve)`: surplus = have - need - reserve for every material with a trader family; every (donor, shortfall) pair that `trade_ratio` allows is sorted by cost (give/get), then higher target grade, then bigger surplus, and filled greedily so a 6:1 same-family trade is never starved by a 36:1 cross-family one. Receives are capped at `cap - have`. Output: `trades`, `by_trader` (per Raw/Manufactured/Encoded), `unresolved` (still short, or not tradeable), `covered`.
+`plan_trades(rows, inv, reserve)` delegates to `modules/wishlist/trading.py`.
+It first fills direct trades in global cost order, then tries pooling surplus
+through one intermediate for each remaining shortfall. Candidate funding happens
+on copied inventory and is committed only when the chain reduces a shortfall;
+failed candidates cannot spend stock. Every step protects need + nonnegative
+reserve and whole exchange batches must fit the recipient cap. A directed exchange
+graph rejects cycles. Candidate chains prefer greater coverage, then fewer steps,
+then material key; inputs are sorted for deterministic output. The chain search
+has a 20,000-candidate work budget because it also runs on inventory events.
+Returned steps retain execution order. `covered` counts original shortfall reduction,
+while `by_trader` counts all exchanges including intermediate receipts.
+`search_limited` reports budget exhaustion. This is a bounded greedy estimate,
+not proof that no other route exists.
 
 `traders(q)`: Spansh station search with `material_trader: [type]` (values `Raw`, `Manufactured`, `Encoded`), one thread per type, `ttl=1800`; default types are the ones in the current trade plan.
 

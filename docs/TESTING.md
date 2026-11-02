@@ -51,6 +51,12 @@ When you add parsing for an event, add a realistic line here (copy a real one fr
 
 ## What is covered
 
+`test_material_trades.py` executes each suggested exchange against copied inventory
+and checks ratios, reserves, caps, category boundaries, acyclic ordering and net
+coverage. It covers #57's pooled donors, insufficient funds, intermediate capacity,
+determinism, search exhaustion and seeded inventory combinations. The browser suite
+checks the same plan through the real wishlist API and numbered card steps.
+
 Loader order and missing-dependency error; tool schema completeness; commander state from fixture; ship-name learning; cargo rare tagging across both name formats; market rares; carrier summary and activated services; feed order; Powerplay status; merit attribution (rares, objective bonus, combat zone with target detail, zero unattributed); loop ticking and sorting; materials inventory, caps, wishlist set/clear with unknown names reported; fuzzy source lookup; recipe search and per-grade cost (FSD Increased Range), trade ratios, engineering wishlist add/ambiguity/material entries, the trade plan preferring the cheapest exchange, live shortfall update on `MaterialCollected`, farm sites by material and by shortfall, grade ranges and tech broker unlocks, EDSY link decoding and the build comparison (verdicts, rolls from the current grade, the live build entry on the wishlist), Coriolis link and SLEF JSON pinning; history route and star class; recent-events filter; store change detection and bus fan-out; bus wildcard matching and handler isolation.
 
 ## What is not covered (yet)
