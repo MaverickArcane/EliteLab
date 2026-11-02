@@ -41,3 +41,10 @@ This is local integration evidence, not a real in-game mining session.
 
 pr-63/plain-copy captures source a2a64c6e2c38591450a902276e231ed424a92e4f after removing promotional headings. Local Chrome browser run; synthetic commander journals AND synthetic Spansh responses. Desktop 1440px, mobile 390px, buyers 1440px. Command: node tests/mining-browser.mjs. All browser checks passed.
 
+
+## Mining Powerplay and MCP, PR 63
+
+pr-63/powerplay captures source 1555d39c0da6fd724aa9d96ae7aadd2dbece952f on November 1, 2026 America/Phoenix (November 2 UTC). Local Windows Chrome, real CLI/API/SSE/journal watcher, LIVE Spansh rings and buyer quotes, SYNTHETIC commander journals, financial figures and merit gains. The fixture records 1,800 gained merits, temporally associated with a mined sale, and 11,800 total merits. This is not an in-game mining session.
+
+Command: node tests/mining-browser.mjs with ELITELAB_MINING_LIVE=1 and ELITELAB_SCREENSHOT_DIR. All browser checks passed, including Powerplay filters, quote clearing on filter changes, persistence, retry, stale responses and escaping. Desktop 1440x1000, mobile 390x844, buyers 1440x1100; mining-powerplay-buyers.png scrolls to the Powerplay controls/results.
+
