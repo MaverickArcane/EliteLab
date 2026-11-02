@@ -132,6 +132,15 @@ Response: `{power, ref, kind, radius, jump_range, results[{kind, system, dist, j
 
 Client-side manual overrides live in `localStorage.loopManual` as `{system: {done, tons}}` and apply only while `tons` matches.
 
+## personal (module: personal)
+
+| Key | Type | Notes |
+|---|---|---|
+| `plan` | object or null | The selected trade route from `select_trade_route`: `id, route_type, quantity, legs[{commodity, quantity, buy, sell, per_ton, profit, cost}], profit, cost, required_credits, distance, total_distance, estimated_jumps, selected_at, cmdr, source`; persisted in `data/personal.json` and validated on load |
+| `progress` | object or null | Recomputed on `state.journal.location`, `credits`, `cmdr`, replay done and every MarketBuy/MarketSell: `stage, leg, leg_count, title, action, reason, quantity, next, legs[], cargo_known, quotes, credits, credits_short, commander_changed` (see docs/API.md) |
+
+Client-only: `ui_selected` (the browser's Show on map toggle; the map draws the dashed line to `progress.next`). The card keeps the last search result in memory only.
+
 ## materials (module: materials)
 
 | Key | Type |

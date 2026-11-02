@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Trading: a comparison table (profit, Cr/t, Ly, jumps, return, credits, report age, pads) with top-ten/all and expandable legs, advanced filters behind More filters, and one selected route whose next action follows the journal: travel, buy less what is aboard, travel, sell, return leg, with recorded MarketBuy/MarketSell tonnes, report age, credit checks and a star-map layer. Adds `select_trade_route`, `get_trade_plan` and `clear_trade_route`; rows carry `id` and stops carry `pos` (#41).
+
 - Materials / Recipe Wishlist: saved synthesis and FSD quantities, shared stock allocation, inline quantity edits, ingredient previews, inventory and recorded-boost views, connected sourcing, MCP preview/update tools and dashboard workspace navigation. Preserves existing plans and custom layouts (#64).
 
 - Journal history: persistent SQLite index, commander-scoped credit snapshots, merit cycles and material collection locations, with MCP tools, cache recovery, indexed map history and desktop/mobile browser coverage (#7).

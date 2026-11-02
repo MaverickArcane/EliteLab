@@ -1,9 +1,13 @@
 """Ship trades and exact station-to-station loops from Spansh market snapshots."""
 from datetime import datetime, timezone
 import math
+import threading
 
 from elitelab.core.gamedata import is_rare
+from modules.personal import plan as planning
 
+NS = 'personal'
+PLAN_FILE = 'personal.json'
 STATIONS = 'https://www.spansh.co.uk/api/stations/search'
 ORBITAL = ['Coriolis Starport', 'Orbis Starport', 'Ocellus Starport', 'Dodec Starport', 'Asteroid base', 'Outpost']
 SURFACE = ['Planetary Port', 'Planetary Outpost', 'Settlement', 'Surface Settlement', 'Dockable Planet Station']
@@ -38,6 +42,8 @@ def commodity_key(name):
 class Personal:
     def __init__(self, core):
         self.core = core
+        self.last = {}          # route id -> row from the most recent search, whoever ran it
+        self.last_source = None
 
     def stations(self, settings, reference, radius, limit, now):
         # Bucket freshness bounds so repeat searches share the five-minute cache.
@@ -127,7 +133,8 @@ class Personal:
             if not sell or sell['price'] <= buy['price']:
                 continue
             def stop(market, quote):
-                return {k: v for k, v in {**market, **quote}.items() if k not in ('pos', 'buys', 'sells')}
+                # pos stays so the browser map and the selected route can place the stop.
+                return {k: v for k, v in {**market, **quote}.items() if k not in ('buys', 'sells')}
             spread = sell['price'] - buy['price']
             legs.append({'commodity': name, 'buy': stop(source, buy), 'sell': stop(target, sell),
                          'quantity': quantity, 'per_ton': spread, 'profit': spread * quantity, 'cost': buy['price'] * quantity})
@@ -212,15 +219,79 @@ class Personal:
         else:
             warnings.append('No fresh eligible starting market found. Check the station name, pad, report age and surface-station filters.')
         rows.sort(key=lambda r: (-r['profit'], r['distance'], r['required_credits']))
-        return {'rows': rows[:30], 'commodities': [{'key': key, 'name': name} for key, name in sorted(catalog.items())],
+        rows = rows[:30]
+        for row in rows:
+            row['id'] = planning.route_id(row)
+        self.last, self.last_source = {row['id']: row for row in rows}, 'Spansh / community markets'
+        return {'rows': rows, 'commodities': [{'key': key, 'name': name} for key, name in sorted(catalog.items())],
                 'screened': checked, 'available': available, 'settings': settings, 'laden_range': laden,
                 'ship_capacity': j.get('cargo_capacity'), 'credits': j.get('credits'), 'source': 'Spansh / community markets',
                 'warnings': warnings, 'queried_at': datetime.now(timezone.utc).isoformat(),
                 'note': 'Nearest eligible stations, cached five minutes; not exhaustive. Fleet carriers excluded. Each leg requires reported supply and demand for the full load. Profit excludes fuel, fees and bonuses.'}
 
 
+class TradePlan:
+    """One selected route; progress is recomputed from the journal store on the watcher thread (no I/O there)."""
+
+    def __init__(self, core, desk):
+        self.core, self.desk = core, desk
+        self._lock = threading.Lock()
+        saved = core.read_data(PLAN_FILE, default={}) or {}
+        self.plan = saved.get('plan') if isinstance(saved, dict) and planning.valid_plan(saved.get('plan')) else None
+        self.events = []          # MarketBuy/MarketSell seen since start; counts() filters by selection time and market
+        core.store.update(NS, {'plan': self.plan, 'progress': None})
+        for signal in ('state.journal.location', 'state.journal.credits', 'state.journal.cmdr', 'journal.replay.done'):
+            core.bus.on(signal, lambda n, v: self.recompute())
+        core.bus.on('journal.MarketBuy', self.event)
+        core.bus.on('journal.MarketSell', self.event)
+        self.recompute()
+
+    def event(self, name, ev):
+        if isinstance(ev, dict):
+            with self._lock:
+                self.events.append({k: ev.get(k) for k in ('event', 'timestamp', 'MarketID', 'Type', 'Type_Localised', 'Count', 'TotalCost', 'TotalSale')})
+                del self.events[:-2000]
+            self.recompute()
+
+    def recompute(self):
+        with self._lock:
+            plan, events = self.plan, list(self.events)
+        j = self.core.store.get('journal') or {}
+        progress = planning.progress(plan, j, events, datetime.now(timezone.utc).timestamp()) if plan else None
+        self.core.store.update(NS, {'plan': plan, 'progress': progress})
+
+    def select(self, q):
+        route_id = q.get('id')
+        row = self.desk.last.get(route_id) if isinstance(route_id, str) else None
+        if row is None:
+            raise ValueError('Choose a route from the latest Trading search results.')
+        j = self.core.store.get('journal') or {}
+        plan = planning.plan_from_row(row, datetime.now(timezone.utc).timestamp(), j.get('cmdr'), self.desk.last_source)
+        with self._lock:
+            self.core.write_data({'plan': plan}, PLAN_FILE)      # a failed save keeps the previous selection
+            self.plan = plan
+        self.recompute()
+        return self.core.store.get(NS)
+
+    def clear(self, q):
+        with self._lock:
+            self.core.write_data({'plan': None}, PLAN_FILE)
+            self.plan = None
+        self.recompute()
+        return self.core.store.get(NS)
+
+
 def setup(core, module):
     search = Personal(core)
+    plan = TradePlan(core, search)
+    module.search, module.plan = search, plan
+    core.http.route('/api/personal/plan', lambda q: core.store.get(NS), tool='get_trade_plan', module=module.name,
+        description='The selected commodity trade route and its progress from journal evidence: stage (travel_buy, buy, travel_sell, sell, complete), the next station with straight-line distance and exact docking, tonnes of the planned goods observed aboard (null when cargo is unknown), recorded MarketBuy/MarketSell tonnes at the planned market IDs since selection, report age of the quotes, and whether reported credits cover the next purchase. plan is null when no route is selected. Cargo aboard is not a purchase receipt; quotes are community reports, not live prices.')
+    core.http.route('/api/personal/plan', plan.select, tool='select_trade_route', method='POST', module=module.name,
+        description='Select one route from the most recent find_personal_trade_routes result as the active trade plan. Persists across restarts and shows in the Trading card and on the map. Replaces any previous selection.',
+        params={'id': {'type': 'string', 'required': True, 'description': 'rows[].id from the latest search.'}})
+    core.http.route('/api/personal/plan/clear', plan.clear, tool='clear_trade_route', method='POST', module=module.name,
+        description='Clear the active trade plan. Recorded journal purchases and sales are untouched.')
     core.http.route('/api/personal/routes', search.search, tool='find_personal_trade_routes', module=module.name,
         description='Find ship-sized Spansh trades ranked by profit. Round trips return to the exact starting station with an independent return commodity. Origin defaults to current system; station optionally restricts the starting station. Destination is an optional system. Distance is per leg, at most 500 Ly; jumps use fully laden range as a straight-line estimate. Checks up to breadth nearest eligible stations (default 100, max 300), plus up to 100 origin markets; not exhaustive. Requires full-load positive supply and demand; excludes carriers. Five-minute cache. No game actions.',
         params={'origin': {'type': 'string'}, 'station': {'type': 'string', 'default': ''},
