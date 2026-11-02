@@ -19,6 +19,13 @@ core.services.edsm_coords = lambda names: {}
 loader.load_all(core)
 core.watcher.replay()
 core.http.route('/audit/emit', lambda q: core.bus.emit('journal.MaterialCollected', {'event': 'MaterialCollected', 'Name': 'iron', 'Count': 1, 'Category': 'Raw'}), method='POST')
+def trade_materials(q):
+    core.bus.emit('journal.Materials', {'event': 'Materials', 'Raw': [], 'Encoded': [], 'Manufactured': [
+        {'Name': 'fedproprietarycomposites', 'Count': 66},
+        {'Name': 'protoradiolicalloys', 'Count': 4},
+        {'Name': 'chemicalmanipulators', 'Count': 14}]})
+    return {'ok': True}
+core.http.route('/audit/trade-materials', trade_materials, method='POST')
 def ship(q):
     core.store.update('journal', {'cmdr': q.get('cmdr', 'Testpilot'), 'cargo_capacity': q.get('capacity', 200),
         'cargo': {'count': q.get('count', 0), 'items': [{'key': 'gold', 'name': 'Gold', 'count': q.get('count', 0)}]},

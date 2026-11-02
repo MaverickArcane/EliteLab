@@ -491,7 +491,7 @@ Remove entries by id (comma-separated) or everything with all=true.
 
 ## `plan_material_trades`  -  `GET /api/wishlist/trades`  -  module: wishlist
 
-Estimate which material trader exchanges would cover the wishlist shortfalls from current surplus: a list of give/get trades with ratios, totals per trader type (Raw/Manufactured/Encoded), and what stays short. Ratios: same family 1->3 per grade down and 6->1 per grade up, other families cost 6x more.
+Estimate ordered material trader exchanges that cover wishlist shortfalls from current surplus. Follow the returned steps in order: direct exchanges and bounded chains through one intermediate can combine donors. Every step protects wishlist needs, reserves and storage caps. `covered` counts the reduction of original shortfalls; `by_trader` includes intermediate exchanges. `unresolved` lists what remains after this plan. `search_limited` reports candidate-budget exhaustion. This is not an exhaustive optimizer, so other routes may exist. Ratios: same family 1->3 per grade down and 6->1 per grade up, other families cost 6x more.
 
 | Parameter | Type | Description |
 |---|---|---|

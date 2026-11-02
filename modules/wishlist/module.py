@@ -15,6 +15,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 from elitelab.core import gamedata as gd
+from modules.wishlist.trading import plan_trades
 
 NS = "wishlist"
 FILE = "engineering_wishlist.json"
@@ -106,68 +107,7 @@ class Wishlist:
                    "units_short": sum(r["short"] for r in rows), "complete": all(r["short"] == 0 for r in rows)}
         return {"entries": entries, "needs": rows, "summary": summary, "trades": self.plan_trades(rows, inv, reserve)}
 
-    @staticmethod
-    def plan_trades(rows, inv, reserve=0):
-        """Greedy material trader plan: fill each shortfall from surplus materials of the same type, cheapest ratio first
-        (same family down, then same family up, then cross family). Never spends below a material's own need + reserve,
-        never receives above the grade cap. An estimate; the trader screen is authoritative."""
-        need = {r["key"]: r["need"] for r in rows}
-        surplus = {}
-        for k, have in inv.items():
-            m = gd.MATERIAL_BY_KEY.get(k)
-            if m and m.get("family"):
-                s = have - need.get(k, 0) - int(reserve or 0)
-                if s > 0:
-                    surplus[k] = s
-        trades, unresolved = [], []
-        remaining, room = {}, {}
-        for r in rows:
-            if r["short"] > 0 and r.get("family"):
-                remaining[r["key"]] = r["short"]
-                room[r["key"]] = max(0, r["cap"] - r["have"]) if r["cap"] is not None else r["short"]
-        # Every (donor, shortfall) pair, cheapest exchange first across the whole list, so a 6:1 same-family trade
-        # is never starved by a 36:1 cross-family one that happened to be considered earlier.
-        options = []
-        for r in rows:
-            if r["key"] not in remaining:
-                continue
-            for donor, s in surplus.items():
-                ratio = gd.trade_ratio(donor, r["key"])
-                if ratio:
-                    options.append((ratio[0] / ratio[1], -(r["grade"] or 0), -s, donor, r, ratio))
-        for _, _, _, donor, r, (give, get) in sorted(options, key=lambda o: o[:3] + (o[3], o[4]["key"])):
-            left = remaining[r["key"]]
-            if left <= 0:
-                continue
-            n = min(math.ceil(left / get), surplus[donor] // give, room[r["key"]] // get)
-            if n <= 0:
-                continue
-            dm = gd.MATERIAL_BY_KEY[donor]
-            trades.append({"category": r["category"], "ratio": f"{give}:{get}", "same_family": dm["family"] == r["family"],
-                           "give": {"key": donor, "name": dm["name"], "grade": dm["grade"], "qty": n * give},
-                           "get": {"key": r["key"], "name": r["name"], "grade": r["grade"], "qty": n * get}})
-            surplus[donor] -= n * give
-            room[r["key"]] -= n * get
-            remaining[r["key"]] = left - n * get
-        for r in rows:
-            left = remaining.get(r["key"], 0)
-            if left > 0:
-                unresolved.append({"key": r["key"], "name": r["name"], "grade": r["grade"], "category": r["category"], "short": left})
-        trades.sort(key=lambda t: (t["category"], -t["get"]["grade"]))
-        for r in rows:
-            if r["short"] > 0 and not r.get("family"):
-                unresolved.append({"key": r["key"], "name": r["name"], "grade": r["grade"], "category": r["category"], "short": r["short"],
-                                   "note": "not tradeable"})
-        by = {}
-        for t in trades:
-            b = by.setdefault(t["category"], {"trades": 0, "give": 0, "get": 0})
-            b["trades"] += 1
-            b["give"] += t["give"]["qty"]
-            b["get"] += t["get"]["qty"]
-        return {"trades": trades, "by_trader": by, "unresolved": unresolved, "reserve": int(reserve or 0),
-                "covered": sum(t["get"]["qty"] for t in trades),
-                "note": "Same family: 1 -> 3 per grade down, 6 -> 1 per grade up; another family costs 6x more. "
-                        "Greedy estimate from current surplus; visit the trader type named in category."}
+    plan_trades = staticmethod(plan_trades)
 
     def publish(self):
         with self._lock:
@@ -395,8 +335,11 @@ def setup(core, module):
     core.http.route("/api/wishlist/trades", lambda q: w.compute(int(q.get("reserve", 0) or 0))["trades"],
                     tool="plan_material_trades", module=module.name,
                     description="Estimate which material trader exchanges would cover the wishlist shortfalls from current surplus: "
-                                "a list of give/get trades with ratios, totals per trader type (Raw/Manufactured/Encoded), and what stays "
-                                "short. Ratios: same family 1->3 per grade down and 6->1 per grade up, other families cost 6x more.",
+                                "ordered give/get steps, totals per trader type (Raw/Manufactured/Encoded), and remaining shortfalls. "
+                                "Follow steps in order: direct exchanges and bounded chains through one intermediate can combine donors. "
+                                "Protects needs, reserves and storage caps. covered counts original shortfall reduction, not intermediate "
+                                "receipts. Not exhaustive; search_limited indicates the work limit was reached. Ratios: same family "
+                                "1->3 per grade down and 6->1 per grade up, other families cost 6x more.",
                     params={"reserve": {"type": "integer", "description": "Units of each material to keep back", "default": 0}})
     core.http.route("/api/wishlist/traders", w.traders, tool="find_material_traders", module=module.name,
                     description="Nearest material traders by type (Spansh), default from the current system and only for the types "
