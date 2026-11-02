@@ -455,3 +455,26 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 @media(max-width:900px){.plan-columns{grid-template-columns:1fr}.plan-injections{grid-template-columns:1fr}#workspace-heading>span{display:none}}
 @media(max-width:760px){#workspace-nav{padding:4px 10px 0}#workspace-nav button{padding:10px 12px}#workspace-heading{padding:16px 14px 0}#workspace-heading h2{font-size:21px}.plan-intro,.plan-heading{align-items:start;flex-direction:column}.plan-composer{padding:14px}.plan-tabs button{padding:10px}.plan-entry .tag{float:none;margin-left:8px}}
 .plan-columns>*{min-width:0}.plan-scroll{max-width:100%}.plan-composer form{min-width:0}.material-plan .plan-intro .note{margin:0 0 10px}
+
+/* Trading: selected route panel, comparison table and expandable details. */
+.trade-plan { border-left: 3px solid var(--accent); padding: 16px; background: var(--bg-2); margin-bottom: 14px; min-width: 0; }
+.trade-plan.is-complete { border-left-color: var(--ok); }
+.trade-plan-empty p { margin: 6px 0 0; color: var(--muted); }
+.trade-plan-head { flex-wrap: wrap; }
+.trade-plan-action h3 { margin: 6px 0; font-size: 18px; overflow-wrap: anywhere; }
+.trade-plan-action p { margin: 0 0 8px; color: var(--muted); }
+.trade-plan-actions { flex-wrap: wrap; margin: 8px 0; }
+.trade-plan-legs { display: grid; gap: 6px; margin-top: 10px; }
+.trade-plan-legs > div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); min-width: 0; }
+.trade-plan-legs > div.is-next { border-color: var(--accent); }
+.trade-plan-legs > div.done { opacity: .7; }
+.trade-plan-legs .trade-leg-status { margin-left: auto; color: var(--accent-2); font-variant-numeric: tabular-nums; }
+.trade-table { overflow-x: auto; max-width: 100%; }
+.trade-table table { min-width: 860px; }
+.trade-table td, .trade-table th { vertical-align: top; }
+.trade-row-actions { white-space: nowrap; }
+.trade-detail > td { padding: 0 0 12px; }
+.trade-detail .trading-route { margin: 8px 0 0; }
+.trading-form details.trade-details { margin: 0; padding-top: 8px; }
+.trading-form details.trade-details > .trade-form { margin: 10px 0 0; }
+@media (max-width: 600px) { .trade-plan { padding: 12px; } .trade-plan-legs .trade-leg-status { margin-left: 0; width: 100%; } }

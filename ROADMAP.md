@@ -27,7 +27,7 @@ This is the proposed order of work. Linked issues hold the detailed scope and pr
 
 Materials/recipe workflow and dashboard navigation overhaul: [#64](https://github.com/MaverickArcane/EliteLab/issues/64), implemented on the materials-workflow branch pending review/merge. See [workflow](docs/MATERIAL-PLAN.md).
 
-For #41, first define which trading workflows matter most, then ship a focused improvement to the existing panels. The wider default-panel overhaul stays on the roadmap and is split into smaller follow-up issues.
+For #41, first define which trading workflows matter most, then ship a focused improvement to the existing panels. The wider default-panel overhaul stays on the roadmap and is split into smaller follow-up issues. The workflow definition and the first improvement (route comparison table, one selected route followed from the journal, map layer) are in [docs/TRADING.md](docs/TRADING.md); the rare-goods buying loop shipped in #71.
 
 For #2, validate the merit and pricing assumptions against current observations before implementing estimates. A recorded rate for one commander and power is a hint, not a universal rule. Keep missing prices, stale market information, and estimates visible to the player.
 

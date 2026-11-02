@@ -75,7 +75,7 @@ try {
       const stop={station:'<img src=x onerror=alert(1)>',system:'Sol',price:100,volume:1000,pad:'L',observed_at:new Date().toISOString(),arrival_ls:10};
       const outbound={commodity:'Gold',buy:stop,sell:{...stop,station:'Destination',system:'Alpha',price:200},quantity:100,cost:10000,profit:10000,per_ton:100};
       const returning={commodity:'Silver',buy:{...outbound.sell,price:500},sell:{...stop,price:600},quantity:100,cost:50000,profit:10000,per_ton:100};
-      return {commodities:[{key:'gold',name:'Gold'}],rows:[{...outbound,legs:[outbound,returning],route_type:'round_trip',cost:60000,profit:20000,required_credits:40000,return_on_cost:100/3,distance:30,estimated_jumps:2}],settings:{origin:params.origin,quantity:params.quantity,distance:40,pad:'L',surface:false},warnings:[],source:'Spansh / community markets',screened:1,available:1,note:'Test reports',queried_at:new Date().toISOString()};
+      return {commodities:[{key:'gold',name:'Gold'}],rows:[{...outbound,id:'mockroute1',legs:[outbound,returning],route_type:'round_trip',cost:60000,profit:20000,required_credits:40000,return_on_cost:100/3,distance:30,estimated_jumps:2}],settings:{origin:params.origin,quantity:params.quantity,distance:40,pad:'L',surface:false},warnings:[],source:'Spansh / community markets',screened:1,available:1,note:'Test reports',queried_at:new Date().toISOString()};
     };
     try {
       form.elements.distance_mode.value='jumps';form.elements.distance_mode.dispatchEvent(new Event('change'));
@@ -106,9 +106,46 @@ try {
   assert.ok(personal.returnText.includes('Silver'));
   assert.equal(new URL(personal.inaraRoute).searchParams.get('pi7'),'1');
   assert.equal(new URL(personal.inaraRoute).searchParams.get('ps2'),'Destination [Alpha]');
+  // Comparison table, selection errors, and the selected route following live journal evidence.
+  assert.equal(await evaluate("document.querySelectorAll('#card-personal tbody tr[data-route]').length"),1);
+  assert.equal(await evaluate("document.querySelector('#card-personal [data-details]').getAttribute('aria-expanded')"),'true');
+  await evaluate("document.querySelector('#card-personal [data-details]').click();true");
+  assert.equal(await evaluate("document.querySelectorAll('#card-personal .trade-pair').length"),0);
+  await evaluate("document.querySelector('#card-personal [data-details]').click();true");
+  assert.equal(await evaluate("document.querySelectorAll('#card-personal .trade-pair').length"),1);
+  assert.ok(await evaluate("document.querySelector('#card-personal [data-personal-plan]').textContent.includes('No route selected')"));
+  await evaluate("document.querySelector('#card-personal tbody [data-select]').click();true");
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[data-personal-status]').textContent.includes('latest Trading search')"))break;}
+  assert.ok(await evaluate("document.querySelector('[data-personal-status]').textContent.includes('Choose a route from the latest Trading search results.')"));
+  assert.equal(await evaluate("document.querySelector('#card-personal tbody [data-select]').disabled"),false);
+  const tradeAudit=async step=>(await fetch(`http://127.0.0.1:${port}/audit/trade-plan`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({step})})).json();
+  const selectedPlan=await tradeAudit('select');
+  assert.equal(selectedPlan.progress.stage,'travel_buy');
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.personal?.plan?.id==="+JSON.stringify(selectedPlan.plan.id)))break;}
+  const planPanel=await evaluate(`({text:document.querySelector('#card-personal [data-personal-plan]').textContent,legs:document.querySelectorAll('#card-personal .trade-plan-legs > div').length,images:document.querySelectorAll('#card-personal img').length,destination:document.querySelector('[data-personal-search]').elements.destination.value,points:Lab.map.layers.personal.points(Lab.state).length,lines:Lab.map.layers.personal.lines(Lab.state).length})`);
+  assert.ok(planPanel.text.includes('Travel to Port 1, Sol'),planPanel.text); assert.equal(planPanel.legs,2); assert.equal(planPanel.images,0);
+  assert.equal(planPanel.destination,'Keep this destination'); assert.equal(planPanel.points,2); assert.equal(planPanel.lines,0);
+  await evaluate("document.querySelector('#card-personal [data-plan-map]').click();true");
+  await sleep(150);
+  assert.equal(await evaluate("Lab.state.personal.ui_selected"),true);
+  assert.equal(await evaluate("Lab.map.layers.personal.points(Lab.state).filter(p=>p.selected).length"),1);
+  await tradeAudit('dock_buy');
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('#card-personal [data-personal-plan]').textContent.includes('Buy 100 t Gold')"))break;}
+  const dockedPanel=await evaluate(`({text:document.querySelector('#card-personal [data-personal-plan]').textContent,destination:document.querySelector('[data-personal-search]').elements.destination.value,rows:document.querySelectorAll('#card-personal tbody tr[data-route]').length})`);
+  assert.ok(dockedPanel.text.includes('Buy 100 t Gold') && dockedPanel.text.includes('Docked at Port 1'),dockedPanel.text);
+  assert.equal(dockedPanel.destination,'Keep this destination'); assert.equal(dockedPanel.rows,1);
+  await tradeAudit('cargo');
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('#card-personal [data-personal-plan]').textContent.includes('Travel to <img')"))break;}
+  const loadedPanel=await evaluate(`({text:document.querySelector('#card-personal [data-personal-plan]').textContent,images:document.querySelectorAll('#card-personal img').length})`);
+  assert.ok(loadedPanel.text.includes('Travel to <img src=x onerror=alert(1)>, Alpha') && loadedPanel.text.includes('100 t Gold aboard'),loadedPanel.text);
+  assert.equal(loadedPanel.images,0);
+  await evaluate("document.querySelector('#card-personal').scrollIntoView({block:'start'});true");
+  await sleep(150);
   const tradingDesktop = await send('Page.captureScreenshot',{format:'png'});
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await sleep(200);
+  await evaluate("document.querySelector('#card-personal').scrollIntoView({block:'start'});true");
+  await sleep(150);
   const tradingMobile = await evaluate(`({width:document.documentElement.scrollWidth,viewport:innerWidth,columns:getComputedStyle(document.querySelector('#card-personal .trade-pair-stops')).gridTemplateColumns})`);
   assert.ok(tradingMobile.width <= tradingMobile.viewport + 1,JSON.stringify(tradingMobile));
   assert.equal(tradingMobile.columns.split(' ').length,1);
@@ -118,7 +155,12 @@ try {
     fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'trading-desktop.png'),Buffer.from(tradingDesktop.data,'base64'));
     fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'trading-mobile.png'),Buffer.from(shot.data,'base64'));
   }
+  assert.ok(await evaluate("document.querySelector('#card-personal .trade-table').scrollWidth > document.querySelector('#card-personal .trade-table').clientWidth"));
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  await evaluate("document.querySelector('#card-personal [data-plan-clear]').click();true");
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("Lab.state.personal?.plan===null"))break;}
+  assert.ok(await evaluate("document.querySelector('#card-personal [data-personal-plan]').textContent.includes('No route selected')"));
+  assert.equal(await evaluate("Lab.map.layers.personal.points(Lab.state).length"),0);
   // Exercise the carrier desk and real party listener through the browser.
   await evaluate(`document.querySelector('[data-preset="Carrier ops"]').click();true`);
   await sleep(200);

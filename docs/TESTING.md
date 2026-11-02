@@ -20,6 +20,18 @@ starting credit requirements, offline mode and bounded/partial station searches.
 No journal parsing is added. Browser tests verify both leg sections, Inara route
 parameters, escaping, preserved input and Trading layout at mobile width.
 
+`tests/test_trade_plan.py` builds a real Core, replays the fixture and fakes only
+`services.fetch_json`: stable row ids and stop positions, selection persisted to
+`data/personal.json` and reloaded by a second Core, rejected ids and failed saves
+keeping the previous plan, stage transitions from docking, cargo and recorded
+sales (including partial sales, the return leg and completion), events before
+selection or at other markets being ignored, unknown cargo falling back to docking
+and recorded purchases, report age, credit checks, commander changes, validation
+of a corrupt saved plan, and journal handlers never writing files or fetching.
+`node tests/browser.mjs` injects a fixture plan through `/audit/trade-plan` and
+checks the table, details toggle, a rejected selection, live stage changes with
+typed filters intact, hostile names, the map layer, the narrow table and clearing.
+
 ```
 python -m unittest discover -s tests -v
 ```

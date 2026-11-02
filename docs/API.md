@@ -864,7 +864,38 @@ it never restricts the return cargo. The result includes up to 30 routes with
 `per_ton` (combined profit per tonne of hold across both legs; each leg carries its own `per_ton`),
 `distance` per leg, `total_distance`, and `estimated_jumps` per leg.
 `screened`/`available` count nearby stations; coverage/errors appear in `warnings`.
+Each row carries a stable `id` and each stop carries `pos` (galactic x, y, z).
 Reports are cached five minutes. No game action is performed.
+
+### Selected trade route
+
+`select_trade_route` / `POST /api/personal/plan` with `id` (a row id from the
+most recent search, whoever ran it) makes that route the active plan, saved in
+`data/personal.json`. An unknown id, or an id from an older search, is rejected
+and the previous plan stays; a failed save also keeps the previous plan.
+`clear_trade_route` / `POST /api/personal/plan/clear` removes it.
+
+`get_trade_plan` / `GET /api/personal/plan` returns `{plan, progress}`, both
+null when nothing is selected. `plan` keeps the route's legs (commodity,
+quantity, buy and sell stops with market_id, station, system, pad, arrival_ls,
+observed_at, price, volume, pos), totals, `selected_at`, the selecting `cmdr`
+and `source`. `progress` is recomputed from the journal store:
+
+| Field | Meaning |
+|---|---|
+| `stage` | `travel_buy`, `buy`, `travel_sell`, `sell` or `complete` for the current leg |
+| `leg`, `leg_count` | Index of the current leg (null when complete) and the number of legs |
+| `title`, `action`, `reason`, `quantity` | Text for the next action and the tonnes it refers to (null when unknown) |
+| `next` | `{role, station, system, market_id, pos, dist, docked_here}`; `dist` is a straight line from `journal.star_pos`, null without coordinates |
+| `legs[]` | Per leg: `aboard` (null when cargo is unknown), `bought`, `spent`, `sold`, `sale_total` from MarketBuy/MarketSell at the planned market IDs since `selected_at`, and `done` |
+| `cargo_known` | The cargo snapshot is internally consistent; otherwise stages come from docking and recorded purchases only |
+| `quotes` | `{age_hours, status, message}`; status is `fresh` (< 12 h), `aging` (< 48 h), `stale` or `unknown` |
+| `credits`, `credits_short` | Reported balance and whether it is below the next purchase (null when either side is unknown) |
+| `commander_changed` | The journal commander differs from the one who selected the route |
+
+A leg is `done` when recorded sales reach the planned tonnes, or when some tonnes
+were sold at the planned station and the observed hold holds none of the goods.
+Cargo aboard is not a purchase receipt and quotes are community reports.
 
 ## Unified materials and recipe planning
 
