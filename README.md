@@ -327,32 +327,71 @@ Journal accounting follows Frontier's
 
 ### Windows, no Docker
 
-Requires Python 3.10 or newer (python.org, tick "Add to PATH").
+Download the source ZIP from GitHub and extract it completely into a writable
+folder. Install Python 3.10 or newer from python.org with **Add Python to PATH**
+enabled, or use the portable Windows bundle which includes Python.
 
+Double-click **Setup EliteLab.cmd**. It checks the bundled runtime, `python`, then
+`py -3`, and opens the setup page after the lab answers its health check. Choose
+or enter your journal folder, click **Test**, then **Save** and **Restart** if
+requested. Keep the terminal open while using the lab. Subsequent launches use
+**Start EliteLab.cmd**; setup can be run again without resetting your data.
+
+A source ZIP needs no Git, Docker, Node or extra Python packages. For a custom
+settings file, run from a terminal:
+
+```bat
+"Setup EliteLab.cmd" --settings "C:\EliteLab settings\settings.json"
 ```
-git clone https://github.com/MaverickArcane/EliteLab.git
-cd EliteLab
-"Start EliteLab.cmd"
-```
-
-The launcher runs the server with `--open-browser`, so the dashboard opens once the server is listening, at the address it really bound: http://127.0.0.1:8766/ by default, or the host and port you saved on the setup page. The journal folder is found automatically: `%USERPROFILE%\Saved Games\Frontier Developments\Elite Dangerous` on Windows, and on Linux and macOS the Steam Proton prefix in any Steam library (Flatpak Steam included) or the Mac Application Support folder, whichever holds journals. Change it on the setup page if it picked the wrong one.
-
-### Docker
-
-```
-cp .env.example .env        # set ELITELAB_JOURNAL_DIR
-docker compose up -d --build
-```
-
-Journals are mounted read-only. Wishlists and the selected loop persist in a named volume.
 
 ### Linux and macOS
 
-```
-./start.sh --journals "/path/to/Saved Games/Frontier Developments/Elite Dangerous"
+Extract the source ZIP into a writable directory. Install Python 3.10 or newer
+using your Linux package manager or python.org on macOS, then run:
+
+```sh
+sh setup.sh
 ```
 
-`--journals` is optional: without it the lab looks for a Steam Proton prefix and the Mac Application Support folder, and the setup page can save the folder for next time. `./start.sh serve --open-browser` also opens the dashboard in your browser once the server is listening; without the flag, open http://localhost:8766 yourself.
+The script checks `python3`, then `python`, and opens setup after a ready health
+response. You can set `ELITELAB_PYTHON` to an interpreter path if needed. Select a
+Steam/Proton journal candidate, or choose a custom/synced journal folder. Save and
+restart when prompted. Next time, run `sh start.sh serve --open-browser`.
+
+For a custom settings file or a busy default port:
+
+```sh
+sh setup.sh --settings "/path with spaces/settings.json" --port 8799
+```
+
+A command-line port overrides a saved port for that launch. To keep it for later,
+save the port in setup and omit `--port` on subsequent launches. Options such as
+`--journals` have the same precedence; use setup's Save for persistent choices.
+`--no-browser` disables automatic browser opening for headless use. The terminal
+prints the correct setup URL, including a custom port.
+
+### Setup troubleshooting and updates
+
+- **Python missing or too old:** install or upgrade Python 3.10+, reopen the
+  terminal, and rerun setup. On Windows enable Add Python to PATH, or use the
+  portable bundle. On Linux/macOS check `python3 --version` or `python --version`.
+- **No journals found:** open setup, enter the actual or synced journal folder and
+  click Test. A missing folder is reported without replacing the saved choice.
+- **Port in use:** stop the other process or launch setup with `--port 8799` (or
+  another free port), save that port, then omit the flag on future launches.
+- **Browser did not open:** use the setup URL printed in the terminal. If an auth
+  token is configured, sign in with it. Keep the server terminal open.
+- **Already running:** setup reopens the matching instance. A different app copy
+  or changed build must be stopped before launching this copy.
+- **Update:** quit EliteLab, preserve the existing `data` directory (or your saved
+  custom data path), and replace the application files with the new extracted
+  release. Keep the platform settings file. Run setup again to verify paths;
+  it does not reset settings, wishlists or saved layouts. If moving to a different
+  folder, move the source `data` directory with it or save an absolute data path.
+
+The setup scripts are included in source archives and the Windows bundle includes
+its setup entry point. Installers, tray behavior and a Mac package remain separate
+work under #9 and #55.
 
 ### First run
 

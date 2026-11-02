@@ -10,6 +10,19 @@ permissions:
   contents: read
 
 jobs:
+  macos-source-setup:
+    name: macOS source setup
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Extracted source setup and restart
+        run: |
+          python -m unittest discover -s tests -p test_source_setup.py -v
+          python -m unittest discover -s tests -p test_restart.py -v
+
   test:
     name: Tests (Python ${{ matrix.python }})
     runs-on: ${{ matrix.os }}

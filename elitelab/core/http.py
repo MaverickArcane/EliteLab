@@ -20,6 +20,7 @@ import time
 import urllib.parse
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from socketserver import TCPServer
 
 from . import config
 
@@ -368,7 +369,11 @@ class ExclusiveHTTPServer(ThreadingHTTPServer):
     def server_bind(self):
         if os.name == "nt":
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
-        super().server_bind()
+        # HTTPServer.server_bind performs reverse DNS for server_name. A slow
+        # resolver can block local startup (observed on macOS); this handler
+        # needs only the bound address and port, never a reverse-resolved name.
+        TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
 
 class HttpServer:

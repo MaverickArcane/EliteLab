@@ -1,5 +1,5 @@
-/* Real CLI restart across ports, including the setup page's response CSP. */
-import {spawn} from 'node:child_process';
+/* Real setup launcher restart across ports, including the setup page's CSP. */
+import {spawn,spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -25,14 +25,14 @@ const env={...process.env,ELITELAB_SETTINGS:settings,ELITELAB_HOST:'127.0.0.1',E
   ELITELAB_JOURNAL_DIR:path.join(temporary,'journals'),ELITELAB_DATA_DIR:path.join(temporary,'data'),
   ELITELAB_INSTANCE_DIR:path.join(temporary,'instance'),ELITELAB_AUTH_TOKEN:''};
 delete env.ELITELAB_PORT;
-let server,chrome,ws,stopping=false,starts=0,serverLog='';
-const exits=[];
+let server,chrome,ws,serverLog='';
 function launch() {
-  starts++;
-  server=spawn(process.env.PYTHON||'python',['-u','-m','elitelab','serve','--no-browser'],{cwd:root,env,windowsHide:true});
+  const windows=process.platform==='win32';
+  server=spawn(windows?(process.env.ComSpec||'cmd.exe'):'/bin/sh',
+    windows?['/d','/s','/c','call "Setup EliteLab.cmd" --no-browser']:['setup.sh','--no-browser'],
+    {cwd:root,env,windowsHide:true,windowsVerbatimArguments:windows,detached:!windows});
   server.stdout.on('data',d=>serverLog+=d);
   server.stderr.on('data',d=>serverLog+=d);
-  server.on('exit',code=>{exits.push(code);if(code===75&&!stopping)launch();});
 }
 try {
   launch();
@@ -44,6 +44,7 @@ try {
     await sleep(100);
   }
   assert.ok(ready,serverLog);
+  const firstPid=(await (await fetch(base+'/api/health')).json()).pid;
   const profile=path.join(temporary,'chrome');
   chrome=spawn(process.env.CHROME_BIN||(process.platform==='win32'?'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe':'google-chrome'),
     ['--headless=new','--no-sandbox','--disable-gpu','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],
@@ -64,6 +65,7 @@ try {
   });
   const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
   await send('Page.enable');
+  await send('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
   await send('Page.navigate',{url:base+'/setup/'});
   for(let i=0;i<100;i++){if(await evaluate("document.querySelector('[name=port]')?.value === '"+oldPort+"'"))break;await sleep(100);}
   const otherHostBlocked=await evaluate(`fetch('http://localhost:${oldPort}/api/health',{mode:'no-cors'}).then(()=>false,()=>true)`);
@@ -71,6 +73,11 @@ try {
   await evaluate(`document.querySelector('[name=port]').value='${newPort}';document.querySelector('[data-setup-form]').requestSubmit();true`);
   for(let i=0;i<100;i++){if(await evaluate("!document.querySelector('[data-restart]').hidden"))break;await sleep(100);}
   assert.equal(JSON.parse(fs.readFileSync(settings,'utf8')).port,newPort);
+  if(process.env.ELITELAB_SCREENSHOT_DIR) {
+    fs.mkdirSync(process.env.ELITELAB_SCREENSHOT_DIR,{recursive:true});
+    const shot=await send('Page.captureScreenshot',{format:'png'});
+    fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'source-setup-saved.png'),Buffer.from(shot.data,'base64'));
+  }
   await evaluate("document.querySelector('[data-restart]').click();true");
   let location='';
   for(let i=0;i<350;i++) {
@@ -79,12 +86,23 @@ try {
     await sleep(100);
   }
   assert.equal(location,`http://127.0.0.1:${newPort}/`,serverLog);
-  assert.equal(starts,2);assert.deepEqual(exits,[75]);
-  assert.equal((await (await fetch(location+'api/health')).json()).ready,true);
+  assert.equal(server.exitCode,null,'Setup launcher exited during restart');
+  const restarted=await (await fetch(location+'api/health')).json();
+  assert.equal(restarted.ready,true);assert.notEqual(restarted.pid,firstPid);
   const dashboardPolicy=(await fetch(location)).headers.get('content-security-policy');
   assert.match(dashboardPolicy,/connect-src 'self';/);
-  console.log('Changed-port restart passed: process exited 75, relaunched, and browser reached the new dashboard under CSP.');
+  console.log('Setup launcher changed-port restart passed: new server PID and browser reached the new dashboard under CSP.');
   await send('Browser.close').catch(()=>{});
 } finally {
-  stopping=true;ws?.close();server?.kill();chrome?.kill();
+  ws?.close();chrome?.kill();
+  if(server && server.exitCode===null) {
+    for(const port of [newPort,oldPort]) {
+      try {await fetch(`http://127.0.0.1:${port}/api/shutdown`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(500)});}catch{}
+    }
+    for(let i=0;i<50 && server.exitCode===null;i++)await sleep(100);
+    if(server.exitCode===null) {
+      if(process.platform==='win32')spawnSync('taskkill',['/PID',String(server.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});
+      else try {process.kill(-server.pid,'SIGTERM');}catch{}
+    }
+  }
 }

@@ -21,7 +21,7 @@ This is the proposed order of work. Linked issues hold the detailed scope and pr
 
 | Order | Work | First useful outcome | Issue |
 | --- | --- | --- | --- |
-| 1 | Setup scripts for Windows, Linux, and macOS | Check Python, configure journals, save settings, and open a working dashboard from an extracted release | [#40][40] |
+| 1 | Setup scripts for Windows, Linux, and macOS | Implemented for the next release: runtime checks, setup page, persistent settings and launcher restart; tested on all three platforms in CI | [#40][40] |
 | 2 | Trading panels and workflow | Connect sell targets, cargo, market information, and the rares loop into a clear sequence of actions | [#41][41] |
 | 3 | Expected merits per sell target | Compare estimated returns and travel effort within the redesigned trading workflow | [#2][2] |
 
