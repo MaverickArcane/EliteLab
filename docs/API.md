@@ -855,3 +855,12 @@ it never restricts the return cargo. The result includes up to 30 routes with
 `distance` per leg, `total_distance`, and `estimated_jumps` per leg.
 `screened`/`available` count nearby stations; coverage/errors appear in `warnings`.
 Reports are cached five minutes. No game action is performed.
+
+## Unified materials and recipe planning
+
+`preview_material_plan` (POST `/api/wishlist/preview`) accepts wishlist_add inputs
+and returns an unsaved additional entry with ingredients and combined requirements.
+`wishlist_update` (POST `/api/wishlist/update`) accepts entry `id` and replacement
+`qty` (1-10000). Existing wishlist routes now include synthesis and legacy targets
+with ordered stock allocation. `get_material_inventory` also returns atomic
+`inventory_known` and `observed_at` evidence. See [MATERIAL-PLAN.md](MATERIAL-PLAN.md).

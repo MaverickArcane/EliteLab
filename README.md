@@ -513,3 +513,9 @@ Spansh (https://spansh.co.uk) for station and system search, EDSM (https://www.e
 ## License
 
 MIT. See LICENSE.
+
+### Materials and recipes
+
+Use **Materials / Recipes** to plan synthesis, FSD injections and engineering with
+one saved wishlist and shared stock totals. [Workflow and MCP tools](docs/MATERIAL-PLAN.md).
+Dashboard workspaces group related panels; **Custom layout** preserves existing layouts.

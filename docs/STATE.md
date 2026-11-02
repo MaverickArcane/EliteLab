@@ -160,13 +160,13 @@ The tables themselves are served by `/api/recipes` and `/api/recipes/get`, never
 
 | Key | Type |
 |---|---|
-| `entries` | `[{id, kind (blueprint/experimental/unlock/material/build), key, name, module, grade, from_grade, qty, rolls, label, added, commodities?, broker?, materials, units, short, complete}]`; a `build` entry's needs are `build.progress.materials` |
+| `entries` | `[{id, kind (blueprint/experimental/unlock/material/build/synthesis), key, name, module, grade, from_grade, qty, rolls, label, added, commodities?, broker?, materials, units, short, complete}]`; a `build` entry's needs are `build.progress.materials` |
 | `needs` | `[{key, name, category, grade, family, cap, have, need, short}]`, short first |
 | `summary` | `{entries, materials, short, units_short, complete}` |
 | `trades` | `{trades[{category, ratio, same_family, give{key,name,grade,qty}, get{...}}], by_trader{type: {trades, give, get}}, unresolved[{key,name,grade,category,short,note?}], covered, reserve, search_limited, note}` |
 | `updated` | ISO timestamp of the last recompute |
 
-Raw entries persist in `data/engineering_wishlist.json`; everything else is recomputed from the materials inventory (via `get_material_inventory`) on `state.materials.inventory_version` and `state.build.progress`. The card keeps a client-only `wishlist_ui.traders` with the last `find_material_traders` result.
+Raw entries persist in `data/engineering_wishlist.json`; everything else is recomputed from the materials inventory (via `get_material_inventory`) on `state.materials.inventory_version` and `state.build.progress`. Source results are local to the unified card and invalidated on plan/stock changes.
 
 Execute `trades` in array order; intermediate receipts fund later steps. `covered`
 is the reduction of original wishlist shortfalls, excluding intermediate receipts
@@ -574,3 +574,8 @@ serialized. Build and wishlist edits publish only after their disk write succeed
 
 History responses and commander selection are documented in [HISTORY.md](HISTORY.md).
 `history.selected_commander` is browser-only state shared with the map.
+
+Wishlist entries also expose ingredient allocations (`reserved_before`, `available`,
+`allocated`, `short`), synthesis `craftable`, and `inventory_known`. Combined
+readiness is null until a Materials snapshot. Materials publishes inventory_known
+and inventory_observed_at. See [MATERIAL-PLAN.md](MATERIAL-PLAN.md).

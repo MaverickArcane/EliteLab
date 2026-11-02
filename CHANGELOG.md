@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Materials / Recipe Wishlist: saved synthesis and FSD quantities, shared stock allocation, inline quantity edits, ingredient previews, inventory and recorded-boost views, connected sourcing, MCP preview/update tools and dashboard workspace navigation. Preserves existing plans and custom layouts (#64).
+
 - Journal history: persistent SQLite index, commander-scoped credit snapshots, merit cycles and material collection locations, with MCP tools, cache recovery, indexed map history and desktop/mobile browser coverage (#7).
 
 - Mining Powerplay: buyer filters for reported acquisition/reinforcement candidates, journal-recorded merit counters and explicitly estimated mining-sale associations. Adds the `mining_run` MCP prompt and authenticated MCP integration coverage; fixes boolean query encoding.

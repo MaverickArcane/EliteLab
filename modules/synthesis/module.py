@@ -4,13 +4,12 @@ import hashlib
 import json
 import threading
 from datetime import datetime, timezone
-from pathlib import Path
 
 from elitelab.core.gamedata import MATERIAL_BY_KEY, norm
 from elitelab.core.neutron import number
 
-CATALOG = json.loads((Path(__file__).resolve().parents[2] / "elitelab/core/synthesis.json").read_text(encoding="utf8"))
-RECIPES = CATALOG["recipes"]
+from elitelab.core.synthesis_catalog import CATALOG, RECIPES
+
 MATERIAL_EVENTS = {"Materials", "MaterialCollected", "MaterialDiscarded", "MaterialTrade", "EngineerCraft",
                    "Synthesis", "TechnologyBroker", "MissionCompleted", "ScientificResearch", "EngineerContribution"}
 

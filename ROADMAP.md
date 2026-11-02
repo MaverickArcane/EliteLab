@@ -25,6 +25,8 @@ This is the proposed order of work. Linked issues hold the detailed scope and pr
 | 2 | Trading panels and workflow | Connect sell targets, cargo, market information, and the rares loop into a clear sequence of actions | [#41][41] |
 | 3 | Expected merits per sell target | Compare estimated returns and travel effort within the redesigned trading workflow | [#2][2] |
 
+Materials/recipe workflow and dashboard navigation overhaul: [#64](https://github.com/MaverickArcane/EliteLab/issues/64), implemented on the materials-workflow branch pending review/merge. See [workflow](docs/MATERIAL-PLAN.md).
+
 For #41, first define which trading workflows matter most, then ship a focused improvement to the existing panels. The wider default-panel overhaul stays on the roadmap and is split into smaller follow-up issues.
 
 For #2, validate the merit and pricing assumptions against current observations before implementing estimates. A recorded rate for one commander and power is a hint, not a universal rule. Keep missing prices, stale market information, and estimates visible to the player.
@@ -47,7 +49,7 @@ These follow the next-release work, in the proposed order below. Move an item fo
 | --- | --- | --- | --- |
 | 4 | Standalone app with Python included | Remove the separate Python installation; add tray and optional auto-start behavior in manageable steps | [#9][9] |
 | 5 | Mining module | Mining desk in #62: ring/hotspot discovery, map destinations, buyer quotes, journal production and profit ledger; real in-game validation remains | [#3][3] |
-| 6 | Persistent journal index | Implemented on the journal-index branch: SQLite history, credit snapshots, merit cycles, collection locations and MCP; pending merge and real-archive validation | [#7][7] |
+| 6 | Persistent journal index | Merged for the next release: SQLite history, credit snapshots, merit cycles, collection locations and MCP; real-archive validation remains useful | [#7][7] |
 | 7 | Frontier companion API | Investigate access and coverage when a concrete feature needs data the journal and current providers cannot supply | [#6][6] |
 
 The companion API is not assumed to be a prerequisite for every trading improvement. Likewise, the journal index is related to future server persistence, but does not settle the multiplayer architecture.

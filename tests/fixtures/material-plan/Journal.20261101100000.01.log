@@ -1,0 +1,4 @@
+{"timestamp": "2026-11-01T10:00:00Z", "event": "Commander", "Name": "Test Planner", "FID": "F-PLAN"}
+{"timestamp": "2026-11-01T10:00:01Z", "event": "LoadGame", "Commander": "Test Planner", "FID": "F-PLAN", "Credits": 28700000, "Ship": "asp"}
+{"timestamp": "2026-11-01T10:00:02Z", "event": "Location", "StarSystem": "Leesti", "StarPos": [0, 0, 0]}
+{"timestamp": "2026-11-01T10:00:03Z", "event": "Materials", "Raw": [{"Name": "carbon", "Count": 5}, {"Name": "vanadium", "Count": 5}, {"Name": "germanium", "Count": 3}, {"Name": "cadmium", "Count": 2}, {"Name": "niobium", "Count": 2}, {"Name": "iron", "Count": 20}, {"Name": "nickel", "Count": 10}, {"Name": "arsenic", "Count": 1}], "Manufactured": [], "Encoded": []}

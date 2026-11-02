@@ -1,5 +1,5 @@
 /* materials card: the inventory as the game reports it (Materials event at login, then live changes). Needs live in the
-   Engineering wishlist card; this card is just "what do I have". */
+   Materials / Recipe Wishlist card; this card is just "what do I have". */
 (() => {
   const { esc, fmt } = Lab.util;
   Lab.card({
@@ -12,7 +12,7 @@
           <select id="mat-view"><option value="all">current inventory</option><option value="gained">gained this session</option></select><button id="mat-refresh" class="mini">refresh</button></div>
         <div class="mat-status muted" role="status"></div>
         <div class="mat-list" style="max-height:320px;overflow:auto"></div>
-        <div class="note">Have is your current inventory. Gained counts pickups, mission rewards and trader receipts this game session; spending reduces Have, not Gained. A new game login starts a new session. Track requirements in the Engineering wishlist.</div>`;
+        <div class="note">Have is your current inventory. Gained counts pickups, mission rewards and trader receipts this game session; spending reduces Have, not Gained. A new game login starts a new session. Track requirements in the Materials / Recipe Wishlist.</div>`;
       const filter = () => draw(el);
       el.querySelector('#mat-q').oninput = filter; el.querySelector('#mat-cat').onchange = filter;
       el.querySelector('#mat-view').onchange = filter;

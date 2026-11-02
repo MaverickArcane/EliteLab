@@ -56,7 +56,43 @@ import {StateFeed} from './state-feed.js';
   const grid = document.getElementById('grid');
   let allCards = [];                 // manifest cards, default order
   let layout = ls.get(LAYOUT_KEY, { order: [], spans: {}, hidden: [], collapsed: [], locked: false });
+  // Preserve old synthesis-only layouts, including named/imported presets.
+  function migrateLayout(l){
+    if((l.order||[]).includes('synthesis')||Object.hasOwn(l.spans||{},'synthesis')){
+      const hidden=l.hidden||[],wasVisible=!hidden.includes('synthesis');
+      l={...l,order:[...new Set((l.order||[]).map(id=>id==='synthesis'?'wishlist':id))],
+         hidden:wasVisible?hidden.filter(id=>id!=='wishlist'):hidden};
+    }
+    return l;
+  }
+  layout=migrateLayout(layout);
   const saveLayout = () => ls.set(LAYOUT_KEY, layout);
+  const WORKSPACES = {
+    overview:{label:'Overview',description:'Ship, location and recent activity',cards:['location','ship','cargo','feed','map']},
+    materials:{label:'Materials / Recipes',description:'Saved recipes, shared materials and recorded synthesis',cards:['wishlist','build']},
+    flight:{label:'Flight',description:'Route planning and ship status',cards:['neutron','ship','location','map','feed']},
+    trade:{label:'Trading',description:'Commodity routes, cargo and carrier operations',cards:['personal','haul','party','trade','cargo','market','carrier']},
+    mining:{label:'Mining',description:'Mining sessions, locations and buyers',cards:['mining','cargo','map']},
+    powerplay:{label:'Powerplay',description:'Pledge, merits, sell targets and combat',cards:['powerplay','merits','targets','loop','combat']},
+    history:{label:'History',description:'Recorded balances, merit cycles and collection locations',cards:['history']},
+    all:{label:'Custom layout',description:'All panels enabled in your saved layout',cards:null}
+  };
+  let workspace=ls.get('workspace.v1',localStorage.getItem(LAYOUT_KEY)?'all':'overview');
+  if(!WORKSPACES[workspace])workspace='overview';
+  function workspaceView(){
+    const chosen=WORKSPACES[workspace];
+    document.getElementById('workspace-nav').innerHTML=Object.entries(WORKSPACES).map(([k,v])=>`<button data-workspace="${k}" aria-pressed="${k===workspace}">${esc(v.label)}</button>`).join('');
+    document.getElementById('workspace-heading').innerHTML=`<div><h2>${esc(chosen.label)}</h2><p>${esc(chosen.description)}</p></div><span>${chosen.cards?'Workspace view; your custom layout is preserved.':'Use Layout to choose, move or resize panels.'}</span>`;
+    // Workspace visibility is separate from saved custom layout preferences.
+    orderedCards().filter(c=>(chosen.cards?chosen.cards.includes(c.id):!layout.hidden.includes(c.id))&&!mounted[c.id]).forEach(c=>grid.appendChild(buildCard(c)));
+    Object.values(mounted).forEach(r=>{r.sec.classList.toggle('workspace-off',chosen.cards?!chosen.cards.includes(r.c.id):layout.hidden.includes(r.c.id));r.sec.style.order=chosen.cards?String(chosen.cards.indexOf(r.c.id)):'';});
+    grid.classList.toggle('workspace-focused',workspace!=='all');
+    Lab.relayout();
+  }
+  function setWorkspace(id){if(!WORKSPACES[id])return;workspace=id;ls.set('workspace.v1',id);workspaceView();}
+  document.getElementById('workspace-nav').onclick=e=>{const b=e.target.closest('[data-workspace]');if(b)setWorkspace(b.dataset.workspace);};
+  Lab.focusCard=id=>{setWorkspace(id==='wishlist'?'materials':'all');if(!mounted[id])showCard(id);const card=mounted[id]?.sec;card?.classList.remove('collapsed');card?.scrollIntoView({block:'start',behavior:'smooth'});};
+
   const isMobile = () => matchMedia('(max-width: 760px)').matches;
   const mounted = {};                // id -> { sec, off, def, body }
 
@@ -158,15 +194,15 @@ import {StateFeed} from './state-feed.js';
     const order = orderedCards().map(x => x.id); const idx = order.indexOf(id);
     const next = order.slice(idx + 1).map(i => mounted[i]).find(Boolean);
     const sec = buildCard(c); if (next) grid.insertBefore(sec, next.sec); else grid.appendChild(sec);
-    renderMenu(); Lab.relayout();
+    setWorkspace('all');renderMenu(); Lab.relayout();
   }
   function mountCards() {
     Object.keys(mounted).forEach(unmountCard); grid.innerHTML = '';
     computeCols();
-    orderedCards().forEach(c => { if (!layout.hidden.includes(c.id)) grid.appendChild(buildCard(c)); });
+    orderedCards().forEach(c => { if (workspace==='all'?!layout.hidden.includes(c.id):WORKSPACES[workspace].cards.includes(c.id)) grid.appendChild(buildCard(c)); });
     grid.classList.toggle('locked', !!layout.locked);
     grid.classList.toggle('dense', layout.pack !== false);
-    renderMenu(); Lab.relayout();
+    renderMenu(); workspaceView(); Lab.relayout();
   }
 
   // One interaction at a time. Listeners live on the window, never on the dragged element: moving a card in the DOM
@@ -255,9 +291,9 @@ import {StateFeed} from './state-feed.js';
   const ALL = () => allCards.map(c => c.id);
   const ENG = ['recipes', 'wishlist', 'farming', 'build'];       // engineering cards, hidden by the non-engineering presets
   const PRESETS = {
-    'Expedition': () => ({ order: ['neutron', 'ship', 'synthesis', 'location', 'materials', 'map', 'feed'],
-      spans: { neutron: 8, ship: 4, synthesis: 8, location: 4, materials: 4, map: 8, feed: 4 },
-      hidden: ALL().filter(id => !['neutron', 'ship', 'synthesis', 'location', 'materials', 'map', 'feed'].includes(id)) }),
+    'Expedition': () => ({ order: ['neutron', 'ship', 'wishlist', 'location', 'map', 'feed'],
+      spans: { neutron: 8, ship: 4, wishlist: 12, location: 4, map: 8, feed: 4 },
+      hidden: ALL().filter(id => !['neutron', 'ship', 'wishlist', 'location', 'map', 'feed'].includes(id)) }),
 
     'Trading': () => ({ order: ['personal', 'cargo', 'ship', 'location', 'market', 'map', 'feed'],
       spans: { personal: 12, cargo: 4, ship: 4, location: 4, market: 4, map: 8, feed: 4 },
@@ -283,7 +319,7 @@ import {StateFeed} from './state-feed.js';
   };
   const SAVED_KEY = 'layouts.v1';
   const savedLayouts = () => ls.get(SAVED_KEY, {});
-  function applyLayout(l, name) { layout = { order: l.order || [], spans: l.spans || {}, heights: l.heights || {}, hidden: l.hidden || [], collapsed: l.collapsed || [], locked: !!l.locked, pack: l.pack !== false }; saveLayout(); mountCards(); if (name) Lab.toast(`Layout: ${name}`); }
+  function applyLayout(l, name) { l=migrateLayout(l);workspace='all';ls.set('workspace.v1','all');layout = { order: l.order || [], spans: l.spans || {}, heights: l.heights || {}, hidden: l.hidden || [], collapsed: l.collapsed || [], locked: !!l.locked, pack: l.pack !== false }; saveLayout(); mountCards(); if (name) Lab.toast(`Layout: ${name}`); }
 
   // layout menu
   const menu = document.getElementById('layout-menu');
