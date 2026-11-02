@@ -72,7 +72,7 @@ try {
   const outputDir=process.env.ELITELAB_SCREENSHOT_DIR||path.join(temporary,'screenshots');fs.mkdirSync(outputDir,{recursive:true});
   for(const [name,width,height] of [['desktop',1440,1000],['mobile',390,844]]) {
     await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});await sleep(200);
-    await evaluate("document.querySelector('#card-mining').scrollIntoView();true");
+    await evaluate("scrollTo(0,0);true");
     assert.ok(await evaluate('document.body.scrollWidth')<=width,'Horizontal page overflow');
     assert.ok(await evaluate("document.querySelector('#card-mining').scrollWidth<=document.querySelector('#card-mining').clientWidth+2"),'Mining card overflow');
     const shot=await send('Page.captureScreenshot',{format:'png'});

@@ -8,7 +8,7 @@ import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'elitelab-restart-'));
+const temporary=fs.mkdtempSync(path.join(process.env.ELITELAB_TEST_TEMP_ROOT||os.tmpdir(),'elitelab-restart-'));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function freePort() {
   const server=http.createServer();
@@ -25,6 +25,9 @@ const env={...process.env,ELITELAB_SETTINGS:settings,ELITELAB_HOST:'127.0.0.1',E
   ELITELAB_JOURNAL_DIR:path.join(temporary,'journals'),ELITELAB_DATA_DIR:path.join(temporary,'data'),
   ELITELAB_INSTANCE_DIR:path.join(temporary,'instance'),ELITELAB_AUTH_TOKEN:''};
 delete env.ELITELAB_PORT;
+// Keep setup discovery and screenshots inside synthetic locations on Windows.
+if(process.platform==='win32')env.USERPROFILE=path.join(temporary,'fixture-player');
+fs.cpSync(path.join(root,'tests','fixtures','journals'),env.ELITELAB_JOURNAL_DIR,{recursive:true});
 let server,chrome,ws,serverLog='';
 function launch() {
   const windows=process.platform==='win32';
