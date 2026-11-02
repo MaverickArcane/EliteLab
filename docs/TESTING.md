@@ -51,6 +51,16 @@ When you add parsing for an event, add a realistic line here (copy a real one fr
 
 ## What is covered
 
+`test_source_setup.py` runs the real setup launcher from an extracted application
+tree whose path includes spaces and `&`, with fixture journals and temporary
+settings/data. It saves a journal choice, restarts, reuses the running instance,
+and checks preservation of settings, unknown keys and wishlist bytes. Browser
+launch is captured after a ready health response. It also checks missing Python,
+occupied ports, POSIX interpreter fallback and too-old interpreters. The normal
+Linux/Windows matrix runs it; a macOS job runs it plus the restart tests.
+Physical desktop browser launch and platform-specific live journal locations
+still need user checks; automated tests use isolated paths and fixtures.
+
 `test_material_trades.py` executes each suggested exchange against copied inventory
 and checks ratios, reserves, caps, category boundaries, acyclic ordering and net
 coverage. It covers #57's pooled donors, insufficient funds, intermediate capacity,

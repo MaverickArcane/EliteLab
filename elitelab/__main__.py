@@ -26,6 +26,8 @@ def main(argv=None):
     s.add_argument("--open-browser", action="store_true", default=argparse.SUPPRESS,   # also accepted after serve
                    help="open the dashboard in the browser once the server is listening")
     s.add_argument("--no-browser", dest="open_browser", action="store_false", default=argparse.SUPPRESS, help="keep the dashboard browser closed")
+    s.add_argument("--setup", dest="browser_path", action="store_const", const="/setup/", default="/",
+                   help="with --open-browser, open setup instead of the dashboard")
     sub.add_parser("mcp", help="MCP stdio server")
     sub.add_parser("modules", help="list modules")
     sub.add_parser("tools", help="list AI tools on a running lab")

@@ -3,9 +3,12 @@ setlocal
 title EliteLab
 cd /d "%~dp0"
 if exist "runtime\python.exe" (
-    set "lab_python=runtime\python.exe"
-    call scripts\serve-loop.cmd %*
-    goto finished
+    runtime\python.exe -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>&1
+    if not errorlevel 1 (
+        set "lab_python=runtime\python.exe"
+        call scripts\serve-loop.cmd %*
+        goto finished
+    )
 )
 python -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>&1
 if not errorlevel 1 (
@@ -22,6 +25,7 @@ if not errorlevel 1 (
 echo Python 3.10 or newer was not found.
 echo Download the EliteLab Windows bundle with Python included, then extract it fully.
 echo The GitHub source ZIP requires Python to be installed separately.
+echo Install Python 3.10 or newer from python.org, enable Add Python to PATH, then run setup again.
 pause
 exit /b 1
 

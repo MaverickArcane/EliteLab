@@ -96,6 +96,7 @@ def serve(args):
     host, port = args.host or config.HOST, args.port or config.PORT
     browser_host = "127.0.0.1" if host == "0.0.0.0" else host
     url = f"http://{browser_host}:{port}/"
+    browser_path = getattr(args, "browser_path", "/")
     guard = InstanceGuard()
     try:
         if not guard.acquire():
@@ -112,7 +113,7 @@ def serve(args):
                 if state and state.get("ready") and state.get("pid") == existing.get("pid"):
                     print(f"EliteLab is already running at {existing['url']} (PID {existing.get('pid')}). Reusing it.")
                     if args.open_browser:
-                        webbrowser.open(existing["url"])
+                        webbrowser.open(existing["url"] + browser_path.lstrip("/"))
                     return 0
                 time.sleep(.1)
             raise RuntimeError("EliteLab is already starting or stopping. Wait a moment and try again.")
@@ -127,6 +128,7 @@ def serve(args):
         print("Keep this terminal open. Ctrl+C stops EliteLab and closes its party.")
         if args.journals:
             config.JOURNAL_DIR = args.journals
-        return Core().start(host, port, open_browser=args.open_browser)
+        browser_options = {"browser_path": browser_path} if browser_path != "/" else {}
+        return Core().start(host, port, open_browser=args.open_browser, **browser_options)
     finally:
         guard.close()

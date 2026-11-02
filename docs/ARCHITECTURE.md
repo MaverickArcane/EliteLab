@@ -1,5 +1,13 @@
 # Architecture
 
+Source setup uses `Setup EliteLab.cmd` or `setup.sh`, then the existing instance
+guard and serve/restart loop. `serve --setup --open-browser` chooses `/setup/`;
+`--no-browser` keeps setup automation headless. `Core.start` accepts an optional
+`browser_path` (default `/`). Browser launch waits for a health response with
+`ready: true` and this process's PID, uses the configured auth token for that
+probe, and is cancelled on shutdown. A repeat setup launch reuses the healthy
+instance and opens its setup URL. No new module or settings contract is introduced.
+
 EliteLab is a small core plus self-contained modules. The core owns the plumbing; every feature, including reading the journal, is a module.
 
 ```

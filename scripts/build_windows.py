@@ -43,16 +43,18 @@ def build(output, runtime_zip=None):
         for folder in ("elitelab", "modules", "web"):
             shutil.copytree(ROOT / folder, app / folder,
                             ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.log"))
-        for name in ("Start EliteLab.cmd", "README.md", "LICENSE"):
+        for name in ("Start EliteLab.cmd", "Setup EliteLab.cmd", "README.md", "LICENSE"):
             shutil.copyfile(ROOT / name, app / name)
         (app / "scripts").mkdir()
         shutil.copyfile(ROOT / "scripts" / "serve-loop.cmd", app / "scripts" / "serve-loop.cmd")
         (app / "START HERE.txt").write_text(
             "EliteLab for Windows x64\n\n"
             "1. Extract the entire ZIP to a folder you can write to.\n"
-            "2. Double-click Start EliteLab.cmd. Python is included.\n"
+            "2. Double-click Setup EliteLab.cmd on first use. Python is included.\n"
             "3. Leave the terminal open while using EliteLab. Ctrl+C stops it.\n\n"
-            "If the browser does not open, visit http://127.0.0.1:8766/.\n"
+            "Choose journals in setup, Save, then Restart if requested.\n"
+            "Next time, double-click Start EliteLab.cmd.\n"
+            "If the browser does not open, use the URL printed in the terminal.\n"
             "Startup errors stay visible in the terminal.\n"
             "Your own journals are detected in Saved Games. Local settings and\n"
             "trade state use the configured data folder; settings live in AppData/EliteLab.\n"

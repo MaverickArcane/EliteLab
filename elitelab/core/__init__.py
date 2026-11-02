@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import threading
+import time
 
 from . import config
 from .bus import EventBus
@@ -115,19 +116,33 @@ class Core:
         t.daemon = True
         t.start()
 
-    def _open_browser(self, host, port):
-        """Open the dashboard shortly, unless the server has stopped by then. Returns the timer so start() can cancel it."""
+    def _open_browser(self, host, port, path="/"):
+        """Open only after this process answers a ready health probe; stop cancels pending work."""
         import webbrowser
+        from ..instance import health
         url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}/"
-        t = threading.Timer(0.1, lambda: self.ready and webbrowser.open(url))
+
+        def open_when_ready():
+            deadline = time.monotonic() + 10
+            while self.ready and time.monotonic() < deadline:
+                state = health(url, config.AUTH_TOKEN)
+                if state and state.get("ready") and state.get("pid") == os.getpid():
+                    if self.ready:
+                        webbrowser.open(url + path.lstrip("/"))
+                    return
+                time.sleep(.1)
+            if self.ready:
+                log.warning("Browser readiness check timed out; open %s%s", url, path.lstrip("/"))
+
+        t = threading.Timer(0.1, open_when_ready)
         t.daemon = True
         t.start()
         return t
 
-    def start(self, host=None, port=None, *, open_browser=False):
+    def start(self, host=None, port=None, *, open_browser=False, browser_path="/"):
         """Serve until stopped. Returns RESTART_EXIT_CODE if a restart was requested, 1 if the address could not be
         bound (after printing one line naming the host, port, their sources and the settings file), else 0.
-        With open_browser, the dashboard opens in the default browser only after a successful bind."""
+        With open_browser, browser_path opens only after this process answers a ready health probe."""
         from .. import __version__
         host, port = host or config.HOST, port if port is not None else config.PORT
         browser = None
@@ -146,9 +161,11 @@ class Core:
             print(f"Journal dir: {config.JOURNAL_DIR}  (found: {bool(journal_files())})")
             print(f"Modules: {', '.join(self.modules) or 'none'}")
             print("Ctrl+C to stop.")
+            if browser_path == "/setup/":
+                print(f"Setup: http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}/setup/")
             self.ready = True
             if open_browser:
-                browser = self._open_browser(host, port)
+                browser = self._open_browser(host, port, browser_path)
             self._server.serve()
         except KeyboardInterrupt:
             pass
