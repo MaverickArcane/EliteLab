@@ -48,3 +48,9 @@ pr-63/powerplay captures source 1555d39c0da6fd724aa9d96ae7aadd2dbece952f on Nove
 
 Command: node tests/mining-browser.mjs with ELITELAB_MINING_LIVE=1 and ELITELAB_SCREENSHOT_DIR. All browser checks passed, including Powerplay filters, quote clearing on filter changes, persistence, retry, stale responses and escaping. Desktop 1440x1000, mobile 390x844, buyers 1440x1100; mining-powerplay-buyers.png scrolls to the Powerplay controls/results.
 
+
+## Journal history, PR 65
+
+pr-65 captures source 692cc741aff0e4429d2c2b960df07fa4c9046ed4 on November 1, 2026 America/Phoenix (November 2 UTC). Local Windows Chrome, real CLI/API/SSE/journal watcher and SQLite, isolated SYNTHETIC commander journals. No external providers. This is not an in-game session or a real commander's archive.
+
+Command: node tests/history-browser.mjs with ELITELAB_SCREENSHOT_DIR. Browser checks passed: snapshot chart, merit cycles, material locations, commander switching, hostile text escaping, cache rebuilding, saved/dirty filters, live updates, errors/retry, stale responses and map remount. Desktop 1440x1100; mobile 390x844 (top of scrollable panel).
