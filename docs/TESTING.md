@@ -267,3 +267,6 @@ data, saves a new port through the setup page, clicks Restart, supervises exit
 75 and verifies navigation to the new dashboard under its real CSP headers.
 It also checks that other hostnames stay blocked and the dashboard policy
 retains same-origin connections. This runs in CI alongside the owner/crew suite.
+
+Journal index and real-CLI browser tests: see [HISTORY.md](HISTORY.md#validation).
+CI retains desktop/mobile history screenshots as an artifact.

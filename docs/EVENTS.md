@@ -159,3 +159,7 @@ MeritsGained, TotalMerits), pledge changes and location events. Recorded gains
 are distinct from the estimated temporal association with MarketSell; known
 competing earning events, travel, other sales and ambiguous cargo clear it.
 See MINING.md for the 0-12 second window, reset and partial-history rules.
+
+History indexes LoadGame credit snapshots, PowerplayMerits gains, MaterialCollected
+locations and travel evidence from source journals on demand. Bus handlers only
+bump history.version; see [HISTORY.md](HISTORY.md) for identity and coverage rules.

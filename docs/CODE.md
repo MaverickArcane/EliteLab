@@ -183,9 +183,12 @@ Route: `/api/journal` -> `get_commander_state` (the whole namespace).
 
 ## modules/history/module.py
 
-`History(core)`: `version` counter bumped on live (non-replay) `FSDJump`, `CarrierJump`, `Location`, `StartJump`, and on `replay.done`; published as `history.version` so the UI knows to refetch. `compute(days)`: scans every journal file newer than `days` (0 = all) for lines containing `"StarPos"` or `"StartJump"`; builds `systems{name: {pos, visits, first, last, star_class, carrier}}` and `route[{name, ts, event, dist}]` with consecutive duplicates collapsed; star classes come from `StartJump.StarClass` keyed by system name. Cached on `(days, tuple of (file, mtime))`.
-
-Route: `/api/history?days=` -> `get_travel_history`.
+`History(core)` publishes live version changes without bus-handler I/O. `index.py`
+maintains a normalized SQLite cache with per-file byte offsets, prefix digests,
+context and coverage counters. `analytics(q)` returns commander-scoped snapshots,
+merit cycles and material locations; `travel(q)` preserves the map contract.
+Requests serialize refresh and queries with a per-instance RLock. SQL values are
+bound, and input paths are configuration-only. See [HISTORY.md](HISTORY.md).
 
 ## modules/powerplay/module.py
 

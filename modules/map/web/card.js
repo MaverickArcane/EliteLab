@@ -90,16 +90,27 @@
       M.pts.push({ ...p, sx, sy });
     });
     const ly = niceScale(90); const sc = el.querySelector('.map-scale'); sc.style.width = (ly * M.scale) + 'px'; sc.textContent = ly + ' Ly';
-    const hs = M.history; el.querySelector('.map-stats').textContent = hs.systems.length ? `${hs.systems.length} systems · ${hs.jumps} jumps · ${fmt(hs.total_ly)} Ly travelled` : '';
+    const hs = M.history; el.querySelector('.map-stats').textContent = hs.systems.length ? `${hs.systems.length} systems · ${hs.jumps} jumps · ${fmt(hs.total_ly)} Ly travelled` : (hs.selection_required ? 'Select a commander in Journal history' : '');
+    if(hs.index?.pending_files)el.querySelector('.map-stats').textContent+=' (indexing)';
+    if(hs.truncated)el.querySelector('.map-stats').textContent+=' (latest 5,000 records)';
     ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fillText('▲ toward galactic core', 10, 16);
   }
   const hit = (x, y) => { let best = null, bd = 10; M.pts.forEach(p => { const d = Math.hypot(p.sx - x, p.sy - y); if (d < bd) { bd = d; best = p; } }); return best; };
 
+  let historyGeneration=0, historyTimer=null;
   async function loadHistory(force) {
     if (!el || !el.isConnected) return;
-    const days = el.querySelector('#map-range').value; const key = days + '|' + (Lab.state.history?.version);
-    if (!force && key === M.hKey) return; M.hKey = key;
-    try { M.history = await Lab.api('/api/history', { days }); if (!M.userMoved) fit(Lab.state, false); draw(); } catch (e) { }
+    const root=el, days=el.querySelector('#map-range').value, commander=Lab.state.history?.selected_commander||'auto';
+    const key=days+'|'+commander+'|'+Lab.state.history?.version;
+    if(!force && key===M.hKey)return;
+    if(key!==M.hKey)M.history={systems:[],route:[],jumps:0,total_ly:0};
+    M.hKey=key;const generation=++historyGeneration;clearTimeout(historyTimer);
+    try {
+      const data=await Lab.api('/api/history',{days,commander});
+      if(generation!==historyGeneration || root!==el || !root.isConnected)return;
+      M.history=data;if(!M.userMoved)fit(Lab.state,false);draw();
+      if(data.index?.pending_files)historyTimer=setTimeout(()=>loadHistory(true),500);
+    } catch(error) {if(generation===historyGeneration && root===el && root.isConnected){M.hKey=null;el.querySelector('.map-stats').textContent=error.message;}}
   }
 
   Lab.card({
@@ -138,9 +149,9 @@
       M.onRelayout = () => draw();
       addEventListener('lab:relayout', M.onRelayout);
       M.timer = setInterval(() => { if (document.visibilityState === 'visible' && canvas && canvas.isConnected) draw(); }, 120);
-      loadHistory(true);
+      historyTimer=setTimeout(()=>loadHistory(true),0);
     },
-    unmount(root) { clearInterval(M.timer); removeEventListener('lab:relayout', M.onRelayout); canvas = null; },
     render(root, S) { loadHistory(false); draw(); },
+    unmount() {clearInterval(M.timer);removeEventListener('lab:relayout',M.onRelayout);canvas=null;clearTimeout(historyTimer);++historyGeneration;M.hKey=null;el=null;},
   });
 })();

@@ -7,7 +7,7 @@ A log of why things are the way they are. Add to it when you change direction or
 - **Standard library only.** The owner wants a friend to `git clone` and double-click a `.cmd`. The MCP server is dependency-free so Claude Code can launch it with a bare `python`. Reconsider only if a feature genuinely needs it (OAuth with Frontier might).
 - **Modules talk through the store and the bus, never by import.** It keeps the dependency graph honest and lets the loader fail early. The map depends on nothing but `journal` and `history`; other modules add layers to it from their card scripts.
 - **Routes are tools.** One registration produces an HTTP endpoint, an entry in `/api/schema`, an MCP tool and a CLI target. There is no separate "AI layer" to keep in sync.
-- **Stateless journal scan per request for history.** Rescanning 49 files takes ~250 ms and is cached on file mtimes. A SQLite index is on the roadmap for analytics, not needed for the current features.
+- **Rebuildable SQLite history cache.** Selected journal evidence is indexed by filename and byte offset; unchanged files avoid content reads. Changed prefixes are verified before appending. See [HISTORY.md](HISTORY.md) for accounting and coverage limits.
 - **Replay then tail, every start.** State is rebuilt from the last 3 journal files on every launch. Simpler and more robust than persisting derived state.
 - **SSE, not WebSockets.** One-way push is all the UI needs, and the stdlib server handles long-lived GET responses fine.
 - **Layout belongs to the shell.** Cards never know their position or size. This is what made presets and saved layouts a shell-only change.

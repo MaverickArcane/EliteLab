@@ -49,7 +49,7 @@ tab alone does not stop the server. Windows dashboard and party ports are exclus
 | wishlist | Engineering wishlist: pick a blueprint (from grade X to grade Y), experimental effect, tech broker unlock or material; have/need/short against live inventory; material trader plan for the shortfalls; nearest traders | `get_engineering_wishlist`, `wishlist_add`, `wishlist_remove`, `wishlist_options`, `plan_material_trades`, `find_material_traders` |
 | farming | Where to farm: crystal shards, brain trees, Dav's Hope, Jameson, Guardian structures, HGE by state; nearest first, flagged when they cover a wishlist shortfall; map layer | `find_farm_sites` |
 | build | Pin an EDSY or Coriolis build (or SLEF JSON) and measure your ship against it: modules to buy (with credits), blueprints and grades still to roll, effects, every material vs inventory, one click to track it on the wishlist | `get_build_progress`, `pin_build`, `unpin_build`, `build_to_wishlist` |
-| history | Feeds the map | `get_travel_history` |
+| history | [Credit snapshots, merit cycles, material locations and map history](docs/HISTORY.md) | `get_journal_history`, `get_journal_index`, `rebuild_journal_index`, `get_travel_history` |
 | mining | [Nearby rings, hotspot reports, Powerplay buyer candidates, observed merits, prospector composition, refinery output and session profit](docs/MINING.md) | `get_mining_status`, `find_mining_spots`, `find_mining_buyers` |
 | map | Star map: starfield, visited systems coloured by star class, route trail, layers from other modules | `get_system_coords` |
 | core | Header, live connection, layout, Quit EliteLab | `get_state`, `get_recent_events`, `list_modules`, `list_tools`, `health`, `stop_elitelab` |

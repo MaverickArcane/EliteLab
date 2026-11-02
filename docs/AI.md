@@ -45,7 +45,9 @@ python -m elitelab call set_wishlist items='{"Datamined Wake Exceptions": 15}' l
 | `find_farm_sites` | Where to farm a material: known sites with system, body, surface coordinates and method, nearest first; `for_wishlist=true` for the current shortfalls |
 | `find_hge_systems` | Nearest populated systems in the state or allegiance a High Grade Emissions material needs (Boom, War, Outbreak, Empire...) |
 | `pin_build`, `get_build_progress`, `build_to_wishlist`, `unpin_build` | Pin an EDSY link; what the current ship still needs to match it (buy, engineer, materials, credits); push the engineering to the wishlist |
-| `get_travel_history` | Systems visited, route, star classes |
+| `get_travel_history` | Commander-scoped indexed route; inspect coverage and caps |
+| `get_journal_history` | Credit snapshots, observed merits by cycle and material collection locations |
+| `get_journal_index`, `rebuild_journal_index` | Index coverage; rebuild only on explicit request |
 | `get_system_coords` | Coordinates |
 | `get_recent_events` | Raw journal events, newest first |
 | `get_state`, `list_modules`, `list_tools`, `health` | Introspection |
@@ -108,3 +110,6 @@ unknown. See NEUTRON-HIGHWAY.md and the research guides for complete contracts.
 
 Local writes now also include build notes, saved neutron plans and journal-derived
 research/craft evidence. None of these tools controls Elite Dangerous.
+
+The `journal_history` prompt guides historical questions and coverage checks.
+See [HISTORY.md](HISTORY.md); snapshots are not profits and collections are not inventory.

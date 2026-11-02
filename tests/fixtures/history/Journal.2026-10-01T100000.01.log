@@ -1,0 +1,33 @@
+{"timestamp": "2026-10-01T10:00:00Z", "event": "LoadGame", "Commander": "Test Explorer", "FID": "F-HISTORY", "Credits": 12000000}
+{"timestamp": "2026-10-01T10:00:00Z", "event": "Location", "StarSystem": "Leesti", "StarPos": [72.75, 48.75, 68.25]}
+{"timestamp": "2026-10-01T10:00:00Z", "event": "Powerplay", "Power": "Edmund Mahon", "Merits": 1000}
+{"timestamp": "2026-10-01T10:00:00Z", "event": "PowerplayMerits", "Power": "Edmund Mahon", "MeritsGained": 100, "TotalMerits": 1100}
+{"timestamp": "2026-10-01T10:00:00Z", "event": "ApproachBody", "Body": "Leesti 1"}
+{"timestamp": "2026-10-01T10:00:00Z", "event": "MaterialCollected", "Name": "iron", "Category": "Raw", "Count": 3}
+{"timestamp": "2026-10-08T10:00:00Z", "event": "LoadGame", "Commander": "Test Explorer", "FID": "F-HISTORY", "Credits": 15800000}
+{"timestamp": "2026-10-08T10:00:00Z", "event": "Location", "StarSystem": "Leesti", "StarPos": [72.75, 48.75, 68.25]}
+{"timestamp": "2026-10-08T10:00:00Z", "event": "Powerplay", "Power": "Edmund Mahon", "Merits": 1000}
+{"timestamp": "2026-10-08T10:00:00Z", "event": "PowerplayMerits", "Power": "Edmund Mahon", "MeritsGained": 800, "TotalMerits": 1800}
+{"timestamp": "2026-10-08T10:00:00Z", "event": "ApproachBody", "Body": "Leesti 1"}
+{"timestamp": "2026-10-08T10:00:00Z", "event": "MaterialCollected", "Name": "iron", "Category": "Raw", "Count": 3}
+{"timestamp": "2026-10-15T10:00:00Z", "event": "LoadGame", "Commander": "Test Explorer", "FID": "F-HISTORY", "Credits": 14600000}
+{"timestamp": "2026-10-15T10:00:00Z", "event": "Location", "StarSystem": "Leesti", "StarPos": [72.75, 48.75, 68.25]}
+{"timestamp": "2026-10-15T10:00:00Z", "event": "Powerplay", "Power": "Edmund Mahon", "Merits": 1000}
+{"timestamp": "2026-10-15T10:00:00Z", "event": "PowerplayMerits", "Power": "Edmund Mahon", "MeritsGained": 1500, "TotalMerits": 2500}
+{"timestamp": "2026-10-15T10:00:00Z", "event": "ApproachBody", "Body": "Leesti 1"}
+{"timestamp": "2026-10-15T10:00:00Z", "event": "MaterialCollected", "Name": "iron", "Category": "Raw", "Count": 3}
+{"timestamp": "2026-10-22T10:00:00Z", "event": "LoadGame", "Commander": "Test Explorer", "FID": "F-HISTORY", "Credits": 21500000}
+{"timestamp": "2026-10-22T10:00:00Z", "event": "Location", "StarSystem": "Leesti", "StarPos": [72.75, 48.75, 68.25]}
+{"timestamp": "2026-10-22T10:00:00Z", "event": "Powerplay", "Power": "Edmund Mahon", "Merits": 1000}
+{"timestamp": "2026-10-22T10:00:00Z", "event": "PowerplayMerits", "Power": "Edmund Mahon", "MeritsGained": 2200, "TotalMerits": 3200}
+{"timestamp": "2026-10-22T10:00:00Z", "event": "ApproachBody", "Body": "Leesti 1"}
+{"timestamp": "2026-10-22T10:00:00Z", "event": "MaterialCollected", "Name": "iron", "Category": "Raw", "Count": 3}
+{"timestamp": "2026-10-29T10:00:00Z", "event": "LoadGame", "Commander": "Test Explorer", "FID": "F-HISTORY", "Credits": 28700000}
+{"timestamp": "2026-10-29T10:00:00Z", "event": "Location", "StarSystem": "Leesti", "StarPos": [72.75, 48.75, 68.25]}
+{"timestamp": "2026-10-29T10:00:00Z", "event": "Powerplay", "Power": "Edmund Mahon", "Merits": 1000}
+{"timestamp": "2026-10-29T10:00:00Z", "event": "PowerplayMerits", "Power": "Edmund Mahon", "MeritsGained": 2900, "TotalMerits": 3900}
+{"timestamp": "2026-10-29T10:00:00Z", "event": "ApproachBody", "Body": "Leesti 1"}
+{"timestamp": "2026-10-29T10:00:00Z", "event": "MaterialCollected", "Name": "iron", "Category": "Raw", "Count": 3}
+{"timestamp": "2026-10-30T10:00:00Z", "event": "StartJump", "JumpType": "Hyperspace", "StarSystem": "Zaonce", "StarClass": "K"}
+{"timestamp": "2026-10-30T10:01:00Z", "event": "FSDJump", "StarSystem": "Zaonce", "StarPos": [80, 48, 69], "JumpDist": 7.4}
+{"timestamp": "2026-10-30T10:02:00Z", "event": "MaterialCollected", "Name": "chemicalmanipulators", "Name_Localised": "Chemical Manipulators", "Category": "Manufactured", "Count": 6}
