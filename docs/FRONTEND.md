@@ -112,7 +112,7 @@ Projection: galactic X to the right, Z up (toward the core), Y ignored except in
 
 Rendering: a 2400x1400 starfield is generated once into an offscreen canvas and blitted with a slight parallax; the route trail from `/api/history` is drawn newest-brightest; then layer lines; then points sorted by layer `z`. A 120 ms interval redraws (for the ship pulse) while the tab is visible and the canvas is connected. `draw()` returns early when the canvas is under 2 px (collapsed/hidden).
 
-History fetch: `loadHistory()` refetches when the range selector or `history.version` changes.
+History fetch: `loadHistory()` refetches when range, selected commander or `history.version` changes. It repeats while indexing is pending, rejects old responses and cancels work on unmount. Journal history shares commander selection with the map.
 
 ## Styling
 

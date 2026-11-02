@@ -60,7 +60,8 @@ Selection and observations persist in `data/carrier.json`. `last_seen` is the la
 
 | Key | Type | Notes |
 |---|---|---|
-| `version` | int | bumps on live jumps; the map refetches `/api/history` when it changes |
+| `version` | int | bumps on live travel, identity, credits, collections and merits; cards refetch |
+| `index` | object | Last refresh coverage, pending/skipped/unidentified counts and parsing metrics |
 
 The data itself is not in the store (it can be thousands of rows). `GET /api/history?days=N` returns `{days, systems[{name, pos, visits, first, last, star_class, carrier}], route[{name, ts, event, dist}], total_ly, jumps}`.
 
@@ -570,3 +571,6 @@ invalidate scans by generation and identity. No credentials are persisted.
 Materials publication serializes writers separately from inventory reads and
 releases its inventory lock before synchronous callbacks. Build edits are
 serialized. Build and wishlist edits publish only after their disk write succeeds.
+
+History responses and commander selection are documented in [HISTORY.md](HISTORY.md).
+`history.selected_commander` is browser-only state shared with the map.

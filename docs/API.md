@@ -98,11 +98,16 @@ Live commander state from the journal: name, credits, ship (with loadout summary
 
 ## `get_travel_history`  -  `GET /api/history`  -  module: history
 
-Systems visited and the chronological route, with star class, visit counts, coordinates, total jumps and light-years.
+Indexed systems and chronological route for one commander, capped at the latest
+5,000 travel events. `days` is an integer from 0 (all available) to 36500, default
+30, based on event timestamps. `commander` defaults to `auto`; use returned keys
+when selection is required. Inspect `index.pending_files` and `truncated`.
 
-| Parameter | Type | Description |
-|---|---|---|
-| `days` | integer | Look back this many days; 0 = all time (default `30`) |
+Additional history tools: `get_journal_history` (GET `/api/history/analytics`, same
+arguments plus optional literal `material` substring), `get_journal_index` (GET
+`/api/history/index`, no arguments), and `rebuild_journal_index` (POST
+`/api/history/rebuild`, no arguments, explicit request only). See
+[HISTORY.md](HISTORY.md) for response semantics, limits and cache recovery.
 
 ## `get_followed_carrier`  -  `GET /api/carrier`  -  module: carrier
 
