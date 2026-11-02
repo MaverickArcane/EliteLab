@@ -52,7 +52,7 @@ def rank(discovery, rings, q, ref, radius, power, mode, commodity):
     for ring in rings:
         candidates = []
         for buyer in markets["results"]:
-            if power not in buyer["powers"] or buyer["power_state"] not in POWER_MODES[mode]:
+            if buyer["power_state"] not in POWER_MODES[mode] or (mode == "reinforcement" and buyer["controlling_power"] != power) or (mode == "acquisition" and (power not in buyer["powers"] or buyer["controlling_power"] is not None)):
                 continue
             distance = separation(ring, buyer)
             if mode == "reinforcement":

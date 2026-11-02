@@ -14,21 +14,35 @@ Spansh. The forms retain edits during live updates and save filters in this brow
    the buyer search origin; copy the system into the game's navigation search.
 3. Prospect and refine. Composition bars, produced tons, tracked unsold units,
    tons/hour and the session ledger update from journals.
-4. Open Sell your haul. Use tracked haul fills the largest remaining commodity
+4. Open Sell your haul and choose Credits only or a Powerplay goal. Use tracked haul fills the largest remaining commodity
    and its quantity. Search buyers with a radius, minimum pad and market-age
    limit. Quotes require positive prices and enough reported demand.
-5. Use a quote to estimate the tracked unsold value of that commodity. Actual
+5. Use a credit quote to estimate the tracked unsold value of that commodity. Actual
    journal sales update the ledger; a quote never becomes realized income.
 
 ## Powerplay and MCP
 
-The buyer form offers Any market, Acquisition candidates and Reinforcement
+The buyer form offers Credits only - any market, Acquisition candidates and Reinforcement
 candidates. The power defaults to My pledged power; an unknown pledge requires
-an explicit selection. Acquisition selects provider-reported Unoccupied systems
-listing that power; reinforcement selects Exploited, Fortified or Stronghold
-systems listing it. Results are rechecked locally for both power and state.
-These are candidate searches, not verified eligibility: control links, mining
-origin, local activities and other game requirements must be checked in game.
+an explicit selection. Credit mode explicitly does not validate merit eligibility,
+both above the form and on every quote. A high sale price is not a merit forecast.
+Acquisition selects provider-reported Unoccupied systems listing that power;
+reinforcement requires its actual controlling power in Exploited, Fortified or
+Stronghold systems. A power being present is not ownership: Spansh's
+`system_power` can list many powers while `system_controlling_power` names one.
+The same ownership requirement applies to mining source discovery and pairing.
+
+For merit searches, the browser requires **Cargo mined in**, separate from
+**Travel from system**. Selecting a ring prefills this source for confirmation;
+it is a user assertion, not verified cargo history. Reinforcement excludes
+different-system sales. Acquisition makes one source-system lookup, checks its
+controlling power, Fortified/Stronghold state and 20/30 Ly reach, and excludes
+known incompatible routes. Missing source/control/coordinates stay unknown.
+The API allows an omitted source but explicitly reports unknown route eligibility.
+These are candidate searches: local activities, actual cargo provenance and other
+game requirements must still be checked in game. Transferring cargo through a
+carrier can remove mining origin. For a new run, Nearby rings > Merit opportunities
+pairs a reported source with a market before you mine.
 There is no forecast of merits from sale value.
 
 The card and `get_mining_status` expose `powerplay`: `power`, `total_merits`,
@@ -46,12 +60,41 @@ freeze at Shutdown. Credits and merits are separate.
 
 All three mining tools are listed by MCP. `find_mining_buyers` accepts
 `powerplay_mode` (`none`, `acquisition`, `reinforcement`) and `power` (`pledged`
-or a known power). Results include selected power/mode, reported powers/state,
-`merit_eligibility: unverified` and `merit_estimate: null`. The `mining_run` MCP
+or a known power), and optional `mined_in`. Results include purpose/purpose_note,
+selected power/mode, reported powers/controller/state, excluded route count,
+per-quote `merit_route` status/reason, `merit_eligibility: unverified` and
+`merit_estimate: null`. The `mining_run` MCP
 prompt chains commander/pledge/status, ring discovery and buyer search while
 preserving these evidence limits. `elitelab://state/mining` exposes the same
 atomic summary used by the browser. Searches are returned to the caller;
 browser form selections and map pins remain client-local.
+
+## Full sales and attributed profit
+
+The headline is **Recorded sale proceeds**: full `MarketSell.TotalSale` receipts
+this game session, including cargo already held when the game was reloaded.
+`SellPrice * Count` is a fallback when TotalSale is absent. Invalid prices remain
+unknown, with the missing quantity disclosed. These are gross commodity sales,
+including non-mining cargo, not net mining profit or lifetime earnings.
+
+**Attributed mining net** remains conservative: only refinery units tracked in
+this session contribute, other cargo is consumed first, and recorded operating
+costs are subtracted. After reloading with 114 tons, refining 54 more and selling
+168 tons for 44,328,984 Cr, the headline shows all 44,328,984 Cr. The separate
+attributed proceeds are 14,248,602 Cr for 54 tons before costs. Prior-session
+costs/provenance are not reconstructed or silently assumed.
+
+The API adds `profit.market_sale_proceeds`, `market_sold_tons` and
+`unknown_market_sale_tons`. Existing `sale_proceeds`, `sold_tons` and `net_profit`
+retain their attributed meanings. Sale transactions now show full `credits` and
+`tons` with separate `tracked_credits` and `tracked_tons`. Receipts, attributed
+profit, unsold quotes and recorded merits are distinct; no sale creates merits.
+All counters still reset on LoadGame or changed commander.
+
+References checked 2026-11-02: [Frontier Journal manual, MarketSell section 7.6](https://hosting.zaonce.net/community/journal/v34/Journal_Manual_v34.pdf),
+[mining route conditions](https://elitecheatsheet.com/powerplay-2), and live
+Spansh station fields. The live Elysian Fields response showed Felicia Winters
+as controller while its power-presence list included Edmund Mahon and others.
 
 Ring discovery uses [Spansh bodies](https://www.spansh.co.uk/bodies); buyers use
 [Spansh stations](https://www.spansh.co.uk/stations). The nested ring and market
@@ -257,3 +300,9 @@ state resources, the planning prompt, validation errors and wrong-token denial.
 missing range, source/destination eligibility, unknown yields, matching sale evidence
 and changed price/state/pledge/freshness. The browser flow also tests map selection,
 conditional versus recorded merits, ship-swap invalidation and stale responses.
+
+`test_mining_guidance.py` covers partial attribution after reload, full sale
+receipts, malformed amounts, controller-versus-presence, separate travel/mining
+origins, acquisition boundaries and unknown evidence. The browser reproduces
+the 168-ton sale, checks credit-only guidance and source exclusions, captures
+desktop/mobile views, and rejects late buyer responses after journal changes.

@@ -144,6 +144,8 @@ def setup(core, module):
     core.http.route("/api/mining", lambda q: core.store.get(NS, "summary"),
                     tool="get_mining_status", module=module.name,
                     description="Latest prospector composition, refinery output and journal-attributed sales less recorded operating costs for the current game session. "
+                                "profit.market_sale_proceeds/market_sold_tons show full recorded commodity sale receipts, including cargo held before reload; gross receipts are not net mining profit. "
+                                "profit.sale_proceeds/sold_tons/net_profit remain conservative current-session refinery attribution; transactions include full credits plus tracked_credits/tracked_tons. "
                                 "Includes powerplay: recorded session/total merits, estimated sale_associated_merits, unassociated_merits and recent evidence. "
                                 "Merit association uses the first gain within 0-12 seconds of an unmixed tracked mining sale; it is not confirmed causation or a forecast. "
                                 "Profit can be estimated with mixed cargo; missing sale prices are flagged. Unsold quotes are excluded. "
@@ -177,11 +179,15 @@ def setup(core, module):
                     description="Compare reported sale quotes for one commodity and load among up to 100 nearby orbital station markets. "
                                 "Requires fresh prices and reported demand covering the load; excludes carriers/surface ports. "
                                 "powerplay_mode acquisition/reinforcement filters reported candidate systems for power (default pledged); none disables it. "
-                                "Returns reported powers/state and unverified merit eligibility: no control-link, mining-origin or local-activity validation. "
+                                "none returns credit quotes only, not merit recommendations. Controlled destinations require the actual controlling power, not mere power presence. "
+                                "Optional mined_in is a user-supplied cargo source distinct from ref: excludes different-system reinforcement and known incompatible acquisition routes. "
+                                "Acquisition checks reported source ownership/state and 20/30 Ly range when available; missing source evidence stays unknown. "
+                                "Returns purpose/purpose_note and per-row merit_route; all local activity and cargo provenance remain unverified. "
                                 "No predicted merits. Use get_mining_status.powerplay for recorded gains and estimated sale associations. "
                                 "Returns at most 20 quotes, sorted by estimated sale value. Quotes are not realized profit or guarantees.",
                     params={"ref": {"type": "string", "description": "Reference system; defaults to journal location"},
                             "commodity": {"type": "string", "required": True, "description": "Market display name, e.g. Platinum"},
+                            "mined_in": {"type": "string", "description": "Actual mining source, up to 160 characters; user supplied, not proof of provenance. Never infer from current ref."},
                             "quantity": {"type": "integer", "default": 1, "description": "Tons to sell, up to 1000000"},
                             "radius": {"type": "number", "default": 100, "description": "Search radius in Ly, up to 200"},
                             "hours": {"type": "number", "default": 24, "description": "Maximum market age in hours, up to 72"},
