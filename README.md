@@ -36,3 +36,8 @@ synthetic commander journals and financial data, live Spansh rings/markets.
 The demo produces 54t, sells 8t for 2,224,000 Cr, records 29,400 Cr costs and
 2,194,600 Cr net. Quotes value unsold units separately and change with time.
 This is local integration evidence, not a real in-game mining session.
+
+## Plain UI copy, PR 63
+
+pr-63/plain-copy captures source a2a64c6e2c38591450a902276e231ed424a92e4f after removing promotional headings. Local Chrome browser run; synthetic commander journals AND synthetic Spansh responses. Desktop 1440px, mobile 390px, buyers 1440px. Command: node tests/mining-browser.mjs. All browser checks passed.
+
