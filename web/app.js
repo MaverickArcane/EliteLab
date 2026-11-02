@@ -419,8 +419,12 @@ import {StateFeed} from './state-feed.js';
       banner.className = 'journal-warning'; banner.setAttribute('role', 'status');
       grid.before(banner);
     }
-    banner.textContent = `No journal files found in ${health.journal_dir}. Start Elite Dangerous, or set ELITELAB_JOURNAL_DIR to your journal folder and restart EliteLab. In Docker, mount the folder read-only at /journals.`;
+    const link = document.createElement('a'); link.href = '/setup/'; link.textContent = 'Open setup';
+    banner.replaceChildren(
+      `No journal files found in ${health.journal_dir}. `, link,
+      ' to choose your journal folder. In Docker, mount the folder read-only at /journals.');
   }
+  Lab.checkHealth = checkHealth;
   const healthTimer=setInterval(() => checkHealth().catch(() => {}), 30000);
   document.getElementById('app-quit').onclick=async e=>{
     const button=e.currentTarget;button.disabled=true;

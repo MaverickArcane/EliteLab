@@ -3,17 +3,20 @@ setlocal
 title EliteLab
 cd /d "%~dp0"
 if exist "runtime\python.exe" (
-    "runtime\python.exe" -m elitelab serve --open-browser %*
+    set "lab_python=runtime\python.exe"
+    call scripts\serve-loop.cmd %*
     goto finished
 )
 python -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>&1
 if not errorlevel 1 (
-    python -m elitelab serve --open-browser %*
+    set "lab_python=python"
+    call scripts\serve-loop.cmd %*
     goto finished
 )
 py -3 -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>&1
 if not errorlevel 1 (
-    py -3 -m elitelab serve --open-browser %*
+    set "lab_python=py -3"
+    call scripts\serve-loop.cmd %*
     goto finished
 )
 echo Python 3.10 or newer was not found.

@@ -4,6 +4,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 os.environ['ELITELAB_OFFLINE'] = '1'
 os.environ['ELITELAB_JOURNAL_DIR'] = str(ROOT / 'tests' / 'fixtures' / 'journals')
+SETTINGS = os.path.join(tempfile.mkdtemp(prefix='elitelab-browser-settings-'), 'settings.json')
+os.environ['ELITELAB_SETTINGS'] = SETTINGS
 os.environ['ELITELAB_DATA_DIR'] = tempfile.mkdtemp(prefix='elitelab-browser-data-')
 # A fixed party identity keeps equal-share remainders (lowest id first) deterministic.
 if os.environ.get('ELITELAB_TEST_PARTY_ID'):
@@ -27,4 +29,5 @@ core.http.route('/audit/ship', ship, method='POST')
 core.http.route('/audit/identity', lambda q: {'id': core.modules['party'].party.member_id, 'secret': core.modules['party'].party.secret})
 server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(core))
 print(server.server_port, flush=True)
+print(SETTINGS, flush=True)
 server.serve_forever()

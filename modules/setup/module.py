@@ -1,0 +1,229 @@
+"""setup module: read, save and restart for the first-run setup page.
+
+State ``setup``: journal_found, journal_dir, restart_required, settings_path.
+Saving only writes the settings file; nothing is applied until the lab restarts.
+"""
+import errno
+import os
+import socket
+
+from elitelab.core import config, journals
+from elitelab.core.watcher import journal_files
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+NS = "setup"
+KEYS = ("journal_dir", "port", "host", "data_dir", "browser")      # reported
+SAVEABLE = ("journal_dir", "port", "host", "data_dir")               # browser names an executable: file or env only
+PATH_KEYS = ("journal_dir", "data_dir")
+ENV_NAMES = {"journal_dir": "ELITELAB_JOURNAL_DIR", "port": "ELITELAB_PORT", "host": "ELITELAB_HOST",
+             "data_dir": "ELITELAB_DATA_DIR"}
+FLAG_NAMES = {"journal_dir": "--journals", "port": "--port", "host": "--host"}
+HOST_MESSAGE = "host must be an IPv4 address such as 127.0.0.1 or 0.0.0.0, or a host name such as localhost."
+NOT_ALLOWED = "Only journal_dir, port, host and data_dir can be saved here."
+BROWSER_NOT_ALLOWED = "browser can only be set in the settings file or with ELITELAB_BROWSER."
+
+
+def _running():
+    return {"journal_dir": config.JOURNAL_DIR, "port": config.PORT, "host": config.HOST,
+            "data_dir": config.DATA_DIR, "browser": config.BROWSER}
+
+
+def _home():
+    return os.path.expanduser("~")
+
+
+NETWORK_PATH = "Network paths are not supported. Choose a folder on this computer."
+
+
+def _norm(path):
+    return os.path.abspath(os.path.expanduser(str(path)))
+
+
+def _typed(path):
+    """Like _norm for a folder the user typed: refuse UNC and network paths before any filesystem call."""
+    expanded = os.path.expanduser(str(path))
+    if expanded.replace("/", "\\").startswith("\\\\"):
+        raise ValueError(NETWORK_PATH)
+    norm = _norm(path)
+    if norm.replace("/", "\\").startswith("\\\\") or os.path.splitdrive(norm)[0].replace("/", "\\").startswith("\\\\"):
+        raise ValueError(NETWORK_PATH)
+    return norm
+
+
+def _clean(key, value):
+    """Return the value as it will be stored, or raise ValueError with a plain sentence."""
+    if key == "port":
+        if isinstance(value, bool) or not isinstance(value, (int, str)):
+            raise ValueError("port must be a whole number between 1024 and 65535.")
+        try:
+            port = int(str(value).strip())
+        except ValueError:
+            raise ValueError("port must be a whole number between 1024 and 65535.") from None
+        if not 1024 <= port <= 65535:
+            raise ValueError("port must be between 1024 and 65535.")
+        return port
+    if key == "host":
+        host = value.strip() if isinstance(value, str) else ""
+        if not config.valid_host(host):
+            raise ValueError(HOST_MESSAGE)
+        return host
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{key} must be a folder path and cannot be empty.")
+    return _typed(value.strip())
+
+
+def _check_listen(host, port):
+    """Raise a plain ValueError when the lab could not listen on (host, port) after a restart."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        if os.name != "nt":
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)    # as the real server does
+        s.bind((host, port))
+    except OSError as e:
+        if e.errno in (errno.EADDRINUSE, getattr(errno, "WSAEADDRINUSE", None)):
+            raise ValueError(f"Port {port} is already in use on {host}.") from None
+        raise ValueError(f"EliteLab could not listen on {host}:{port} ({e.strerror or e}).") from None
+    finally:
+        s.close()
+
+
+def _source_warning(key):
+    source = config.SOURCES.get(key)
+    if source == "env" and key in ENV_NAMES:
+        return f"{ENV_NAMES[key]} is set, so this value will not apply until it is unset."
+    if source == "flag" and key in FLAG_NAMES:
+        return f"The {FLAG_NAMES[key]} flag is set, so this value will not apply until it is removed."
+    return None
+
+
+class Setup:
+    def __init__(self, core):
+        self.core = core
+        self.publish()
+
+    def _pending(self):
+        saved = config.load_settings(config.SETTINGS_PATH)
+        running = _running()
+        out = {}
+        for key in KEYS:
+            if key in saved and key in SAVEABLE:
+                try:
+                    value = _clean(key, saved[key])
+                except ValueError:
+                    continue
+                if value != running[key]:
+                    out[key] = value
+        return out
+
+    @staticmethod
+    def _saved_valid(saved):
+        out = {}
+        for key in SAVEABLE:
+            if key in saved:
+                try:
+                    out[key] = _clean(key, saved[key])
+                except ValueError:
+                    pass
+        return out
+
+    def publish(self):
+        self.core.store.update(NS, {"journal_found": bool(journal_files()), "journal_dir": config.JOURNAL_DIR,
+                                    "restart_required": bool(self._pending()), "settings_path": config.SETTINGS_PATH})
+
+    def status(self, q=None):
+        pending = self._pending()
+        here = _norm(config.JOURNAL_DIR)
+        found = journals.candidates(_home(), extra=[config.JOURNAL_DIR])
+        for c in found:
+            c["selected"] = os.path.normcase(_norm(c["path"])) == os.path.normcase(here)
+        return {"path": config.SETTINGS_PATH, "exists": os.path.exists(config.SETTINGS_PATH),
+                "values": _running(), "sources": {k: config.SOURCES.get(k, "default") for k in KEYS},
+                "pending": pending, "restart_required": bool(pending),
+                "journal_found": bool(journal_files()), "journal_candidates": found}
+
+    def save(self, q):
+        q = q or {}
+        if "browser" in q:
+            raise ValueError(BROWSER_NOT_ALLOWED)
+        known = {k: q[k] for k in SAVEABLE if k in q}
+        extra = [k for k in q if k not in SAVEABLE and not k.startswith("_")]
+        if extra:
+            raise ValueError(NOT_ALLOWED)
+        clean = {k: _clean(k, v) for k, v in known.items()}
+        saved_now = config.load_settings(config.SETTINGS_PATH)
+        running = _running()
+        changes, warnings = {}, []
+        for key, value in clean.items():
+            try:
+                before = _clean(key, saved_now[key]) if key in saved_now else running[key]
+            except ValueError:
+                before = None
+            if value == before:
+                continue
+            changes[key] = value
+            if key in PATH_KEYS and not os.path.isdir(value):
+                warnings.append(f"Folder does not exist yet: {value}")
+            warning = _source_warning(key)
+            if warning:
+                warnings.append(warning)
+        if "host" in changes or "port" in changes:
+            target = {**running, **self._saved_valid(saved_now), **changes}
+            if (target["host"], target["port"]) != (config.HOST, config.PORT):
+                # on the running port this lab holds the socket itself, so only check that the address is usable
+                _check_listen(target["host"], 0 if target["port"] == config.PORT else target["port"])
+        if "port" in changes and changes["port"] != config.PORT:
+            # the launchers open the URL the server really bound; only the MCP proxy's address can go stale
+            warnings.append("ELITELAB_URL (where the MCP proxy finds the lab, default http://127.0.0.1:8766) "
+                            f"does not follow this change; set it to port {changes['port']} if you use it.")
+        if changes:
+            try:
+                config.save_settings(changes, config.SETTINGS_PATH)
+            except OSError as e:
+                raise ValueError(f"Could not write the settings file at {config.SETTINGS_PATH}: {e.strerror or e}") from None
+        self.publish()
+        out = self.status()
+        out["saved"] = list(changes)
+        out["warnings"] = warnings
+        return out
+
+    def inspect(self, q):
+        raw = (q or {}).get("path")
+        if not isinstance(raw, str) or not raw.strip():
+            raise ValueError("path is required.")
+        path = _typed(raw.strip())
+        return {"path": path, **journals.describe(path)}
+
+    def restart(self, q=None):
+        self.core.request_restart()
+        return {"restarting": True, "exit_code": config.RESTART_EXIT_CODE}
+
+
+def setup(core, module):
+    s = Setup(core)
+    core.http.mount("/setup/", os.path.join(HERE, "web", "page"))
+    core.http.route("/api/setup", s.status, tool="get_setup", module=module.name,
+                    description="First-run setup state: the settings file path, the values the lab is running with and where each "
+                                "came from, values saved but not yet applied (pending), whether a restart is needed, whether "
+                                "journal files were found, and candidate Elite Dangerous journal folders with journal counts.")
+    core.http.route("/api/setup", s.save, tool="save_setup", method="POST", module=module.name,
+                    description="Save settings to the settings file. Only journal_dir, port, host and data_dir are accepted; "
+                                "other keys are rejected. Nothing is applied live: changed values take effect after "
+                                "restart_elitelab. A port already in use or an address the lab could not "
+                                "listen on is refused. Returns the same shape as get_setup plus saved and warnings (for "
+                                "example an environment variable or flag that will override the saved value).",
+                    params={"journal_dir": {"type": "string", "description": "Folder holding Journal.*.log files"},
+                            "port": {"type": "integer", "description": "HTTP port, 1024 to 65535; refused when already in use"},
+                            "host": {"type": "string", "description": "Bind address: an IPv4 address such as 127.0.0.1 (this machine only) or "
+                                                                     "0.0.0.0 (all interfaces), or a host name such as localhost. "
+                                                                     "Refused when the lab could not listen there."},
+                            "data_dir": {"type": "string", "description": "Folder for the lab's own files such as wishlists"}})
+    core.http.route("/api/setup/journals", s.inspect, tool="inspect_journal_folder", method="POST", module=module.name,
+                    description="Check one folder for Elite Dangerous journals without saving anything: returns the "
+                                "normalised path, whether it exists, how many Journal.*.log files it holds and the newest "
+                                "one's timestamp. Use it to test a journal_dir before save_setup. "
+                                "Network (UNC) paths are refused.",
+                    params={"path": {"type": "string", "required": True,
+                                     "description": "Folder to check; ~ is expanded and relative paths are made absolute"}})
+    core.http.route("/api/restart", s.restart, tool="restart_elitelab", method="POST", module=module.name,
+                    description="Restart EliteLab so saved settings apply. The process exits with status 75 and a supervisor "
+                                "(the launcher or a service wrapper) must start it again; without one the lab simply stops.")

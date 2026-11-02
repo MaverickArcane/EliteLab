@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Setup: a settings file read by the server, journal folder detection for Windows, Steam Proton and Mac, a first-run page at /setup/ with a reserved Connections section, and a restart that the start scripts honour (exit status 75). Without `ELITELAB_AUTH_TOKEN`, a POST whose Host header is not an IP address, `localhost`, the bind host, this machine's name or a name in the new `ELITELAB_ALLOWED_HOSTS` now gets 403, on every bind including 0.0.0.0. `--host` and `--port` now reach the running config. `ELITELAB_HOST=""` (and an empty `ELITELAB_PORT`) now means the default. The setup page has a Test button for a typed journal folder, and saving refuses a host or port the lab could not start with.
+
 - Add Trading (`find_personal_trade_routes`, `/api/personal/routes`): search
   Spansh station markets for one-way trades or exact round trips, with
   independent return cargo and no fleet carriers. Searches explain a destination

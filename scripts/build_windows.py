@@ -45,6 +45,8 @@ def build(output, runtime_zip=None):
                             ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.log"))
         for name in ("Start EliteLab.cmd", "README.md", "LICENSE"):
             shutil.copyfile(ROOT / name, app / name)
+        (app / "scripts").mkdir()
+        shutil.copyfile(ROOT / "scripts" / "serve-loop.cmd", app / "scripts" / "serve-loop.cmd")
         (app / "START HERE.txt").write_text(
             "EliteLab for Windows x64\n\n"
             "1. Extract the entire ZIP to a folder you can write to.\n"
@@ -53,7 +55,7 @@ def build(output, runtime_zip=None):
             "If the browser does not open, visit http://127.0.0.1:8766/.\n"
             "Startup errors stay visible in the terminal.\n"
             "Your own journals are detected in Saved Games. Local settings and\n"
-            "trade state are saved in the data folder beside the launcher.\n"
+            "trade state use the configured data folder; settings live in AppData/EliteLab.\n"
             "For updates, close EliteLab and keep your existing data folder.\n\n"
             f"Includes CPython {PYTHON_VERSION}; see runtime/LICENSE.txt.\n",
             encoding="ascii")

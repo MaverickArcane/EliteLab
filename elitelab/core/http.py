@@ -1,11 +1,14 @@
 """HTTP layer: route registry (self-describing, doubles as the AI tool list),
 Server-Sent Events for live state, and static files for the shell and modules.
 """
+import functools
 import json
 import logging
 import hashlib
 import hmac
+import ipaddress
 import secrets
+import socket
 from http.cookies import SimpleCookie
 import mimetypes
 import os
@@ -19,7 +22,61 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import config
 
+LOOPBACK_NAMES = ("127.0.0.1", "localhost", "::1")
+
+
+@functools.lru_cache(maxsize=1)
+def machine_name():
+    """This machine's own name, lower-cased; read on first use and cached. gethostname() never touches DNS
+    (getfqdn() would, and can block for seconds), so a fully qualified or MagicDNS name goes in ELITELAB_ALLOWED_HOSTS."""
+    return socket.gethostname().lower().rstrip(".")
+
+
+def host_name(header):
+    """The name part of a Host header, lower-cased, without the port or IPv6 brackets. None when malformed."""
+    h = (header or "").strip().lower()
+    if h.startswith("["):
+        end = h.find("]")
+        rest = h[end + 1:] if end > 0 else "x"
+        if rest and not (rest.startswith(":") and rest[1:].isdigit()):
+            return None
+        name = h[1:end]
+        try:
+            ipaddress.IPv6Address(name)
+        except ValueError:
+            return None
+        return name
+    if h.count(":") > 1:
+        return None                     # a bare IPv6 address is not a valid Host header
+    name, _, port = h.partition(":")
+    if not name or (_ and not port.isdigit()):
+        return None
+    return name.rstrip(".")
+
+
+def host_allowed(name):
+    """DNS rebinding always needs a DNS name, so IP literals are safe; names must be ones this lab is known by."""
+    try:
+        ipaddress.ip_address(name)
+        return True
+    except ValueError:
+        pass
+    bind = config.HOST.lower().rstrip(".")
+    return (name in LOOPBACK_NAMES or (bind != "0.0.0.0" and name == bind)
+            or name == machine_name() or name in config.ALLOWED_HOSTS)
+
 MAX_BODY = 1_000_000      # bytes; the largest legitimate POST is a wishlist
+LOCAL_ONLY_POSTS = ("/api/setup", "/api/setup/journals", "/api/restart")   # without a token, loopback peers only
+
+
+def is_loopback_peer(address):
+    """True for a loopback peer address, including an IPv4-mapped one (::ffff:127.0.0.1)."""
+    try:
+        ip = ipaddress.ip_address(address.split("%", 1)[0])
+    except (ValueError, AttributeError):
+        return False
+    mapped = getattr(ip, "ipv4_mapped", None)
+    return ip.is_loopback or bool(mapped and mapped.is_loopback)
 
 
 class Route:
@@ -115,6 +172,13 @@ def make_handler(core):
         def _check_mutation(self):
             origin = self.headers.get("Origin")
             host = self.headers.get("Host", "")
+            # DNS rebinding, on every bind: without a token only known names may be the Host (a token or cookie is proof enough)
+            if not config.AUTH_TOKEN:
+                name = host_name(host)
+                if name is None:
+                    return 403, "the Host header is missing or malformed"
+                if not host_allowed(name):
+                    return 403, f"requests for host {name} are not accepted; set ELITELAB_ALLOWED_HOSTS={name} to allow it"
             # same host over http or https (a reverse proxy may terminate TLS in front of us)
             if ((origin is not None and origin not in ("http://" + host, "https://" + host))
                     or self.headers.get("Sec-Fetch-Site") == "cross-site"):
@@ -158,6 +222,10 @@ def make_handler(core):
                     self.close_connection = True
                     return self._send(401, {"error": "authentication required"})
                 if method == "POST":
+                    # defence in depth for the setup routes: a LAN client passes the Host rule with an IP literal
+                    if path in LOCAL_ONLY_POSTS and not config.AUTH_TOKEN and not is_loopback_peer(self.client_address[0]):
+                        self.close_connection = True  # rejected body has not been consumed
+                        return self._send(403, {"error": "Setup changes require a local connection or configured authentication."})
                     error = self._check_mutation()
                     if error:
                         self.close_connection = True  # rejected body has not been consumed
@@ -179,6 +247,8 @@ def make_handler(core):
                 if method != "GET":
                     return self._send(405, {"error": "method not allowed"})
                 for prefix, directory in router.static.items():
+                    if path == prefix.rstrip("/"):            # /setup -> /setup/ so the page's relative URLs resolve
+                        return self._send(302, b"", "text/plain; charset=utf-8", {"Location": prefix})
                     if path.startswith(prefix):
                         return self._static(directory, path[len(prefix):])
                 return self._static(config.WEB_DIR, path)
@@ -249,13 +319,21 @@ class HttpServer:
     def __init__(self, core):
         self.core = core
         self.srv = None
+        self._stop_requested = False
+        self._lock = threading.Lock()
 
     def bind(self, host, port):
         self.srv = ExclusiveHTTPServer((host, port), make_handler(self.core))
 
-    def serve(self, host, port, *, open_browser=False):
+    def serve(self, host=None, port=None, *, open_browser=False):
+        """Run the bound server until stop(). A stop requested before this call returns at once."""
         if self.srv is None:
             self.bind(host, port)
+        with self._lock:
+            if self._stop_requested:
+                self._stop_requested = False
+                self.srv.server_close()
+                return
         try:
             if open_browser:
                 browser_host = "127.0.0.1" if host == "0.0.0.0" else host
@@ -273,5 +351,8 @@ class HttpServer:
             self.srv.server_close()
 
     def stop(self):
-        if self.srv:
-            threading.Thread(target=self.srv.shutdown, daemon=True).start()
+        with self._lock:
+            if not self.srv:
+                self._stop_requested = True
+                return
+        threading.Thread(target=self.srv.shutdown, daemon=True).start()

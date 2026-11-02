@@ -23,6 +23,8 @@ modules/mining/
 }
 ```
 
+A module may set `"cards": []` when it has no card, and may serve its own static folder with `core.http.mount(prefix, directory)` (the `setup` module mounts `/setup/` this way).
+
 `requires` are namespaces (not module names). `provides` is the namespace you will write. `order` only affects card placement when dependencies don't force an order. `span` is grid columns out of 12.
 
 ## 2. Python

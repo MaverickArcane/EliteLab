@@ -50,7 +50,7 @@ class CoreStartupTests(unittest.TestCase):
         core=Core()
         with patch.object(core._server,'bind',side_effect=OSError('busy')), patch(
                 'elitelab.core.load_all') as load, patch.object(core.watcher,'start') as watch:
-            with self.assertRaises(OSError):core.start('127.0.0.1',19000)
+            self.assertEqual(core.start('127.0.0.1',19000), 1)
             load.assert_not_called();watch.assert_not_called()
 
     def test_shutdown_runs_party_cleanup(self):
