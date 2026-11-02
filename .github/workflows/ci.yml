@@ -85,6 +85,17 @@ jobs:
           path: mining-screenshots/
           if-no-files-found: ignore
 
+      - name: Rare buying workflow and market evidence
+        env:
+          ELITELAB_SCREENSHOT_DIR: rares-screenshots
+        run: node tests/rares-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rares-browser-screenshots
+          path: rares-screenshots/
+          if-no-files-found: ignore
+
       - name: Indexed journal history and responsive card
         env:
           ELITELAB_SCREENSHOT_DIR: history-screenshots

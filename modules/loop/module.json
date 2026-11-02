@@ -6,6 +6,6 @@
   "provides": ["loop"],
   "order": 50,
   "cards": [
-    { "id": "loop", "title": "Rares loop", "span": 4, "script": "card.js", "order": 44 }
+    { "id": "loop", "title": "Rares loop", "span": 12, "script": "card.js", "order": 44 }
   ]
 }

@@ -68,24 +68,30 @@
   });
 
   Lab.card({
-    id: 'cargo', requires: ['journal'],
-    render(el, S) {
-      const j = S.journal || {}, c = j.cargo || { items: [] }, cap = j.cargo_capacity;
-      el.innerHTML = `
-        <div class="muted" style="font-size:12px">${fmt(c.count)} / ${fmt(cap)} t</div>
-        <div class="bar"><i style="width:${cap ? Math.min(100, 100 * (c.count || 0) / cap) : 0}%"></i></div>
-        <table style="margin-top:8px"><tbody>${c.items.length ? c.items.map(i => `<tr><td>${esc(i.name)} ${i.rare ? '<span class="tag rare">rare</span>' : ''} ${i.stolen ? '<span class="tag bad">stolen</span>' : ''}</td><td class="num">${fmt(i.count)}</td></tr>`).join('') : '<tr><td class="muted">Empty hold</td></tr>'}</tbody></table>
-        <div class="note">Anything that rode on a fleet carrier loses its Powerplay merit eligibility.</div>`;
-    },
+    id: 'cargo', requires: ['journal','loop'],
+    render(el,S) {
+      const j=S.journal||{}, c=j.cargo||{}, items=Array.isArray(c.items)?c.items.slice(0,256):[], w=S.loop?.workflow||{
+        cargo_known:Number.isInteger(c.count)&&c.count>=0&&Array.isArray(c.items)&&c.items.every(i=>i&&Number.isInteger(i.count)&&i.count>=0)&&c.items.reduce((n,i)=>n+i.count,0)===c.count,
+        free_capacity:null
+      };
+      el.innerHTML=`<div class="big">${w.cargo_known?fmt(c.count)+' t aboard':'Cargo unknown'}</div><p class="note">Capacity: ${j.cargo_capacity==null?'unknown':fmt(j.cargo_capacity)+' t'} | Free: ${w.free_capacity==null?'unknown':fmt(w.free_capacity)+' t'}</p>
+        <table><thead><tr><th>Commodity</th><th class="num">Tons</th></tr></thead><tbody>${(w.cargo_known?items:[]).filter(i=>i&&typeof i==='object').map(i=>`<tr><td>${esc(i.name||i.key||'Unknown commodity')} ${i.rare?'<span class="tag rare">rare</span>':''} ${i.stolen?'<span class="tag bad">stolen</span>':''}</td><td class="num">${Number.isFinite(i.count)?fmt(i.count):'Unknown'}</td></tr>`).join('')||`<tr><td colspan="2">${w.cargo_known?'Empty hold':'Waiting for a cargo snapshot from the game.'}</td></tr>`}</tbody></table>
+        <p class="note">Cargo aboard is separate from purchase history. Powerplay rewards require eligible origin and local activity; carrier transfers can remove mining provenance.</p>`;
+    }
   });
-
   Lab.card({
-    id: 'market', requires: ['journal'],
-    render(el, S) {
-      const m = (S.journal || {}).market || {};
-      el.innerHTML = `<div class="muted" style="font-size:12px">${m.station ? `${esc(m.station)}, ${esc(m.system)}` : 'Open a commodities market in game to populate.'}</div>
-        <table><thead><tr><th>Rare</th><th class="num">Buy</th><th class="num">Stock</th></tr></thead><tbody>${(m.rares_in_stock || []).length ? m.rares_in_stock.map(r => `<tr><td>${esc(r.name)}</td><td class="num">${fmt(r.buy)}</td><td class="num">${fmt(r.stock)}</td></tr>`).join('') : `<tr><td class="muted" colspan="3">No rares in stock here.</td></tr>`}</tbody></table>`;
-    },
+    id:'market', requires:['journal','loop'],
+    render(el,S) {
+      const local=S.journal?.market||{}, m=S.loop?.workflow?.market||{
+        ...local,status:local.station?'undated':'not_recorded',message:'Arrival evidence unavailable. Open the market in game and verify stock before buying.',
+        rares:(Array.isArray(local.rares_in_stock)?local.rares_in_stock:[]).slice(0,256).filter(r=>r&&typeof r==='object').map(r=>({
+          name:r.name,buy:Number.isFinite(r.buy)&&r.buy>=0?r.buy:null,stock:Number.isFinite(r.stock)&&r.stock>=0?r.stock:null
+        }))
+      }, current=m.status==='current_snapshot', rows=m.rares||[];
+      el.innerHTML=`<b>${current?'Rare stock snapshot at this station':m.status==='not_recorded'?'No market recorded':'Previous or unverified market snapshot'}</b>
+        <p class="note" data-market-evidence>${esc(m.message||'Waiting for local market evidence.')}</p>
+        <p>${esc(m.station||'Unknown station')}${m.system?', '+esc(m.system):''}</p><p class="note">Recorded: ${esc(m.timestamp||'unknown')}. These are buy prices and reported stock, not sell quotes.</p>
+        <table><thead><tr><th>Rare</th><th class="num">Buy / t</th><th class="num">Stock</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.name)}</td><td class="num">${r.buy==null?'Unknown':fmt(r.buy)+' Cr'}</td><td class="num">${r.stock==null?'Unknown':fmt(r.stock)+' t'}</td></tr>`).join('')||`<tr><td colspan="3">${current?'No rares with positive stock in this snapshot.':'No usable rare-stock entries. Open the market in game to refresh.'}</td></tr>`}</tbody></table>`;
+    }
   });
-
 })();

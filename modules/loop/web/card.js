@@ -1,42 +1,65 @@
-/* loop card: server computes the loop; this renders it, adds manual ticks (localStorage) and a map layer. */
+/* Rare buying workflow; visit marks and destination selection stay local. */
 (() => {
-  const { esc, inaraSys, ls } = Lab.util;
-  // Manual overrides: {system: {done: bool, tons: n}}. An override only applies while the tons of that
-  // station's rares in the hold are unchanged, so selling (or buying) naturally clears it.
-  const manual = () => ls.get('loopManual', {});
-  const effectiveDone = (s, m) => { const o = m[s.system]; return (o && typeof o === 'object' && o.tons === s.tons) ? o.done : (o === true ? true : s.done); };
-  Lab.card({
-    id: 'loop', requires: ['loop', 'journal'],
-    header(h) {
-      h.innerHTML = `<select class="mini" id="loop-pick"></select> <button class="mini" id="loop-reset">reset ticks</button>`;
-      h.querySelector('#loop-reset').onclick = () => { ls.set('loopManual', {}); Lab.emit('loop'); };
-      h.querySelector('#loop-pick').onchange = e => Lab.post('/api/loop/select', { id: e.target.value });
+  const {esc,fmt,ls,inaraSt}=Lab.util, storage='elitelab.rares.visits.v2';
+  const id=s=>JSON.stringify([s.system,s.station]);
+  const scope=S=>JSON.stringify([S.journal?.cmdr||'',S.loop?.id||'']);
+  const signature=S=>JSON.stringify(S.journal?.cargo||null);
+  const marks=()=>{const m=ls.get(storage,{});return m&&typeof m==='object'&&!Array.isArray(m)?m:{};};
+  const save=m=>ls.set(storage,Object.fromEntries(Object.entries(m).slice(-128)));
+  function rows(S) {
+    const m=marks(), prefix=scope(S), sig=signature(S), known=S.loop?.workflow?.cargo_known;
+    return (S.loop?.stations||[]).map(s=>{const v=m[JSON.stringify([prefix,id(s)])], manual=known&&v?.signature===sig&&typeof v.done==='boolean';
+      return {...s,done:manual?v.done:!!s.in_hold,manual:!!manual};
+    }).sort((a,b)=>Number(a.done)-Number(b.done)||(a.dist??Infinity)-(b.dist??Infinity));
+  }
+  function prune(S) {
+    if(!S.loop?.workflow)return;
+    const m=marks(), prefix=scope(S), sig=signature(S);let changed=false;
+    for(const k of Object.keys(m)) {
+      try {if(JSON.parse(k)[0]===prefix&&(!S.loop?.workflow?.cargo_known||m[k]?.signature!==sig)){delete m[k];changed=true;}}
+      catch {delete m[k];changed=true;}
+    }
+    if(changed)save(m);
+  }
+  const select=s=>Lab.set('loop',{ui_selected:{system:s.system,station:s.station}});
+  Lab.card({id:'loop',requires:['loop','journal'],
+    mount(el) {
+      el.classList.add('rares-desk');el._rares={pending:false,dead:false};
+      el.innerHTML=`<div class="row"><label>Rare loop <select data-rares-loop></select></label><button class="mini" data-rares-reset>Reset my visit marks</button></div><p role="status" class="note" data-rares-status></p><div data-rares-next class="rares-next"></div>
+        <div class="row"><button class="mini" data-rares-focus="cargo">View cargo</button><button class="mini" data-rares-focus="market">View local rare stock</button><button class="mini" data-rares-focus="targets">Compare rare sell targets</button></div>
+        <p class="note" data-rares-summary></p><div data-rares-list class="rares-list"></div><p class="note" data-rares-note></p>`;
+      const pick=el.querySelector('[data-rares-loop]');
+      pick.onchange=async()=>{const u=el._rares;u.pending=true;pick.disabled=true;el.querySelector('[data-rares-status]').textContent='Changing rare loop...';
+        try{await Lab.post('/api/loop/select',{id:pick.value});if(!u.dead)el.querySelector('[data-rares-status]').textContent='Rare loop selected.';}
+        catch(e){if(!u.dead)el.querySelector('[data-rares-status]').textContent=e.message;}
+        finally{u.pending=false;if(!u.dead){pick.disabled=false;pick.value=Lab.state.loop?.id||'';}}
+      };
+      el.addEventListener('click',e=>{
+        const focus=e.target.closest('[data-rares-focus]');if(focus)Lab.focusCard(focus.dataset.raresFocus);
+        if(e.target.closest('[data-rares-reset]')){const m=marks(),prefix=scope(Lab.state);for(const k of Object.keys(m)){try{if(JSON.parse(k)[0]===prefix)delete m[k];}catch{delete m[k];}}save(m);Lab.emit('loop');}
+        const pin=e.target.closest('[data-rares-select]');if(pin){const s=rows(Lab.state).find(s=>id(s)===pin.dataset.raresSelect);if(s)select(s);}
+      });
+      el.addEventListener('change',e=>{if(!e.target.matches('[data-rares-visit]')||!Lab.state.loop?.workflow?.cargo_known)return;
+        const s=rows(Lab.state).find(s=>id(s)===e.target.dataset.raresVisit);if(!s)return;
+        const m=marks();m[JSON.stringify([scope(Lab.state),id(s)])]={done:e.target.checked,signature:signature(Lab.state)};save(m);Lab.emit('loop');
+      });
     },
-    render(el, S) {
-      const L = S.loop || {}; const st = L.stations || []; const m = manual();
-      const pick = el.closest('.card').querySelector('#loop-pick');
-      if (pick && pick.options.length !== (L.available || []).length) { pick.innerHTML = (L.available || []).map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join(''); }
-      if (pick) pick.value = L.id || '';
-      const rows = st.map(s => ({ ...s, done: effectiveDone(s, m) })).sort((a, b) => (a.done - b.done) || ((a.dist ?? 9999) - (b.dist ?? 9999)));
-      const done = rows.filter(r => r.done).length; const next = rows.find(r => !r.done);
-      el.innerHTML = `
-        <div class="muted" style="font-size:12px;margin-bottom:6px">${done}/${rows.length} stations · <b>${L.tons_total || 0} t</b> of loop rares aboard${next ? ` · next: <b class="accent">${esc(next.system)}</b>${next.dist != null ? ` (${next.dist} Ly)` : ''}` : (rows.length && done === rows.length ? ' · <b class="ok">loop complete, go sell</b>' : '')}</div>
-        <div class="bar"><i style="width:${rows.length ? 100 * done / rows.length : 0}%"></i></div>
-        <div style="margin-top:6px">${rows.map(s => `
-          <label class="chk ${s.done ? 'done' : ''}" ${next && next.system === s.system ? 'style="border-left:3px solid var(--accent);padding-left:6px"' : ''}>
-            <input type="checkbox" data-sys="${esc(s.system)}" ${s.done ? 'checked' : ''} title="${s.in_hold ? 'auto-ticked from your hold; untick to override (e.g. a station refused this rare)' : 'tick manually'}">
-            <span class="n"><b>${esc(s.system)}</b> · ${esc(s.station)} <span class="muted">(${esc(s.type)}, ${s.ls} ls${s.dist != null ? ` · ${s.dist} Ly from you` : ''})</span>${s.docked_here ? ' <span class="tag ok">docked here</span>' : ''}<br>
-              ${s.rares.map(r => `<span class="tag rare">${esc(r.name)}</span>`).join(' ')}${s.tons ? ` <span class="tag ${s.done ? 'ok' : 'warn'}">${s.tons} t aboard${!s.done ? ', unsold' : ''}</span>` : ''}</span>
-            <span><button class="mini" data-copy="${esc(s.system)}">copy</button> <a href="${inaraSys(s.system)}" target="_blank">Inara</a></span>
-          </label>`).join('')}</div>
-        <div class="note">${esc(L.note || '')} Stations tick themselves when their rare is in your hold and clear after you sell; distances are live from your current system.</div>`;
-      el.querySelectorAll('input[data-sys]').forEach(cb => cb.onchange = () => { const d = manual(); const s = st.find(x => x.system === cb.dataset.sys) || { tons: 0 }; d[cb.dataset.sys] = { done: cb.checked, tons: s.tons }; ls.set('loopManual', d); Lab.emit('loop'); });
+    render(el,S) {
+      prune(S);
+      const L=S.loop||{}, list=rows(S), known=L.workflow?.cargo_known, next=list.find(s=>!s.done), selected=list.find(s=>L.ui_selected&&id(s)===id(L.ui_selected));
+      const pick=el.querySelector('[data-rares-loop]'), available=JSON.stringify(L.available||[]);
+      if(pick.dataset.options!==available){pick.innerHTML=(L.available||[]).map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');pick.dataset.options=available;}
+      if(!el._rares.pending)pick.value=L.id||'';
+      el.querySelector('[data-rares-next]').innerHTML=next?`<small>Next buy stop${!known?' - cargo unknown':''}</small><h3>${esc(next.station)}</h3><b>${esc(next.system)}</b><p>${next.dist==null?'Distance unknown':fmt(next.dist)+' Ly from current system'} | ${esc(next.type)} | ${fmt(next.ls)} ls arrival</p><p>${next.docked_here?'Docked at this buy station. Open its market and confirm stock before buying.':'Travel to this station and check local stock.'}</p><button class="primary" data-rares-select="${esc(id(next))}">Select buy stop</button> <button class="mini" data-copy="${esc(next.system)}">Copy system</button>`
+        :`<h3>${list.length?'All stops have cargo aboard or a manual visit mark':'No rare loop loaded'}</h3><p>${list.length?'Review cargo, then compare sell targets. Marks do not prove a purchase, profit or merit eligibility.':'Choose an available loop to plan buy stops.'}</p>`;
+      el.querySelector('[data-rares-summary]').textContent=`${list.filter(s=>s.done).length}/${list.length} stops marked. ${known?fmt(L.tons_total)+' t of loop rares aboard; '+(L.workflow.free_capacity==null?'free capacity unknown':fmt(L.workflow.free_capacity)+' t free')+'.':'Cargo has not been reliably observed. Visit marks are disabled.'} ${selected?'Selected: '+selected.station+', '+selected.system+'. No in-game route is plotted.':''}`;
+      el.querySelector('[data-rares-list]').innerHTML=list.map(s=>`<article class="rares-stop ${selected&&id(s)===id(selected)?'selected':''}"><div><b>${esc(s.station)}</b><p>${esc(s.system)} | ${s.dist==null?'Distance unknown':fmt(s.dist)+' Ly'} | ${fmt(s.ls)} ls</p><p>${s.rares.map(r=>esc(r.name)).join(' | ')}</p><p>${s.tons==null?'Cargo unknown':fmt(s.tons)+' t aboard'}${s.docked_here?' | Docked at this station':''}${s.manual?' | Manual visit mark':''}</p></div>
+        <label><input type="checkbox" data-rares-visit="${esc(id(s))}" ${s.done?'checked':''} ${known?'':'disabled'}> ${s.manual?'Manually marked':'Cargo aboard / mark visited'}</label><div class="row"><button class="mini" data-rares-select="${esc(id(s))}">Select stop</button><button class="mini" data-copy="${esc(s.system)}">Copy system</button><a href="${inaraSt(s.station)}" target="_blank" rel="noopener noreferrer">Check station</a></div></article>`).join('');
+      el.querySelector('[data-rares-note]').textContent=`${L.note||''} Cargo presence marks a stop automatically. Manual marks apply to this commander, loop and unchanged cargo snapshot. Selecting or copying a destination does not plot a route.`;
     },
+    unmount(el){el._rares.dead=true;}
   });
-
-  Lab.map.addLayer('loop', {
-    label: 'rares loop', color: '#9be36b', z: 2,
-    points: S => (S.loop?.stations || []).filter(s => s.coords).map(s => ({ name: s.system, ...s.coords, r: 4, color: effectiveDone(s, manual()) ? '#5c8a46' : '#9be36b', label: true,
-      sub: `${s.station} · ${s.rares.map(r => r.name).join(', ')}${s.tons ? ` · ${s.tons} t aboard` : ''}` })),
+  Lab.map.addLayer('loop',{label:'rares buy stops',color:'#9be36b',z:2,
+    points:S=>rows(S).filter(s=>s.coords&&['x','y','z'].every(k=>Number.isFinite(s.coords[k]))).map(s=>({name:s.system,...s.coords,r:4,label:true,selected:S.loop?.ui_selected&&id(s)===id(S.loop.ui_selected),color:s.done?'#5c8a46':'#9be36b',sub:`${s.station} | ${s.rares.map(r=>r.name).join(', ')}`,onClick:()=>select(s)}))
   });
 })();

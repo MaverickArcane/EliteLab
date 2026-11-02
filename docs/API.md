@@ -428,7 +428,7 @@ Powerplay conflict zones recorded from your own journal: the zones (by intensity
 
 ## `get_rares_loop`  -  `GET /api/loop`  -  module: loop
 
-The active rare goods loop: each station with its rares, tons already in the hold, distance from the ship, whether docked there, and the recommended next stop. Stations tick done when their rare is aboard.
+The active rare goods loop: stations, observed rare cargo, distance and next buy stop. Arrival requires the exact system and station. Cargo presence marks a stop, not a verified purchase; unknown cargo yields null station tons and `tons_total`. `workflow` exposes `cargo_known`, `free_capacity` and market snapshot status/source/time/rare stock. Manual visit marks and map selection stay browser-local. See [RARE-GOODS.md](RARE-GOODS.md) for evidence statuses and selling/Powerplay limitations.
 
 ## `select_rares_loop`  -  `POST /api/loop/select`  -  module: loop
 

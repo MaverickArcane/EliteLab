@@ -121,7 +121,7 @@ class IsolatedCoreTests(unittest.TestCase):
     def test_loop_recomputes_once_for_location_snapshot(self):
         seen = []
         self.core.bus.on('state.journal.location', lambda n, v: seen.append(n))
-        self.emit('Location', StarSystem='Leesti', Docked=True, StarPos=[1, 2, 3])
+        self.emit('Location', StarSystem='Leesti', StationName='George Lucas', Docked=True, StarPos=[1, 2, 3])
         self.assertEqual(len(seen), 1)
         loop = self.call('get_rares_loop')
         self.assertTrue(next(s for s in loop['stations'] if s['system'] == 'Leesti')['docked_here'])
