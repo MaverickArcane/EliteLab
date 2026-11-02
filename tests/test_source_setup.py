@@ -75,11 +75,12 @@ class SourceSetupTests(unittest.TestCase):
         self.browser_log = self.folder / 'browser.jsonl'
         self.env = {k: v for k, v in os.environ.items() if not k.startswith('ELITELAB_')}
         self.env.update(ELITELAB_OFFLINE='1', ELITELAB_INSTANCE_DIR=str(self.folder / 'instance'),
-                        PYTHONPATH=str(self.folder / 'capture'), LAB_SETUP_BROWSER_LOG=str(self.browser_log),
+                        PYTHONPATH=str(self.folder / 'capture'), PYTHONUNBUFFERED='1', LAB_SETUP_BROWSER_LOG=str(self.browser_log),
                         PATH=os.path.dirname(sys.executable) + os.pathsep + os.environ.get('PATH', ''))
         capture = self.folder / 'capture'; capture.mkdir()
         (capture / 'sitecustomize.py').write_text(
-            'import json,os,webbrowser\n'
+            'import faulthandler,json,os,webbrowser\n'
+            'faulthandler.dump_traceback_later(15)\n'
             'class Capture:\n'
             ' def open(self,url,*args,**kwargs):\n'
             '  with open(os.environ["LAB_SETUP_BROWSER_LOG"],"a") as f: f.write(json.dumps(url)+"\\n")\n'
