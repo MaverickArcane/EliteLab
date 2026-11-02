@@ -196,6 +196,10 @@ class SourceSetupTests(unittest.TestCase):
                                 timeout=10, **self.flags)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('--setup', result.stdout)
+        normal = subprocess.run(['/bin/sh', str(self.app / 'start.sh'), 'serve', '--help'],
+                                cwd=self.app, env=env, capture_output=True, text=True, timeout=10, **self.flags)
+        self.assertEqual(normal.returncode, 0, normal.stdout + normal.stderr)
+        self.assertIn('--setup', normal.stdout)
 
     @unittest.skipUnless(os.name == 'posix', 'POSIX interpreter selection')
     def test_only_old_interpreters_produce_guidance(self):

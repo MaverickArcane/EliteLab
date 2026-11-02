@@ -268,6 +268,7 @@ class StartShTests(_TmpMixin, unittest.TestCase):
         codes_s = " ".join(str(c) for c in codes)
         with open(fake, "w") as f:
             f.write(f"""#!/bin/sh
+[ "$1" = "-c" ] && exit 0
 echo "$@" >> "{log}"
 n=$(cat "{counter}" 2>/dev/null || echo 0)
 n=$((n+1))
