@@ -19,6 +19,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class BrowserReadinessTests(unittest.TestCase):
+    def test_server_bind_does_not_wait_for_reverse_dns(self):
+        from elitelab.core.http import ExclusiveHTTPServer
+        from http.server import BaseHTTPRequestHandler
+        with patch('socket.getfqdn', side_effect=AssertionError('No reverse DNS at bind')):
+            server = ExclusiveHTTPServer(('127.0.0.1', 0), BaseHTTPRequestHandler)
+            try:
+                self.assertEqual(server.server_name, '127.0.0.1')
+                self.assertEqual(server.server_port, server.server_address[1])
+                self.assertGreater(server.server_port, 0)
+            finally:
+                server.server_close()
+
     def test_setup_opens_only_after_own_ready_health_response(self):
         core = Core(); core.ready = True
         opened = threading.Event()

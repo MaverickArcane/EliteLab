@@ -7,6 +7,9 @@ guard and serve/restart loop. `serve --setup --open-browser` chooses `/setup/`;
 `ready: true` and this process's PID, uses the configured auth token for that
 probe, and is cancelled on shutdown. A repeat setup launch reuses the healthy
 instance and opens its setup URL. No new module or settings contract is introduced.
+HTTP binding uses the bound address as the server name without a reverse-DNS
+lookup, so a slow resolver cannot stall local setup. Windows exclusive-port
+ownership is preserved.
 
 EliteLab is a small core plus self-contained modules. The core owns the plumbing; every feature, including reading the journal, is a module.
 
