@@ -144,7 +144,7 @@ class MiningPowerplayTests(unittest.TestCase):
                     ("initialize", {}), ("tools/list", {}),
                     ("tools/call", {"name":"get_mining_status"}),
                     ("tools/call", {"name":"find_mining_spots", "arguments":{"ref":"Delkar","pristine":True,"radius":200,"sort":"merits","hotspot":"Platinum","power":"Edmund Mahon","powerplay_mode":"reinforcement"}}),
-                    ("tools/call", {"name":"find_mining_buyers", "arguments":{"ref":"Delkar","commodity":"Platinum","powerplay_mode":"acquisition"}}),
+                    ("tools/call", {"name":"find_mining_buyers", "arguments":{"ref":"Delkar","mined_in":"Delkar","commodity":"Platinum","powerplay_mode":"acquisition"}}),
                     ("resources/read", {"uri":"elitelab://state/mining"}), ("prompts/get", {"name":"mining_run"}),
                     ("tools/call", {"name":"find_mining_buyers", "arguments":{"commodity":"Platinum","powerplay_mode":"bad"}})]
                 messages = "".join(json.dumps({"jsonrpc":"2.0","id":i,"method":m,"params":q})+"\n" for i,(m,q) in enumerate(requests))
@@ -153,6 +153,7 @@ class MiningPowerplayTests(unittest.TestCase):
                 replies = [json.loads(line)["result"] for line in run.stdout.splitlines()]
                 schema = next(t["inputSchema"] for t in replies[1]["tools"] if t["name"] == "find_mining_buyers")
                 self.assertEqual(schema["properties"]["powerplay_mode"]["enum"], ["none","acquisition","reinforcement"])
+                self.assertEqual(schema["properties"]["mined_in"]["type"], "string")
                 spot_schema = next(t["inputSchema"] for t in replies[1]["tools"] if t["name"] == "find_mining_spots")
                 self.assertEqual(spot_schema["properties"]["sort"]["enum"], ["distance", "merits"])
                 for i in (2,3,4): self.assertFalse(replies[i]["isError"], replies[i])
@@ -162,8 +163,11 @@ class MiningPowerplayTests(unittest.TestCase):
                 self.assertEqual(spots["results"][0]["buyer"]["system"], "Delkar")
                 self.assertIsNone(spots["results"][0]["merit_estimate"])
                 self.assertEqual(json.loads(replies[4]["content"][0]["text"])["power"], "Edmund Mahon")
+                self.assertEqual(json.loads(replies[4]["content"][0]["text"])["purpose"], "merit_candidates")
+                self.assertIn("market_sale_proceeds", json.loads(replies[2]["content"][0]["text"])["profit"])
                 self.assertEqual(json.loads(replies[5]["contents"][0]["text"])["summary"]["powerplay"]["session_merits"], 100)
                 self.assertIn("Do not promise eligibility", replies[6]["messages"][0]["content"]["text"])
+                self.assertIn("full recorded commodity sale receipts", replies[6]["messages"][0]["content"]["text"])
                 self.assertTrue(replies[7]["isError"])
                 env["ELITELAB_AUTH_TOKEN"] = "wrong-token"
                 denied = subprocess.run([sys.executable,"-m","elitelab","mcp"], cwd=config.ROOT, env=env, input=json.dumps({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_mining_status"}})+"\n", capture_output=True, text=True, timeout=15, check=True)

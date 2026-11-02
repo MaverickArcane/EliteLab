@@ -10,6 +10,7 @@ import time
 
 from elitelab.core.gamedata import POWERS, norm
 from .ledger import number
+from .buyer_routes import check_route
 
 RINGS = ("Metallic", "Metal Rich", "Icy", "Rocky")
 ORBITAL = ("Coriolis Starport", "Orbis Starport", "Ocellus Starport", "Dodec Starport", "Asteroid base", "Outpost")
@@ -28,6 +29,11 @@ def token(value):
 def reported_powers(record):
     value = record.get("system_power")
     return [p for p in (value[:16] if isinstance(value, list) else [value]) if isinstance(p, str) and p in POWERS]
+
+
+def controlling_power(record):
+    value = record.get("system_controlling_power")
+    return value if isinstance(value, str) and value in POWERS else None
 
 
 def parameter(q, key, default, maximum, integer=False):
@@ -78,7 +84,7 @@ class Discovery:
         pp = ((self.core.store.get("mining", "summary") or {}).get("powerplay") or {})
         return (journal.get("cmdr"), journal.get("system"), (journal.get("ship_info") or {}).get("id"),
                 journal.get("jump_range_laden"), journal.get("jump_range_now"),
-                (journal.get("status") or {}).get("cargo_tons"), (journal.get("status") or {}).get("fuel"), pp.get("power"))
+                (journal.get("status") or {}).get("cargo_tons"), (journal.get("status") or {}).get("fuel"), journal.get("cargo"), pp.get("power"))
 
     def search(self, endpoint, filters, ref):
         if self.core.config.OFFLINE:
@@ -157,7 +163,7 @@ class Discovery:
                 continue
             if pristine and body.get("reserve_level") != "Pristine":
                 continue
-            if power and (body.get("system_power_state") not in POWER_MODES["reinforcement"] or power not in reported_powers(body)):
+            if power and (body.get("system_power_state") not in POWER_MODES["reinforcement"] or controlling_power(body) != power):
                 continue
             rings = body.get("rings")
             for ring in (rings[:16] if isinstance(rings, list) else []):
@@ -183,6 +189,7 @@ class Discovery:
                     "updated_at": text(body.get("updated_at")) or None, "age_hours": age(body.get("updated_at"), now),
                     "power_state": text(body.get("system_power_state")) or "Unknown",
                     "powers": reported_powers(body),
+                    "controlling_power": controlling_power(body),
                     "permit_required": body.get("system_is_permit_required") if type(body.get("system_is_permit_required")) is bool else None,
                     "x": coords[0] if valid_coords else None, "y": coords[1] if valid_coords else None, "z": coords[2] if valid_coords else None})
         rows.sort(key=lambda r: (r["distance"], r["arrival_ls"] if r["arrival_ls"] is not None else math.inf, r["ring"]))
@@ -207,7 +214,12 @@ class Discovery:
                         + ("A provider page failed; results are partial." if data["partial"] else "")}
 
     def buyers(self, q, *, _limit=20):
+        context = self.context()
         ref, radius = self.reference(q), parameter(q, "radius", 100, 200)
+        mined_in = q.get("mined_in", "")
+        if not isinstance(mined_in, str) or len(mined_in) > 160:
+            raise ValueError("Mined in must be a system name up to 160 characters.")
+        mined_in = mined_in.strip()
         commodity = name_param(q.get("commodity"), "a commodity name")
         quantity = parameter(q, "quantity", 1, 1000000, True)
         hours = parameter(q, "hours", 24, 72)
@@ -228,6 +240,14 @@ class Discovery:
         power = power if mode != "none" else None
         if self.core.config.OFFLINE:
             raise ValueError("Community searches are unavailable in offline mode. Session tracking still works.")
+        source = {}
+        if mode == "acquisition" and mined_in:
+            try:
+                source = self.core.services.spansh_system(mined_in)
+                if not isinstance(source, dict) or text(source.get("name")).casefold() != mined_in.casefold():
+                    source = {}
+            except Exception:
+                source = {}
         try:
             catalog = self.core.services.fetch_json(CATALOG, ttl=86400)
             names = catalog.get("min_max") if isinstance(catalog, dict) else None
@@ -253,11 +273,13 @@ class Discovery:
         if mode != "none":
             filters.update({"system_power": {"value": [power]}, "system_power_state": {"value": POWER_MODES[mode]}})
         data = self.search("stations", filters, ref)
-        rows, seen = [], set()
+        rows, seen, excluded = [], set(), 0
         for station in data["results"][:100]:
             if not isinstance(station, dict) or station.get("type") not in ORBITAL or station.get("is_planetary") or station.get("carrier_name"):
                 continue
-            if mode != "none" and (power not in reported_powers(station) or station.get("system_power_state") not in POWER_MODES[mode]):
+            if mode != "none" and (station.get("system_power_state") not in POWER_MODES[mode]
+                    or (mode == "reinforcement" and controlling_power(station) != power)
+                    or (mode == "acquisition" and (power not in reported_powers(station) or controlling_power(station) is not None))):
                 continue
             distance, updated = number(station.get("distance"), radius), age(station.get("market_updated_at"), now)
             if distance is None or updated is None or updated > hours or station.get("has_market") is not True:
@@ -276,22 +298,35 @@ class Discovery:
                 if not price or demand is None or demand < quantity:
                     continue
                 seen.add(identity)
+                route = check_route(mode, power, mined_in, source, station)
+                if route["status"] == "blocked":
+                    excluded += 1
+                    break
                 rows.append({"system": identity[0], "station": identity[1], "distance": round(distance, 2),
                     "arrival_ls": number(station.get("distance_to_arrival")), "pad": actual_pad,
                     "price": price, "demand": demand, "estimated_sale": price * quantity,
                     "powers": reported_powers(station), "power_state": text(station.get("system_power_state")) or "Unknown",
-                    "merit_eligibility": "unverified",
+                    "controlling_power": controlling_power(station),
+                    "merit_eligibility": "unverified", "merit_route": route,
                     "coordinates": [station.get("system_" + axis) if type(station.get("system_" + axis)) in (int, float)
                                     and number(abs(station["system_" + axis]), 1000000) is not None else None for axis in "xyz"],
                     "updated_at": text(station.get("market_updated_at")), "age_hours": round(updated, 2)})
                 break
         rows.sort(key=lambda r: (-r["estimated_sale"], r["distance"], r["station"]))
+        if context != self.context():
+            raise ValueError("Ship, pledge or location changed during the search. Search again.")
         return {"ref": ref, "commodity": commodity, "quantity": quantity, "results": rows[:_limit],
+                "mined_in": mined_in or None, "origin_basis": "user supplied" if mined_in else "unknown", "excluded_routes": excluded,
+                "purpose": "credit_quotes" if mode == "none" else "merit_candidates",
+                "purpose_note": "Credit buyers only. These results do not validate Powerplay merit eligibility." if mode == "none" else
+                    "Merit candidates only. Confirm the mining activity and cargo provenance in game. " +
+                    ("Mining source unknown; route eligibility cannot be checked." if not mined_in else "Source is user supplied, not proof of cargo origin.") +
+                    (f" {excluded} quotes excluded for an incompatible mining route." if excluded else ""),
                 "powerplay_mode": mode, "power": power, "merit_estimate": None,
                 "stations_checked": min(100, len(data["results"])), "stations_available": number(data.get("count")),
                 "source": "Spansh", "note": "Best reported quotes among up to 100 nearby orbital markets, not a galaxy-wide best price. "
                         "Reported demand covers the entered load; prices/demand may change or fall with the size of your sale. "
                         "No carriers or surface ports. Estimates are unsold value, not realized profit. "
                         "Powerplay filters select reported candidates, not verified merit eligibility. Check the game's local activities, "
-                        "mining origin and source-to-destination requirements before selling; control links and cargo provenance are not verified here. "
+                        "mining origin and source-to-destination requirements before selling; user-supplied source, community control and distances are not proof of cargo provenance. "
                         + ("A provider page failed; results are partial." if data["partial"] else "")}

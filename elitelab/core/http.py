@@ -128,6 +128,14 @@ def make_handler(core):
         server_version = "EliteLab"
         protocol_version = "HTTP/1.1"
 
+        def handle_one_request(self):
+            try:
+                super().handle_one_request()
+            except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                # Reloading/closing a browser can abandon a keep-alive socket,
+                # including before the next request line arrives on Windows.
+                self.close_connection = True
+
         def setup(self):
             super().setup()
             self.connection.settimeout(30)

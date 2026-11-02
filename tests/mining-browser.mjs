@@ -7,6 +7,10 @@ import http from 'node:http';
 import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
 
+// These Node-side probes need no idle keep-alive pool. Closing explicitly avoids
+// Windows aborting an unused probe socket while Chrome continues the scenario.
+const fetch=(url,options={})=>globalThis.fetch(url,{...options,headers:{Connection:'close',...options.headers}});
+
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'elitelab-mining-browser-'));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -204,6 +208,44 @@ try {
   assert.equal(await evaluate("document.querySelector('[data-form=spots] [name=hotspot]').value"),'Keep this filter');
   assert.equal(await evaluate("document.querySelector('[data-form=buyers] [name=powerplay_mode]').value"),'acquisition');
   assert.equal(await evaluate("document.querySelector('[data-form=buyers] [name=power]').value"),'pledged');
+  // Regression: a reload leaves earlier cargo untracked, but the full sale is real.
+  const reloadSale=[{event:'LoadGame',timestamp:'2026-11-02T05:01:52Z',Commander:'Test Miner',FID:'F2'},
+    {event:'Powerplay',timestamp:'2026-11-02T05:01:53Z',Power:'Edmund Mahon',Merits:43547},
+    {event:'Location',timestamp:'2026-11-02T05:01:54Z',StarSystem:'Delkar',PowerplayState:'Stronghold',ControllingPower:'Edmund Mahon'},
+    {event:'Cargo',timestamp:'2026-11-02T05:01:55Z',Inventory:[{Name:'Platinum',Count:114}]}];
+  for(let i=0;i<54;i++)reloadSale.push({event:'MiningRefined',timestamp:'2026-11-02T05:02:00Z',Type:'Platinum'});
+  reloadSale.push({event:'MarketSell',timestamp:'2026-11-02T05:22:54Z',Type:'Platinum',Count:168,TotalSale:44328984});
+  append(reloadSale);
+  await waitFor("document.querySelector('[data-market-proceeds]').textContent==='44,328,984 Cr'");
+  assert.equal(await evaluate('Lab.state.mining.summary.profit.sale_proceeds'),14248602);
+  assert.match(await evaluate("document.querySelector('[data-metrics]').textContent"),/54 \/ 168 sold tons attributed since reload/);
+  assert.equal(await evaluate('Lab.state.mining.summary.powerplay.session_merits'),0);
+  for(const [name,width,height] of [['sale-desktop',1440,1000],['sale-mobile',390,1000]]) {
+    await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
+    await evaluate('scrollTo(0,0);true');await sleep(150);
+    assert.ok(await evaluate('document.body.scrollWidth')<=width);
+    const shot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(outputDir,`mining-${name}.png`),Buffer.from(shot.data,'base64'));
+  }
+  await evaluate("document.querySelector('[data-tab=buyers]').click();var f=document.querySelector('[data-form=buyers]');f.elements.ref.value='Delkar';f.elements.mined_in.value='Different source';f.elements.quantity.value='40';f.elements.powerplay_mode.value='none';f.dispatchEvent(new Event('input'));f.requestSubmit();true");
+  await waitFor("document.querySelector('[data-buyer-purpose]')?.textContent.includes('Credit buyers - merits not checked')");
+  assert.match(await evaluate("document.querySelector('[data-quote]').textContent"),/Use credit quote/);
+  assert.match(await evaluate("document.querySelector('[data-buyer-guide]').textContent"),/high price does not mean/);
+  for(const [name,width,height] of [['credit-buyers-desktop',1440,1100],['credit-buyers-mobile',390,1000]]) {
+    await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
+    await evaluate("document.querySelector('[data-buyer-guide]').scrollIntoView({block:'start'});scrollBy(0,-120);true");await sleep(150);
+    assert.ok(await evaluate('document.body.scrollWidth')<=width);
+    const shot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(outputDir,`mining-${name}.png`),Buffer.from(shot.data,'base64'));
+  }
+  await evaluate("var f=document.querySelector('[data-form=buyers]');f.elements.powerplay_mode.value='reinforcement';f.dispatchEvent(new Event('input'));f.requestSubmit();true");
+  await waitFor("document.querySelector('[data-search-status=buyers]').textContent.includes('quotes from')");
+  assert.equal(await evaluate("document.querySelectorAll('[data-results=buyers] [data-quote]').length"),0);
+  if(process.env.ELITELAB_MINING_LIVE!=='1')assert.match(await evaluate("document.querySelector('[data-buyer-purpose]').textContent"),/1 quotes excluded/);
+  // Late buyer responses must not survive a change of location/cargo/pledge.
+  await evaluate("window.buyerResolve=null;Lab.api=(p,q)=>p==='/api/mining/buyers'?new Promise(r=>buyerResolve=r):window.miningApi(p,q);document.querySelector('[data-form=buyers]').requestSubmit();true");
+  append([{event:'FSDJump',timestamp:'2026-11-02T05:23:00Z',StarSystem:'New location'}]);
+  await waitFor("document.querySelector('[data-search-status=buyers]').textContent.includes('changed')");
+  await evaluate("buyerResolve({results:[],note:'Old buyer response'});Lab.api=window.miningApi;true");await sleep(100);
+  assert.equal(await evaluate("document.querySelector('[data-results=buyers]').textContent.includes('Old buyer response')"),false);
   assert.deepEqual(await evaluate("[...document.querySelectorAll('.render-error')].map(e=>e.textContent)"),[]);
   assert.deepEqual(errors,[]);
   assert.doesNotMatch(serverLog,/Traceback|handler failed/);

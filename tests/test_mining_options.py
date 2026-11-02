@@ -150,6 +150,7 @@ class MiningOptionsTests(unittest.TestCase):
         ring = data["bodies"]["results"][1]
         ring["rings"][0]["signals"] = [{"name":"Platinum", "count":1}]
         data["stations"]["results"][1]["system_power_state"] = "Fortified"
+        data["stations"]["results"][1]["system_controlling_power"] = "Edmund Mahon"
         out, _ = self.run_search(self.merit_query(), data)
         known, unknown = out["results"]
         self.assertEqual(known["system"], "Delkar")

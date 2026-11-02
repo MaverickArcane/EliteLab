@@ -7,17 +7,22 @@ for the current game session, with a recorded elapsed-time rate. Resets on
 LoadGame or changed commander; `partial` marks an incomplete replay window.
 Returns `mining.summary`; see [MINING.md](MINING.md) for fields and limitations.
 
-The summary includes attributed sale proceeds, operating costs, net profit,
+The summary includes full recorded commodity sale receipts in `profit.market_sale_proceeds`
+and `market_sold_tons`, with `unknown_market_sale_tons` for missing amounts. These
+gross receipts include cargo held before reload and are not net mining profit.
+Existing `sale_proceeds`, `sold_tons` and `net_profit` remain current-session
+refinery attribution. Sale transactions show full credits/tons alongside
+tracked_credits/tracked_tons. It also includes operating costs,
 remaining tracked units and a bounded transaction ledger. Quotes are separate.
 `powerplay` adds recorded session/total merits, estimated mining-sale associations,
 unassociated gains and bounded recent evidence. Association is not confirmed causation.
 
 ## `find_mining_spots` - `GET /api/mining/spots` - module: mining
 
-`ref` defaults to current system; `radius` defaults to 50 Ly (max 200),
+`ref` defaults to current system; `radius` defaults to the laden/current ship range cap (max 200),
 `ring_type` to Metallic (also Metal Rich, Icy, Rocky, Any). Optional `hotspot`,
 `pristine` and `power` filter reported hotspots, pristine reserves and a power's
-provider-reported acquisition systems. Returns at most 30 rings from 100 bodies.
+reported controlled systems; presence alone is not ownership. Returns at most 30 rings from 100 bodies.
 
 ## `find_mining_buyers` - `GET /api/mining/buyers` - module: mining
 
@@ -29,8 +34,13 @@ coverage/estimate limits. See [MINING.md](MINING.md).
 `powerplay_mode` defaults to `none`; `acquisition` and `reinforcement` filter
 reported candidate systems. `power` defaults to `pledged` or accepts a known
 power; an unknown pledge errors when filtering. Results return selected power/mode,
-reported powers/state and unverified eligibility. Mining origin, control links
-and local activities are not verified; `merit_estimate` is null.
+reported powers/controller/state and unverified eligibility. Default credit mode
+does not validate merits. Optional `mined_in` is the actual mining source as
+asserted by the caller, never inferred from `ref`. It excludes different-system
+reinforcement and known incompatible acquisition source/control/range conditions;
+unknown source data stays unknown. Inspect `purpose_note`, per-row `merit_route`
+and `excluded_routes`. Local activities and cargo provenance remain unverified;
+`merit_estimate` is null. Acquisition adds at most one fixed-endpoint source lookup.
 
 Generated from `GET /api/schema` (EliteLab 0.5.0). Every tool is an HTTP route: `GET` with query parameters or `POST` with a JSON body. Responses are JSON; errors are `{"error": "..."}`. `GET /events` streams state changes as Server-Sent Events (`snapshot` then `state` events).
 
