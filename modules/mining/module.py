@@ -8,9 +8,10 @@ events have no asteroid identifier, so their count is reports, not unique rocks.
 import datetime as dt
 import math
 
-from elitelab.core.gamedata import norm
+from elitelab.core.gamedata import norm, POWERS
 from modules.mining.ledger import Ledger
 from modules.mining.discovery import Discovery, RINGS
+from modules.mining.powerplay import MiningPowerplay
 
 NS = "mining"
 MAX_COMMODITIES = 256
@@ -54,6 +55,7 @@ class Mining:
         self.last = None
         self.output = {}
         self.ledger = Ledger()
+        self.powerplay = MiningPowerplay()
 
     def on_event(self, name, ev):
         # The watcher serializes journal events. HTTP reads only the store copy.
@@ -77,7 +79,9 @@ class Mining:
             return
         mining = event in ("ProspectedAsteroid", "MiningRefined")
         ts = timestamp(ev.get("timestamp"))
+        sold_before = self.ledger.sold
         self.ledger.event(ev, ts)
+        self.powerplay.event(ev, ts, self.ledger.sold - sold_before, self.ledger)
         if mining:
             if ts is None:
                 self.timing_incomplete = True
@@ -127,6 +131,7 @@ class Mining:
             "prospector_reports": self.prospected, "last_prospect": self.last,
             "refined_tons": self.tons, "other_tons": self.other_tons,
             "profit": profit,
+            "powerplay": self.powerplay.summary(),
             "commodities": sorted(self.output.values(), key=lambda r: (-r["tons"], r["key"])),
             "rate_note": "Refined tons / recorded hours from the first mining event through the latest journal event. "
                          "Includes travel and idle time; available after 60 seconds. Resets when you reload the game or change commander.",
@@ -139,6 +144,8 @@ def setup(core, module):
     core.http.route("/api/mining", lambda q: core.store.get(NS, "summary"),
                     tool="get_mining_status", module=module.name,
                     description="Latest prospector composition, refinery output and journal-attributed sales less recorded operating costs for the current game session. "
+                                "Includes powerplay: recorded session/total merits, estimated sale_associated_merits, unassociated_merits and recent evidence. "
+                                "Merit association uses the first gain within 0-12 seconds of an unmixed tracked mining sale; it is not confirmed causation or a forecast. "
                                 "Profit can be estimated with mixed cargo; missing sale prices are flagged. Unsold quotes are excluded. "
                                 "Each MiningRefined event adds one ton, regardless of current cargo or sales. Prospector reports "
                                 "are not unique asteroids. Rate includes recorded idle/travel time from first mining event to "
@@ -158,10 +165,17 @@ def setup(core, module):
     core.http.route("/api/mining/buyers", discovery.buyers, tool="find_mining_buyers", module=module.name,
                     description="Compare reported sale quotes for one commodity and load among up to 100 nearby orbital station markets. "
                                 "Requires fresh prices and reported demand covering the load; excludes carriers/surface ports. "
+                                "powerplay_mode acquisition/reinforcement filters reported candidate systems for power (default pledged); none disables it. "
+                                "Returns reported powers/state and unverified merit eligibility: no control-link, mining-origin or local-activity validation. "
+                                "No predicted merits. Use get_mining_status.powerplay for recorded gains and estimated sale associations. "
                                 "Returns at most 20 quotes, sorted by estimated sale value. Quotes are not realized profit or guarantees.",
                     params={"ref": {"type": "string", "description": "Reference system; defaults to journal location"},
                             "commodity": {"type": "string", "required": True, "description": "Market display name, e.g. Platinum"},
                             "quantity": {"type": "integer", "default": 1, "description": "Tons to sell, up to 1000000"},
                             "radius": {"type": "number", "default": 100, "description": "Search radius in Ly, up to 200"},
                             "hours": {"type": "number", "default": 24, "description": "Maximum market age in hours, up to 72"},
-                            "pad": {"type": "string", "default": "L", "enum": ["S", "M", "L"]}})
+                            "pad": {"type": "string", "default": "L", "enum": ["S", "M", "L"]},
+                            "powerplay_mode": {"type": "string", "default": "none", "enum": ["none", "acquisition", "reinforcement"],
+                                               "description": "Reported candidate systems only; does not establish sale merit eligibility"},
+                            "power": {"type": "string", "default": "pledged", "enum": ["pledged", *POWERS],
+                                      "description": "Power for candidate filtering; pledged resolves the current journal pledge and errors if unknown"}})

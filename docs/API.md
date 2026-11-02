@@ -9,6 +9,8 @@ Returns `mining.summary`; see [MINING.md](MINING.md) for fields and limitations.
 
 The summary includes attributed sale proceeds, operating costs, net profit,
 remaining tracked units and a bounded transaction ledger. Quotes are separate.
+`powerplay` adds recorded session/total merits, estimated mining-sale associations,
+unassociated gains and bounded recent evidence. Association is not confirmed causation.
 
 ## `find_mining_spots` - `GET /api/mining/spots` - module: mining
 
@@ -24,6 +26,11 @@ max 200), `hours` (24, max 72), and `pad` (L; also M/S). Returns at most 20 fres
 orbital buyer quotes with enough demand, sorted by estimated sale value, among
 100 nearby matching stations. Both searches use cached Spansh reports and expose
 coverage/estimate limits. See [MINING.md](MINING.md).
+`powerplay_mode` defaults to `none`; `acquisition` and `reinforcement` filter
+reported candidate systems. `power` defaults to `pledged` or accepts a known
+power; an unknown pledge errors when filtering. Results return selected power/mode,
+reported powers/state and unverified eligibility. Mining origin, control links
+and local activities are not verified; `merit_estimate` is null.
 
 Generated from `GET /api/schema` (EliteLab 0.5.0). Every tool is an HTTP route: `GET` with query parameters or `POST` with a JSON body. Responses are JSON; errors are `{"error": "..."}`. `GET /events` streams state changes as Server-Sent Events (`snapshot` then `state` events).
 

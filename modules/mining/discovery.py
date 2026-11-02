@@ -14,6 +14,7 @@ from .ledger import number
 RINGS = ("Metallic", "Metal Rich", "Icy", "Rocky")
 ORBITAL = ("Coriolis Starport", "Orbis Starport", "Ocellus Starport", "Dodec Starport", "Asteroid base", "Outpost")
 CATALOG = "https://www.spansh.co.uk/api/stations/field_values/market"
+POWER_MODES = {"acquisition": ["Unoccupied"], "reinforcement": ["Exploited", "Fortified", "Stronghold"]}
 
 
 def text(value):
@@ -22,6 +23,11 @@ def text(value):
 
 def token(value):
     return "".join(c for c in text(value).casefold() if c.isalnum())
+
+
+def reported_powers(record):
+    value = record.get("system_power")
+    return [p for p in (value[:16] if isinstance(value, list) else [value]) if isinstance(p, str) and p in POWERS]
 
 
 def parameter(q, key, default, maximum, integer=False):
@@ -114,7 +120,7 @@ class Discovery:
                 continue
             if pristine and body.get("reserve_level") != "Pristine":
                 continue
-            if power and body.get("system_power_state") != "Unoccupied":
+            if power and (body.get("system_power_state") != "Unoccupied" or power not in reported_powers(body)):
                 continue
             rings = body.get("rings")
             for ring in (rings[:16] if isinstance(rings, list) else []):
@@ -158,6 +164,18 @@ class Discovery:
         pad = q.get("pad", "L")
         if pad not in ("S", "M", "L"):
             raise ValueError("Pad must be S, M or L.")
+        mode, power = q.get("powerplay_mode", "none"), q.get("power", "pledged")
+        if not isinstance(mode, str) or mode not in ("none", *POWER_MODES):
+            raise ValueError("Powerplay mode must be none, acquisition or reinforcement.")
+        if not isinstance(power, str) or power not in ("pledged", *POWERS):
+            raise ValueError("Choose a known power or pledged.")
+        # The shared powerplay card can retain a previous session's pledge until
+        # the next snapshot arrives. Use this session's mining evidence only.
+        if power == "pledged":
+            power = ((self.core.store.get("mining", "summary") or {}).get("powerplay") or {}).get("power")
+        if mode != "none" and (not isinstance(power, str) or power not in POWERS):
+            raise ValueError("Pledged power is unknown. Select a power explicitly or disable the Powerplay filter.")
+        power = power if mode != "none" else None
         if self.core.config.OFFLINE:
             raise ValueError("Community searches are unavailable in offline mode. Session tracking still works.")
         try:
@@ -182,10 +200,14 @@ class Discovery:
                                "sell_price": {"comparison": "<=>", "value": [1, 10**9]}}]}
         if pad == "L":
             filters["has_large_pad"] = {"value": True}
+        if mode != "none":
+            filters.update({"system_power": {"value": [power]}, "system_power_state": {"value": POWER_MODES[mode]}})
         data = self.search("stations", filters, ref)
         rows, seen = [], set()
         for station in data["results"][:100]:
             if not isinstance(station, dict) or station.get("type") not in ORBITAL or station.get("is_planetary") or station.get("carrier_name"):
+                continue
+            if mode != "none" and (power not in reported_powers(station) or station.get("system_power_state") not in POWER_MODES[mode]):
                 continue
             distance, updated = number(station.get("distance"), radius), age(station.get("market_updated_at"), now)
             if distance is None or updated is None or updated > hours or station.get("has_market") is not True:
@@ -207,12 +229,17 @@ class Discovery:
                 rows.append({"system": identity[0], "station": identity[1], "distance": round(distance, 2),
                     "arrival_ls": number(station.get("distance_to_arrival")), "pad": actual_pad,
                     "price": price, "demand": demand, "estimated_sale": price * quantity,
+                    "powers": reported_powers(station), "power_state": text(station.get("system_power_state")) or "Unknown",
+                    "merit_eligibility": "unverified",
                     "updated_at": text(station.get("market_updated_at")), "age_hours": round(updated, 2)})
                 break
         rows.sort(key=lambda r: (-r["estimated_sale"], r["distance"], r["station"]))
         return {"ref": ref, "commodity": commodity, "quantity": quantity, "results": rows[:20],
+                "powerplay_mode": mode, "power": power, "merit_estimate": None,
                 "stations_checked": min(100, len(data["results"])), "stations_available": number(data.get("count")),
                 "source": "Spansh", "note": "Best reported quotes among up to 100 nearby orbital markets, not a galaxy-wide best price. "
                         "Reported demand covers the entered load; prices/demand may change or fall with the size of your sale. "
                         "No carriers or surface ports. Estimates are unsold value, not realized profit. "
+                        "Powerplay filters select reported candidates, not verified merit eligibility. Check the game's local activities, "
+                        "mining origin and source-to-destination requirements before selling; control links and cargo provenance are not verified here. "
                         + ("A provider page failed; results are partial." if data["partial"] else "")}

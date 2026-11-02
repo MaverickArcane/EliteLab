@@ -52,7 +52,18 @@ python -m elitelab call set_wishlist items='{"Datamined Wake Exceptions": 15}' l
 
 ## MCP prompts and resources
 
-Besides the tools, the MCP server offers three prompts (`plan_rares_run`, `engineering_plan` with a `goal` argument, `where_am_i`) that tell the model which tools to chain and what to answer, and read-only resources: `elitelab://state` (everything) and `elitelab://state/<namespace>` (one module, e.g. `elitelab://state/wishlist`).
+Besides the tools, the MCP server offers workflow prompts (listed by `prompts/list`)
+and read-only resources: `elitelab://state` (everything) and
+`elitelab://state/<namespace>` (one module).
+
+Use `mining_run` to chain `get_commander_state`, `get_powerplay_status`,
+`get_mining_status`, `find_mining_spots` and `find_mining_buyers`. Buyer searches
+accept `powerplay_mode=acquisition` or `reinforcement` and `power=pledged` (or
+an explicit power). Report candidates as unverified for merits: source mining,
+control links and local activities still need in-game checks. Mining status and
+`elitelab://state/mining` distinguish recorded merit gains from estimated sale
+associations, and unsold quote value from profit. Never forecast merits from
+prices. Native MCP boolean arguments are encoded as lowercase HTTP booleans.
 
 ## Example conversations
 

@@ -1,6 +1,6 @@
 {
-  "name": "mining", "version": "1.1.0",
-  "description": "Mining desk: ring discovery, prospector reports, refinery output, buyers and session profit.",
+  "name": "mining", "version": "1.2.0",
+  "description": "Mining desk: ring discovery, refinery output, Powerplay buyers, profit and recorded merits.",
   "requires": ["journal", "powerplay"], "provides": ["mining"], "order": 80,
   "cards": [{"id": "mining", "title": "Mining", "span": 12, "script": "card.js", "order": 47}]
 }

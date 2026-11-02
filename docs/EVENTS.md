@@ -151,3 +151,11 @@ reads complete MarketSell/CargoTransfer lines, reconstructs docking independentl
 checks tracked-job/phase/manual/correction boundaries, and uses the same durable
 event fingerprints as live delivery tracking. It performs no network calls;
 ordinary party heartbeats acknowledge recovered cumulative counts.
+
+## Mining Powerplay evidence
+
+Mining also consumes Powerplay (Power, Merits), PowerplayMerits (Power,
+MeritsGained, TotalMerits), pledge changes and location events. Recorded gains
+are distinct from the estimated temporal association with MarketSell; known
+competing earning events, travel, other sales and ambiguous cargo clear it.
+See MINING.md for the 0-12 second window, reset and partial-history rules.

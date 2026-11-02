@@ -2,7 +2,8 @@
 
 Mining publishes `mining.summary`, an atomic snapshot of session refinery output,
 latest prospector composition, recorded rate and `profit` (attributed sales,
-operating costs, remaining units and recent transactions). `mining.spots` and
+operating costs, remaining units and recent transactions), plus `powerplay`
+(observed merits, estimated sale associations and recent evidence). `mining.spots` and
 `mining.selected` are client-only map state; quote estimates stay separate from
 profit. See [MINING.md](MINING.md) for fields, limits and timing semantics.
 

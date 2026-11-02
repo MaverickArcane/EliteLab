@@ -5,7 +5,7 @@ haul. Use the Mining & trade layout for the full-width desk, or enable Mining
 in the Layout menu. Journal tracking works offline; community searches require
 Spansh. The forms retain edits during live updates and save filters in this browser.
 
-## Find, mine, sell
+## Workflow
 
 1. Search near your current system. Filter ring type, reserve level, optional
    reported hotspot, and optional Powerplay acquisition candidate for a power.
@@ -19,6 +19,39 @@ Spansh. The forms retain edits during live updates and save filters in this brow
    limit. Quotes require positive prices and enough reported demand.
 5. Use a quote to estimate the tracked unsold value of that commodity. Actual
    journal sales update the ledger; a quote never becomes realized income.
+
+## Powerplay and MCP
+
+The buyer form offers Any market, Acquisition candidates and Reinforcement
+candidates. The power defaults to My pledged power; an unknown pledge requires
+an explicit selection. Acquisition selects provider-reported Unoccupied systems
+listing that power; reinforcement selects Exploited, Fortified or Stronghold
+systems listing it. Results are rechecked locally for both power and state.
+These are candidate searches, not verified eligibility: control links, mining
+origin, local activities and other game requirements must be checked in game.
+There is no forecast of merits from sale value.
+
+The card and `get_mining_status` expose `powerplay`: `power`, `total_merits`,
+`session_merits`, `sale_associated_merits`, `unassociated_merits`,
+`association_estimated`, the latest 12 `recent` gain records, and `note`.
+`PowerplayMerits.MeritsGained` supplies the observed counter. The first gain
+within 0-12 seconds after a wholly tracked mined sale may be associated with
+that sale only when cargo history is known and unmixed, and no known intervening
+earning/travel event breaks the association. Negative time differences, missing
+timestamps, other sales, ambiguous cargo and power changes cannot create a link.
+The journal provides no sale identifier: association is always estimated and can
+include bonuses. Additional gains remain unassociated rather than being split
+or forecast. Counters reset on game session, commander or pledge changes and
+freeze at Shutdown. Credits and merits are separate.
+
+All three mining tools are listed by MCP. `find_mining_buyers` accepts
+`powerplay_mode` (`none`, `acquisition`, `reinforcement`) and `power` (`pledged`
+or a known power). Results include selected power/mode, reported powers/state,
+`merit_eligibility: unverified` and `merit_estimate: null`. The `mining_run` MCP
+prompt chains commander/pledge/status, ring discovery and buyer search while
+preserving these evidence limits. `elitelab://state/mining` exposes the same
+atomic summary used by the browser. Searches are returned to the caller;
+browser form selections and map pins remain client-local.
 
 Ring discovery uses [Spansh bodies](https://www.spansh.co.uk/bodies); buyers use
 [Spansh stations](https://www.spansh.co.uk/stations). The nested ring and market
@@ -40,7 +73,7 @@ Each `MiningRefined` event adds one ton. Output is grouped by normalized
 commodity key; localized journal names are used for display. Buying, selling,
 ejecting or transferring cargo never changes production totals. Unknown
 commodity types appear in Other / unknown. Production is separate from current
-cargo, attributed sales, and quote estimates. There is no Powerplay merit estimate.
+cargo, attributed sales, and quote estimates. There is no forecast of Powerplay merits.
 
 ## Profit accounting
 
@@ -106,7 +139,7 @@ transfers. Actual in-game validation remains under #3.
 `mining.summary` is one atomic store snapshot. It includes `commander`,
 `partial`, `ended`, `started_at`, `as_of`, `elapsed_seconds`,
 `timing_incomplete`, `tons_per_hour`, `prospector_reports`, `last_prospect`,
-`refined_tons`, `commodities`, `other_tons`, `profit`, and `rate_note`.
+`refined_tons`, `commodities`, `other_tons`, `profit`, `powerplay`, and `rate_note`.
 The API returns the same snapshot. It is read-only and uses the existing
 HTTP authentication and host checks. The two discovery tools make explicit,
 bounded requests to fixed Spansh endpoints; journal handlers never do network I/O.
@@ -137,3 +170,9 @@ prices are transient; screenshots label whether provider data is real or fixture
 `test_mining_desk.py` covers monetary attribution, mixed cargo, transfers,
 snapshot reconciliation, missing prices, aliases, actual nested provider filters,
 freshness/pad/demand/radius checks, bounded pagination and partial failures.
+
+`test_mining_powerplay.py` covers observed versus associated merits, ambiguous
+cargo, chronology, competing events, power/session resets, malformed numbers,
+bounded history, replay and provider power/state validation. Its authenticated
+MCP subprocess test exercises tool schemas/calls, native boolean query encoding,
+state resources, the planning prompt, validation errors and wrong-token denial.

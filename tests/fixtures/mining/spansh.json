@@ -2,17 +2,17 @@
   "bodies": {
     "count": 3,
     "results": [
-      {"name":"Delkar 7","system_name":"Delkar","distance":0,"distance_to_arrival":1240,"reserve_level":"Pristine","system_x":67.8125,"system_y":32.65625,"system_z":35.25,"system_power_state":"Stronghold","updated_at":"2026-11-02T01:00:00Z","rings":[{"name":"Delkar 7 A Ring","type":"Metallic","signals_updated_at":"2026-11-02T01:00:00Z","signals":[{"name":"Platinum","count":2},{"name":"Painite","count":2},{"name":"Monazite","count":3}]},{"name":"Delkar 7 B Ring","type":"Rocky","signals":[]}]},
-      {"name":"LTT 4487 10","system_name":"LTT 4487","distance":10.16,"distance_to_arrival":650,"reserve_level":"Major","system_x":70,"system_y":42,"system_z":34,"system_power_state":"Fortified","updated_at":"2026-11-02T01:00:00Z","rings":[{"name":"LTT 4487 10 A Ring","type":"Metallic","signals_updated_at":"2026-11-02T01:00:00Z","signals":[{"name":"Monazite","count":1},{"name":"Rhodplumsite","count":1}]}]},
-      {"name":"Andvarites 2","system_name":"Andvarites","distance":64.23,"distance_to_arrival":890,"reserve_level":"Common","system_power_state":"Unoccupied","updated_at":"2026-11-02T01:00:00Z","rings":[{"name":"Andvarites 2 A Ring","type":"Metallic","signals":[]}]}
+      {"name":"Delkar 7","system_name":"Delkar","distance":0,"distance_to_arrival":1240,"reserve_level":"Pristine","system_x":67.8125,"system_y":32.65625,"system_z":35.25,"system_power_state":"Stronghold","updated_at":"2026-11-02T01:00:00Z","rings":[{"name":"Delkar 7 A Ring","type":"Metallic","signals_updated_at":"2026-11-02T01:00:00Z","signals":[{"name":"Platinum","count":2},{"name":"Painite","count":2},{"name":"Monazite","count":3}]},{"name":"Delkar 7 B Ring","type":"Rocky","signals":[]}],"system_power":["Edmund Mahon"]},
+      {"name":"LTT 4487 10","system_name":"LTT 4487","distance":10.16,"distance_to_arrival":650,"reserve_level":"Major","system_x":70,"system_y":42,"system_z":34,"system_power_state":"Fortified","updated_at":"2026-11-02T01:00:00Z","rings":[{"name":"LTT 4487 10 A Ring","type":"Metallic","signals_updated_at":"2026-11-02T01:00:00Z","signals":[{"name":"Monazite","count":1},{"name":"Rhodplumsite","count":1}]}],"system_power":["Edmund Mahon"]},
+      {"name":"Andvarites 2","system_name":"Andvarites","distance":64.23,"distance_to_arrival":890,"reserve_level":"Common","system_power_state":"Unoccupied","updated_at":"2026-11-02T01:00:00Z","rings":[{"name":"Andvarites 2 A Ring","type":"Metallic","signals":[]}],"system_power":["Edmund Mahon"]}
     ]
   },
   "stations": {
     "count": 3,
     "results": [
-      {"name":"Test Prospect Exchange","system_name":"Delkar","distance":0,"distance_to_arrival":320,"type":"Orbis Starport","has_market":true,"has_large_pad":true,"market_updated_at":"2026-11-02T01:00:00Z","market":[{"commodity":"Platinum","sell_price":278000,"demand":4200}]},
-      {"name":"Test Miners Landing","system_name":"LTT 4487","distance":10.16,"distance_to_arrival":180,"type":"Coriolis Starport","has_market":true,"has_large_pad":true,"market_updated_at":"2026-11-02T01:00:00Z","market":[{"commodity":"Platinum","sell_price":291500,"demand":880}]},
-      {"name":"Test Small Depot","system_name":"Solati","distance":3.74,"distance_to_arrival":1400,"type":"Outpost","has_market":true,"has_large_pad":false,"medium_pads":1,"market_updated_at":"2026-11-02T01:00:00Z","market":[{"commodity":"Platinum","sell_price":302000,"demand":40}]}
+      {"name":"Test Prospect Exchange","system_name":"Delkar","distance":0,"distance_to_arrival":320,"type":"Orbis Starport","has_market":true,"has_large_pad":true,"market_updated_at":"2026-11-02T01:00:00Z","market":[{"commodity":"Platinum","sell_price":278000,"demand":4200}],"system_power":["Edmund Mahon"],"system_power_state":"Stronghold"},
+      {"name":"Test Miners Landing","system_name":"LTT 4487","distance":10.16,"distance_to_arrival":180,"type":"Coriolis Starport","has_market":true,"has_large_pad":true,"market_updated_at":"2026-11-02T01:00:00Z","market":[{"commodity":"Platinum","sell_price":291500,"demand":880}],"system_power":["Edmund Mahon"],"system_power_state":"Unoccupied"},
+      {"name":"Test Small Depot","system_name":"Solati","distance":3.74,"distance_to_arrival":1400,"type":"Outpost","has_market":true,"has_large_pad":false,"medium_pads":1,"market_updated_at":"2026-11-02T01:00:00Z","market":[{"commodity":"Platinum","sell_price":302000,"demand":40}],"system_power":["Edmund Mahon"],"system_power_state":"Stronghold"}
     ]
   }
 }

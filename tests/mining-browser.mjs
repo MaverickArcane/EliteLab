@@ -72,11 +72,13 @@ try {
   const demo=[{event:'LoadGame',timestamp:'2026-10-22T14:00:00Z',Commander:'Test Miner',FID:'F2'},
     {event:'Location',timestamp:'2026-10-22T14:00:01Z',StarSystem:'Delkar',StarPos:[67.8125,32.65625,35.25]},
     {event:'Cargo',timestamp:'2026-10-22T14:00:02Z',Vessel:'Ship',Inventory:[]},
+    {event:'Powerplay',timestamp:'2026-10-22T14:00:03Z',Power:'Edmund Mahon',Merits:10000},
     {event:'BuyDrones',timestamp:'2026-10-22T14:01:00Z',TotalCost:20000},
     {event:'ProspectedAsteroid',timestamp:'2026-10-22T14:05:00Z',Materials:[{Name:'Platinum',Proportion:51.67},{Name:'Palladium',Proportion:12.5}],Content_Localised:'Material Content: High',Remaining:82.4}];
   for(let i=0;i<48;i++)demo.push({event:'MiningRefined',timestamp:'2026-10-22T14:20:00Z',Type:'Platinum'});
   for(let i=0;i<6;i++)demo.push({event:'MiningRefined',timestamp:'2026-10-22T14:25:00Z',Type:'Painite'});
   demo.push({event:'MarketSell',timestamp:'2026-10-22T15:00:00Z',Type:'Platinum',Count:8,TotalSale:2224000},
+    {event:'PowerplayMerits',timestamp:'2026-10-22T15:00:01Z',Power:'Edmund Mahon',MeritsGained:1800,TotalMerits:11800},
     {event:'RefuelAll',timestamp:'2026-10-22T15:01:00Z',Cost:2400},{event:'RepairAll',timestamp:'2026-10-22T15:02:00Z',Cost:5800},
     {event:'BuyAmmo',timestamp:'2026-10-22T15:03:00Z',Cost:1200},{event:'Shutdown',timestamp:'2026-10-22T15:05:00Z'});
   append(demo);
@@ -95,6 +97,14 @@ try {
   if(process.env.ELITELAB_MINING_LIVE!=='1')assert.match(await evaluate("document.querySelector('[data-valuation]').textContent"),/11,660,000/);
   const planned=(await (await fetch(base+'/api/mining')).json()).profit;
   assert.equal(planned.net_profit,2194600,'A quote must never become realized profit');
+  assert.equal((await (await fetch(base+'/api/mining')).json()).powerplay.sale_associated_merits,1800);
+  assert.equal(await evaluate("document.querySelector('[data-mining-merits]').textContent"),'1,800');
+  // The provider fixture is synthetic. The live run allows empty candidate
+  // results, since current market coverage cannot guarantee a nearby match.
+  await evaluate("const f=document.querySelector('[data-form=buyers]');f.elements.powerplay_mode.value='acquisition';f.dispatchEvent(new Event('input'));f.requestSubmit();true");
+  await waitFor("document.querySelector('[data-search-status=buyers]').textContent.includes('quotes from')");
+  assert.match(await evaluate("document.querySelector('[data-results=buyers]').textContent"),/Edmund Mahon.*acquisition candidates/);
+  if(process.env.ELITELAB_MINING_LIVE!=='1')assert.equal(await evaluate("document.querySelectorAll('[data-results=buyers] [data-quote]').length"),1);
   const outputDir=process.env.ELITELAB_SCREENSHOT_DIR||path.join(temporary,'screenshots');fs.mkdirSync(outputDir,{recursive:true});
   await evaluate("document.querySelector('[data-tab=spots]').click();true");
   for(const [name,width,height] of [['desktop',1440,1000],['mobile',390,844]]) {
@@ -108,6 +118,9 @@ try {
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
   await evaluate("document.querySelector('[data-tab=buyers]').click();scrollTo(0,0);true");await sleep(100);
   const buyerShot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(outputDir,'mining-buyers.png'),Buffer.from(buyerShot.data,'base64'));
+  // Capture the buyer controls/results lower in the taller mining panel.
+  await evaluate("document.querySelector('[data-form=buyers]').scrollIntoView({block:'start'});true");await sleep(100);
+  const powerShot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(outputDir,'mining-powerplay-buyers.png'),Buffer.from(powerShot.data,'base64'));
   // A provider error clears results, and retrying works through the actual backend.
   await evaluate("document.querySelector('[data-form=spots] [name=ref]').value='Unavailable test';document.querySelector('[data-form=spots]').requestSubmit();true");
   await waitFor("document.querySelector('[data-search-status=spots]').textContent.includes('unavailable')");
@@ -140,10 +153,12 @@ try {
   await waitFor("document.querySelector('#card-mining [data-mining-total]')?.textContent==='1 t'");
   assert.equal(await evaluate("!!document.querySelector('#card-cargo') && !document.querySelector('#card-ship')"),true);
   assert.equal(await evaluate("document.querySelector('[data-form=spots] [name=hotspot]').value"),'Keep this filter');
+  assert.equal(await evaluate("document.querySelector('[data-form=buyers] [name=powerplay_mode]').value"),'acquisition');
+  assert.equal(await evaluate("document.querySelector('[data-form=buyers] [name=power]').value"),'pledged');
   assert.deepEqual(await evaluate("[...document.querySelectorAll('.render-error')].map(e=>e.textContent)"),[]);
   assert.deepEqual(errors,[]);
   assert.doesNotMatch(serverLog,/Traceback|handler failed/);
-  console.log('Mining CLI, API, journal/SSE, profit ledger, ring search, buyers, quote valuation, retry, response ordering, saved filters/layout, desktop/mobile and HTML escaping passed. Provider: '+(process.env.ELITELAB_MINING_LIVE==='1'?'live Spansh':'synthetic fixture')+'. Screenshots: '+outputDir);
+  console.log('Mining CLI, API, journal/SSE, profit ledger, observed/associated merits, Powerplay buyers, ring search, quote valuation, retry, response ordering, saved filters/layout, desktop/mobile and HTML escaping passed. Provider: '+(process.env.ELITELAB_MINING_LIVE==='1'?'live Spansh':'synthetic fixture')+'. Screenshots: '+outputDir);
   await send('Browser.close').catch(()=>{});
 } finally {
   ws?.close();chrome?.kill();

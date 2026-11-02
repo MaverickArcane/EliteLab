@@ -8,6 +8,9 @@ desktop/mobile rendering and HTML escaping. Provider responses are fixtures by
 default; `ELITELAB_MINING_LIVE=1` opts into live Spansh searches. Commander journal
 data remains synthetic in both modes. See [MINING.md](MINING.md) for evidence
 capture instructions, fixture limits and remaining in-game checks.
+The Powerplay checks cover conservative sale association and buyer filtering.
+`test_mining_powerplay.py` also runs the actual authenticated MCP stdio-to-HTTP
+path for schemas, tools, the mining resource, prompt and error responses.
 
 `tests/test_personal.py` checks Spansh station snapshots: exact starting-system
 supply, explicit A-B-A loops (not A-B-C or another port in A), independent return
