@@ -1,4 +1,4 @@
-"""Console-free supervisor for the Windows portable bundle.
+"""Console-free supervisor for packaged desktop launches.
 
 The dashboard owns the Quit action. Each supervisor only waits for its own
 child and restarts it when setup requests a restart; it never kills another
@@ -15,7 +15,13 @@ import threading
 
 
 def notify(message):
-    ctypes.windll.user32.MessageBoxW(None, message, 'EliteLab', 0x10)
+    if os.name == 'nt':
+        ctypes.windll.user32.MessageBoxW(None, message, 'EliteLab', 0x10)
+    else:
+        try:
+            subprocess.Popen(['/usr/bin/zenity', '--error', '--title=EliteLab', '--text', message], close_fds=True)
+        except OSError:
+            print('EliteLab: ' + message, file=sys.stderr)
 
 
 def run(data_dir, settings_path, executable=None, popen=subprocess.Popen, on_child=None):
