@@ -10,7 +10,7 @@ The workflows serve different purposes:
 | Workflow | Start here | Evidence to check |
 |---|---|---|
 | General trading | Personal trade planner | Commodity quotes, supply, demand and quote age |
-| Rare run | Rares loop, then Cargo and Rares at this market | Exact buy station, observed cargo and stock recorded during this visit |
+| Rare run | Rares loop, then Cargo and Local market | Exact buy station, observed cargo and stock recorded during this visit |
 | Powerplay sale | Rare sell targets and Powerplay | Eligible activity, pledge and system control; confirm an actual merit event after selling |
 
 The next buy stop is the nearest unmarked stop when coordinates are available.

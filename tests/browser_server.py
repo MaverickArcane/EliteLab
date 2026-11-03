@@ -43,6 +43,8 @@ def trade_plan(q):
     hostile = '<img src=x onerror=alert(1)>'
     step = q.get('step', 'select')
     if step == 'select':
+        ship = core.store.get('journal', 'ship_info') or {}
+        core.store.update('journal', {'cargo_capacity': 100, 'ship_info': {**ship, 'cargo_capacity': 100}})
         legs = [{'commodity': 'Gold', 'quantity': 100, 'buy': stop(1, 'Port 1', 'Sol', 0, 100, 1000), 'sell': stop(2, hostile, 'Alpha', 39, 400, 1000), 'per_ton': 300, 'profit': 30000, 'cost': 10000},
                 {'commodity': 'Silver', 'quantity': 100, 'buy': stop(2, hostile, 'Alpha', 39, 200, 1000), 'sell': stop(1, 'Port 1', 'Sol', 0, 300, 1000), 'per_ton': 100, 'profit': 10000, 'cost': 20000}]
         row = {'legs': legs, 'route_type': 'round_trip', 'quantity': 100, 'commodity': 'Gold', 'profit': 40000, 'cost': 30000, 'required_credits': 10000,
@@ -52,6 +54,15 @@ def trade_plan(q):
         return personal.plan.select({'id': row['id']})
     if step == 'dock_buy':
         core.bus.emit('journal.Docked', {'event': 'Docked', 'timestamp': now, 'StarSystem': 'Sol', 'StationName': 'Port 1', 'MarketID': 1})
+    elif step in ('market_buy', 'market_wrong', 'market_missing'):
+        core.bus.emit('journal.file.Market', {'timestamp': now, 'event': 'Market', 'MarketID': 99 if step == 'market_wrong' else 1,
+            'StarSystem': 'Sol', 'StationName': 'Port 1', 'Items': [
+                *([{'Name': '$gold_name;', 'Name_Localised': 'Gold', 'BuyPrice': 125, 'SellPrice': 0, 'Stock': 120, 'Demand': 0}] if step != 'market_missing' else []),
+                {'Name': '$silver_name;', 'Name_Localised': 'Silver', 'BuyPrice': 0, 'SellPrice': 230, 'Stock': 0, 'Demand': 77}]})
+    elif step == 'cargo_partial':
+        core.bus.emit('journal.file.Cargo', {'Count': 33, 'timestamp': now, 'Inventory': [
+            {'Name': 'gold', 'Name_Localised': 'Gold', 'Count': 25},
+            {'Name': 'silver', 'Name_Localised': 'Silver', 'Count': 8}]})
     elif step == 'cargo':
         core.bus.emit('journal.file.Cargo', {'Count': 100, 'timestamp': now, 'Inventory': [{'Name': 'gold', 'Name_Localised': 'Gold', 'Count': 100}]})
     return core.store.get('personal')

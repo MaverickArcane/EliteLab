@@ -134,6 +134,34 @@ try {
   const dockedPanel=await evaluate(`({text:document.querySelector('#card-personal [data-personal-plan]').textContent,destination:document.querySelector('[data-personal-search]').elements.destination.value,rows:document.querySelectorAll('#card-personal tbody tr[data-route]').length})`);
   assert.ok(dockedPanel.text.includes('Buy 100 t Gold') && dockedPanel.text.includes('Docked at Port 1'),dockedPanel.text);
   assert.equal(dockedPanel.destination,'Keep this destination'); assert.equal(dockedPanel.rows,1);
+  await tradeAudit('market_buy');
+  await tradeAudit('cargo_partial');
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[data-trade-cargo]')?.textContent.includes('25 / 100 t aboard') && document.querySelector('[data-trade-market]')?.textContent.includes('Local buy quote: 125 Cr/t')"))break;}
+  const localTrade=await evaluate(`({cargo:document.querySelector('[data-trade-cargo]').textContent,market:document.querySelector('[data-trade-market]').textContent,
+    rows:document.querySelector('#card-cargo tbody').textContent,images:document.querySelectorAll('#card-market img').length})`);
+  assert.ok(localTrade.cargo.includes('75 t to buy') && localTrade.rows.includes('Silver') && localTrade.market.includes('stock: 120 t'),JSON.stringify(localTrade));
+  assert.equal(localTrade.images,0);
+  await evaluate("document.querySelector('#card-cargo').scrollIntoView({block:'start'});true");
+  await sleep(150);
+  const cargoMarketDesktop=await send('Page.captureScreenshot',{format:'png'});
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await sleep(200);
+  await evaluate("document.querySelector('#card-market').scrollIntoView({block:'start'});true");
+  const cargoMarketMobile=await send('Page.captureScreenshot',{format:'png'});
+  assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth + 1'));
+  if(process.env.ELITELAB_SCREENSHOT_DIR){
+    fs.mkdirSync(process.env.ELITELAB_SCREENSHOT_DIR,{recursive:true});
+    fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'trade-cargo-market-desktop.png'),Buffer.from(cargoMarketDesktop.data,'base64'));
+    fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'trade-cargo-market-mobile.png'),Buffer.from(cargoMarketMobile.data,'base64'));
+  }
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  await tradeAudit('market_wrong');
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[data-trade-market]')?.textContent.includes('No current matching local market snapshot')"))break;}
+  assert.ok(await evaluate("document.querySelector('[data-trade-market]').textContent.includes('No current matching local market snapshot')"));
+  await tradeAudit('market_missing');
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('[data-trade-market]')?.textContent.includes('No local quote recorded')"))break;}
+  assert.ok(await evaluate("document.querySelector('[data-trade-market]').textContent.includes('No local quote recorded')"));
+  await tradeAudit('market_buy');
   await tradeAudit('cargo');
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('#card-personal [data-personal-plan]').textContent.includes('Travel to <img')"))break;}
   const loadedPanel=await evaluate(`({text:document.querySelector('#card-personal [data-personal-plan]').textContent,images:document.querySelectorAll('#card-personal img').length})`);
