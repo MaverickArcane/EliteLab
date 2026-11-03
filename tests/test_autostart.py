@@ -37,7 +37,7 @@ class AutostartTests(unittest.TestCase):
     def test_explicit_enable_then_disable(self):
         self.assertEqual(self.start.status(),'disabled'); self.assertEqual(self.reg.created,0)
         self.assertTrue(self.start.set_enabled(True)); self.assertEqual(self.start.status(),'enabled')
-        self.assertEqual(self.reg.values['test'][0], '"'+str(self.executable)+'" "'+str(self.root/'Launch EliteLab.vbs')+'"')
+        self.assertEqual(self.reg.values['test'][0], '"'+str(self.executable)+'" "'+str(self.root.resolve()/'Launch EliteLab.vbs')+'"')
         self.assertFalse(self.start.set_enabled(False)); self.assertEqual(self.start.status(),'disabled')
 
     def test_foreign_entry_is_never_overwritten_or_removed(self):
