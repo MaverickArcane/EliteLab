@@ -592,8 +592,27 @@ try {
   assert.match(await evaluate("document.querySelector('.wl-trades .note').textContent"),/Follow exchanges in the listed order/);
   await evaluate("document.querySelector('[data-preset=Default]').click();true");
   await sleep(200);
+  const meritAudit=await (await fetch(`http://127.0.0.1:${port}/audit/merit-context`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+  assert.equal(meritAudit.session_merits,220);
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelectorAll('#card-powerplay .powerplay-gain').length===2"))break;}
+  const powerplayView=await evaluate(`({text:document.querySelector('#card-powerplay').textContent,rows:document.querySelectorAll('#card-powerplay .powerplay-gain').length,images:document.querySelectorAll('#card-powerplay img').length})`);
+  assert.equal(powerplayView.rows,2);assert.equal(powerplayView.images,0);
+  assert.ok(powerplayView.text.includes('Recorded this session') && powerplayView.text.includes('+220') && powerplayView.text.includes('association unconfirmed') && powerplayView.text.includes('Source not established'),JSON.stringify(powerplayView));
+  await sleep(2800);
+  await evaluate("document.querySelector('#card-powerplay').scrollIntoView({block:'start'});true");
+  await sleep(150);
+  const meritDesktop=await send('Page.captureScreenshot',{format:'png'});
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await sleep(200);
+  await evaluate("document.querySelector('#card-powerplay').scrollIntoView({block:'start'});true");
+  await sleep(150);
+  const meritMobile=await send('Page.captureScreenshot',{format:'png'});
+  assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth + 1'));
+  if(process.env.ELITELAB_SCREENSHOT_DIR){
+    fs.mkdirSync(process.env.ELITELAB_SCREENSHOT_DIR,{recursive:true});
+    fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'powerplay-context-desktop.png'),Buffer.from(meritDesktop.data,'base64'));
+    fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'powerplay-context-mobile.png'),Buffer.from(meritMobile.data,'base64'));
+  }
   await evaluate("scrollTo(0,0);true");
   const mobile=await evaluate("({bodyWidth:document.body.scrollWidth,viewport:innerWidth,clientWidth:document.documentElement.clientWidth,cards:document.querySelectorAll('#grid > .card').length,overflow:[...document.querySelectorAll('body *')].filter(e=>e.getBoundingClientRect().right>395&&getComputedStyle(e).position!=='fixed').slice(0,15).map(e=>({tag:e.tagName,id:e.id,cls:e.className,right:e.getBoundingClientRect().right}))})");
   // journal banner: folder shown as text, link to /setup/, removed once journals are found

@@ -45,8 +45,9 @@ CAUSES = {
 
 def _ts(s):
     try:
-        return dt.datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc).timestamp()
-    except Exception:
+        parsed = dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return parsed.timestamp() if parsed.tzinfo else None
+    except (AttributeError, TypeError, ValueError, OverflowError, OSError):
         return None
 
 
@@ -54,8 +55,9 @@ class Merits:
     def __init__(self, core):
         self.core = core
         self._lock = threading.RLock()
+        self.commander = self.fid = None
         self.reset(None)
-        for e in list(CAUSES) + ["PowerplayMerits", "LoadGame", "PowerplayJoin", "PowerplayDefect", "PowerplayLeave",
+        for e in list(CAUSES) + ["PowerplayMerits", "LoadGame", "Commander", "PowerplayJoin", "PowerplayDefect", "PowerplayLeave",
                                  "SupercruiseDestinationDrop", "SupercruiseEntry", "FSDJump", "Docked", "Died", "Resurrect", "ShipTargeted"]:
             core.bus.on("journal." + e, self.on_event)
         core.bus.on("journal.replay.done", lambda n, v: self.publish())
@@ -63,6 +65,8 @@ class Merits:
 
     def reset(self, ts):
         self.session_start = ts
+        self.boundary = ts
+        self.seen = []
         self.causes = []          # [(ts, activity, detail, cr)]
         self.gains = []           # [{ts, gained, activity, detail}]
         self.total = 0
@@ -101,7 +105,22 @@ class Merits:
 
     def _on_event(self, name, ev):
         e, ts = ev.get("event"), _ts(ev.get("timestamp"))
-        if e in ("LoadGame", "PowerplayJoin", "PowerplayDefect", "PowerplayLeave"):
+        if e == "LoadGame":
+            self.commander = ev.get("Commander") if isinstance(ev.get("Commander"), str) else None
+            self.fid = ev.get("FID") if isinstance(ev.get("FID"), str) else None
+            self.reset(ts); self.publish(); return
+        if e == "Commander":
+            commander, fid = ev.get("Name"), ev.get("FID")
+            changed = (isinstance(commander, str) and self.commander and commander != self.commander or
+                       isinstance(fid, str) and self.fid and fid != self.fid)
+            if changed:
+                self.reset(ts); self.publish()
+            if isinstance(commander, str):
+                self.commander = commander
+            if isinstance(fid, str):
+                self.fid = fid
+            return
+        if e in ("PowerplayJoin", "PowerplayDefect", "PowerplayLeave"):
             self.reset(ts); self.publish(); return
         # Powerplay conflict zones: the game logs no bounty/bond for zone kills, so remember when we are inside one.
         if e == "SupercruiseDestinationDrop":
@@ -115,12 +134,18 @@ class Merits:
                 self.last_target = ev
             return
         if e == "PowerplayMerits":
-            gained = ev.get("MeritsGained") or 0
+            gained = ev.get("MeritsGained")
+            if type(gained) is not int or not 0 <= gained <= 10**12 or (ts is not None and self.boundary is not None and ts < self.boundary):
+                return
+            total = ev.get("TotalMerits")
+            key = (ev.get("timestamp"), gained, total, ev.get("Power")) if ts is not None and type(total) is int else None
+            if key is not None and key in self.seen:
+                return
+            if key is not None:
+                self.seen = (self.seen + [key])[-100:]
             act, detail = "unattributed", ""
-            cause = None
-            for c in reversed(self.causes):
-                if ts is not None and c[0] is not None and ts - c[0] <= WINDOW_S:
-                    cause = c; break
+            matching = [c for c in self.causes if ts is not None and c[0] is not None and 0 <= ts - c[0] <= WINDOW_S]
+            cause = max(matching, key=lambda c: c[0]) if matching else None
             if cause:
                 act, detail, cr = cause[1], cause[2], cause[3]
                 if act in ("rares", "trade") and cr and gained > 2.5 * (cr / RARE_RATE) and gained >= 500:
@@ -198,8 +223,8 @@ class Merits:
 def setup(core, module):
     m = Merits(core)
     core.http.route("/api/merits", lambda q: m.summary(), tool="get_merits_summary", module=module.name,
-                    description="Where this session's Powerplay merits came from (rares, trade, bounty hunting, combat zone bonds, hauling, "
-                                "exploration, missions, objective bonuses), merits per event, and a recent log. Rates: per_hour_earning is the "
+                    description="Estimated activity associations for this session's recorded Powerplay merits (rares, trade, bounty hunting, combat zone bonds, hauling, "
+                                "exploration, missions, objective bonuses), merits per event, and a recent log. A nearby journal event does not prove the reward source. Rates: per_hour_earning is the "
                                 "activity's own pace (time between merit gains, a gap over 20 min counts as 20 min), per_hour_active is over time "
                                 "with any journal activity (a silence over 10 min is a break), per_hour is over elapsed time since login, "
                                 "last_hour is the last 60 minutes; breaks and idle say why they differ.")

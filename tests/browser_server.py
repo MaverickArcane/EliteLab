@@ -67,6 +67,21 @@ def trade_plan(q):
         core.bus.emit('journal.file.Cargo', {'Count': 100, 'timestamp': now, 'Inventory': [{'Name': 'gold', 'Name_Localised': 'Gold', 'Count': 100}]})
     return core.store.get('personal')
 core.http.route('/audit/trade-plan', trade_plan, method='POST')
+def merit_context(q):
+    """Synthetic gain with nearby sale, then an unrelated gain."""
+    from datetime import datetime, timedelta, timezone
+    at = datetime.now(timezone.utc)
+    stamp = lambda n: (at + timedelta(seconds=n)).isoformat()
+    for event in [
+        {'event':'PowerplayJoin','timestamp':stamp(-65),'Power':'Edmund Mahon'},
+        {'event':'MarketSell','timestamp':stamp(-60),'Type':'platinum','Type_Localised':'<Platinum>',
+         'Count':10,'SellPrice':400000,'TotalSale':4000000},
+        {'event':'PowerplayMerits','timestamp':stamp(-58),'Power':'Edmund Mahon','MeritsGained':190,'TotalMerits':190},
+        {'event':'PowerplayMerits','timestamp':stamp(-20),'Power':'Edmund Mahon','MeritsGained':30,'TotalMerits':220},
+    ]:
+        core.bus.emit('journal.' + event['event'], event)
+    return core.http.tools['get_powerplay_status'].fn({})
+core.http.route('/audit/merit-context', merit_context, method='POST')
 core.http.route('/audit/identity', lambda q: {'id': core.modules['party'].party.member_id, 'secret': core.modules['party'].party.secret})
 server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(core))
 print(server.server_port, flush=True)

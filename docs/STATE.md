@@ -74,7 +74,9 @@ The data itself is not in the store (it can be thousands of rows). `GET /api/his
 | `rank` | int or null | |
 | `time_pledged` | int seconds | from `Powerplay` at load |
 | `session_merits` | int | sum of `MeritsGained` since `LoadGame` |
-| `merit_log` | `[{ts, gained, total}]` last 20 | |
+| `merit_log` | `[{ts, gained, total, power, sequence, context}]` last 20 in time order | `context` is null or `{kind,detail,at,delay_s,basis}` for a journal activity within 12 s before the recorded gain; proximity is not confirmed causation |
+| `commander`, `session_started_at`, `pledge_changed_at` | string or null | Game login and changed commander reset the gain log; pledge changes reset its context |
+| `power_observed_this_session` | bool | False after LoadGame or commander change until a Powerplay/pledge/merit event confirms the retained power value |
 | `cycle_end` | ISO str | next Thursday 07:00 UTC |
 | `cycle_hours_left` | float | |
 | `powers` | [str] | the 12 powers, for dropdowns |
@@ -95,6 +97,12 @@ The data itself is not in the store (it can be thousands of rows). `GET /api/his
 | `unattributed` | int |
 | `recent` | `[{ts, gained, activity, detail, total}]` newest first, 15 |
 | `note` | str |
+
+`merits` activity labels are heuristic. ISO timestamps with UTC offsets are
+accepted; a cause after the gain is not associated with it. Duplicate gains
+with the same timestamp, total and power are ignored within the current
+session. A new game login, changed commander or pledge change resets the
+session summary.
 
 Activity names: `rares`, `trade`, `bounty hunting`, `combat zone`, `pvp`, `hauling`, `exploration`, `exobiology`, `missions`, `search and rescue`, `scans`, `odyssey trade`, `objective bonus`, `unattributed`.
 

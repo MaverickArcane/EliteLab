@@ -14,10 +14,10 @@
           <div><div class="k">Best activity</div><div class="v">${esc(m.best || '—')}</div></div>
         </div>
         ${acts.length ? `<div class="bar" style="display:flex;overflow:hidden">${acts.map(([a, v]) => `<i style="width:${v.share}%;background-color:${COLORS[a] || '#888'}" title="${esc(a)} ${v.share}%"></i>`).join('')}</div>
-        <table style="margin-top:6px"><thead><tr><th>Activity</th><th class="num">Merits</th><th class="num">Events</th><th class="num">Per event</th></tr></thead><tbody>
+        <table style="margin-top:6px"><thead><tr><th>Likely activity</th><th class="num">Merits</th><th class="num">Events</th><th class="num">Per event</th></tr></thead><tbody>
         ${acts.map(([a, v]) => `<tr><td><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${COLORS[a] || '#888'};margin-right:6px"></i>${esc(a)}</td><td class="num">${fmt(v.merits)}</td><td class="num">${v.events}</td><td class="num">${fmt(v.per_event)}</td></tr>`).join('')}</tbody></table>` : '<div class="note">No merits yet this session. Sell something, kill something, or deliver something and the breakdown appears here.</div>'}
         ${(m.recent || []).length ? `<div class="feed" style="margin-top:6px;max-height:140px">${m.recent.slice(0, 8).map(g => `<div><time>${(g.ts || '').slice(11, 16)}</time><span><b class="ok">+${fmt(g.gained)}</b> ${esc(g.activity)} <span class="muted">${esc(g.detail || '')}</span></span></div>`).join('')}</div>` : ''}
-        <div class="note">Rares observed at ~1 merit per 667 Cr sold. Resets when you reload the game or change power.</div>`;
+        <div class="note">Activity labels are estimates from nearby journal events, not confirmed reward sources. Rares observed at ~1 merit per 667 Cr sold with Mahon's bonus. Resets when you reload the game or change power.</div>`;
     },
   });
 })();
