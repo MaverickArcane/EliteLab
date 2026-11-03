@@ -875,8 +875,8 @@ most recent search, whoever ran it) makes that route the active plan, saved in
 and the previous plan stays; a failed save also keeps the previous plan.
 `clear_trade_route` / `POST /api/personal/plan/clear` removes it.
 
-`get_trade_plan` / `GET /api/personal/plan` returns `{plan, progress}`, both
-null when nothing is selected. `plan` keeps the route's legs (commodity,
+`get_trade_plan` / `GET /api/personal/plan` returns `{plan, progress, powerplay_handoff}`;
+`plan` and `progress` are null when nothing is selected. `plan` keeps the route's legs (commodity,
 quantity, buy and sell stops with market_id, station, system, pad, arrival_ls,
 observed_at, price, volume, pos), totals, `selected_at`, the selecting `cmdr`
 and `source`. `progress` is recomputed from the journal store:
@@ -896,6 +896,17 @@ and `source`. `progress` is recomputed from the journal store:
 A leg is `done` when recorded sales reach the planned tonnes, or when some tonnes
 were sold at the planned station and the observed hold holds none of the goods.
 Cargo aboard is not a purchase receipt and quotes are community reports.
+
+## Trade route to Powerplay handoff
+
+`get_trade_powerplay_handoff` / `GET /api/personal/powerplay` accepts `role`
+(`buy` or `sell`, default `sell`) and optional prior context `token`. It returns
+the active leg, exact stop, planned commodity/quantity, observed pledge, quote
+evidence and `next_tool` finder arguments (`ref`, `power`) when ready. Missing
+or completed plans, unknown/different commander or unknown session pledge
+disable it. A changed token is rejected. `eligibility` stays `unknown` and
+`expected_merits` stays null. It neither fetches markets nor changes the route.
+See [TRADE-POWERPLAY.md](TRADE-POWERPLAY.md) for the full response and workflow.
 
 ## Unified materials and recipe planning
 

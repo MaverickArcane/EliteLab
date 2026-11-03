@@ -5,6 +5,7 @@ import threading
 
 from elitelab.core.gamedata import is_rare
 from modules.personal import plan as planning
+from modules.personal import powerplay as handoff
 
 NS = 'personal'
 PLAN_FILE = 'personal.json'
@@ -239,11 +240,32 @@ class TradePlan:
         saved = core.read_data(PLAN_FILE, default={}) or {}
         self.plan = saved.get('plan') if isinstance(saved, dict) and planning.valid_plan(saved.get('plan')) else None
         self.events = []          # MarketBuy/MarketSell seen since start; counts() filters by selection time and market
+        self.handoff_power = None
+        self.handoff_commander = self.handoff_fid = None
         core.store.update(NS, {'plan': self.plan, 'progress': None})
         for signal in ('state.journal.location', 'state.journal.credits', 'state.journal.cmdr', 'journal.replay.done'):
             core.bus.on(signal, lambda n, v: self.recompute())
         core.bus.on('journal.MarketBuy', self.event)
         core.bus.on('journal.MarketSell', self.event)
+        for kind in ('LoadGame', 'Commander', 'Powerplay', 'PowerplayJoin', 'PowerplayLeave', 'PowerplayDefect'):
+            core.bus.on('journal.' + kind, self.handoff_event)
+        self.recompute()
+
+    def handoff_event(self, name, ev):
+        if not isinstance(ev, dict):
+            return
+        kind = ev.get('event')
+        with self._lock:
+            if kind in ('LoadGame', 'Commander'):
+                commander = planning.label(ev.get('Commander') or ev.get('Name'))
+                fid = planning.label(ev.get('FID'))
+                if kind == 'LoadGame' or (commander and commander != self.handoff_commander) or (fid and fid != self.handoff_fid):
+                    self.handoff_power = None
+                self.handoff_commander = commander or self.handoff_commander
+                self.handoff_fid = fid or self.handoff_fid
+            else:
+                power = ev.get('ToPower') if kind == 'PowerplayDefect' else ev.get('Power')
+                self.handoff_power = power if power in handoff.POWERS and kind != 'PowerplayLeave' else None
         self.recompute()
 
     def event(self, name, ev):
@@ -256,9 +278,17 @@ class TradePlan:
     def recompute(self):
         with self._lock:
             plan, events = self.plan, list(self.events)
-        j = self.core.store.get('journal') or {}
-        progress = planning.progress(plan, j, events, datetime.now(timezone.utc).timestamp()) if plan else None
-        self.core.store.update(NS, {'plan': plan, 'progress': progress})
+            j = self.core.store.get('journal') or {}
+            progress = planning.progress(plan, j, events, datetime.now(timezone.utc).timestamp()) if plan else None
+            powerplay = handoff.context(plan, progress, j, self.handoff_power)
+            self.core.store.update(NS, {'plan': plan, 'progress': progress, 'powerplay_handoff': powerplay})
+
+    def powerplay_handoff(self, q):
+        self.recompute()
+        state = self.core.store.get(NS, 'powerplay_handoff')
+        if 'find_sell_targets' not in self.core.http.tools:
+            state = {**state, 'ready': False, 'status': 'finder_unavailable', 'message': 'The Powerplay sell-target module is unavailable.'}
+        return handoff.handoff(state, q)
 
     def select(self, q):
         route_id = q.get('id')
@@ -285,6 +315,10 @@ def setup(core, module):
     search = Personal(core)
     plan = TradePlan(core, search)
     module.search, module.plan = search, plan
+    core.http.route('/api/personal/powerplay', plan.powerplay_handoff, tool='get_trade_powerplay_handoff', module=module.name,
+        description='Read the active commodity trade leg as a Powerplay finder planning origin. role selects its buy or sell stop. Returns the exact stop, planned commodity/quantity, observed pledge, quote evidence, and next_tool find_sell_targets arguments (ref and power only; other filters remain your choice). Missing plan, completed route, changed/unknown commander or unknown pledge disables the handoff. Eligibility stays unknown and expected_merits null: planned goods are not rare cargo provenance, acceptance or a reward forecast. No route, pledge or recorded merit changes; no network request. Pass token from a previous response to reject a stale handoff.',
+        params={'role': {'type': 'string', 'enum': ['buy', 'sell'], 'default': 'sell'},
+                'token': {'type': 'string', 'description': 'Optional context token; changed route, active leg, commander or pledge rejects it.'}})
     core.http.route('/api/personal/plan', lambda q: core.store.get(NS), tool='get_trade_plan', module=module.name,
         description='The selected commodity trade route and its progress from journal evidence: stage (travel_buy, buy, travel_sell, sell, complete), the next station with straight-line distance and exact docking, tonnes of the planned goods observed aboard (null when cargo is unknown), recorded MarketBuy/MarketSell tonnes at the planned market IDs since selection, report age of the quotes, and whether reported credits cover the next purchase. plan is null when no route is selected. Cargo aboard is not a purchase receipt; quotes are community reports, not live prices.')
     core.http.route('/api/personal/plan', plan.select, tool='select_trade_route', method='POST', module=module.name,

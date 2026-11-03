@@ -427,6 +427,11 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 .workspace-off{display:none!important}
 .workspace-focused{grid-auto-flow:row!important}
 .workspace-focused #card-wishlist,.workspace-focused #card-history{grid-column:1/-1!important}
+/* Trade route to Powerplay planning context */
+.trade-powerplay-source,.trade-powerplay-context{margin:16px 0;padding:14px;border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--bg-2);overflow-wrap:anywhere}
+.trade-powerplay-source .row,.trade-powerplay-context .row{flex-wrap:wrap}
+.trade-powerplay-context[hidden]{display:none}
+
 /* Rare buying workflow */
 #card-loop,#card-cargo,#card-market { scroll-margin-top:60px; }
 .rares-next { border-left:3px solid var(--accent); padding:16px; background:var(--bg-2); }
