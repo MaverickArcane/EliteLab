@@ -11,6 +11,11 @@ instance and opens its setup URL. A marked Windows portable bundle uses
 separate profile under the configured data directory; an explicit browser setting
 wins, and launch failure falls back to the normal browser. Source launches retain
 the normal browser behavior.
+The Windows bundle also provides a WScript entry point that starts a `pythonw`
+supervisor without a console. It writes child output to the data folder, runs setup
+on first launch, and restarts the child on exit 75 without opening a second window.
+The dashboard Quit control stops the server; closing the window does not. Repeated
+rapid restart requests are bounded. The source launchers remain available.
 HTTP binding uses the bound address as the server name without a reverse-DNS
 lookup, so a slow resolver cannot stall local setup. Windows exclusive-port
 ownership is preserved.

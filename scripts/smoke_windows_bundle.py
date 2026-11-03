@@ -24,6 +24,8 @@ def smoke(bundle):
         assert not (app / "data").exists(), "Bundle must not contain local state"
         assert not (app / ".env").exists(), "Bundle must not contain credentials"
         assert (app / "runtime" / "LICENSE.txt").is_file()
+        assert (app / "runtime" / "pythonw.exe").is_file()
+        assert (app / "Launch EliteLab.vbs").is_file()
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
             port = probe.getsockname()[1]

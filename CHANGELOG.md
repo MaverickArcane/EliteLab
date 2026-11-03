@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Windows portable bundle: launch without a terminal, open setup on first use, restart after settings changes, and report startup errors with a log path. Use the dashboard Quit control to stop (#9).
+
 - Windows portable bundle: open setup and dashboard in a dedicated Chromium app window, falling back to the default browser when no compatible executable can launch (#9).
 
 - Windows portable bundles: keep new app data in the user profile so replacing an extraction does not discard it. Existing local data folders and explicit settings take precedence (#9).
