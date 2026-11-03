@@ -594,6 +594,8 @@ try {
   await sleep(200);
   const meritAudit=await (await fetch(`http://127.0.0.1:${port}/audit/merit-context`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
   assert.equal(meritAudit.session_merits,220);
+  const meritSummary=await (await fetch(`http://127.0.0.1:${port}/api/merits`)).json();
+  assert.equal(meritSummary.last_hour,220);
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelectorAll('#card-powerplay .powerplay-gain').length===2"))break;}
   const powerplayView=await evaluate(`({text:document.querySelector('#card-powerplay').textContent,rows:document.querySelectorAll('#card-powerplay .powerplay-gain').length,images:document.querySelectorAll('#card-powerplay img').length})`);
   assert.equal(powerplayView.rows,2);assert.equal(powerplayView.images,0);

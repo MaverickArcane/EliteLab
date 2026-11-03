@@ -1,5 +1,6 @@
 """Recorded merit gains and explicitly uncertain nearby journal activity."""
 import json
+from datetime import datetime, timedelta, timezone
 import unittest
 
 import test_mining
@@ -77,3 +78,9 @@ class PowerplayContextTests(unittest.TestCase):
         self.emit('PowerplayMerits','2026-11-02T12:00:40+00:00',Power='Edmund Mahon',MeritsGained=30,TotalMerits=220)
         summary=self.core.http.tools['get_merits_summary'].fn({})
         self.assertEqual(summary['by_activity']['unattributed']['merits'],30)
+
+    def test_recent_offset_gain_counts_in_last_hour(self):
+        now=datetime.now(timezone.utc)
+        self.emit('LoadGame',(now-timedelta(minutes=2)).isoformat(),Commander='A',FID='F1')
+        self.emit('PowerplayMerits',(now-timedelta(seconds=20)).isoformat(),Power='Edmund Mahon',MeritsGained=20,TotalMerits=20)
+        self.assertEqual(self.core.http.tools['get_merits_summary'].fn({})['last_hour'],20)
