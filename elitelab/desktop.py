@@ -5,18 +5,20 @@ child and restarts it when setup requests a restart; it never kills another
 instance or changes a running server's settings.
 """
 import ctypes
+import importlib
 import os
 from pathlib import Path
 import subprocess
 import sys
 import time
+import threading
 
 
 def notify(message):
     ctypes.windll.user32.MessageBoxW(None, message, 'EliteLab', 0x10)
 
 
-def run(data_dir, settings_path, executable=None, popen=subprocess.Popen):
+def run(data_dir, settings_path, executable=None, popen=subprocess.Popen, on_child=None):
     """Run a child server, preserving the open window across setup restarts."""
     executable = executable or sys.executable
     logs = Path(data_dir) / 'logs'
@@ -31,6 +33,8 @@ def run(data_dir, settings_path, executable=None, popen=subprocess.Popen):
             cmd = [executable, '-m', 'elitelab', 'serve', *first]
             child = popen(cmd, stdin=subprocess.DEVNULL, stdout=log,
                           stderr=subprocess.STDOUT, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            if on_child:
+                on_child(child)
             status = child.wait()
             if status != 75:
                 return status, log_path
@@ -43,10 +47,50 @@ def run(data_dir, settings_path, executable=None, popen=subprocess.Popen):
             first = ['--no-browser']
 
 
+def tray_enabled():
+    return os.name == 'nt'
+
+
+def tray_main(config):
+    from .tray_control import TrayControl
+    from .windows_tray import WindowsTray
+    control = TrayControl(config, refresh=lambda: importlib.reload(config))
+    try:
+        tray = WindowsTray(control, notify)
+    except OSError as error:
+        notify('The tray icon could not start. Use Quit in the dashboard to stop EliteLab. ' + str(error))
+        return run(config.DATA_DIR, config.SETTINGS_PATH)
+    result = {}
+    finished = threading.Event()
+    def supervise():
+        try:
+            result['value'] = run(config.DATA_DIR, config.SETTINGS_PATH, on_child=control.set_child)
+        except Exception as error:
+            result['error'] = error
+        finally:
+            finished.set()
+            tray.close()
+    worker = threading.Thread(target=supervise, name='desktop-supervisor')
+    worker.start()
+    failed = False
+    try:
+        tray.loop()
+    except Exception as error:
+        failed = True
+        notify('The tray stopped. Use Quit in the dashboard to stop EliteLab. ' + str(error))
+    if not finished.is_set() and not failed:
+        notify('The tray closed. Use Quit in the dashboard to stop EliteLab.')
+    if worker.is_alive():
+        worker.join()
+    if 'error' in result:
+        raise result['error']
+    return result['value']
+
+
 def main():
     try:
         from .core import config
-        status, log_path = run(config.DATA_DIR, config.SETTINGS_PATH)
+        status, log_path = tray_main(config) if tray_enabled() else run(config.DATA_DIR, config.SETTINGS_PATH)
         if status:
             notify('EliteLab could not start or stopped unexpectedly. See the log for details:\n' + str(log_path))
         return status

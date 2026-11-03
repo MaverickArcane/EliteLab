@@ -328,6 +328,21 @@ Journal accounting follows Frontier's
 
 ### Windows, no Docker
 
+The Windows CI workflow builds a per-user installer artifact. It installs into
+`%LOCALAPPDATA%\Programs\EliteLab` by default without an administrator prompt
+and offers an optional desktop shortcut. It is not published as a release asset
+yet. The installer is unsigned, so Windows may show a warning; check the
+published SHA-256 alongside the artifact before running it. Quit EliteLab before
+installing, upgrading or uninstalling; the installer
+checks the standard instance guard and refuses to proceed while it is locked.
+If you set `ELITELAB_INSTANCE_DIR`, launch setup with the same absolute value.
+Setup accepts an empty destination or a recent EliteLab bundle folder containing
+the `.windows-bundle` marker, so it does not overwrite an unrelated nonempty
+folder. Install older unmarked bundles into a new folder. Uninstall removes application
+files and shortcuts while preserving settings and data. Do not delete your old
+bundle or its data until you have verified the new installation.
+
+
 Download the source ZIP from GitHub and extract it completely into a writable
 folder. Install Python 3.10 or newer from python.org with **Add Python to PATH**
 enabled, or use the portable Windows bundle which includes Python.
@@ -339,8 +354,16 @@ copy it to the new default before starting. Configured data paths still take pre
 
 For the portable Windows bundle, double-click **Launch EliteLab.vbs**. On first
 launch it opens setup; choose your journal folder, click **Test**, then **Save**
-and **Restart** if requested. Use **Quit** in the dashboard to stop EliteLab.
-Closing the window alone leaves the server running. Startup errors point to a
+and **Restart** if requested. Use **Quit EliteLab** in the notification-area
+menu or **Quit** in the dashboard to stop the server. The tray menu can also
+open the dashboard or setup; double-click its icon to open the dashboard.
+**Start at sign-in** is off by default and can be toggled from that menu.
+If another EliteLab installation owns the sign-in entry, change it through
+Windows Startup apps before enabling this one. Uninstall removes the entry
+only when it belongs to that installation.
+Closing the window alone leaves the server running. Tray actions require a
+loopback-accessible server; use the dashboard controls if bound only to a
+specific network address. Startup errors point to a
 log under the configured data folder. The bundle opens an app window using
 Edge, Chrome, Brave or Chromium, with a dedicated browser profile in the data
 folder; if no supported browser can be launched, it opens the default browser.
