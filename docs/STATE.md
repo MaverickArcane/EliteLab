@@ -75,7 +75,7 @@ The data itself is not in the store (it can be thousands of rows). `GET /api/his
 | `time_pledged` | int seconds | from `Powerplay` at load |
 | `session_merits` | int | sum of `MeritsGained` since `LoadGame` |
 | `merit_log` | `[{ts, gained, total, power, sequence, context}]` last 20 in time order | `context` is null or `{kind,detail,at,delay_s,basis}` for a journal activity within 12 s before the recorded gain; proximity is not confirmed causation |
-| `commander`, `session_started_at`, `pledge_changed_at` | string or null | Game login and changed commander reset the gain log; pledge changes reset its context |
+| `commander`, `session_started_at`, `pledge_changed_at` | string or null | Game login and changed commander reset the gain log; a changed commander also clears rank and total; pledge changes reset context |
 | `power_observed_this_session` | bool | False after LoadGame or commander change until a Powerplay/pledge/merit event confirms the retained power value |
 | `cycle_end` | ISO str | next Thursday 07:00 UTC |
 | `cycle_hours_left` | float | |

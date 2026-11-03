@@ -56,6 +56,7 @@ class PowerplayContextTests(unittest.TestCase):
         self.assertEqual(self.state()['merit_log'],[])
         self.assertEqual(self.state()['power'],'Aisling Duval')
         self.assertFalse(self.state()['power_observed_this_session'])
+        self.assertIsNone(self.state()['merits'])
         self.emit('LoadGame','2026-11-02T12:01:00Z',Commander='B',FID='F2')
         self.assertEqual(self.state()['session_started_at'],'2026-11-02T12:01:00Z')
 

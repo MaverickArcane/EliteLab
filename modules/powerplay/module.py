@@ -92,7 +92,12 @@ class Powerplay:
             return
         e, st = ev.get("event"), self.st
         if e == "LoadGame":
+            commander, fid = ev.get("Commander"), ev.get("FID")
+            changed = (isinstance(commander, str) and st["commander"] and commander != st["commander"] or
+                       isinstance(fid, str) and self.fid and fid != self.fid)
             self.clear_gains()
+            if changed:
+                st.update(merits=None, rank=None, time_pledged=None)
             st.update(session_started_at=ev.get("timestamp"), pledge_changed_at=None,
                       power_observed_this_session=False,
                       commander=ev.get("Commander") if isinstance(ev.get("Commander"), str) else None)
@@ -103,6 +108,7 @@ class Powerplay:
                        isinstance(fid, str) and self.fid and fid != self.fid)
             if changed:
                 self.clear_gains()
+                st.update(merits=None, rank=None, time_pledged=None)
                 st.update(session_started_at=ev.get("timestamp"), pledge_changed_at=None,
                           power_observed_this_session=False)
             if isinstance(commander, str):

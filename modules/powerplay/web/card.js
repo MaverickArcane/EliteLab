@@ -12,7 +12,7 @@
       const gains = (p.merit_log || []).slice(-8).reverse();
       el.innerHTML = `
         <div class="big">${esc(p.power || 'Unpledged')}</div>
-        ${p.power && !p.power_observed_this_session ? '<div class="note warn">Pledge is from an earlier observation; no pledge event has been seen this game session.</div>' : ''}
+        ${p.power && !p.power_observed_this_session ? '<div class="note warn">Pledge is from an earlier observation. Confirm it in this game session; current rank and total merits may be unavailable.</div>' : ''}
         <div class="grid2">
           <div><div class="k">Rank</div><div class="v">${p.rank ?? '—'}</div></div>
           <div><div class="k">Merits</div><div class="v">${fmt(p.merits)}</div></div>
