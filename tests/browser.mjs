@@ -700,6 +700,35 @@ try {
   assert.equal(feed.filter,'trading'); assert.match(feed.text,/No events match/); assert.match(feed.text,/Game session started/); assert.doesNotMatch(feed.text,/Sold/);
   await evaluate("document.querySelector('[data-feed-filter]').value='travel';document.querySelector('[data-feed-filter]').dispatchEvent(new Event('change'));true");
   assert.match(await evaluate("document.querySelector('#card-feed .feed').textContent"),/Jumped to Sol/);
+  // The same sale flows through the selected trade, cargo, local market, feed and Powerplay.
+  const combinedPost=async step=>(await fetch(`http://127.0.0.1:${port}/audit/combined-panels`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({step})})).json();
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  await combinedPost('start'); await tradeAudit('dock_buy'); await tradeAudit('market_buy'); await tradeAudit('cargo');
+  await evaluate("document.querySelector('[data-preset=Trading]').click();true"); await sleep(300);
+  assert.match(await evaluate("document.querySelector('#card-personal [data-personal-plan]').textContent"),/100 t Gold aboard/);
+  await evaluate("document.querySelector('[data-feed-filter]').value='trading';document.querySelector('[data-feed-filter]').dispatchEvent(new Event('change'));true");
+  const combined=await combinedPost('sell'); await sleep(600);
+  assert.equal(combined.plan.progress.legs[0].sold,25);
+  assert.equal(combined.power.session_merits,190);
+  const combinedHttpPlan=await (await fetch(`http://127.0.0.1:${port}/api/personal/plan`)).json();
+  const combinedHttpPower=await (await fetch(`http://127.0.0.1:${port}/api/powerplay`)).json();
+  assert.equal(combinedHttpPlan.progress.legs[0].sold,25); assert.equal(combinedHttpPower.session_merits,190);
+  const tradeView=await evaluate(`({plan:document.querySelector('#card-personal [data-personal-plan]').textContent,cargo:document.querySelector('[data-trade-cargo]')?.textContent,market:document.querySelector('[data-trade-market]')?.textContent,feed:document.querySelector('#card-feed .feed').textContent,filter:document.querySelector('[data-feed-filter]').value,images:document.querySelectorAll('#card-personal img,#card-market img').length})`);
+  assert.match(tradeView.plan,/25 t sold/); assert.match(tradeView.cargo,/75 \/ 100 t aboard/); assert.match(tradeView.market,/Local sell quote: 400 Cr\/t/); assert.match(tradeView.feed,/Sold 25 t Gold/); assert.equal(tradeView.filter,'trading'); assert.equal(tradeView.images,0);
+  await evaluate("document.querySelector('#card-personal').scrollIntoView({block:'start'});true"); await sleep(150);
+  const combinedDesktop=await send('Page.captureScreenshot',{format:'png'});
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true}); await sleep(200);
+  await evaluate("document.querySelector('#card-personal').scrollIntoView({block:'start'});true");
+  const combinedMobile=await send('Page.captureScreenshot',{format:'png'}); assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth + 1'));
+  if(process.env.ELITELAB_SCREENSHOT_DIR){fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'combined-desktop.png'),Buffer.from(combinedDesktop.data,'base64'));fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'combined-mobile.png'),Buffer.from(combinedMobile.data,'base64'));}
+  await evaluate("document.querySelector('[data-preset=Default]').click();true"); await sleep(300);
+  const powerView=await evaluate("document.querySelector('#card-powerplay').textContent");
+  assert.match(powerView,/\+190/); assert.match(powerView,/Gold sale nearby; association unconfirmed/);
+  assert.equal((await (await fetch(`http://127.0.0.1:${port}/api/merits`)).json()).last_hour,190);
+  await evaluate("document.querySelector('#card-powerplay').scrollIntoView({block:'start'});true"); await sleep(150);
+  const combinedPower=await send('Page.captureScreenshot',{format:'png'});
+  if(process.env.ELITELAB_SCREENSHOT_DIR)fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'combined-powerplay.png'),Buffer.from(combinedPower.data,'base64'));
+  assert.deepEqual(errors,[]);
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}`});
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!!document.querySelector('#app-quit') && !!window.Lab?.post && document.querySelectorAll('#grid .card').length>1"))break;}
