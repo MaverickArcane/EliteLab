@@ -328,6 +328,21 @@ Journal accounting follows Frontier's
 
 ### Windows, no Docker
 
+The Windows CI workflow builds a per-user installer artifact. It installs into
+`%LOCALAPPDATA%\Programs\EliteLab` by default without an administrator prompt
+and offers an optional desktop shortcut. It is not published as a release asset
+yet. The installer is unsigned, so Windows may show a warning; check the
+published SHA-256 alongside the artifact before running it. Quit EliteLab before
+installing, upgrading or uninstalling; the installer
+checks the standard instance guard and refuses to proceed while it is locked.
+If you set `ELITELAB_INSTANCE_DIR`, launch setup with the same absolute value.
+Setup accepts an empty destination or a recent EliteLab bundle folder containing
+the `.windows-bundle` marker, so it does not overwrite an unrelated nonempty
+folder. Install older unmarked bundles into a new folder. Uninstall removes application
+files and shortcuts while preserving settings and data. Do not delete your old
+bundle or its data until you have verified the new installation.
+
+
 Download the source ZIP from GitHub and extract it completely into a writable
 folder. Install Python 3.10 or newer from python.org with **Add Python to PATH**
 enabled, or use the portable Windows bundle which includes Python.
