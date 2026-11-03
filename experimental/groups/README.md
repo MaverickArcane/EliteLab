@@ -2,8 +2,8 @@
 
 This directory is an isolated work in progress for #89. It is not loaded by the
 existing dashboard, exposed over HTTP or MCP, or included in release bundles.
-It has no enrollment, invitation, browser session, CSRF protection, rate
-limiting, transport, streaming, backup/restore or graphical interface. Do not
+It has no complete enrollment flow, browser session, CSRF protection,
+transport, streaming, backup/restore or graphical interface. Do not
 use it as a shared service or store real player data in it.
 
 The plan functions check a 32-byte device credential against its SHA-256
@@ -15,6 +15,11 @@ enrollment workflow. An authenticated service must not trust a client-supplied
 account ID. Plan updates use optimistic revisions; step identities survive
 reordering, and removed steps and progress remain retained. Only active steps
 are returned to the current account.
+
+The invitation experiment atomically consumes a one-use verifier while creating
+a device and membership, with a bounded persistent source and invitation
+attempt counter. It has no HTTP endpoint or trusted source-address handling;
+limits, abuse recovery, enrollment and secret transport require further work.
 
 Before any integration, implement and test all relevant requirements in
 `docs/SHARED-SECURITY.md`, including session and invitation lifecycle, roles and
