@@ -55,6 +55,30 @@ class TradePlanTests(unittest.TestCase):
         inventory = [{'Name': k, 'Name_Localised': k.title(), 'Count': v} for k, v in goods.items()]
         self.core.bus.emit('journal.file.Cargo', {'Count': sum(goods.values()), 'timestamp': iso(), 'Inventory': inventory})
 
+    def test_local_market_commodity_evidence_is_bounded_and_scoped(self):
+        selected = self.select()
+        buy = selected['plan']['legs'][0]['buy']
+        self.dock(buy['system'], buy['station'])
+        self.core.bus.emit('journal.file.Market', {'event':'Market','timestamp':iso(), 'MarketID':buy['market_id'],
+            'StarSystem':buy['system'],'StationName':buy['station'],'Items':[
+                {'Name':'$gold_name;','Name_Localised':'Gold','BuyPrice':125,'SellPrice':0,'Stock':0,'Demand':None},
+                {'Name':'$silver_name;','Name_Localised':'<script>','BuyPrice':float('nan'),'SellPrice':250,'Stock':None,'Demand':7}]})
+        market = self.core.http.tools['get_commander_state'].fn({})['market']
+        self.assertEqual(market['market_id'], buy['market_id'])
+        self.assertEqual(market['commodities'][0], {'key':'gold','name':'Gold','buy':125,'sell':0,'stock':0,'demand':None})
+        self.assertEqual(market['commodities'][1]['buy'], None)
+        self.assertEqual(market['commodities'][1]['name'], '<script>')
+        self.assertEqual(self.core.http.tools['get_rares_loop'].fn({})['workflow']['market']['status'],'current_snapshot')
+        json.dumps(market, allow_nan=False)
+        self.core.bus.emit('journal.file.Market', {'timestamp':iso(),'MarketID':999,'StarSystem':buy['system'],
+            'StationName':buy['station'],'Items':[{'Name':'gold','BuyPrice':200,'Stock':40}]})
+        self.assertNotEqual(self.core.store.get('journal','market')['market_id'],buy['market_id'])
+        self.core.bus.emit('journal.file.Market', {'timestamp':iso(),'MarketID':buy['market_id'],'StarSystem':buy['system'],
+            'StationName':buy['station'],'Items':[{'Name':f'item{i}','BuyPrice':i} for i in range(513)]})
+        market = self.core.store.get('journal','market')
+        self.assertEqual(len(market['commodities']),512)
+        self.assertTrue(market['commodities_truncated'])
+
     def test_rows_carry_stable_ids_and_stop_positions(self):
         first, second = self.search(), self.search()
         row = first['rows'][0]

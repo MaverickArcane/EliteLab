@@ -10,7 +10,7 @@ The rare-goods buying loop is documented in [RARE-GOODS.md](RARE-GOODS.md).
 | Priority | Workflow | Start here | Then | Evidence that counts |
 |---|---|---|---|---|
 | 1 | General commodity trading | Trading: find routes, select one | Cargo, Star map | Observed cargo, exact docking, recorded MarketBuy/MarketSell at the planned station |
-| 2 | Rare-goods run | Rares loop | Cargo, Rares at this market, Rare sell targets | Exact station, cargo snapshot, current-visit market snapshot |
+| 2 | Rare-goods run | Rares loop | Cargo, Local market, Rare sell targets | Exact station, cargo snapshot, current-visit market snapshot |
 | 3 | Powerplay selling | Powerplay sell targets, Powerplay | Trading or Rares loop for the goods | Pledge, system control, a PowerplayMerits event after the sale |
 
 General trading comes first because it is the workflow the most commanders run
@@ -119,3 +119,13 @@ current game prices.
 - Expected merits per rare sell target and merit-first comparisons are covered by merged #69 (issue #2). Forecasts remain conditional on game and market evidence.
 - The explicit destination handoff is covered by merged #75 (issue #74); see [TRADE-POWERPLAY.md](TRADE-POWERPLAY.md). Sale acceptance and merit rewards still require game evidence.
 - The default-panel audit and before/after mockups are in [PANEL-AUDIT.md](PANEL-AUDIT.md). The implementation follow-ups are #77 for cargo and local market evidence, #78 for merit context, and #79 for the live feed.
+
+## Selected trade in Cargo and Market (#77)
+
+Cargo highlights the active leg's commodity, observed tonnes aboard and amount
+left to buy while retaining every other cargo row. The Market card shows a local
+buy or sell quote only when Market.json has the active stop's exact market ID,
+the ship is docked there and the snapshot was taken during this visit. Missing,
+old, mismatched or truncated entries are labeled as unknown, never zero stock.
+The community route quote in Trading remains a separate estimate. The local
+snapshot is available to HTTP and MCP clients in `get_commander_state.market`.

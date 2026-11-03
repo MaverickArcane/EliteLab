@@ -1,6 +1,14 @@
 /* journal cards: location, ship, feed, cargo, market rares. */
 (() => {
   const { esc, fmt, inaraSys, spanshSys } = Lab.util;
+  const goodsKey = value => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  function tradeContext(S) {
+    const p = S.personal || {}, j = S.journal || {}, plan = p.plan, progress = p.progress;
+    if (!plan || !progress || progress.stage === 'complete' || progress.commander_changed ||
+        !plan.cmdr || !j.cmdr || plan.cmdr.trim().toLowerCase() !== j.cmdr.trim().toLowerCase() ||
+        !Number.isInteger(progress.leg) || !plan.legs?.[progress.leg] || !progress.next) return null;
+    return {leg: plan.legs[progress.leg], reading: progress.legs?.[progress.leg], stop: progress.next};
+  }
 
   Lab.card({
     id: 'location', requires: ['journal'],
@@ -68,19 +76,22 @@
   });
 
   Lab.card({
-    id: 'cargo', requires: ['journal','loop'],
+    id: 'cargo', requires: ['journal','loop','personal'],
     render(el,S) {
       const j=S.journal||{}, c=j.cargo||{}, items=Array.isArray(c.items)?c.items.slice(0,256):[], w=S.loop?.workflow||{
         cargo_known:Number.isInteger(c.count)&&c.count>=0&&Array.isArray(c.items)&&c.items.every(i=>i&&Number.isInteger(i.count)&&i.count>=0)&&c.items.reduce((n,i)=>n+i.count,0)===c.count,
         free_capacity:null
       };
+      const trade=tradeContext(S), known=!!(w.cargo_known && S.personal?.progress?.cargo_known);
+      const aboard=trade?.reading?.aboard;
+      const tradeLine=trade ? `<div class="trade-local-context" data-trade-cargo><b>Selected trade: ${esc(trade.leg.commodity)}</b><div>${known && Number.isFinite(aboard) ? `${fmt(aboard)} / ${fmt(trade.leg.quantity)} t aboard${trade.stop.role==='buy' ? `; ${fmt(Math.max(0,trade.leg.quantity-aboard))} t to buy` : ''}` : 'Cargo amount unknown'}</div><small>Next ${esc(trade.stop.role)} stop: ${esc(trade.stop.station)}, ${esc(trade.stop.system)}. Cargo is an observation, not a purchase receipt.</small></div>` : '';
       el.innerHTML=`<div class="big">${w.cargo_known?fmt(c.count)+' t aboard':'Cargo unknown'}</div><p class="note">Capacity: ${j.cargo_capacity==null?'unknown':fmt(j.cargo_capacity)+' t'} | Free: ${w.free_capacity==null?'unknown':fmt(w.free_capacity)+' t'}</p>
-        <table><thead><tr><th>Commodity</th><th class="num">Tons</th></tr></thead><tbody>${(w.cargo_known?items:[]).filter(i=>i&&typeof i==='object').map(i=>`<tr><td>${esc(i.name||i.key||'Unknown commodity')} ${i.rare?'<span class="tag rare">rare</span>':''} ${i.stolen?'<span class="tag bad">stolen</span>':''}</td><td class="num">${Number.isFinite(i.count)?fmt(i.count):'Unknown'}</td></tr>`).join('')||`<tr><td colspan="2">${w.cargo_known?'Empty hold':'Waiting for a cargo snapshot from the game.'}</td></tr>`}</tbody></table>
+        ${tradeLine}<table><thead><tr><th>Commodity</th><th class="num">Tons</th></tr></thead><tbody>${(w.cargo_known?items:[]).filter(i=>i&&typeof i==='object').map(i=>`<tr><td>${esc(i.name||i.key||'Unknown commodity')} ${trade && goodsKey(i.key||i.name)===goodsKey(trade.leg.commodity)?'<span class="tag">planned</span>':''} ${i.rare?'<span class="tag rare">rare</span>':''} ${i.stolen?'<span class="tag bad">stolen</span>':''}</td><td class="num">${Number.isFinite(i.count)?fmt(i.count):'Unknown'}</td></tr>`).join('')||`<tr><td colspan="2">${w.cargo_known?'Empty hold':'Waiting for a cargo snapshot from the game.'}</td></tr>`}</tbody></table>
         <p class="note">Cargo aboard is separate from purchase history. Powerplay rewards require eligible origin and local activity; carrier transfers can remove mining provenance.</p>`;
     }
   });
   Lab.card({
-    id:'market', requires:['journal','loop'],
+    id:'market', requires:['journal','loop','personal'],
     render(el,S) {
       const local=S.journal?.market||{}, m=S.loop?.workflow?.market||{
         ...local,status:local.station?'undated':'not_recorded',message:'Arrival evidence unavailable. Open the market in game and verify stock before buying.',
@@ -88,7 +99,12 @@
           name:r.name,buy:Number.isFinite(r.buy)&&r.buy>=0?r.buy:null,stock:Number.isFinite(r.stock)&&r.stock>=0?r.stock:null
         }))
       }, current=m.status==='current_snapshot', rows=m.rares||[];
-      el.innerHTML=`<b>${current?'Rare stock snapshot at this station':m.status==='not_recorded'?'No market recorded':'Previous or unverified market snapshot'}</b>
+      const trade=tradeContext(S), same=trade && current && m.timestamp===local.timestamp && trade.stop.docked_here &&
+        local.market_id != null && local.market_id===trade.stop.market_id;
+      const quote=same ? (local.commodities||[]).find(r=>goodsKey(r.key||r.name)===goodsKey(trade.leg.commodity)) : null;
+      const side=trade?.stop.role==='buy'?'buy':'sell', amount=side==='buy'?'stock':'demand';
+      const tradeLine=trade ? `<div class="trade-local-context" data-trade-market><b>Selected trade: ${esc(trade.leg.commodity)}</b><small>${esc(trade.stop.station)}, ${esc(trade.stop.system)}</small><div>${same ? quote ? `Local ${side} quote: <strong>${quote[side]==null?'unknown':fmt(quote[side])+' Cr/t'}</strong> | ${amount}: ${quote[amount]==null?'unknown':fmt(quote[amount])+' t'}` : `No local quote recorded for this commodity${local.commodities_truncated?' in the retained entries':''}. This is not zero ${amount}.` : `No current matching local market snapshot. ${esc(m.message||'Open the market in game to refresh.')}`}</div>${same && quote ? `<small>Recorded ${esc(local.timestamp||'at unknown time')}; confirm in game before trading.</small>` : ''}</div>` : '';
+      el.innerHTML=`${tradeLine}<b>${current?'Rare stock snapshot at this station':m.status==='not_recorded'?'No market recorded':'Previous or unverified market snapshot'}</b>
         <p class="note" data-market-evidence>${esc(m.message||'Waiting for local market evidence.')}</p>
         <p>${esc(m.station||'Unknown station')}${m.system?', '+esc(m.system):''}</p><p class="note">Recorded: ${esc(m.timestamp||'unknown')}. These are buy prices and reported stock, not sell quotes.</p>
         <table><thead><tr><th>Rare</th><th class="num">Buy / t</th><th class="num">Stock</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.name)}</td><td class="num">${r.buy==null?'Unknown':fmt(r.buy)+' Cr'}</td><td class="num">${r.stock==null?'Unknown':fmt(r.stock)+' t'}</td></tr>`).join('')||`<tr><td colspan="3">${current?'No rares with positive stock in this snapshot.':'No usable rare-stock entries. Open the market in game to refresh.'}</td></tr>`}</tbody></table>`;

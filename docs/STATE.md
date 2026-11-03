@@ -35,7 +35,7 @@ Conventions: `null` means unknown/not yet seen. Timestamps are the journal's ISO
 | `carrier` | dict or null | `CarrierStats`, `CarrierLocation`, `CarrierJump`, backfill | carrier card, map carrier marker |
 | `carrier.*` | `name, callsign, fuel (tritium), balance, free_space, cargo, docking, system, stats_time, services[str]` | | |
 | `cargo` | `{count, items[{name, key, count, stolen, rare}], timestamp}` | `Cargo.json` | cargo card, loop, targets refusal check, merits |
-| `market` | `{station, system, timestamp, rares_in_stock[{name, buy, stock}]}` | `Market.json` | market card |
+| `market` | `{station, system, market_id, timestamp, rares_in_stock[{name, buy, stock}], commodities[{key,name,buy,sell,stock,demand}], commodities_truncated}`; at most 512 commodity entries, invalid numbers become null | `Market.json` | market card, selected trade context |
 | `status` | Docking/flight flags, vehicle, shield up/down, fuel/reservoir/fuel_at, body/destination, low fuel/heat/danger/interdiction flags, cargo_tons, legal, timestamp | `Status.json`; omitted fuel retains its own observation time, reset on vehicle changes | location, ship, party |
 | `game_running`, `hull_health`, `hull_at` | bool/null, fraction/null, timestamp/null | LoadGame/Shutdown; Loadout and player-piloted non-fighter HullDamage. Hull is last-reported, not continuous | party |
 | `feed` | `[{ts, event, text}]` newest first, max 40 | `FEED` table in the module | feed card |

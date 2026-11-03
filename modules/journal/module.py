@@ -6,6 +6,7 @@ system_power_state, system_powers, materials (totals), materials_detail,
 carrier, cargo, market, status, feed, last_event_time, game_version.
 """
 import json
+import math
 import os
 import re
 import threading
@@ -86,7 +87,7 @@ class Journal:
             "station": None, "station_type": None, "docked": False,
             "system_power": None, "system_power_state": None, "system_powers": [],
             "carrier": None, "last_event_time": None, "game_version": None, "ship_info": None,
-            "cargo": {"count": None, "items": []}, "market": {"station": None, "system": None, "rares_in_stock": []},
+            "cargo": {"count": None, "items": []}, "market": {"station": None, "system": None, "market_id": None, "rares_in_stock": [], "commodities": []},
             "status": {},
             "game_running": None, "hull_health": None, "hull_at": None,
         }
@@ -292,10 +293,20 @@ class Journal:
             self._ranges()
             self.push({"status", "credits", "jump_range_now"})
         elif name == "Market":
-            self._market_rares = {norm(i.get("Name")) for i in (data.get("Items") or []) if i.get("Rare")}
-            st["market"] = {"station": data.get("StationName"), "system": data.get("StarSystem"), "timestamp": data.get("timestamp"),
+            raw = data.get("Items") if isinstance(data.get("Items"), list) else []
+            self._market_rares = {norm(i.get("Name")) for i in raw if isinstance(i, dict) and isinstance(i.get("Name"), str) and i.get("Rare")}
+            def amount(value):
+                return value if type(value) in (int, float) and math.isfinite(value) and 0 <= value <= 10**12 else None
+            commodities = [{"key": norm(i.get("Name")), "name": (i.get("Name_Localised") if isinstance(i.get("Name_Localised"), str) else i["Name"])[:160],
+                            "buy": amount(i.get("BuyPrice")), "sell": amount(i.get("SellPrice")),
+                            "stock": amount(i.get("Stock")), "demand": amount(i.get("Demand"))}
+                           for i in raw[:512] if isinstance(i, dict) and isinstance(i.get("Name"), str)]
+            mid = data.get("MarketID")
+            st["market"] = {"station": data.get("StationName"), "system": data.get("StarSystem"), "market_id": mid if type(mid) is int and mid > 0 else None,
+                            "timestamp": data.get("timestamp"), "commodities": commodities,
+                            "commodities_truncated": len(raw) > 512,
                             "rares_in_stock": [{"name": i.get("Name_Localised") or i.get("Name"), "buy": i.get("BuyPrice"), "stock": i.get("Stock")}
-                                               for i in (data.get("Items") or []) if i.get("Rare") and (i.get("Stock") or 0) > 0]}
+                                               for i in raw if isinstance(i, dict) and i.get("Rare") and amount(i.get("Stock")) and amount(i.get("Stock")) > 0]}
             self.push({"market"})
             if self._cargo_raw:
                 self.on_file("Cargo", self._cargo_raw)

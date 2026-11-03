@@ -503,3 +503,6 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 .trading-form details.trade-details { margin: 0; padding-top: 8px; }
 .trading-form details.trade-details > .trade-form { margin: 10px 0 0; }
 @media (max-width: 600px) { .trade-plan { padding: 12px; } .trade-plan-legs .trade-leg-status { margin-left: 0; width: 100%; } }
+.trade-local-context{margin:10px 0;padding:10px 12px;border-left:2px solid var(--accent-2);background:var(--card-2);line-height:1.45}
+.trade-local-context b{color:var(--accent-2)}
+.trade-local-context small{display:block;color:var(--muted);margin-top:3px}

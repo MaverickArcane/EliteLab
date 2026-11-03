@@ -104,7 +104,7 @@ Restart EliteLab so saved settings apply. The process exits with status 75 and a
 
 ## `get_commander_state`  -  `GET /api/journal`  -  module: journal
 
-Live commander state from the journal: name, credits, ship (with loadout summary), cargo capacity and jump range, current system/station, docked flag, Powerplay control of the current system, cargo with rare goods tagged, rares in stock at the last market opened, fleet carrier summary, and the recent event feed. Materials live in get_materials.
+Live commander state from the journal: name, credits, ship (with loadout summary), cargo capacity and jump range, current system/station, docked flag, Powerplay control of the current system, cargo with rare goods tagged, the last local market snapshot, fleet carrier summary, and the recent event feed. `market` includes its market ID, timestamp, rare stock and up to 512 commodity rows with buy/sell prices and stock/demand; `commodities_truncated` signals omitted rows. These are observations from Market.json, not current station guarantees. Missing numeric evidence is null; an absent commodity is not zero stock. Materials live in get_materials.
 
 ## `get_travel_history`  -  `GET /api/history`  -  module: history
 
