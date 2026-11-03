@@ -6,7 +6,11 @@ guard and serve/restart loop. `serve --setup --open-browser` chooses `/setup/`;
 `browser_path` (default `/`). Browser launch waits for a health response with
 `ready: true` and this process's PID, uses the configured auth token for that
 probe, and is cancelled on shutdown. A repeat setup launch reuses the healthy
-instance and opens its setup URL. No new module or settings contract is introduced.
+instance and opens its setup URL. A marked Windows portable bundle uses
+`elitelab.window` to launch a known Chromium-family browser in app mode with a
+separate profile under the configured data directory; an explicit browser setting
+wins, and launch failure falls back to the normal browser. Source launches retain
+the normal browser behavior.
 HTTP binding uses the bound address as the server name without a reverse-DNS
 lookup, so a slow resolver cannot stall local setup. Windows exclusive-port
 ownership is preserved.

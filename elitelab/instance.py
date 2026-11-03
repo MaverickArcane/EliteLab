@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 import time
 import urllib.request
-import webbrowser
 
 
 class InstanceGuard:
@@ -113,7 +112,8 @@ def serve(args):
                 if state and state.get("ready") and state.get("pid") == existing.get("pid"):
                     print(f"EliteLab is already running at {existing['url']} (PID {existing.get('pid')}). Reusing it.")
                     if args.open_browser:
-                        webbrowser.open(existing["url"] + browser_path.lstrip("/"))
+                        from .window import open_dashboard
+                        open_dashboard(existing["url"] + browser_path.lstrip("/"), config)
                     return 0
                 time.sleep(.1)
             raise RuntimeError("EliteLab is already starting or stopping. Wait a moment and try again.")

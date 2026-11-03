@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Windows portable bundle: open setup and dashboard in a dedicated Chromium app window, falling back to the default browser when no compatible executable can launch (#9).
+
 - Windows portable bundles: keep new app data in the user profile so replacing an extraction does not discard it. Existing local data folders and explicit settings take precedence (#9).
 
 - Live feed: filter trading, travel, combat or engineering events, preserve the selection during updates, and show the current game session boundary (#79).
