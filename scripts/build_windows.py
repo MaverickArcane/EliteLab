@@ -55,6 +55,7 @@ def build(output, runtime_zip=None):
             "3. Leave the terminal open while using EliteLab. Ctrl+C stops it.\n\n"
             "Choose journals in setup, Save, then Restart if requested.\n"
             "Next time, double-click Start EliteLab.cmd.\n"
+            "The dashboard opens as an app window when a supported browser is present.\n"
             "If the browser does not open, use the URL printed in the terminal.\n"
             "Startup errors stay visible in the terminal.\n"
             "Your own journals are detected in Saved Games. Local settings and\n"

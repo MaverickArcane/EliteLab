@@ -342,6 +342,9 @@ Double-click **Setup EliteLab.cmd**. It checks the bundled runtime, `python`, th
 or enter your journal folder, click **Test**, then **Save** and **Restart** if
 requested. Keep the terminal open while using the lab. Subsequent launches use
 **Start EliteLab.cmd**; setup can be run again without resetting your data.
+The portable bundle opens an app window using Edge, Chrome, Brave or Chromium.
+If none can be launched, it opens the default browser instead. Its dedicated
+browser profile lives in the data folder.
 
 A source ZIP needs no Git, Docker, Node or extra Python packages. For a custom
 settings file, run from a terminal:
@@ -481,7 +484,7 @@ See docs/AI.md.
 | `ELITELAB_AUTH_TOKEN` | | When set, `/api/*` and `/events` need `Authorization: Bearer TOKEN` or the session cookie from `POST /api/login`; Host validation still applies |
 | `ELITELAB_ALLOWED_HOSTS` | | Comma-separated extra host names a POST may use in its Host header, for example `nas.local` (see below) |
 | `ELITELAB_JOURNAL_DIR` | `/journals` in Docker, else the first detected folder with journals (Windows Saved Games, Steam Proton, Mac Application Support), else the Windows Saved Games path | Where the game writes `Journal.*.log` |
-| `ELITELAB_BROWSER` | | Browser executable setting, reserved for the launcher (nothing reads it yet); the setup page shows it but cannot change it, so set it here or as `browser` in the settings file |
+| `ELITELAB_BROWSER` | | Browser executable for the Windows portable app window; set it here or as `browser` in the settings file |
 | `ELITELAB_DATA_DIR` | `./data` (new Windows bundles: `%LOCALAPPDATA%\EliteLab\data`) | Persistent files (wishlist, selected loop) |
 | `ELITELAB_RECENT_JOURNALS` | `3` | Journal files replayed at startup |
 | `ELITELAB_DISABLE` | | Comma-separated module names to skip |

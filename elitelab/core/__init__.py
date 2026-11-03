@@ -118,7 +118,7 @@ class Core:
 
     def _open_browser(self, host, port, path="/"):
         """Open only after this process answers a ready health probe; stop cancels pending work."""
-        import webbrowser
+        from ..window import open_dashboard
         from ..instance import health
         url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}/"
 
@@ -128,7 +128,7 @@ class Core:
                 state = health(url, config.AUTH_TOKEN)
                 if state and state.get("ready") and state.get("pid") == os.getpid():
                     if self.ready:
-                        webbrowser.open(url + path.lstrip("/"))
+                        open_dashboard(url + path.lstrip("/"), config)
                     return
                 time.sleep(.1)
             if self.ready:

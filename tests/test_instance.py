@@ -38,10 +38,19 @@ class InstanceTests(unittest.TestCase):
         self.owner()
         with patch("elitelab.instance.fingerprint",return_value="test-build"), patch(
                 "elitelab.instance.health",return_value={"pid":42,"ready":True}), patch(
-                "elitelab.instance.webbrowser.open") as browser, patch("elitelab.core.Core") as core, contextlib.redirect_stdout(io.StringIO()):
+                "elitelab.window.webbrowser.open") as browser, patch("elitelab.core.Core") as core, contextlib.redirect_stdout(io.StringIO()):
             serve(self.args)
         browser.assert_called_once_with("http://127.0.0.1:19000/")
         core.assert_not_called()
+
+    def test_repeat_launch_uses_window_launcher_with_existing_url(self):
+        self.owner()
+        self.args.browser_path = '/setup/'
+        with patch('elitelab.instance.fingerprint', return_value='test-build'), patch(
+                'elitelab.instance.health', return_value={'pid': 42, 'ready': True}), patch(
+                'elitelab.window.open_dashboard') as opener, contextlib.redirect_stdout(io.StringIO()):
+            serve(self.args)
+        self.assertEqual(opener.call_args.args[0], 'http://127.0.0.1:19000/setup/')
 
     def test_other_copy_or_changed_build_is_not_silently_reused(self):
         for changes in ({"source":"another-folder"},{"build":"old-build"}):
