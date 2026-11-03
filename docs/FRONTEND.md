@@ -5,7 +5,7 @@
 ## Boot sequence (app.js, bottom IIFE)
 
 1. `GET /api/modules` -> manifest list. Footer shows module names.
-2. Every distinct card `script` URL is loaded sequentially with `<script>` tags (order follows module order, so a module can rely on earlier modules' layers existing).
+2. Distinct card `script` URLs load in parallel. An optional `script_type: "module"` loads an ES module and waits for its static imports before mounting cards. Modules may import their own UI helpers; registration order between different modules is not guaranteed. The targets handoff entry imports its existing finder before extending that card.
 3. `GET /api/state` -> `Lab.state` initial snapshot.
 4. `allCards` = all manifest cards flattened and sorted by card `order`.
 5. `mountCards()` builds the grid from the saved layout.

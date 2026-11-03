@@ -117,5 +117,5 @@ current game prices.
 ## Remaining work under #41
 
 - Expected merits per sell target and merit-first comparisons (#2).
-- Destination selection that drives the Powerplay sell-target finder from the selected route.
+- Destination handoff is covered by #74; see [TRADE-POWERPLAY.md](TRADE-POWERPLAY.md). Further sale acceptance and merit forecasts remain separate from the selected commodity route.
 - Audit of the remaining default panels with before/after mockups, split into focused issues.

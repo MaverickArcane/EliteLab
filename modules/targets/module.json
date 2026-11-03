@@ -6,6 +6,6 @@
   "provides": ["targets"],
   "order": 40,
   "cards": [
-    { "id": "targets", "title": "Powerplay sell targets", "span": 12, "script": "card.js", "order": 30 }
+    { "id": "targets", "title": "Powerplay sell targets", "span": 12, "script": "handoff.js", "script_type": "module", "order": 30 }
   ]
 }

@@ -60,6 +60,7 @@
       <div class="trading-metrics">${facts.map(f => `<span>${f}</span>`).join('')}</div>
       <div class="row trade-plan-actions">${n ? `<button type="button" class="mini primary" data-plan-map aria-pressed="${!!P.ui_selected}">${P.ui_selected ? 'Shown on map' : 'Show on map'}</button><button type="button" class="mini" data-copy="${esc(n.system)}">Copy system</button><button type="button" class="mini" data-copy="${esc(n.station)}">Copy station</button>${external(Lab.util.inaraMarket(n.station, n.system), 'Inara market')}` : ''}<button type="button" class="mini" data-plan-focus="cargo">View cargo</button><button type="button" class="mini" data-plan-clear>Clear route</button></div>
       <div class="trade-plan-legs">${p.legs.map((l, i) => `<div class="${g.legs[i].done ? 'done' : i === g.leg ? 'is-next' : ''}"><span class="tag">${i + 1}</span><b>${esc(l.commodity)}</b> <span class="muted">${esc(l.buy.station)} to ${esc(l.sell.station)} | ${price(l.buy.price)} to ${price(l.sell.price)}/t</span><span class="trade-leg-status">${legStatus(g.legs[i], known)}</span></div>`).join('')}</div>
+      <section class="trade-powerplay-source"><b>Plan a Powerplay destination</b><p class="note">${esc(P.powerplay_handoff?.message || 'Waiting for route context.')} Eligibility and expected merits for these planned goods remain unknown.</p><div class="row">${(P.powerplay_handoff?.stops||[]).map(s=>`<button type="button" class="mini" data-plan-powerplay="${esc(s.role)}" data-context-token="${esc(P.powerplay_handoff.token)}" ${P.powerplay_handoff.ready?'':'disabled'}>Use ${esc(s.role)} stop: ${esc(s.system)}</button>`).join('')}</div><p class="note">Copies only the search origin and observed pledge into the finder. Review its distance and pad filters before searching; your trade route stays selected.</p></section>
       ${g.commander_changed ? `<p class="warn">Selected by commander ${esc(p.cmdr)}; the journal now shows a different commander. Clear or reselect the route.</p>` : ''}
       <p class="note">${esc(q.message || '')} Cargo aboard is not a purchase receipt; a leg counts as sold only from MarketSell events at the planned station. Distances are straight lines, not plotted routes. Selected ${esc(new Date(p.selected_at).toLocaleString())}.</p></div>`;
   };
@@ -138,6 +139,21 @@
       el.addEventListener('click', async event => {
         const select = event.target.closest('[data-select]'), details = event.target.closest('[data-details]'), show = event.target.closest('[data-personal-show]');
         const focus = event.target.closest('[data-plan-focus]'), map = event.target.closest('[data-plan-map]'), clear = event.target.closest('[data-plan-clear]');
+        const powerplay = event.target.closest('[data-plan-powerplay]');
+        if(powerplay) {
+          const generation=u.handoffGeneration=(u.handoffGeneration||0)+1, token=powerplay.dataset.contextToken;
+          status.textContent='Checking the active trade leg and pledge...';
+          try {
+            if(!Lab.cards.targets)throw Error('The Powerplay sell-target module is unavailable.');
+            const context=await Lab.api('/api/personal/powerplay',{role:powerplay.dataset.planPowerplay,token});
+            if(u.destroyed||generation!==u.handoffGeneration)return;
+            if(!context.ready)throw Error(context.message);
+            if(Lab.state.personal?.powerplay_handoff?.token!==context.token)throw Error('Route or pledge changed. Review the current route and retry.');
+            Lab.set('personal',{ui_powerplay:{...context,request_id:Date.now()+':'+generation}});
+            Lab.focusCard('targets');
+            status.textContent='Planning origin and pledge sent to the Powerplay finder. Review its filters before searching.';
+          } catch(error) {if(!u.destroyed&&generation===u.handoffGeneration)status.textContent=error.message;}
+        }
         if (details) { u.expanded = u.expanded === details.dataset.details ? null : details.dataset.details; draw(); }
         if (show) { u.all = !u.all; draw(); }
         if (focus) Lab.focusCard(focus.dataset.planFocus);

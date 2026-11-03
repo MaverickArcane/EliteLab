@@ -96,6 +96,17 @@ jobs:
           path: rares-screenshots/
           if-no-files-found: ignore
 
+      - name: Trade route to Powerplay finder handoff
+        env:
+          ELITELAB_SCREENSHOT_DIR: trade-powerplay-screenshots
+        run: node tests/trade-powerplay-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trade-powerplay-screenshots
+          path: trade-powerplay-screenshots/
+          if-no-files-found: ignore
+
       - name: Indexed journal history and responsive card
         env:
           ELITELAB_SCREENSHOT_DIR: history-screenshots

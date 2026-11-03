@@ -49,7 +49,7 @@ import {StateFeed} from './state-feed.js';
   let coordsAsked = '';
   Lab.on('journal', async S => { const sys = S.journal?.carrier?.system; if (sys && !Lab.coords[sys] && coordsAsked !== sys) { coordsAsked = sys; try { Object.assign(Lab.coords, await Lab.api('/api/coords', { names: sys })); Lab.emit('journal'); } catch (e) { } } });
 
-  function loadScript(src) { return new Promise(res => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => { console.error('failed to load', src); res(); }; document.head.appendChild(s); }); }
+  function loadScript(src, type) { return new Promise(res => { const s = document.createElement('script'); if(type === 'module')s.type='module'; s.src = src; s.onload = res; s.onerror = () => { console.error('failed to load', src); res(); }; document.head.appendChild(s); }); }
 
   // ------------------------------------------------------------------ layout
   const LAYOUT_KEY = 'layout.v1';
@@ -429,8 +429,8 @@ import {StateFeed} from './state-feed.js';
       await checkHealth();
       const manifest = await Lab.api('/api/modules');
       document.getElementById('f-modules').textContent = 'modules: ' + manifest.map(m => m.name).join(', ');
-      const scripts = [...new Set(manifest.flatMap(m => m.cards.map(c => c.script)))];
-      await Promise.all(scripts.map(loadScript));       // registration order does not matter: cards mount after all have loaded
+      const scripts = new Map(manifest.flatMap(m => m.cards.map(c => [c.script,c.script_type])));
+      await Promise.all([...scripts].map(([src,type])=>loadScript(src,type))); // module scripts may import their own helpers before cards mount
       feed.reset(await Lab.api('/api/state'));
       allCards = manifest.flatMap(m => m.cards.map(c => ({ ...c, module: m.name }))).sort((a, b) => (a.order || 100) - (b.order || 100));
       mountCards();

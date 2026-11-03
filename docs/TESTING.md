@@ -1,5 +1,10 @@
 # Testing
 
+Trade-to-Powerplay handoff: `test_trade_powerplay.py` checks journal evidence,
+context invalidation and authenticated HTTP/MCP parity; `trade-powerplay-browser.mjs`
+runs the real CLI/Chrome workflow with synthetic journals/provider results and
+desktop/mobile captures. See [TRADE-POWERPLAY.md](TRADE-POWERPLAY.md).
+
 Mining: `python -m unittest discover -s tests -p 'test_mining*.py' -v` checks the
 journal-derived tool contract, profit attribution and bounded provider searches.
 `node tests/mining-browser.mjs` starts the real CLI and checks journal tailing/SSE,

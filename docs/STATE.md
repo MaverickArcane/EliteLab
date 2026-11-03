@@ -138,8 +138,9 @@ Client-side manual overrides live in `localStorage.loopManual` as `{system: {don
 |---|---|---|
 | `plan` | object or null | The selected trade route from `select_trade_route`: `id, route_type, quantity, legs[{commodity, quantity, buy, sell, per_ton, profit, cost}], profit, cost, required_credits, distance, total_distance, estimated_jumps, selected_at, cmdr, source`; persisted in `data/personal.json` and validated on load |
 | `progress` | object or null | Recomputed on `state.journal.location`, `credits`, `cmdr`, replay done and every MarketBuy/MarketSell: `stage, leg, leg_count, title, action, reason, quantity, next, legs[], cargo_known, quotes, credits, credits_short, commander_changed` (see docs/API.md) |
+| `powerplay_handoff` | object | Active-leg stop choices, session-observed pledge, readiness/token and unknown eligibility; see [TRADE-POWERPLAY.md](TRADE-POWERPLAY.md) |
 
-Client-only: `ui_selected` (the browser's Show on map toggle; the map draws the dashed line to `progress.next`). The card keeps the last search result in memory only.
+Client-only: `ui_selected` (the browser's Show on map toggle; the map draws the dashed line to `progress.next`) and `ui_powerplay` (an explicit request to populate the finder). The card keeps the last search result in memory only. The targets extension keeps `handoff_active` and `handoff_last` browser-local to prevent late legacy search responses from replacing a bound map selection.
 
 ## materials (module: materials)
 
