@@ -332,6 +332,11 @@ Download the source ZIP from GitHub and extract it completely into a writable
 folder. Install Python 3.10 or newer from python.org with **Add Python to PATH**
 enabled, or use the portable Windows bundle which includes Python.
 
+New Windows bundles store app data in `%LOCALAPPDATA%\EliteLab\data` by default.
+A pre-existing `data` folder beside the bundle is still used. When upgrading an
+older bundle into a different folder, choose its old `data` folder in setup or
+copy it to the new default before starting. Configured data paths still take precedence.
+
 Double-click **Setup EliteLab.cmd**. It checks the bundled runtime, `python`, then
 `py -3`, and opens the setup page after the lab answers its health check. Choose
 or enter your journal folder, click **Test**, then **Save** and **Restart** if
@@ -477,7 +482,7 @@ See docs/AI.md.
 | `ELITELAB_ALLOWED_HOSTS` | | Comma-separated extra host names a POST may use in its Host header, for example `nas.local` (see below) |
 | `ELITELAB_JOURNAL_DIR` | `/journals` in Docker, else the first detected folder with journals (Windows Saved Games, Steam Proton, Mac Application Support), else the Windows Saved Games path | Where the game writes `Journal.*.log` |
 | `ELITELAB_BROWSER` | | Browser executable setting, reserved for the launcher (nothing reads it yet); the setup page shows it but cannot change it, so set it here or as `browser` in the settings file |
-| `ELITELAB_DATA_DIR` | `./data` | Persistent files (wishlist, selected loop) |
+| `ELITELAB_DATA_DIR` | `./data` (new Windows bundles: `%LOCALAPPDATA%\EliteLab\data`) | Persistent files (wishlist, selected loop) |
 | `ELITELAB_RECENT_JOURNALS` | `3` | Journal files replayed at startup |
 | `ELITELAB_DISABLE` | | Comma-separated module names to skip |
 | `ELITELAB_OFFLINE` | | Set to `1` to never call Spansh or EDSM (tests use this) |

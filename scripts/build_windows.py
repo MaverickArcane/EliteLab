@@ -45,6 +45,7 @@ def build(output, runtime_zip=None):
                             ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.log"))
         for name in ("Start EliteLab.cmd", "Setup EliteLab.cmd", "README.md", "LICENSE"):
             shutil.copyfile(ROOT / name, app / name)
+        (app / ".windows-bundle").write_text("Windows portable bundle\n", encoding="ascii")
         (app / "scripts").mkdir()
         shutil.copyfile(ROOT / "scripts" / "serve-loop.cmd", app / "scripts" / "serve-loop.cmd")
         (app / "START HERE.txt").write_text(
@@ -57,8 +58,10 @@ def build(output, runtime_zip=None):
             "If the browser does not open, use the URL printed in the terminal.\n"
             "Startup errors stay visible in the terminal.\n"
             "Your own journals are detected in Saved Games. Local settings and\n"
-            "trade state use the configured data folder; settings live in AppData/EliteLab.\n"
-            "For updates, close EliteLab and keep your existing data folder.\n\n"
+            "trade state default to LocalAppData/EliteLab/data; settings live in\n"
+            "AppData/EliteLab. Existing data folders beside the app still work.\n"
+            "When updating an older bundle to a new folder, select the old data\n"
+            "folder in setup or copy it to LocalAppData/EliteLab/data first.\n\n"
             f"Includes CPython {PYTHON_VERSION}; see runtime/LICENSE.txt.\n",
             encoding="ascii")
         with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as bundle:

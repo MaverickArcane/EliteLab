@@ -133,6 +133,18 @@ def _path(value) -> str:
     return os.path.abspath(os.path.expanduser(str(value)))
 
 
+def _default_data_dir(root=None, platform=None):
+    """Keep existing portable state; new Windows bundles use a per-user data folder."""
+    root = root or ROOT
+    local = os.path.join(root, "data")
+    if (platform or os.name) != "nt" or not os.path.isfile(os.path.join(root, ".windows-bundle")):
+        return local
+    if os.path.isdir(local):
+        return local
+    base = os.environ.get("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Local")
+    return os.path.join(base, "EliteLab", "data")
+
+
 SETTINGS_PATH = settings_path()
 SETTINGS = load_settings(SETTINGS_PATH)
 SOURCES: dict = {}          # setting name -> "flag" | "env" | "file" | "default" ("flag" is set by __main__)
@@ -164,7 +176,7 @@ BROWSER = _pick("browser", "ELITELAB_BROWSER", "")
 RESTART_EXIT_CODE = 75      # exit status that tells a supervising wrapper to start the lab again
 WEB_DIR = os.environ.get("ELITELAB_WEB_DIR", os.path.join(ROOT, "web"))
 MODULES_DIR = os.environ.get("ELITELAB_MODULES_DIR", os.path.join(ROOT, "modules"))
-DATA_DIR = _pick("data_dir", "ELITELAB_DATA_DIR", lambda: os.path.join(ROOT, "data"), _path)     # persistent per-user files (wishlists...)
+DATA_DIR = _pick("data_dir", "ELITELAB_DATA_DIR", _default_data_dir, _path)     # persistent per-user files (wishlists...)
 USER_AGENT = f"EliteLab/{__version__} (+https://github.com/MaverickArcane/EliteLab)"
 
 RECENT_JOURNALS = int(os.environ.get("ELITELAB_RECENT_JOURNALS", "3"))   # files replayed at startup
