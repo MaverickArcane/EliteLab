@@ -14,8 +14,12 @@ the normal browser behavior.
 The Windows bundle also provides a WScript entry point that starts a `pythonw`
 supervisor without a console. It writes child output to the data folder, runs setup
 on first launch, and restarts the child on exit 75 without opening a second window.
-The dashboard Quit control stops the server; closing the window does not. Repeated
-rapid restart requests are bounded. The source launchers remain available.
+The notification-area menu opens the dashboard or setup and requests a graceful
+shutdown. Before any tray action, the supervisor checks its own live child PID,
+the guarded instance record and a ready loopback health response; it does not
+send credentials to other hosts or shut down a different instance. The dashboard
+Quit control remains available, and closing the window does not stop the server.
+Repeated rapid restart requests are bounded. The source launchers remain available.
 HTTP binding uses the bound address as the server name without a reverse-DNS
 lookup, so a slow resolver cannot stall local setup. Windows exclusive-port
 ownership is preserved.
