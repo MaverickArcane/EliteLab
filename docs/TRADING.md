@@ -114,8 +114,8 @@ hostile station names, the map layer and its selection, the narrow-screen table,
 and clearing the route. Spansh is offline in these tests; nothing here claims
 current game prices.
 
-## Remaining work under #41
+## Status under #41
 
-- Expected merits per sell target and merit-first comparisons (#2).
-- Destination handoff is covered by #74; see [TRADE-POWERPLAY.md](TRADE-POWERPLAY.md). Further sale acceptance and merit forecasts remain separate from the selected commodity route.
-- Audit of the remaining default panels with before/after mockups, split into focused issues.
+- Expected merits per rare sell target and merit-first comparisons are covered by merged #69 (issue #2). Forecasts remain conditional on game and market evidence.
+- The explicit destination handoff is covered by merged #75 (issue #74); see [TRADE-POWERPLAY.md](TRADE-POWERPLAY.md). Sale acceptance and merit rewards still require game evidence.
+- The default-panel audit and before/after mockups are in [PANEL-AUDIT.md](PANEL-AUDIT.md). The implementation follow-ups are #77 for cargo and local market evidence, #78 for merit context, and #79 for the live feed.
