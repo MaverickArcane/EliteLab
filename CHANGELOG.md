@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Windows portable bundles: keep new app data in the user profile so replacing an extraction does not discard it. Existing local data folders and explicit settings take precedence (#9).
+
 - Live feed: filter trading, travel, combat or engineering events, preserve the selection during updates, and show the current game session boundary (#79).
 
 - Powerplay: show recorded merit gains with nearby journal activity labeled as uncertain, plus game-session and pledge boundaries. The HTTP/MCP status log carries the same bounded context and keeps unknown sources explicit. Merit rate now accepts ISO offset timestamps and rejects duplicate gains and future causes (#78).
