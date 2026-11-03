@@ -506,3 +506,8 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 .trade-local-context{margin:10px 0;padding:10px 12px;border-left:2px solid var(--accent-2);background:var(--card-2);line-height:1.45}
 .trade-local-context b{color:var(--accent-2)}
 .trade-local-context small{display:block;color:var(--muted);margin-top:3px}
+.powerplay-gains{max-height:220px;overflow:auto;margin-top:6px}
+.powerplay-gain{border-top:1px solid var(--line);padding:7px 0}
+.powerplay-gain>div{display:flex;justify-content:space-between;gap:10px}
+.powerplay-gain time,.powerplay-gain small{color:var(--muted);font-size:11px}
+.powerplay-gain small{display:block;margin-top:2px}

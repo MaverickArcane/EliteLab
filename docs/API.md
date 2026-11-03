@@ -141,7 +141,7 @@ Check Spansh for the pinned carrier's last reported location and services. Cache
 
 ## `get_powerplay_status`  -  `GET /api/powerplay`  -  module: powerplay
 
-Pledged power, rank, total merits, merits earned this session with a log of recent gains, days pledged, when the weekly cycle ends, and who controls the current system.
+Pledged power, rank, recorded total merits, session gains, days pledged, cycle end and current-system control. `merit_log` holds the last 20 recorded PowerplayMerits gains in time order. Each row has a nullable `context`: a journal activity observed within 12 seconds before the gain, with a type, bounded detail and delay. This is a possible association, not a confirmed reward source or conversion rate. Session/pledge timestamps and commander identity mark boundaries; changed commander or pledge clears old context and commander-specific rank/total. The last power value is retained across LoadGame for historical display, while `power_observed_this_session` becomes false until a new game-session event confirms it. Duplicate gain events with the same timestamp and total are ignored.
 
 ## `get_carrier_price_reference`  -  `GET /api/trade/price-reference`  -  module: trade
 
@@ -379,7 +379,7 @@ Returns the party state.
 
 ## `get_merits_summary`  -  `GET /api/merits`  -  module: merits
 
-Where this session's Powerplay merits came from (rares, trade, bounty hunting, combat zone bonds, hauling, exploration, missions, objective bonuses), merits per event, and a recent log. Rates: per_hour_earning is the activity's own pace (time between merit gains, a gap over 20 min counts as 20 min), per_hour_active is over time with any journal activity (a silence over 10 min is a break), per_hour is over elapsed time since login, last_hour is the last 60 minutes; breaks and idle say why they differ.
+An estimated activity breakdown for this session's recorded Powerplay merits (rares, trade, bounty hunting, combat zone bonds, hauling, exploration, missions, objective bonuses), merits per event, and a recent log. The activity labels use nearby journal events or combat-zone context and do not prove the reward source. Rates: per_hour_earning is the activity's own pace (time between merit gains, a gap over 20 min counts as 20 min), per_hour_active is over time with any journal activity (a silence over 10 min is a break), per_hour is over elapsed time since login, last_hour is the last 60 minutes; breaks and idle say why they differ.
 
 ## `find_sell_targets`  -  `GET /api/targets`  -  module: targets
 

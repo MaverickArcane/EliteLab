@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Powerplay: show recorded merit gains with nearby journal activity labeled as uncertain, plus game-session and pledge boundaries. The HTTP/MCP status log carries the same bounded context and keeps unknown sources explicit. Merit rate now accepts ISO offset timestamps and rejects duplicate gains and future causes (#78).
+
 - Trading: Cargo highlights the active leg's observed load while keeping other cargo visible; Local market shows an exact-stop, current-visit commodity quote from Market.json or an explicit unknown. Bounded local commodity evidence is available through `get_commander_state` (#77).
 
 - Trading: send the active leg's buy or sell stop and session-observed pledge to the Powerplay finder, preserving other filters and the selected route. Unknown eligibility stays explicit; changed context invalidates the handoff. Adds `get_trade_powerplay_handoff` and a matching MCP prompt (#74).
