@@ -32,7 +32,7 @@ class JournalWatcher(threading.Thread):
     def __init__(self, bus):
         super().__init__(name="journal-watcher", daemon=True)
         self.bus = bus
-        self._stop = threading.Event()
+        self._stop_event = threading.Event()
         self._file = None
         self._offset = 0
         self._snap_mtime = {}
@@ -59,15 +59,15 @@ class JournalWatcher(threading.Thread):
     # -- tail --------------------------------------------------------------
     def run(self):
         self.replay()
-        while not self._stop.is_set():
+        while not self._stop_event.is_set():
             try:
                 self._tick()
             except Exception:
                 log.exception("watcher tick failed")
-            self._stop.wait(config.POLL_SECONDS)
+            self._stop_event.wait(config.POLL_SECONDS)
 
     def stop(self):
-        self._stop.set()
+        self._stop_event.set()
 
     def _tick(self):
         files = journal_files()
