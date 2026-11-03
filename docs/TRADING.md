@@ -129,3 +129,12 @@ the ship is docked there and the snapshot was taken during this visit. Missing,
 old, mismatched or truncated entries are labeled as unknown, never zero stock.
 The community route quote in Trading remains a separate estimate. The local
 snapshot is available to HTTP and MCP clients in `get_commander_state.market`.
+
+## Combined panel validation (#41)
+
+The browser regression uses one synthetic trade to exercise the selected route,
+observed cargo, exact-stop market quote, partial sale and filtered live feed.
+A nearby synthetic PowerplayMerits event appears as a recorded amount with an
+uncertain association to the sale. The scenario checks the corresponding
+HTTP tool responses and desktop and narrow layouts. It does not establish
+in-game sale eligibility, merit rates or the freshness of live market data.

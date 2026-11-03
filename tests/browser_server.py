@@ -84,6 +84,30 @@ def trade_plan(q):
         core.bus.emit('journal.file.Cargo', {'Count': 100, 'timestamp': now, 'Inventory': [{'Name': 'gold', 'Name_Localised': 'Gold', 'Count': 100}]})
     return core.store.get('personal')
 core.http.route('/audit/trade-plan', trade_plan, method='POST')
+def combined_panels(q):
+    """One synthetic trade and recorded merit gain for cross-panel validation."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    def emit(event, **fields):
+        core.bus.emit('journal.' + event, {'event': event, 'timestamp': now.isoformat(), **fields})
+    if q.get('step') == 'start':
+        emit('LoadGame', Commander='Fixture', FID='F1')
+        emit('PowerplayJoin', Power='Edmund Mahon')
+        return trade_plan({'step': 'select'})
+    if q.get('step') == 'sell':
+        emit('Docked', StarSystem='Alpha', StationName='<img src=x onerror=alert(1)>', MarketID=2)
+        core.bus.emit('journal.file.Market', {'event': 'Market', 'timestamp': now.isoformat(), 'MarketID': 2,
+            'StarSystem': 'Alpha', 'StationName': '<img src=x onerror=alert(1)>',
+            'Items': [{'Name':'$gold_name;', 'Name_Localised':'Gold', 'SellPrice':400, 'Demand':200}]})
+        emit('MarketSell', MarketID=2, Type='gold', Type_Localised='Gold', Count=25, SellPrice=400, TotalSale=10000)
+        core.bus.emit('journal.file.Cargo', {'event':'Cargo','timestamp':now.isoformat(),'Count':75,
+            'Inventory':[{'Name':'gold','Name_Localised':'Gold','Count':75}]})
+        event = {'event':'PowerplayMerits','timestamp':now.isoformat(),
+            'Power':'Edmund Mahon','MeritsGained':190,'TotalMerits':190}
+        core.bus.emit('journal.PowerplayMerits', event)
+        return {'plan':core.http.tools['get_trade_plan'].fn({}), 'power':core.http.tools['get_powerplay_status'].fn({})}
+    return {'error':'unknown step'}
+core.http.route('/audit/combined-panels', combined_panels, method='POST')
 def merit_context(q):
     """Synthetic gain with nearby sale, then an unrelated gain."""
     from datetime import datetime, timedelta, timezone
