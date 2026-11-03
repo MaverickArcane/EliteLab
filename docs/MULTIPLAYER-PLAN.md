@@ -145,8 +145,7 @@ recovery, TLS and abuse controls have been reviewed and tested.
 
 ## Open decisions before implementation
 
-Authentication mechanism and account recovery; hosting and TLS termination;
-invite design; membership ownership transfer; whether group viewers may see
-member names; exactly which status fields are opt-in; retention and deletion
-windows; backup key custody; and the scope of any eventual journal upload.
-These require product and security decisions, not guesses encoded in a client.
+The private-prototype choices and threat model are proposed in
+[SHARED-SECURITY.md](SHARED-SECURITY.md). Public hosting, production recovery,
+backup key custody, broader status categories and any journal upload still
+require separate product and security decisions.
