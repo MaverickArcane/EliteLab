@@ -46,18 +46,19 @@ def build(output, runtime_zip=None):
         for name in ("Start EliteLab.cmd", "Setup EliteLab.cmd", "README.md", "LICENSE"):
             shutil.copyfile(ROOT / name, app / name)
         (app / ".windows-bundle").write_text("Windows portable bundle\n", encoding="ascii")
+        shutil.copyfile(ROOT / "scripts" / "launch_desktop.vbs", app / "Launch EliteLab.vbs")
         (app / "scripts").mkdir()
         shutil.copyfile(ROOT / "scripts" / "serve-loop.cmd", app / "scripts" / "serve-loop.cmd")
         (app / "START HERE.txt").write_text(
             "EliteLab for Windows x64\n\n"
             "1. Extract the entire ZIP to a folder you can write to.\n"
-            "2. Double-click Setup EliteLab.cmd on first use. Python is included.\n"
-            "3. Leave the terminal open while using EliteLab. Ctrl+C stops it.\n\n"
+            "2. Double-click Launch EliteLab.vbs. Python is included.\n"
+            "3. Use Quit in the dashboard to stop EliteLab.\n\n"
             "Choose journals in setup, Save, then Restart if requested.\n"
-            "Next time, double-click Start EliteLab.cmd.\n"
+            "Next time, double-click Launch EliteLab.vbs.\n"
             "The dashboard opens as an app window when a supported browser is present.\n"
-            "If the browser does not open, use the URL printed in the terminal.\n"
-            "Startup errors stay visible in the terminal.\n"
+            "Startup errors point to a log in the configured data folder.\n"
+            "The .cmd launchers remain available for terminal troubleshooting.\n"
             "Your own journals are detected in Saved Games. Local settings and\n"
             "trade state default to LocalAppData/EliteLab/data; settings live in\n"
             "AppData/EliteLab. Existing data folders beside the app still work.\n"

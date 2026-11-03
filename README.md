@@ -337,14 +337,18 @@ A pre-existing `data` folder beside the bundle is still used. When upgrading an
 older bundle into a different folder, choose its old `data` folder in setup or
 copy it to the new default before starting. Configured data paths still take precedence.
 
-Double-click **Setup EliteLab.cmd**. It checks the bundled runtime, `python`, then
-`py -3`, and opens the setup page after the lab answers its health check. Choose
-or enter your journal folder, click **Test**, then **Save** and **Restart** if
-requested. Keep the terminal open while using the lab. Subsequent launches use
-**Start EliteLab.cmd**; setup can be run again without resetting your data.
-The portable bundle opens an app window using Edge, Chrome, Brave or Chromium.
-If none can be launched, it opens the default browser instead. Its dedicated
-browser profile lives in the data folder.
+For the portable Windows bundle, double-click **Launch EliteLab.vbs**. On first
+launch it opens setup; choose your journal folder, click **Test**, then **Save**
+and **Restart** if requested. Use **Quit** in the dashboard to stop EliteLab.
+Closing the window alone leaves the server running. Startup errors point to a
+log under the configured data folder. The bundle opens an app window using
+Edge, Chrome, Brave or Chromium, with a dedicated browser profile in the data
+folder; if no supported browser can be launched, it opens the default browser.
+
+For a source ZIP, double-click **Setup EliteLab.cmd**. It checks `python`, then
+`py -3`, and opens setup after the lab answers its health check. Keep its terminal
+open while using the lab, and use **Start EliteLab.cmd** on subsequent launches.
+The `.cmd` launchers are also available in the portable bundle for troubleshooting.
 
 A source ZIP needs no Git, Docker, Node or extra Python packages. For a custom
 settings file, run from a terminal:
