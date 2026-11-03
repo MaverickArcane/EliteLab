@@ -28,6 +28,7 @@ def smoke(bundle):
         assert (app / "Launch EliteLab.vbs").is_file()
         assert (app / "elitelab" / "windows_tray.py").is_file()
         assert (app / "elitelab" / "tray_control.py").is_file()
+        assert (app / "elitelab" / "autostart.py").is_file()
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
             port = probe.getsockname()[1]

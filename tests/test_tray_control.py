@@ -13,7 +13,7 @@ class TrayControlTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.guard = SimpleNamespace(directory=Path(self.temp.name))
-        self.config = SimpleNamespace(AUTH_TOKEN='private-token')
+        self.config = SimpleNamespace(AUTH_TOKEN='private-token', ROOT='synthetic-root')
         self.control = TrayControl(self.config)
         self.control.set_child(SimpleNamespace(pid=42, poll=lambda: None))
         self.patch = patch('elitelab.tray_control.InstanceGuard', return_value=self.guard)
@@ -59,6 +59,18 @@ class TrayControlTests(unittest.TestCase):
         with patch.object(self.control, 'verified_url', return_value='http://127.0.0.1:8766/'), patch('elitelab.tray_control.open_dashboard', return_value=True) as browser:
             self.assertTrue(self.control.open(True))
         browser.assert_called_once_with('http://127.0.0.1:8766/setup/', self.config)
+
+    def test_sign_in_toggle_is_explicit_and_rejects_conflicts(self):
+        setting = Mock(); setting.status.return_value='disabled'; setting.set_enabled.return_value=True
+        with patch('elitelab.tray_control.Autostart', return_value=setting):
+            self.assertTrue(self.control.toggle_autostart())
+            setting.set_enabled.assert_called_once_with(True)
+            setting.reset_mock(); setting.status.return_value='enabled'; setting.set_enabled.return_value=False
+            self.assertFalse(self.control.toggle_autostart())
+            setting.set_enabled.assert_called_once_with(False)
+            setting.reset_mock(); setting.status.return_value='conflict'
+            with self.assertRaises(ValueError): self.control.toggle_autostart()
+            setting.set_enabled.assert_not_called()
 
     def test_shutdown_sends_token_to_verified_server_without_redirects(self):
         response = Mock(); response.__enter__ = Mock(return_value=response); response.__exit__ = Mock(return_value=False); response.read.return_value=b'{"stopping":true}'

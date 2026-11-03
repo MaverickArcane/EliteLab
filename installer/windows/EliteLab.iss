@@ -139,6 +139,19 @@ begin
   Result := AcquireGuard;
 end;
 
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var ExitCode: Integer; Python: String;
+begin
+  if CurUninstallStep = usUninstall then begin
+    Python := ExpandConstant('{app}\runtime\pythonw.exe');
+    if not FileExists(Python) or not Exec(Python, '-m elitelab.autostart --remove-owned --value-name {#AppIdValue}',
+          ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ExitCode) or (ExitCode <> 0) then begin
+      SuppressibleMsgBox('The bundled launcher is missing or its sign-in entry could not be checked. Reinstall EliteLab over this folder and try uninstalling again.', mbError, MB_OK, IDOK);
+      Abort;
+    end;
+  end;
+end;
+
 procedure DeinitializeUninstall;
 begin
   ReleaseGuard;

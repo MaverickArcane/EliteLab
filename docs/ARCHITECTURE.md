@@ -19,7 +19,11 @@ shutdown. Before any tray action, the supervisor checks its own live child PID,
 the guarded instance record and a ready loopback health response; it does not
 send credentials to other hosts or shut down a different instance. The dashboard
 Quit control remains available, and closing the window does not stop the server.
-Repeated rapid restart requests are bounded. The source launchers remain available. The Windows installer stages the portable bundle,
+Repeated rapid restart requests are bounded. An opt-in tray action stores one
+per-user Windows Run value pointing to this bundle's launcher, with a quoted
+system WScript path. A conflicting value is not replaced; uninstall removes
+only an exact match. No entry is created by default. The source launchers remain
+available. The Windows installer stages the portable bundle,
 uses a per-user destination, and holds the same instance lock while copying or
 uninstalling. It refuses a nonempty unrelated target and leaves untracked data
 and user settings in place. A custom instance directory must be the same

@@ -357,6 +357,10 @@ launch it opens setup; choose your journal folder, click **Test**, then **Save**
 and **Restart** if requested. Use **Quit EliteLab** in the notification-area
 menu or **Quit** in the dashboard to stop the server. The tray menu can also
 open the dashboard or setup; double-click its icon to open the dashboard.
+**Start at sign-in** is off by default and can be toggled from that menu.
+If another EliteLab installation owns the sign-in entry, change it through
+Windows Startup apps before enabling this one. Uninstall removes the entry
+only when it belongs to that installation.
 Closing the window alone leaves the server running. Tray actions require a
 loopback-accessible server; use the dashboard controls if bound only to a
 specific network address. Startup errors point to a
