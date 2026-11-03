@@ -107,6 +107,17 @@ jobs:
           path: history-screenshots/
           if-no-files-found: ignore
 
+      - name: Rare sell targets and merit forecasts
+        env:
+          ELITELAB_SCREENSHOT_DIR: targets-screenshots
+        run: node tests/targets-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: targets-browser-screenshots
+          path: targets-screenshots/
+          if-no-files-found: ignore
+
       - name: Unified materials and recipes workflow
         env:
           ELITELAB_SCREENSHOT_DIR: material-plan-screenshots

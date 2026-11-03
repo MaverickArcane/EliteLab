@@ -456,6 +456,26 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 @media(max-width:760px){#workspace-nav{padding:4px 10px 0}#workspace-nav button{padding:10px 12px}#workspace-heading{padding:16px 14px 0}#workspace-heading h2{font-size:21px}.plan-intro,.plan-heading{align-items:start;flex-direction:column}.plan-composer{padding:14px}.plan-tabs button{padding:10px}.plan-entry .tag{float:none;margin-left:8px}}
 .plan-columns>*{min-width:0}.plan-scroll{max-width:100%}.plan-composer form{min-width:0}.material-plan .plan-intro .note{margin:0 0 10px}
 
+/* Rare-goods target planning */
+.target-desk { overflow-wrap:anywhere; }
+.target-form { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+.target-form label { display:flex; flex-direction:column; gap:5px; min-width:0; color:var(--muted); font-size:12px; }
+.target-form input, .target-form select { width:100%; min-width:0; box-sizing:border-box; }
+.target-results { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.target-result, .target-selection:not(:empty) { padding:14px; border:1px solid var(--line); }
+.target-result.selected, .target-selection:not(:empty) { border-left:3px solid var(--accent); }
+.target-title { display:flex; justify-content:space-between; gap:12px; }
+.target-title b, .target-title small { display:block; }
+.target-title small { color:var(--muted); font-size:11px; }
+.target-title strong { color:var(--accent); font-size:24px; }
+.target-stats { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:12px; font-size:12px; }
+.target-result .row { margin-top:12px; margin-bottom:0; }
+.target-selection, .target-curves { margin:14px 0; }
+.target-table { overflow-x:auto; }
+.target-table table { font-size:11px; }
+.target-desk svg { width:100%; max-width:700px; }
+@media(max-width:800px) { .target-form { grid-template-columns:repeat(2,minmax(0,1fr)); } .target-results { grid-template-columns:minmax(0,1fr); } }
+
 /* Trading: selected route panel, comparison table and expandable details. */
 .trade-plan { border-left: 3px solid var(--accent); padding: 16px; background: var(--bg-2); margin-bottom: 14px; min-width: 0; }
 .trade-plan.is-complete { border-left-color: var(--ok); }

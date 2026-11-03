@@ -1,0 +1,80 @@
+{
+  "count": 3,
+  "results": [
+    {
+      "name": "Test Near Exchange",
+      "system_name": "Test Near",
+      "distance": 80,
+      "system_x": 80,
+      "system_y": 0,
+      "system_z": 0,
+      "has_market": true,
+      "type": "Orbis Starport",
+      "has_large_pad": true,
+      "system_power": [
+        "Edmund Mahon"
+      ],
+      "system_power_state": "Unoccupied",
+      "distance_to_arrival": 250,
+      "market_updated_at": "2026-11-02T01:00:00Z",
+      "market": [
+        {
+          "commodity": "Leathery Eggs",
+          "sell_price": 20000,
+          "demand": 500,
+          "is_prohibited": false
+        }
+      ]
+    },
+    {
+      "name": "Test Middle Exchange",
+      "system_name": "Test Middle",
+      "distance": 120,
+      "system_x": 120,
+      "system_y": 0,
+      "system_z": 0,
+      "has_market": true,
+      "type": "Orbis Starport",
+      "has_large_pad": true,
+      "system_power": [
+        "Edmund Mahon"
+      ],
+      "system_power_state": "Unoccupied",
+      "distance_to_arrival": 250,
+      "market_updated_at": "2026-11-02T01:00:00Z",
+      "market": [
+        {
+          "commodity": "Leathery Eggs",
+          "sell_price": 0,
+          "demand": 500,
+          "is_prohibited": false
+        }
+      ]
+    },
+    {
+      "name": "Test Far Exchange",
+      "system_name": "Test Far",
+      "distance": 160,
+      "system_x": 160,
+      "system_y": 0,
+      "system_z": 0,
+      "has_market": true,
+      "type": "Orbis Starport",
+      "has_large_pad": true,
+      "system_power": [
+        "Edmund Mahon"
+      ],
+      "system_power_state": "Unoccupied",
+      "distance_to_arrival": 250,
+      "market_updated_at": "2026-11-02T01:00:00Z",
+      "market": [
+        {
+          "commodity": "Leathery Eggs",
+          "sell_price": 30000,
+          "demand": 500,
+          "is_prohibited": false
+        }
+      ]
+    }
+  ]
+}
