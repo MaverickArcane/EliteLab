@@ -128,6 +128,8 @@ class Journal:
         st = self.st
         st["last_event_time"] = ev.get("timestamp")
         changed = {"last_event_time"}
+        if e == "LoadGame":
+            st["feed_session_start"] = ev.get("timestamp"); changed.add("feed_session_start")
         if e in FEED:
             try:
                 self.feed.append({"ts": ev.get("timestamp"), "event": e, "text": FEED[e](ev)})

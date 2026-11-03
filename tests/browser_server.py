@@ -18,6 +18,23 @@ core = Core()
 core.services.edsm_coords = lambda names: {}
 loader.load_all(core)
 core.watcher.replay()
+def feed_audit(q):
+    from datetime import datetime, timedelta, timezone
+    now = datetime.now(timezone.utc)
+    def emit(event, seconds, **fields):
+        core.bus.emit('journal.' + event, {'event': event, 'timestamp': (now + timedelta(seconds=seconds)).isoformat(), **fields})
+    if q.get('update'):
+        emit('MarketSell', 0, Type='silver', Count=5, SellPrice=200)
+    elif q.get('reset'):
+        emit('LoadGame', 0, Commander='Fixture', FID='F1')
+        emit('FSDJump', 1, StarSystem='Sol', JumpDist=5)
+    else:
+        emit('LoadGame', -60, Commander='Fixture', FID='F1')
+        for i in range(20):
+            emit('MarketSell', -40 + i, Type='gold', Count=i + 1, SellPrice=100)
+        emit('FSDJump', -1, StarSystem='Sol', JumpDist=5)
+    return {'ok': True}
+core.http.route('/audit/feed', feed_audit, method='POST')
 core.http.route('/audit/emit', lambda q: core.bus.emit('journal.MaterialCollected', {'event': 'MaterialCollected', 'Name': 'iron', 'Count': 1, 'Category': 'Raw'}), method='POST')
 def trade_materials(q):
     core.bus.emit('journal.Materials', {'event': 'Materials', 'Raw': [], 'Encoded': [], 'Manufactured': [

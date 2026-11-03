@@ -674,6 +674,33 @@ try {
   assert.deepEqual(restartTargets,['http://localhost:8799','http://localhost:8799','','']);
   const results={bannerProbe,setupPage,precedence,restartWait,journalTest,setupSaved,desktop:before,inputAfter,engineeringCards,mobile,crossOrigin,wishlistAfter,browserExceptions:errors};
   assert.equal(inputAfter.name,'arsenic'); assert.equal(inputAfter.qty,'5'); assert.equal(inputAfter.focus,'mat-q'); assert.equal(mobile.bodyWidth,390); assert.equal(wishlistAfter.wishlist[0].need,10); assert.deepEqual(errors,[]); assert.deepEqual(before.renderErrors,[]);console.log(JSON.stringify(results,null,2));
+  // Exercise feed filtering and session reset through the real event stream.
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  await send('Page.navigate',{url:`http://127.0.0.1:${port}`});
+  for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!!document.querySelector('[data-preset=Default]')"))break;}
+  await evaluate("document.querySelector('[data-preset=Default]').click();true");
+  const feedPost=async body=>fetch(`http://127.0.0.1:${port}/audit/feed`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  await feedPost({}); await sleep(500);
+  await evaluate("document.querySelector('#card-feed').scrollIntoView();document.querySelector('[data-feed-filter]').value='trading';document.querySelector('[data-feed-filter]').dispatchEvent(new Event('change'));true");
+  let feed=await evaluate("({text:document.querySelector('#card-feed .feed').textContent,filter:document.querySelector('[data-feed-filter]').value})");
+  assert.equal(feed.filter,'trading'); assert.match(feed.text,/Sold/); assert.doesNotMatch(feed.text,/Jumped/); assert.match(feed.text,/Game session started/);
+  await evaluate("document.querySelector('#card-feed .feed').scrollTop=100;true");
+  await feedPost({update:true}); await sleep(500);
+  const scrolled=await evaluate("({filter:document.querySelector('[data-feed-filter]').value,top:document.querySelector('#card-feed .feed').scrollTop,text:document.querySelector('#card-feed .feed').textContent})");
+  assert.equal(scrolled.filter,'trading'); assert.ok(scrolled.top>=100); assert.match(scrolled.text,/silver/);
+  await evaluate("document.querySelector('#card-feed .feed').scrollTop=0;document.querySelector('#card-feed').scrollIntoView({block:'start'});true");
+  const feedDesktop=await send('Page.captureScreenshot',{format:'png'});
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true}); await sleep(300);
+  await evaluate("document.querySelector('#card-feed').scrollIntoView({block:'start'});true");
+  const feedMobile=await send('Page.captureScreenshot',{format:'png'});
+  assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth + 1'));
+  if(process.env.ELITELAB_SCREENSHOT_DIR){fs.mkdirSync(process.env.ELITELAB_SCREENSHOT_DIR,{recursive:true});fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'feed-desktop.png'),Buffer.from(feedDesktop.data,'base64'));fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'feed-mobile.png'),Buffer.from(feedMobile.data,'base64'));}
+  await feedPost({reset:true}); await sleep(500);
+  feed=await evaluate("({text:document.querySelector('#card-feed .feed').textContent,filter:document.querySelector('[data-feed-filter]').value})");
+  assert.equal(feed.filter,'trading'); assert.match(feed.text,/No events match/); assert.match(feed.text,/Game session started/); assert.doesNotMatch(feed.text,/Sold/);
+  await evaluate("document.querySelector('[data-feed-filter]').value='travel';document.querySelector('[data-feed-filter]').dispatchEvent(new Event('change'));true");
+  assert.match(await evaluate("document.querySelector('#card-feed .feed').textContent"),/Jumped to Sol/);
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}`});
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("!!document.querySelector('#app-quit') && !!window.Lab?.post && document.querySelectorAll('#grid .card').length>1"))break;}
   await evaluate("document.querySelector('#app-quit').click();true");
