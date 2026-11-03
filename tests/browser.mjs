@@ -400,12 +400,21 @@ try {
     {search:'TST-001',hidden:false,target:'_blank',rel:'noopener noreferrer'}]);
   await send('Browser.grantPermissions',{origin:`http://127.0.0.1:${memberPort}`,permissions:['clipboardReadWrite','clipboardSanitizedWrite']});
   await send('Emulation.setFocusEmulationEnabled',{enabled:true});
-  await evaluate("document.querySelector('[data-haul-copy=pickup-system]').click();true");await sleep(150);
-  assert.equal(await evaluate('navigator.clipboard.readText()'),'Lave');
-  await evaluate("document.querySelector('[data-haul-copy=pickup-station]').click();true");await sleep(150);
-  assert.equal(await evaluate('navigator.clipboard.readText()'),'Source Port');
-  await evaluate("document.querySelector('[data-haul-copy=quantity]').click();true");await sleep(150);
-  assert.equal(await evaluate('navigator.clipboard.readText()'),'200');
+  const expectClipboard = async expected => {
+    let actual;
+    for (let i=0; i<50; i++) {
+      actual = await evaluate('navigator.clipboard.readText()');
+      if (actual === expected) return;
+      await sleep(100);
+    }
+    assert.equal(actual, expected);
+  };
+  await evaluate("document.querySelector('[data-haul-copy=pickup-system]').click();true");
+  await expectClipboard('Lave');
+  await evaluate("document.querySelector('[data-haul-copy=pickup-station]').click();true");
+  await expectClipboard('Source Port');
+  await evaluate("document.querySelector('[data-haul-copy=quantity]').click();true");
+  await expectClipboard('200');
   // Missing stops remove stale links, and live rendering restores them without replacing nodes.
   assert.ok(await evaluate("(() => {const el=document.querySelector('#card-haul .body'),card=Lab.cards.haul,S=structuredClone(Lab.state);S.party.desk.pickup={station:'Unknown stop',system:null};card.render(el,S);const link=el.querySelector('[data-haul-inara=pickup]');const hidden=link.hidden && !link.hasAttribute('href');card.render(el,Lab.state);return hidden && !link.hidden && link===el.querySelector('[data-haul-inara=pickup]');})()"));
   // Persistent destination nodes preserve text selection during live cargo changes.
