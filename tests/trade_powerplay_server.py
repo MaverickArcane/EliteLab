@@ -17,7 +17,7 @@ def fetch(self, url, body=None, **kwargs):
     ref=(body or {}).get('reference_system')
     if ref=='Unavailable test':
         raise ValueError('Synthetic provider unavailable')
-    if ref=='Empty test':
+    if ref=='Empty test' or float((body or {})['filters'].get('distance',{}).get('min',0))>=400:
         return {'count':0,'results':[]}
     power=(body or {})['filters'].get('system_power',{}).get('value',['Edmund Mahon'])[0]
     return {'count':1,'results':[{'market_id':500,'name':'Fixture Exchange','system_name':'Fixture Target',

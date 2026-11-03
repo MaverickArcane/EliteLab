@@ -106,6 +106,11 @@ try {
   await capture('trade-powerplay-source-desktop',1440,1100,'[data-personal-plan]');
   await capture('trade-powerplay-finder-desktop',1440,1000,'#card-targets');
   await capture('trade-powerplay-finder-mobile',390,1000,'#card-targets');
+  assert.doesNotMatch(await evaluate("document.querySelector('#card-targets').textContent"),/buys all/i);
+  await evaluate(`${input('min')}.value='400';${input('max')}.value='500';${input('min')}.dispatchEvent(new Event('input',{bubbles:true}));true`);
+  await find();await waitFor("document.querySelector('#card-targets').textContent.includes('No reported markets matched')");
+  await evaluate(`${input('min')}.value='100';${input('max')}.value='180';${input('min')}.dispatchEvent(new Event('input',{bubbles:true}));true`);
+  await find();await waitFor("document.querySelector('#card-targets').textContent.includes('Fixture Exchange')");
   // Pinned origin survives a ship move; cargo-dependent results are cleared.
   append([{event:'FSDJump',timestamp:'2026-10-22T10:02:00Z',StarSystem:'Changed location',StarPos:[10,0,0]}]);
   await waitFor("Lab.state.journal.system==='Changed location'");

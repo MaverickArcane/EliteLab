@@ -81,6 +81,7 @@ async function legacyFind(el) {
     // The legacy "buys all" badge describes rare cargo, not this planned load.
     result={...result,results:result.results.map(r=>({...r,refuses:null,accepts_all:null}))};
     u.response=result;u.awaitSearch=false;Lab.set('targets',{handoff_last:result});
+    if(!result.results.length)el.querySelector('#t-body').innerHTML='<tr><td colspan="10">No reported markets matched. Adjust the filters and retry.</td></tr>';
     status.textContent=`${fmt(result.results.length)} reported markets from ${result.ref}. Planned commodity eligibility remains unknown.`;
   } catch(error) {if(!u.dead&&u.generation===generation)status.textContent=error.message;}
 }
