@@ -39,6 +39,7 @@ Conventions: `null` means unknown/not yet seen. Timestamps are the journal's ISO
 | `status` | Docking/flight flags, vehicle, shield up/down, fuel/reservoir/fuel_at, body/destination, low fuel/heat/danger/interdiction flags, cargo_tons, legal, timestamp | `Status.json`; omitted fuel retains its own observation time, reset on vehicle changes | location, ship, party |
 | `game_running`, `hull_health`, `hull_at` | bool/null, fraction/null, timestamp/null | LoadGame/Shutdown; Loadout and player-piloted non-fighter HullDamage. Hull is last-reported, not continuous | party |
 | `feed` | `[{ts, event, text}]` newest first, max 40 | `FEED` table in the module | feed card |
+| `feed_session_start` | str/null | most recent LoadGame timestamp; the feed card uses it to show the current session without changing the event list | feed card |
 | `last_event_time` | str | every event | header live pill |
 | `game_version` | str | `Fileheader` | header |
 

@@ -67,11 +67,28 @@
     },
   });
 
+  const feedGroups = {
+    trading: ['MarketBuy', 'MarketSell'],
+    travel: ['FSDJump', 'Docked', 'Undocked', 'CarrierJump', 'CarrierJumpRequest', 'CarrierJumpCancelled', 'FuelScoop'],
+    combat: ['Bounty', 'Interdicted', 'Died'],
+    engineering: ['MaterialCollected', 'EngineerCraft'],
+  };
   Lab.card({
     id: 'feed', requires: ['journal'],
     render(el, S) {
-      const f = (S.journal || {}).feed || [];
-      el.innerHTML = `<div class="feed">${f.length ? f.map(x => `<div class="ev-${esc(x.event)}"><time>${(x.ts || '').slice(11, 16)}</time><span>${esc(x.text)}</span></div>`).join('') : '<div class="muted">No events yet this session.</div>'}</div>`;
+      const previous = el.querySelector('.feed');
+      const offset = previous?.scrollTop || 0, oldHeight = previous?.scrollHeight || 0;
+      const focused = document.activeElement === el.querySelector('[data-feed-filter]');
+      const filter = el.querySelector('[data-feed-filter]')?.value || 'all';
+      const journal = S.journal || {}, start = typeof journal.feed_session_start === 'string' ? journal.feed_session_start : '';
+      const startTime = Date.parse(start);
+      const events = (journal.feed || []).filter(x => !Number.isFinite(startTime) || (Number.isFinite(Date.parse(x.ts)) && Date.parse(x.ts) >= startTime));
+      const visible = events.filter(x => filter === 'all' || feedGroups[filter]?.includes(x.event));
+      el.innerHTML = `<label>Activity <select data-feed-filter>${['all', ...Object.keys(feedGroups)].map(k => `<option value="${k}"${filter === k ? ' selected' : ''}>${k[0].toUpperCase() + k.slice(1)}</option>`).join('')}</select></label><div class="feed">${visible.map(x => `<div class="ev-${esc(x.event)}"><time>${esc((typeof x.ts === 'string' ? x.ts : '').slice(11, 16))}</time><span>${esc(x.text)}</span></div>`).join('')}${!visible.length ? `<div class="muted">${filter === 'all' ? 'No events yet this session.' : 'No events match this filter.'}</div>` : ''}${start ? `<div class="muted"><time>${esc(start.slice(11, 16))}</time><span>Game session started</span></div>` : ''}</div>`;
+      const list = el.querySelector('.feed');
+      list.scrollTop = offset ? Math.max(0, offset + list.scrollHeight - oldHeight) : 0;
+      if (focused) el.querySelector('[data-feed-filter]').focus();
+      el.querySelector('[data-feed-filter]').addEventListener('change', () => this.render(el, S));
     },
   });
 
