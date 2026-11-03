@@ -339,8 +339,12 @@ copy it to the new default before starting. Configured data paths still take pre
 
 For the portable Windows bundle, double-click **Launch EliteLab.vbs**. On first
 launch it opens setup; choose your journal folder, click **Test**, then **Save**
-and **Restart** if requested. Use **Quit** in the dashboard to stop EliteLab.
-Closing the window alone leaves the server running. Startup errors point to a
+and **Restart** if requested. Use **Quit EliteLab** in the notification-area
+menu or **Quit** in the dashboard to stop the server. The tray menu can also
+open the dashboard or setup; double-click its icon to open the dashboard.
+Closing the window alone leaves the server running. Tray actions require a
+loopback-accessible server; use the dashboard controls if bound only to a
+specific network address. Startup errors point to a
 log under the configured data folder. The bundle opens an app window using
 Edge, Chrome, Brave or Chromium, with a dedicated browser profile in the data
 folder; if no supported browser can be launched, it opens the default browser.
