@@ -108,6 +108,13 @@ class WindowsTray:
         try:
             append_menu(menu, 0, 1, 'Open dashboard')
             append_menu(menu, 0, 2, 'Open setup')
+            try:
+                startup = self.control.autostart_status()
+            except OSError:
+                startup = 'unavailable'
+            flags = 0x0008 if startup == 'enabled' else (0x0003 if startup in ('conflict', 'unavailable') else 0)
+            label = 'Start at sign-in' + (' (another copy)' if startup == 'conflict' else ' (unavailable)' if startup == 'unavailable' else '')
+            append_menu(menu, flags, 4, label)
             append_menu(menu, 0, 3, 'Quit EliteLab')
             point = wintypes.POINT()
             if not cursor(ctypes.byref(point)):
@@ -118,6 +125,8 @@ class WindowsTray:
                 self._open(False)
             elif chosen == 2:
                 self._open(True)
+            elif chosen == 4:
+                self.control.toggle_autostart()
             elif chosen == 3 and not self.control.shutdown():
                 self.notify('EliteLab is not available on loopback yet. If it is bound to a specific network address, use the dashboard controls.')
         finally:

@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 
 from .instance import InstanceGuard, health
 from .window import open_dashboard
+from .autostart import Autostart
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -55,6 +56,16 @@ class TrayControl:
         if self.refresh:
             self.config = self.refresh()
         return bool(open_dashboard(url + ('setup/' if setup else ''), self.config))
+
+    def autostart_status(self):
+        return Autostart(self.config.ROOT).status()
+
+    def toggle_autostart(self):
+        setting = Autostart(self.config.ROOT)
+        state = setting.status()
+        if state == 'conflict':
+            raise ValueError('Another EliteLab startup entry exists. Change it in Windows Startup apps first.')
+        return setting.set_enabled(state != 'enabled')
 
     def shutdown(self):
         url = self.verified_url()
