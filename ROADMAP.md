@@ -80,7 +80,7 @@ Host a shared EliteLab server where each commander can sync their journals, game
 4. **Expand shared dashboards.** Sync layouts across devices and add group gameplay views.
 5. **Prepare for regular use.** Validate onboarding with new players, permissions, backups, upgrades, and recovery.
 
-This epic is planning work. Each phase needs focused implementation issues before development begins. Preserve the local-only workflow as the shared-server option grows. Related work: setup [#40][40], standalone distribution [#9][9], panel design [#41][41], and journal persistence [#7][7].
+The proposed initial scope and security gates are in [MULTIPLAYER-PLAN.md](docs/MULTIPLAYER-PLAN.md). This epic is planning work. Each phase needs focused implementation issues before development begins. Preserve the local-only workflow as the shared-server option grows. Related work: setup [#40][40], standalone distribution [#9][9], panel design [#41][41], and journal persistence [#7][7].
 
 ## Already shipped
 
