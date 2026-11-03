@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Windows: build a per-user installer artifact with a start-menu shortcut, optional desktop shortcut, running-instance guard, and preserved user data on upgrade and uninstall (#9). Release publishing and auto-start are still pending.
+
 - Windows portable bundle: notification-area menu opens the dashboard or setup and can stop its own local server, including after a settings restart (#9).
 
 - Windows portable bundle: launch without a terminal, open setup on first use, restart after settings changes, and report startup errors with a log path. Use the dashboard Quit control to stop (#9).

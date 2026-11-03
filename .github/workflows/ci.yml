@@ -152,6 +152,25 @@ jobs:
         run: python scripts/build_windows.py
       - name: Launch extracted bundle without system Python on PATH
         run: python scripts/smoke_windows_bundle.py
+      - name: Build and test Windows installer
+        shell: pwsh
+        run: |
+          $taskCompiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path -LiteralPath $taskCompiler)) { throw 'Inno Setup 6 compiler not found' }
+          python scripts/build_windows_installer.py --compiler $taskCompiler
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $taskId = 'EliteLab.Installer.Test.' + [guid]::NewGuid().ToString('N')
+          python scripts/build_windows_installer.py --compiler $taskCompiler --output dist/EliteLab-Setup-test.exe --app-id $taskId
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/smoke_windows_installer.py dist/EliteLab-Setup-test.exe --test-id-confirmed
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EliteLab-Windows-installer
+          path: |
+            dist/EliteLab-Setup-x64.exe
+            dist/EliteLab-Setup-x64.exe.sha256
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: EliteLab-windows-x64
