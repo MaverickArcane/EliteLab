@@ -323,7 +323,24 @@ full-load volume. `legs` compares all eligible goods for one station pair.
 `search` combines outbound with the most profitable return to the identical
 market ID, or returns one-way legs. It keeps the existing HTTP/tool identity.
 Starting funds for a loop are max(outbound cost, return cost - outbound profit).
+Rows get a stable `id` (`plan.route_id`: route type, quantity, market IDs and
+commodity keys) and `Personal.last` keeps the latest rows so a selection can
+only name a route that was actually offered.
+
+`plan.py` is pure: `plan_from_row` keeps the fields the workflow needs and
+validates them (`valid_plan` also guards the saved file); `counts` tallies
+MarketBuy/MarketSell per leg at the planned market IDs since `selected_at`;
+`progress` derives the stage from exact docking, a consistent cargo snapshot and
+those counts. `TradePlan` owns the store namespace, persists the plan through
+`core.write_data` from the routes only, keeps the last 2000 market events in
+memory, and recomputes on journal location, credits, commander and replay
+signals (no file or network I/O on the watcher thread).
+
 The browser keeps filters across refreshes, migrates old search settings, and
-renders both legs without replacing the form on journal updates.
+renders the selected-route panel and the comparison table without replacing the
+form on journal updates (the panel HTML is diffed as a string). Advanced filters
+open automatically when a saved value differs from the defaults. The `personal`
+map layer draws the plan's stops and a dashed line to the next one while
+`ui_selected` is on.
 
 Shared synthesis facts live in core/synthesis_catalog.py. Wishlist resolves synthesis keys, previews additions and atomically updates quantities. Materials.observation reads inventory and coverage under one lock. See [MATERIAL-PLAN.md](MATERIAL-PLAN.md).

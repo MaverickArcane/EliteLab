@@ -22,6 +22,13 @@ original_fetch = Services.fetch_json
 
 
 def fetch(self, url, body=None, **kwargs):
+    if url == "https://www.spansh.co.uk/api/systems/search":
+        if os.environ.get("ELITELAB_MINING_LIVE") == "1":
+            return original_fetch(self, url, body, **kwargs)
+        origin = fixture["bodies"]["results"][0]
+        return {"results":[{"name":(body or {})["filters"]["name"]["value"],
+                "controlling_power":"Edmund Mahon", "power_state":"Stronghold",
+                **{axis:origin.get("system_"+axis) for axis in "xyz"}}]}
     if url == "https://www.spansh.co.uk/api/stations/field_values/market":
         if os.environ.get("ELITELAB_MINING_LIVE") == "1":
             return original_fetch(self, url, body, **kwargs)

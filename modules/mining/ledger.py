@@ -37,6 +37,7 @@ class Ledger:
         self.baseline = False
         self.estimated = False
         self.revenue = self.sold = self.removed = self.unknown_sale_tons = 0
+        self.market_revenue = self.market_sold = self.unknown_market_sale_tons = 0
         self.costs = {}
         self.transactions = []
         self.last_inventory_ts = None
@@ -47,9 +48,9 @@ class Ledger:
             return None
         return self.stock.setdefault(name, {"mined": 0, "other": 0})
 
-    def record(self, ev, label, credits, tons=0):
+    def record(self, ev, label, credits, tons=0, **evidence):
         self.transactions.insert(0, {"timestamp": str(ev.get("timestamp") or "")[:80],
-                                    "label": label[:160], "credits": round(credits, 2), "tons": tons})
+                                    "label": label[:160], "credits": round(credits, 2), "tons": tons, **evidence})
         del self.transactions[12:]
 
     def consume(self, name, quantity):
@@ -105,17 +106,21 @@ class Ledger:
         elif event in ("MarketSell", "EjectCargo"):
             quantity = count(ev.get("Count"))
             matched = self.consume(name, quantity)
-            if event == "MarketSell" and matched:
+            if event == "MarketSell" and quantity:
                 total = number(ev.get("TotalSale"))
                 if total is None and number(ev.get("SellPrice")) is not None:
                     total = ev["SellPrice"] * quantity
                 self.sold += matched
+                self.market_sold += quantity
                 if total is None:
                     self.unknown_sale_tons += matched
+                    self.unknown_market_sale_tons += quantity
                 else:
                     proceeds = total * matched / quantity
                     self.revenue += proceeds
-                    self.record(ev, "Sale: " + name, proceeds, matched)
+                    self.market_revenue += total
+                    self.record(ev, "Sale: " + name, total, quantity,
+                                tracked_tons=matched, tracked_credits=round(proceeds, 2))
             elif event == "EjectCargo":
                 self.removed += matched
         elif event == "CargoTransfer" and isinstance(ev.get("Transfers"), list):
@@ -161,11 +166,14 @@ class Ledger:
     def summary(self):
         costs = sum(self.costs.values())
         return {"sale_proceeds": round(self.revenue, 2), "sold_tons": self.sold,
+                "market_sale_proceeds": round(self.market_revenue, 2), "market_sold_tons": self.market_sold,
+                "unknown_market_sale_tons": self.unknown_market_sale_tons,
                 "operating_costs": round(costs, 2), "net_profit": round(self.revenue - costs, 2),
                 "cost_breakdown": dict(self.costs), "estimated": self.estimated,
                 "unknown_sale_tons": self.unknown_sale_tons, "removed_tons": self.removed,
                 "remaining": {k: r["mined"] for k, r in self.stock.items() if r["mined"]},
                 "transactions": list(self.transactions),
-                "note": "Sales attributed to tracked refinery units; other cargo is sold first. Missing initial cargo makes attribution estimated. "
+                "note": "Market sale proceeds include full recorded commodity sales this game session, including cargo held before reload; they are gross receipts, not net mining profit. "
+                        "sale_proceeds/net_profit remain attributed to tracked refinery units; other cargo is sold first. Missing initial cargo makes attribution estimated. "
                         "Net subtracts this game session's recorded limpets, fuel, repairs and ammo, including other activities. "
                         "Transfers/ejection remove tracked units; returning cargo is not reclassified as mined. Unsold value is separate."}

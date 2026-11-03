@@ -65,6 +65,10 @@ No framework, no build. Cards render by replacing their body's innerHTML; the ma
 
 ## Threading
 
+The HTTP handler closes abandoned keep-alive connections on peer reset, abort
+or broken pipe, including Windows browser reloads before a new request line.
+Other exceptions keep their normal error handling and diagnostics.
+
 The watcher runs in one background thread and emits synchronously, so module handlers run there; keep them fast and never block on the network inside a handler (the loop module fetches coordinates in its own thread). HTTP requests run in the server's thread pool. The store is lock-protected; everything else is single-writer.
 
 ## Why stdlib only

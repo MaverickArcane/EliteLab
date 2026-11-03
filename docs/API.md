@@ -7,17 +7,22 @@ for the current game session, with a recorded elapsed-time rate. Resets on
 LoadGame or changed commander; `partial` marks an incomplete replay window.
 Returns `mining.summary`; see [MINING.md](MINING.md) for fields and limitations.
 
-The summary includes attributed sale proceeds, operating costs, net profit,
+The summary includes full recorded commodity sale receipts in `profit.market_sale_proceeds`
+and `market_sold_tons`, with `unknown_market_sale_tons` for missing amounts. These
+gross receipts include cargo held before reload and are not net mining profit.
+Existing `sale_proceeds`, `sold_tons` and `net_profit` remain current-session
+refinery attribution. Sale transactions show full credits/tons alongside
+tracked_credits/tracked_tons. It also includes operating costs,
 remaining tracked units and a bounded transaction ledger. Quotes are separate.
 `powerplay` adds recorded session/total merits, estimated mining-sale associations,
 unassociated gains and bounded recent evidence. Association is not confirmed causation.
 
 ## `find_mining_spots` - `GET /api/mining/spots` - module: mining
 
-`ref` defaults to current system; `radius` defaults to 50 Ly (max 200),
+`ref` defaults to current system; `radius` defaults to the laden/current ship range cap (max 200),
 `ring_type` to Metallic (also Metal Rich, Icy, Rocky, Any). Optional `hotspot`,
 `pristine` and `power` filter reported hotspots, pristine reserves and a power's
-provider-reported acquisition systems. Returns at most 30 rings from 100 bodies.
+reported controlled systems; presence alone is not ownership. Returns at most 30 rings from 100 bodies.
 
 ## `find_mining_buyers` - `GET /api/mining/buyers` - module: mining
 
@@ -29,8 +34,13 @@ coverage/estimate limits. See [MINING.md](MINING.md).
 `powerplay_mode` defaults to `none`; `acquisition` and `reinforcement` filter
 reported candidate systems. `power` defaults to `pledged` or accepts a known
 power; an unknown pledge errors when filtering. Results return selected power/mode,
-reported powers/state and unverified eligibility. Mining origin, control links
-and local activities are not verified; `merit_estimate` is null.
+reported powers/controller/state and unverified eligibility. Default credit mode
+does not validate merits. Optional `mined_in` is the actual mining source as
+asserted by the caller, never inferred from `ref`. It excludes different-system
+reinforcement and known incompatible acquisition source/control/range conditions;
+unknown source data stays unknown. Inspect `purpose_note`, per-row `merit_route`
+and `excluded_routes`. Local activities and cargo provenance remain unverified;
+`merit_estimate` is null. Acquisition adds at most one fixed-endpoint source lookup.
 
 Generated from `GET /api/schema` (EliteLab 0.5.0). Every tool is an HTTP route: `GET` with query parameters or `POST` with a JSON body. Responses are JSON; errors are `{"error": "..."}`. `GET /events` streams state changes as Server-Sent Events (`snapshot` then `state` events).
 
@@ -423,7 +433,7 @@ Powerplay conflict zones recorded from your own journal: the zones (by intensity
 
 ## `get_rares_loop`  -  `GET /api/loop`  -  module: loop
 
-The active rare goods loop: each station with its rares, tons already in the hold, distance from the ship, whether docked there, and the recommended next stop. Stations tick done when their rare is aboard.
+The active rare goods loop: stations, observed rare cargo, distance and next buy stop. Arrival requires the exact system and station. Cargo presence marks a stop, not a verified purchase; unknown cargo yields null station tons and `tons_total`. `workflow` exposes `cargo_known`, `free_capacity` and market snapshot status/source/time/rare stock. Manual visit marks and map selection stay browser-local. See [RARE-GOODS.md](RARE-GOODS.md) for evidence statuses and selling/Powerplay limitations.
 
 ## `select_rares_loop`  -  `POST /api/loop/select`  -  module: loop
 
@@ -859,7 +869,38 @@ it never restricts the return cargo. The result includes up to 30 routes with
 `per_ton` (combined profit per tonne of hold across both legs; each leg carries its own `per_ton`),
 `distance` per leg, `total_distance`, and `estimated_jumps` per leg.
 `screened`/`available` count nearby stations; coverage/errors appear in `warnings`.
+Each row carries a stable `id` and each stop carries `pos` (galactic x, y, z).
 Reports are cached five minutes. No game action is performed.
+
+### Selected trade route
+
+`select_trade_route` / `POST /api/personal/plan` with `id` (a row id from the
+most recent search, whoever ran it) makes that route the active plan, saved in
+`data/personal.json`. An unknown id, or an id from an older search, is rejected
+and the previous plan stays; a failed save also keeps the previous plan.
+`clear_trade_route` / `POST /api/personal/plan/clear` removes it.
+
+`get_trade_plan` / `GET /api/personal/plan` returns `{plan, progress}`, both
+null when nothing is selected. `plan` keeps the route's legs (commodity,
+quantity, buy and sell stops with market_id, station, system, pad, arrival_ls,
+observed_at, price, volume, pos), totals, `selected_at`, the selecting `cmdr`
+and `source`. `progress` is recomputed from the journal store:
+
+| Field | Meaning |
+|---|---|
+| `stage` | `travel_buy`, `buy`, `travel_sell`, `sell` or `complete` for the current leg |
+| `leg`, `leg_count` | Index of the current leg (null when complete) and the number of legs |
+| `title`, `action`, `reason`, `quantity` | Text for the next action and the tonnes it refers to (null when unknown) |
+| `next` | `{role, station, system, market_id, pos, dist, docked_here}`; `dist` is a straight line from `journal.star_pos`, null without coordinates |
+| `legs[]` | Per leg: `aboard` (null when cargo is unknown), `bought`, `spent`, `sold`, `sale_total` from MarketBuy/MarketSell at the planned market IDs since `selected_at`, and `done` |
+| `cargo_known` | The cargo snapshot is internally consistent; otherwise stages come from docking and recorded purchases only |
+| `quotes` | `{age_hours, status, message}`; status is `fresh` (< 12 h), `aging` (< 48 h), `stale` or `unknown` |
+| `credits`, `credits_short` | Reported balance and whether it is below the next purchase (null when either side is unknown) |
+| `commander_changed` | The journal commander differs from the one who selected the route |
+
+A leg is `done` when recorded sales reach the planned tonnes, or when some tonnes
+were sold at the planned station and the observed hold holds none of the goods.
+Cargo aboard is not a purchase receipt and quotes are community reports.
 
 ## Unified materials and recipe planning
 

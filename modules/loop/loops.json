@@ -2,7 +2,7 @@
   "lave": {
     "name": "Lave cluster",
     "origin": "Leesti",
-    "note": "All large-pad starports within 10 Ly of each other. Sell 125-165 Ly away for best price and Powerplay merits.",
+    "note": "Large-pad rare-goods buy stops in the Lave cluster. Stock and access can change. Compare sale prices from each rare's source; travel distance alone does not establish Powerplay merit eligibility.",
     "stations": [
       { "system": "Leesti", "station": "George Lucas", "type": "Coriolis", "ls": 200, "rares": [ { "name": "Leestian Evil Juice", "key": "leestianeviljuice" }, { "name": "Azure Milk", "key": "bluemilk" } ] },
       { "system": "Diso", "station": "Shifnalport", "type": "Orbis", "ls": 291, "rares": [ { "name": "Diso Ma Corn", "key": "disomacorn" } ] },

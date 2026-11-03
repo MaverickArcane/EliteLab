@@ -427,6 +427,14 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 .workspace-off{display:none!important}
 .workspace-focused{grid-auto-flow:row!important}
 .workspace-focused #card-wishlist,.workspace-focused #card-history{grid-column:1/-1!important}
+/* Rare buying workflow */
+#card-loop,#card-cargo,#card-market { scroll-margin-top:60px; }
+.rares-next { border-left:3px solid var(--accent); padding:16px; background:var(--bg-2); }
+.rares-next h3 { margin:6px 0; }.rares-list { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
+.rares-stop { border:1px solid var(--line);padding:14px;min-width:0;overflow-wrap:anywhere; }.rares-stop.selected { border-left:3px solid var(--accent); }
+.rares-stop p { margin:6px 0;color:var(--muted);font-size:12px; }.rares-stop label { display:flex;gap:8px;align-items:center; }.rares-desk .row { flex-wrap:wrap; }
+@media(max-width:760px){.rares-list{grid-template-columns:1fr;}.rares-next{padding:12px;}#card-loop,#card-cargo,#card-market{scroll-margin-top:125px;}}
+
 .material-plan h3{font-size:16px;margin:0 0 14px;text-transform:none;letter-spacing:0;color:var(--fg)}
 .plan-intro,.plan-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .plan-intro>b{font-size:18px}.plan-intro .note{margin:5px 0 14px}
@@ -467,3 +475,26 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 .target-table table { font-size:11px; }
 .target-desk svg { width:100%; max-width:700px; }
 @media(max-width:800px) { .target-form { grid-template-columns:repeat(2,minmax(0,1fr)); } .target-results { grid-template-columns:minmax(0,1fr); } }
+
+/* Trading: selected route panel, comparison table and expandable details. */
+.trade-plan { border-left: 3px solid var(--accent); padding: 16px; background: var(--bg-2); margin-bottom: 14px; min-width: 0; }
+.trade-plan.is-complete { border-left-color: var(--ok); }
+.trade-plan-empty p { margin: 6px 0 0; color: var(--muted); }
+.trade-plan-head { flex-wrap: wrap; }
+.trade-plan-action h3 { margin: 6px 0; font-size: 18px; overflow-wrap: anywhere; }
+.trade-plan-action p { margin: 0 0 8px; color: var(--muted); }
+.trade-plan-actions { flex-wrap: wrap; margin: 8px 0; }
+.trade-plan-legs { display: grid; gap: 6px; margin-top: 10px; }
+.trade-plan-legs > div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); min-width: 0; }
+.trade-plan-legs > div.is-next { border-color: var(--accent); }
+.trade-plan-legs > div.done { opacity: .7; }
+.trade-plan-legs .trade-leg-status { margin-left: auto; color: var(--accent-2); font-variant-numeric: tabular-nums; }
+.trade-table { overflow-x: auto; max-width: 100%; }
+.trade-table table { min-width: 860px; }
+.trade-table td, .trade-table th { vertical-align: top; }
+.trade-row-actions { white-space: nowrap; }
+.trade-detail > td { padding: 0 0 12px; }
+.trade-detail .trading-route { margin: 8px 0 0; }
+.trading-form details.trade-details { margin: 0; padding-top: 8px; }
+.trading-form details.trade-details > .trade-form { margin: 10px 0 0; }
+@media (max-width: 600px) { .trade-plan { padding: 12px; } .trade-plan-legs .trade-leg-status { margin-left: 0; width: 100%; } }

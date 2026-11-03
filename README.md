@@ -415,12 +415,27 @@ station narrows the origin; the destination field is a system name. Each leg
 must have reported supply and positive demand for the full load. Fleet carriers
 are excluded; surface stations are optional and excluded by default.
 
-The search ranks up to 30 routes by combined load profit. Separate outbound and
-return sections show commodity prices, supply/demand, timestamps, approach
-distances and copy buttons. The total shows starting credits needed (accounting
-for outbound profit), total purchases and return on purchase costs. Inara is the
-preferred external market and prefilled station-pair route view; its website
-filters may differ from the local search.
+The search ranks up to 30 routes by combined load profit in a comparison table:
+profit, profit per tonne of hold, light-years and estimated laden jumps per leg,
+return on purchase costs, starting credits needed, the age of the oldest market
+report and the landing pads. The top ten show first; Details expands a route
+into its outbound and return legs with prices, supply/demand, timestamps,
+approach distances and copy buttons. Inara is the preferred external market and
+prefilled station-pair route view; its website filters may differ from the
+local search. Station, pad, report age, approach, goods and breadth filters sit
+under More filters.
+
+**Select** makes a route the active plan. The panel at the top of Trading then
+names your next action from the journal: travel to the buy station, buy the
+load (less what is already aboard) once docked there exactly, travel to the sell
+station, sell, and for round trips the return leg. It shows straight-line
+distance, tonnes of the planned goods aboard, report age and whether reported
+credits cover the purchase. Show on map draws the route on the star map with a
+dashed line to the next stop; Copy system/station fill the clipboard. The plan
+is saved on the server, so it survives restarts and is the same for every
+browser and MCP client. A leg counts as sold only from MarketSell events at the
+planned station after selection; cargo aboard is never treated as a purchase
+receipt. See [docs/TRADING.md](docs/TRADING.md) for the full workflow.
 
 Search checks the nearest 100 eligible stations by default (200/300 optional),
 plus up to 100 origin markets. All available goods are compared; the commodity
@@ -431,7 +446,8 @@ exclude fuel, fees and personal bonuses. Routes exceeding your reported credits
 or capacity show a warning; reduce the load before flying them.
 Search results retain the original settings until you run another search.
 
-The `find_personal_trade_routes` tool exposes the same search via HTTP/MCP/CLI.
+The `find_personal_trade_routes` tool exposes the same search via HTTP/MCP/CLI;
+`select_trade_route`, `get_trade_plan` and `clear_trade_route` manage the plan.
 
 ## Talking to it from an AI
 

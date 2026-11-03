@@ -33,6 +33,29 @@ def ship(q):
     core.modules['party'].party.publish()
     return {'ok': True}
 core.http.route('/audit/ship', ship, method='POST')
+def trade_plan(q):
+    """Inject a fixture trade route (no Spansh) and drive the journal evidence it follows."""
+    from datetime import datetime, timezone
+    from modules.personal import plan as planning
+    personal, now = core.modules['personal'], datetime.now(timezone.utc).isoformat()
+    stop = lambda mid, station, system, x, price, volume: {'market_id': mid, 'station': station, 'system': system, 'pad': 'L',
+        'arrival_ls': 100, 'observed_at': now, 'price': price, 'volume': volume, 'pos': [x, 0, 0]}
+    hostile = '<img src=x onerror=alert(1)>'
+    step = q.get('step', 'select')
+    if step == 'select':
+        legs = [{'commodity': 'Gold', 'quantity': 100, 'buy': stop(1, 'Port 1', 'Sol', 0, 100, 1000), 'sell': stop(2, hostile, 'Alpha', 39, 400, 1000), 'per_ton': 300, 'profit': 30000, 'cost': 10000},
+                {'commodity': 'Silver', 'quantity': 100, 'buy': stop(2, hostile, 'Alpha', 39, 200, 1000), 'sell': stop(1, 'Port 1', 'Sol', 0, 300, 1000), 'per_ton': 100, 'profit': 10000, 'cost': 20000}]
+        row = {'legs': legs, 'route_type': 'round_trip', 'quantity': 100, 'commodity': 'Gold', 'profit': 40000, 'cost': 30000, 'required_credits': 10000,
+               'return_on_cost': 133.3, 'per_ton': 400, 'distance': 39.0, 'total_distance': 78.0, 'estimated_jumps': 2}
+        row['id'] = planning.route_id(row)
+        personal.search.last, personal.search.last_source = {row['id']: row}, 'Fixture markets'
+        return personal.plan.select({'id': row['id']})
+    if step == 'dock_buy':
+        core.bus.emit('journal.Docked', {'event': 'Docked', 'timestamp': now, 'StarSystem': 'Sol', 'StationName': 'Port 1', 'MarketID': 1})
+    elif step == 'cargo':
+        core.bus.emit('journal.file.Cargo', {'Count': 100, 'timestamp': now, 'Inventory': [{'Name': 'gold', 'Name_Localised': 'Gold', 'Count': 100}]})
+    return core.store.get('personal')
+core.http.route('/audit/trade-plan', trade_plan, method='POST')
 core.http.route('/audit/identity', lambda q: {'id': core.modules['party'].party.member_id, 'secret': core.modules['party'].party.secret})
 server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(core))
 print(server.server_port, flush=True)
