@@ -169,8 +169,13 @@ def make_handler(core):
                 self.send_header(key, value)
             # No CORS headers: cross-origin reads are disabled. POSTs also
             # enforce Origin and JSON content type before invoking handlers.
-            self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.end_headers()
+                self.wfile.write(body)
+            except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                # The client abandoned this response. Do not log a route failure
+                # or attempt a second response on the same closed connection.
+                self.close_connection = True
 
         def _static(self, directory, rel):
             rel = rel.lstrip("/") or "index.html"
