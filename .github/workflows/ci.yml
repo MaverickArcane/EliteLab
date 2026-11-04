@@ -11,6 +11,35 @@ permissions:
   contents: read
 
 jobs:
+  macos-package:
+    name: macOS package (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            arch: arm64
+          - os: macos-15-intel
+            arch: x86_64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build native menu bar and checksum-pinned Python package
+        run: python scripts/build_macos.py
+      - name: Install, exercise native controls, upgrade and remove
+        run: python scripts/smoke_macos.py dist/*.pkg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EliteLab-macos-${{ matrix.arch }}
+          path: |
+            dist/*.pkg
+            dist/*.pkg.sha256
+          if-no-files-found: error
+
   macos-source-setup:
     name: macOS source setup
     runs-on: macos-latest

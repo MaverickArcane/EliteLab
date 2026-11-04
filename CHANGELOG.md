@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- macOS: build Apple Silicon and Intel installers with bundled Python, native menu-bar controls, opt-in login startup and Chromium app windows. CI checks installation, native actions, restart, upgrades and removal while preserving user data (#55).
+
 - Linux package: add tray controls with a fallback window, opt-in desktop login startup, and Chromium app-window launch. Verify native GTK actions and indicator host connection/loss under Xvfb (#9).
 
 - Packaging: validate Debian installation, upgrades and removal in CI, preserving user settings and saved data. Version tags prepare a draft release with tested Windows/Debian packages, source and checksums; publication remains a reviewed step (#9).
