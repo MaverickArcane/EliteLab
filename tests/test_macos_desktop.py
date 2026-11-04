@@ -1,5 +1,6 @@
 """Mac login ownership, browser selection, private protocol and child cleanup."""
 import hashlib
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
 import io
 import os
@@ -10,12 +11,14 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import threading
 from types import SimpleNamespace
 import unittest
+import urllib.error
 from unittest.mock import Mock, patch
 
 from elitelab.macos_autostart import MacAutostart
-from elitelab.macos_desktop import read_commands, run, stop_child
+from elitelab.macos_desktop import check_journal, read_commands, run, stop_child
 from elitelab import window
 from test_elitelab import config
 
@@ -132,6 +135,33 @@ class MacDesktopTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, 'own ready server'):
                     run(check=True)
             child.terminate.assert_not_called()
+
+    def test_diagnostic_rejects_unverified_urls_and_never_follows_redirects(self):
+        control = Mock(verified_url=Mock(return_value=None))
+        with patch('elitelab.macos_desktop.urllib.request.build_opener') as opener:
+            with self.assertRaises(ValueError): check_journal(control)
+            opener.assert_not_called()
+        seen = []
+        class Redirect(BaseHTTPRequestHandler):
+            def log_message(self, *args): pass
+            def do_GET(self):
+                seen.append((self.path, self.headers.get('Authorization')))
+                self.send_response(302)
+                self.send_header('Location', '/must-not-follow')
+                self.end_headers()
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Redirect)
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        try:
+            control.verified_url.return_value = f'http://127.0.0.1:{server.server_port}/'
+            control.config.AUTH_TOKEN = 'private-token'
+            with self.assertRaises(urllib.error.HTTPError) as error: check_journal(control)
+            self.assertEqual(error.exception.code, 302)
+            self.assertEqual(seen, [('/api/journal', 'Bearer private-token')])
+        finally:
+            server.shutdown()
+            server.server_close()
+            worker.join(timeout=5)
 
     def test_runtime_checksum_and_archive_escape_are_rejected(self):
         if not hasattr(tarfile, 'data_filter'):

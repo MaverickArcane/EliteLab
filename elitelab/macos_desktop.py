@@ -12,7 +12,7 @@ import time
 import urllib.request
 
 from .macos_autostart import MacAutostart
-from .tray_control import TrayControl
+from .tray_control import NoRedirect, TrayControl
 
 
 def read_commands(stream, commands):
@@ -31,6 +31,20 @@ def read_commands(stream, commands):
 
 def emit(**message):
     print(json.dumps(message), flush=True)
+
+
+def check_journal(control):
+    """Read only our live child's loopback endpoint; never follow redirects."""
+    url = control.verified_url()
+    if not url:
+        raise ValueError('The owned server is no longer ready')
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    token = control.config.AUTH_TOKEN
+    request = urllib.request.Request(url + 'api/journal',
+        headers={'Authorization': 'Bearer ' + token} if token else {})
+    with opener.open(request, timeout=5) as response:
+        journal = json.loads(response.read(1024 * 1024))
+    return {key: journal.get(key) for key in ('cmdr', 'system')}
 
 
 def stop_child(control):
@@ -79,12 +93,7 @@ def run(check=False):
                             ready = True
                             emit(event='ready', url=url, pid=child.pid, login=control.autostart_status())
                             if check:
-                                opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-                                headers = {'Authorization': 'Bearer ' + config.AUTH_TOKEN} if config.AUTH_TOKEN else {}
-                                req = urllib.request.Request(url + 'api/journal', headers=headers)
-                                with opener.open(req, timeout=5) as response:
-                                    journal = json.load(response)
-                                emit(event='check', journal={key: journal.get(key) for key in ('cmdr', 'system')})
+                                emit(event='check', journal=check_journal(control))
                                 stop_child(control)
                                 return child.returncode
                         elif time.monotonic() > deadline:
