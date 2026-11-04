@@ -390,12 +390,20 @@ only when it belongs to that installation.
 Closing the window alone leaves the server running. Tray actions require a
 loopback-accessible server; use the dashboard controls if bound only to a
 specific network address. Startup errors point to a
-log under the configured data folder. EliteLab uses your Windows default browser.
-In **Setup > Browser**, choose a detected Chrome, Firefox, Edge, Brave or Chromium
-installation instead. Save, restart, then use **Open dashboard** in the tray.
-The selection opens a normal tab using that browser's existing settings; it does
-not create a new browser profile or change Windows defaults. If the selected
-browser is removed, EliteLab falls back to your system default.
+log under the configured data folder. During installation, **App window browser**
+lists installed Chrome, Edge, Brave and Chromium browsers. Your Windows default
+is preselected when supported; the choice powers EliteLab's standalone window,
+without tabs or an address bar. Rerun the installer to change it. Upgrades retain
+the choice. A removed browser produces an error instead of opening a normal tab.
+
+The next installer page chooses **Guest profile** (recommended) or a persistent
+EliteLab profile. Guest mode keeps browser accounts separate, but browser-only
+layout/filter preferences reset after all guest windows close. EliteLab's saved
+data and plans remain. Persistent mode remembers browser preferences and can use
+the chosen browser's sign-in/import features. Each engine uses a separate folder
+under the configured data directory; existing browser data is not deleted.
+Both modes request sync-disabled app windows. Silent setup accepts fixed IDs with
+`/APPBROWSER=chrome|edge|brave|chromium` and `/BROWSERPROFILE=guest|persistent`.
 
 For a source ZIP, double-click **Setup EliteLab.cmd**. It checks `python`, then
 `py -3`, and opens setup after the lab answers its health check. Keep its terminal
@@ -416,8 +424,7 @@ package manager installs Python 3.10 or newer, Zenity and GTK/Ayatana bindings.
 After installing, open **EliteLab** from the applications menu. The indicator
 menu opens the dashboard or setup and offers **Quit EliteLab**. A small control
 window provides the same actions on desktops without an indicator host.
-The system default browser opens a normal tab. Setup's Browser selector can choose
-another detected browser without changing system defaults.
+Chromium-family browsers open a dedicated app window; other browsers use a tab.
 
 Start at login is off by default. Enable it from the indicator or control window.
 This creates `$XDG_CONFIG_HOME/autostart/elitelab.desktop` (normally under
@@ -438,8 +445,8 @@ CI builds separate `.pkg` artifacts for Apple Silicon (`arm64`) and Intel
 (`x86_64`). Install the matching package, then open **EliteLab** in Applications.
 Python is included. The EliteLab menu-bar item opens the dashboard or setup and
 offers **Quit EliteLab**. Closing the browser leaves the server running.
-The system default browser opens a normal tab; Setup's Browser selector lists
-other detected browsers. On a Mac, choose a synced/copied journal folder in setup.
+Chrome, Chromium, Brave and Edge use a dedicated app window; Safari and other
+default browsers use a tab. On a Mac, choose a synced/copied journal folder in setup.
 
 The packages have no Developer ID signature or notarization. For a trusted
 download, attempt to open it, then use **System Settings > Privacy & Security >
@@ -592,8 +599,7 @@ See docs/AI.md.
 | `ELITELAB_AUTH_TOKEN` | | When set, `/api/*` and `/events` need `Authorization: Bearer TOKEN` or the session cookie from `POST /api/login`; Host validation still applies |
 | `ELITELAB_ALLOWED_HOSTS` | | Comma-separated extra host names a POST may use in its Host header, for example `nas.local` (see below) |
 | `ELITELAB_JOURNAL_DIR` | `/journals` in Docker, else the first detected folder with journals (Windows Saved Games, Steam Proton, Mac Application Support), else the Windows Saved Games path | Where the game writes `Journal.*.log` |
-| `ELITELAB_BROWSER_CHOICE` | `default` | `default` or a detected browser ID; normally choose this through Setup > Browser |
-| `ELITELAB_BROWSER` | | Advanced custom executable override for packaged app windows; overrides the Browser selector. A separate profile does not disable the browser's own sign-in, import or sync features. |
+| `ELITELAB_BROWSER` | | Browser executable for the Windows portable app window; set it here or as `browser` in the settings file |
 | `ELITELAB_DATA_DIR` | `./data` (new Windows bundles: `%LOCALAPPDATA%\EliteLab\data`; Debian package: `$XDG_DATA_HOME/elitelab`) | Persistent files (wishlist, selected loop) |
 | `ELITELAB_RECENT_JOURNALS` | `3` | Journal files replayed at startup |
 | `ELITELAB_DISABLE` | | Comma-separated module names to skip |

@@ -77,11 +77,11 @@ Most recent raw journal events (newest first). Useful to see exactly what the ga
 
 ## `get_setup`  -  `GET /api/setup`  -  module: setup
 
-First-run setup state: the settings file path, running values and their sources, pending changes, restart status, candidate journal folders, and `browser_options` containing installed browser IDs and labels. `default` follows the system default browser; executable paths are not accepted by the browser selector.
+First-run setup state: the settings file path, the values the lab is running with and where each came from, values saved but not yet applied (pending), whether a restart is needed, whether journal files were found, and candidate Elite Dangerous journal folders with journal counts.
 
 ## `save_setup`  -  `POST /api/setup`  -  module: setup
 
-Save settings to the settings file. Only journal_dir, port, host, data_dir and browser_choice are accepted; other keys are rejected. Changed values take effect after restart_elitelab. A port already in use or an address the lab could not listen on is refused. Returns the same shape as get_setup plus saved and warnings (including environment or custom executable overrides). The raw `browser` executable setting remains file/environment only.
+Save settings to the settings file. Only journal_dir, port, host and data_dir are accepted; other keys are rejected. Nothing is applied live: changed values take effect after restart_elitelab. A port already in use or an address the lab could not listen on is refused. Returns the same shape as get_setup plus saved and warnings (for example an environment variable or flag that will override the saved value).
 
 | Parameter | Type | Description |
 |---|---|---|
@@ -89,7 +89,6 @@ Save settings to the settings file. Only journal_dir, port, host, data_dir and b
 | `port` | integer | HTTP port, 1024 to 65535; refused when already in use |
 | `host` | string | Bind address: an IPv4 address such as 127.0.0.1 (this machine only) or 0.0.0.0 (all interfaces), or a host name such as localhost. Refused when the lab could not listen there. |
 | `data_dir` | string | Folder for the lab's own files such as wishlists |
-| `browser_choice` | string | `default` or an installed browser ID from `get_setup.browser_options`; never an executable path |
 
 ## `inspect_journal_folder`  -  `POST /api/setup/journals`  -  module: setup
 

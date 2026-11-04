@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Browser: respect the system default and offer detected browsers in Setup. Save a browser ID, open a normal tab without creating a separate profile, and fall back to the system default if the selected browser is removed. Custom executable app windows remain an explicit advanced override.
+- Windows installer: choose the installed browser powering the standalone app window, with Guest or persistent profile mode. Remember choices on upgrade and report a missing selected browser instead of falling back to a tab.
 
 - Windows installer: fix the unknown `userprofile` constant on ordinary install/uninstall. Resolve the profile like the bundled runtime and test the lifecycle without an instance-directory override.
 

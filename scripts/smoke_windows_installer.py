@@ -4,6 +4,7 @@ Compile with a unique --app-id reserved for the test; never run this against a
 release installer because setup and uninstall modify that ID's user registry.
 """
 import argparse
+import configparser
 import hashlib
 import json
 import msvcrt
@@ -20,6 +21,7 @@ import winreg
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from elitelab.autostart import Autostart, RUN_KEY
+from elitelab.window import installed_windows_browsers
 from smoke_windows_desktop import smoke_shortcut
 
 
@@ -79,6 +81,9 @@ def smoke(installer):
         args = [str(installer), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
                 '/TASKS=', '/DIR=' + str(app)]
         try:
+            for invalid in ('/APPBROWSER=calc.exe', '/BROWSERPROFILE=unexpected'):
+                refused = subprocess.run(args + [invalid], env=env, creationflags=flags, timeout=90)
+                assert refused.returncode != 0 and not app.exists(), 'Invalid browser choices must fail before installing'
             relative_env = {**env, 'ELITELAB_INSTANCE_DIR':'relative-instance'}
             refused = subprocess.run(args, env=relative_env, creationflags=flags, timeout=90)
             assert refused.returncode != 0 and not app.exists(), 'Relative guard paths must fail closed'
@@ -105,6 +110,14 @@ def smoke(installer):
                 raise RuntimeError('Default-profile install failed: ' + setup_log.read_text(errors='replace')[-4000:])
             for name in ('runtime/pythonw.exe', '.windows-bundle', 'Launch EliteLab.vbs', 'elitelab/windows_tray.py'):
                 assert (app / name).is_file(), name
+            def browser_settings():
+                saved = configparser.ConfigParser()
+                saved.read(app / 'desktop-browser.ini', encoding='utf-8-sig')
+                return dict(saved['Desktop'])
+            choices = installed_windows_browsers()
+            initial_browser = browser_settings()
+            assert initial_browser['browser'] in choices and initial_browser['profile'] == 'guest', initial_browser
+            assert not (root / 'settings.json').exists(), 'Installer browser choice must not skip first-run journal setup'
             assert shortcut.is_file(), 'Installer did not create the Start Menu shortcut at ' + str(shortcut) + '\n' + setup_log.read_text(errors='replace')[-4000:]
             smoke_shortcut(shortcut, app, env, root / 'shortcut-test')
             assert startup.status() == 'disabled', 'Unique test startup value already exists'
@@ -112,7 +125,12 @@ def smoke(installer):
             assert startup.status() == 'enabled'
             local_data = app / 'data'; local_data.mkdir()
             legacy = local_data / 'legacy-user-data.json'; legacy.write_text('keep', encoding='ascii')
-            subprocess.run(args, env=fallback_env, creationflags=flags, timeout=120, check=True)
+            selected = next((name for name in choices if name != initial_browser['browser']), initial_browser['browser'])
+            subprocess.run(args + ['/APPBROWSER=' + selected, '/BROWSERPROFILE=persistent'], env=fallback_env,
+                           creationflags=flags, timeout=120, check=True)
+            assert browser_settings() == {'browser': selected, 'profile': 'persistent'}
+            subprocess.run(args, env=env, creationflags=flags, timeout=120, check=True)
+            assert browser_settings() == {'browser': selected, 'profile': 'persistent'}
             # Start the installed embedded Python with a synthetic journal and no user data.
             with socket.socket() as probe:
                 probe.bind(('127.0.0.1', 0)); port = probe.getsockname()[1]
@@ -214,7 +232,7 @@ def smoke(installer):
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_QUERY_VALUE | winreg.KEY_SET_VALUE) as key:
                 assert winreg.QueryValueEx(key, app_id)[0] == foreign, 'Uninstall removed a foreign startup entry'
                 winreg.DeleteValue(key, app_id)
-            print('Installer passed: default user profile, home fallback, explicit guard override, running guard, install, upgrade, uninstall, user-data and startup-entry preservation.')
+            print('Installer passed: browser selection and upgrade persistence, default user profile, home fallback, explicit guard override, running guard, install, upgrade, uninstall, user-data and startup-entry preservation.')
         finally:
             # This installer was built with a unique test ID and its target is
             # inside the temporary test directory. Remove its registry entry if

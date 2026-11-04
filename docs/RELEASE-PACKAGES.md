@@ -68,8 +68,8 @@ The install/remove smoke script refuses to run outside a disposable GitHub
 macOS runner or over an existing EliteLab.app.
 
 Before publishing, test a quarantined download on each supported architecture:
-Gatekeeper guidance, Applications launch, first-run setup, the system default
-browser and a saved browser choice (including Safari), login startup after logout/login, a startup
+Gatekeeper guidance, Applications launch, first-run setup, a real Chromium
+app window and Safari fallback, login startup after logout/login, a startup
 error, restart and Quit. CI does not reproduce a downloaded file's quarantine
 or an actual user login. Record the macOS version and results on the macOS PR.
 
@@ -84,10 +84,10 @@ restart followed by Quit. Tests use fixture journals, temporary settings/data,
 a browser recorder, and unique test registry values. They do not manipulate an
 existing EliteLab installation or its sign-in entry. Manual checks still cover
 a real browser, pointer interaction with the notification-area menu and a real
-Windows sign-in. Also verify Setup > Browser lists installed browsers, defaults
-to the Windows default browser, and honors a saved choice without creating a
-separate browser profile. Existing native smoke recorders use the explicit
-custom-executable override to capture arguments without opening real browsers.
+Windows sign-in. The installer also checks browser selection, rejects invalid
+browser/profile options and preserves choices on upgrade. Manually verify the
+App window browser and profile pages, the chosen browser's standalone frame,
+Guest mode and its browser-preference reset, and persistent-mode behavior.
 Do not close #9 based on the existence of CI alone.
 Mining #3 additionally requires the outstanding real-game
 checks listed on that issue; fixture tests cannot establish current game rules.

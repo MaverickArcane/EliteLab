@@ -54,9 +54,8 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(r["path"], self.path)
         self.assertFalse(r["exists"])
         self.assertEqual(r["values"], {"journal_dir": config.JOURNAL_DIR, "port": config.PORT, "host": config.HOST,
-                                       "data_dir": config.DATA_DIR, "browser": config.BROWSER, "browser_choice": config.BROWSER_CHOICE})
-        self.assertEqual(set(r["sources"]), {"journal_dir", "port", "host", "data_dir", "browser", "browser_choice"})
-        self.assertEqual(r['browser_options'][0]['id'], 'default')
+                                       "data_dir": config.DATA_DIR, "browser": config.BROWSER})
+        self.assertEqual(set(r["sources"]), {"journal_dir", "port", "host", "data_dir", "browser"})
         self.assertEqual(r["pending"], {})
         self.assertFalse(r["restart_required"])
         self.assertTrue(r["journal_found"])
@@ -187,7 +186,7 @@ class SetupTests(unittest.TestCase):
         for q in ({"connections": {"x": {}}}, {"future": 2}):
             with self.assertRaises(ValueError) as cm:
                 self.call("save_setup", **q)
-            self.assertEqual(str(cm.exception), "Only journal_dir, port, host, data_dir and browser_choice can be saved here.")
+            self.assertEqual(str(cm.exception), "Only journal_dir, port, host and data_dir can be saved here.")
         self.assertEqual(self.file()["connections"], {"inara": {}})
 
     def test_browser_cannot_be_saved_and_an_existing_value_survives(self):
@@ -200,35 +199,6 @@ class SetupTests(unittest.TestCase):
         self.call("save_setup", port=8767)
         self.assertEqual(self.file(), {"browser": "firefox", "port": 8767})
         self.assertIn("browser", self.call("get_setup")["values"])
-
-    def test_browser_choice_persists_by_id_and_applies_after_reload(self):
-        with mock.patch('elitelab.window.installed_browsers', return_value={'firefox': '/known/firefox'}):
-            result = self.call('save_setup', browser_choice='firefox')
-        self.assertEqual(self.file(), {'browser_choice': 'firefox'})
-        self.assertEqual(result['pending'], {'browser_choice': 'firefox'})
-        self.assertEqual(config.BROWSER_CHOICE, 'default')
-        importlib.reload(config)
-        self.assertEqual(config.BROWSER_CHOICE, 'firefox')
-        self.assertEqual(self.call('get_setup')['pending'], {})
-        result = self.call('save_setup', browser_choice='default')
-        self.assertEqual(result['pending'], {'browser_choice': 'default'})
-
-    def test_browser_choice_rejects_commands_paths_and_uninstalled_ids_atomically(self):
-        with mock.patch('elitelab.window.installed_browsers', return_value={}):
-            for value in ('calc.exe', 'C:\\evil.exe', '--app=x', 'chrome', '', None, ['edge']):
-                with self.subTest(value=value), self.assertRaises(ValueError):
-                    self.call('save_setup', browser_choice=value, port=8767)
-                self.assertFalse(os.path.exists(self.path))
-
-    def test_browser_choice_warns_when_overridden_and_preserves_custom_browser(self):
-        with open(self.path, 'w') as f:
-            json.dump({'browser': 'custom-browser'}, f)
-        with mock.patch('elitelab.window.installed_browsers', return_value={'firefox': '/known/firefox'}), mock.patch.object(
-                config, 'BROWSER', 'custom-browser'), mock.patch.dict(config.SOURCES, {'browser_choice': 'env'}):
-            result = self.call('save_setup', browser_choice='firefox')
-        self.assertTrue(any('custom browser override' in w for w in result['warnings']))
-        self.assertTrue(any('ELITELAB_BROWSER_CHOICE' in w for w in result['warnings']))
-        self.assertEqual(self.file()['browser'], 'custom-browser')
 
     def test_host_all_interfaces_is_accepted(self):
         r = self.call("save_setup", host="0.0.0.0")

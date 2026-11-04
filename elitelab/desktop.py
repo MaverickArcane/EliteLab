@@ -105,6 +105,9 @@ def tray_main(config):
 def main():
     try:
         from .core import config
+        from .window import portable_windows, windows_browser
+        if portable_windows(config.ROOT):
+            windows_browser(config)  # Report a missing app browser before starting the server.
         status, log_path = tray_main(config) if tray_enabled() else run(config.DATA_DIR, config.SETTINGS_PATH)
         if status:
             notify('EliteLab could not start or stopped unexpectedly. See the log for details:\n' + str(log_path))
