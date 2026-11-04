@@ -1,0 +1,60 @@
+name: Release packages
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require a tag matching the application version
+        env:
+          RELEASE_REF: ${{ github.ref }}
+        run: |
+          python - <<'PY'
+          import os
+          from elitelab import __version__
+          expected = 'refs/tags/v' + __version__
+          if os.environ['RELEASE_REF'] != expected:
+              raise SystemExit('Select the version tag ' + expected)
+          PY
+  checks:
+    needs: validate-version
+    uses: ./.github/workflows/ci.yml
+  draft:
+    needs: checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: EliteLab-Windows-installer
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: EliteLab-debian
+          path: dist
+      - name: Verify packages and create source archive
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cd dist
+          sha256sum --check --strict *.sha256
+          cd ..
+          git archive --format=tar.gz --prefix=EliteLab/ --output="dist/EliteLab-${RELEASE_TAG}-source.tar.gz" HEAD
+          cd dist
+          sha256sum "EliteLab-${RELEASE_TAG}-source.tar.gz" > "EliteLab-${RELEASE_TAG}-source.tar.gz.sha256"
+      - name: Create a draft release for review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/* --verify-tag --draft --title "EliteLab $RELEASE_TAG" --generate-notes

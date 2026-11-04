@@ -380,7 +380,22 @@ settings file, run from a terminal:
 "Setup EliteLab.cmd" --settings "C:\EliteLab settings\settings.json"
 ```
 
-### Linux and macOS
+### Debian and Ubuntu package
+
+CI builds an unsigned `.deb` and SHA-256 checksum as workflow artifacts. The
+package needs system Python 3.10 or newer and Zenity; a package manager can
+install its dependencies. After installing, open **EliteLab** from the desktop
+applications menu. Setup and the dashboard open in your normal browser. Use
+the dashboard's Quit control to stop the server. The initial Linux package does
+not include a tray icon or start-at-sign-in option.
+
+The package stores data under `$XDG_DATA_HOME/elitelab` (normally
+`~/.local/share/elitelab`) and settings under `$XDG_CONFIG_HOME/elitelab`
+(normally `~/.config/elitelab`). Removing the package leaves those per-user
+files in place. Source installations keep using their existing `data` folder.
+The package is not yet published as a release.
+
+### Linux and macOS source setup
 
 Extract the source ZIP into a writable directory. Install Python 3.10 or newer
 using your Linux package manager or python.org on macOS, then run:
@@ -426,7 +441,7 @@ prints the correct setup URL, including a custom port.
   folder, move the source `data` directory with it or save an absolute data path.
 
 The setup scripts are included in source archives and the Windows bundle includes
-its setup entry point. Installers, tray behavior and a Mac package remain separate
+its setup entry point. Release distribution and a Mac package remain separate
 work under #9 and #55.
 
 ### First run
@@ -512,7 +527,7 @@ See docs/AI.md.
 | `ELITELAB_ALLOWED_HOSTS` | | Comma-separated extra host names a POST may use in its Host header, for example `nas.local` (see below) |
 | `ELITELAB_JOURNAL_DIR` | `/journals` in Docker, else the first detected folder with journals (Windows Saved Games, Steam Proton, Mac Application Support), else the Windows Saved Games path | Where the game writes `Journal.*.log` |
 | `ELITELAB_BROWSER` | | Browser executable for the Windows portable app window; set it here or as `browser` in the settings file |
-| `ELITELAB_DATA_DIR` | `./data` (new Windows bundles: `%LOCALAPPDATA%\EliteLab\data`) | Persistent files (wishlist, selected loop) |
+| `ELITELAB_DATA_DIR` | `./data` (new Windows bundles: `%LOCALAPPDATA%\EliteLab\data`; Debian package: `$XDG_DATA_HOME/elitelab`) | Persistent files (wishlist, selected loop) |
 | `ELITELAB_RECENT_JOURNALS` | `3` | Journal files replayed at startup |
 | `ELITELAB_DISABLE` | | Comma-separated module names to skip |
 | `ELITELAB_OFFLINE` | | Set to `1` to never call Spansh or EDSM (tests use this) |

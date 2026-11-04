@@ -134,9 +134,14 @@ def _path(value) -> str:
 
 
 def _default_data_dir(root=None, platform=None):
-    """Keep existing portable state; new Windows bundles use a per-user data folder."""
+    """Installed Linux and Windows bundles use per-user data; source stays local."""
     root = root or ROOT
     local = os.path.join(root, "data")
+    if (platform or os.name) == "posix" and os.path.isfile(os.path.join(root, ".linux-package")):
+        base = os.environ.get("XDG_DATA_HOME", "")
+        if not os.path.isabs(base):
+            base = os.path.join(os.path.expanduser("~"), ".local", "share")
+        return os.path.join(base, "elitelab")
     if (platform or os.name) != "nt" or not os.path.isfile(os.path.join(root, ".windows-bundle")):
         return local
     if os.path.isdir(local):
