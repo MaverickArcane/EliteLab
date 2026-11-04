@@ -7,6 +7,11 @@ Spansh. The forms retain edits during live updates and save filters in this brow
 
 ## Workflow
 
+**Mining for merits:** start with [MeritMiner](https://meritminer.cc/). Set your
+reference system, power, power goal and mineral there to plan the run. The Mining
+card's **Open MeritMiner** link opens the site in a new tab. Use EliteLab to track
+the haul, sales and recorded merit gains during the run.
+
 1. Search near your current system. Filter ring type, reserve level, optional
    reported hotspot, and optional power owning the mining source.
 2. Compare distance, approximate jumps, arrival distance, reserves and dated
@@ -41,8 +46,9 @@ known incompatible routes. Missing source/control/coordinates stay unknown.
 The API allows an omitted source but explicitly reports unknown route eligibility.
 These are candidate searches: local activities, actual cargo provenance and other
 game requirements must still be checked in game. Transferring cargo through a
-carrier can remove mining origin. For a new run, Nearby rings > Merit opportunities
-pairs a reported source with a market before you mine.
+carrier can remove mining origin. Use MeritMiner to plan a new merit run.
+Nearby rings > Merit opportunities remains available for comparing EliteLab's
+reported source and market candidates.
 There is no forecast of merits from sale value.
 
 The card and `get_mining_status` expose `powerplay`: `power`, `total_merits`,
@@ -64,8 +70,9 @@ or a known power), and optional `mined_in`. Results include purpose/purpose_note
 selected power/mode, reported powers/controller/state, excluded route count,
 per-quote `merit_route` status/reason, `merit_eligibility: unverified` and
 `merit_estimate: null`. The `mining_run` MCP
-prompt chains commander/pledge/status, ring discovery and buyer search while
-preserving these evidence limits. `elitelab://state/mining` exposes the same
+prompt recommends MeritMiner for merit route planning and reads commander,
+pledge and mining status for context. EliteLab's ring and buyer searches support
+local comparisons while preserving these evidence limits. `elitelab://state/mining` exposes the same
 atomic summary used by the browser. Searches are returned to the caller;
 browser form selections and map pins remain client-local.
 
@@ -132,8 +139,8 @@ A search whose context changes during provider I/O fails with a retry message.
 A manual reference system still uses this cap but explicitly represents a
 planning origin, not a destination reachable from the current ship location.
 
-Choose **Merit opportunities**, a hotspot commodity (Platinum is a useful starting
-point), a power or current pledge, goal, planned load, pad and market age.
+For a candidate comparison within EliteLab, choose **Merit opportunities**, your
+hotspot commodity, power or current pledge, goal, planned load, pad and market age.
 `find_mining_spots` exposes the same `sort=merits`, `hotspot`, `power`,
 `powerplay_mode`, `quantity`, `pad` and `hours` parameters. It compares the nearest
 30 matching rings from at most 100 bodies with at most 100 orbital markets:
