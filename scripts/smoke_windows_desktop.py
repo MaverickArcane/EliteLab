@@ -135,7 +135,7 @@ def worker():
     from elitelab import desktop
     from elitelab.core import config
     from elitelab.autostart import Autostart, RUN_KEY
-    from elitelab.tray_control import TrayControl
+    from elitelab.tray_control import NoRedirect, TrayControl
     from elitelab import windows_tray as native
     import winreg
 
@@ -209,7 +209,7 @@ def worker():
             wait_for(lambda: tray.icon_added, 'Tray icon did not recover after TaskbarCreated')
             original = control.child.pid
             request = urllib.request.Request(url + 'api/restart', data=b'{}', headers={'Content-Type': 'application/json'})
-            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
             with opener.open(request, timeout=3) as response:
                 assert json.load(response)['restarting']
             wait_for(lambda: control.child.pid != original and control.verified_url(), 'Tray did not follow the restarted child')

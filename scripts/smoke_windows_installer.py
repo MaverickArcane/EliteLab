@@ -31,6 +31,9 @@ def smoke(installer):
     app_id = metadata.get('app_id', '')
     if not app_id.startswith('EliteLab.Installer.Test.') or len(app_id) < 32:
         raise ValueError('installer must have a unique test application ID')
+    group = 'EliteLab test ' + app_id
+    if metadata.get('group') != group:
+        raise ValueError('installer must have a unique compiled Start Menu group')
     if hashlib.sha256(installer.read_bytes()).hexdigest() != metadata.get('sha256'):
         raise ValueError('installer does not match its build metadata')
     with tempfile.TemporaryDirectory(prefix='EliteLab installer test ') as tmp:
@@ -60,10 +63,11 @@ def smoke(installer):
         programs = ctypes.create_unicode_buffer(32768)
         if ctypes.windll.shell32.SHGetFolderPathW(None, 2, None, 0, programs):
             raise OSError('Cannot locate the current-user Start Menu Programs folder')
-        group = 'EliteLab test ' + app_id
         shortcut = Path(programs.value) / group / 'EliteLab.lnk'
         assert not shortcut.parent.exists(), 'Unique test shortcut folder already exists'
-        args = [str(installer), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/GROUP=' + group,
+        # Inno ignores /GROUP when DisableProgramGroupPage=yes; the builder
+        # embeds the unique group so even failed tests cannot touch a user's link.
+        args = [str(installer), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
                 '/TASKS=', '/DIR=' + str(app)]
         try:
             relative_env = {**env, 'ELITELAB_INSTANCE_DIR':'relative-instance'}
