@@ -23,11 +23,17 @@ restart, reinstall over itself, and uninstall. Settings and a user-data sentinel
 must retain their exact bytes. The lifecycle script refuses its system-install
 mode outside a GitHub Linux runner.
 
-These checks do not demonstrate the graphical launcher or error dialog. Before
+Native GTK checks run under Xvfb against an extracted package. They exercise the
+fallback control window, login opt-in and ownership, Open setup browser arguments,
+verified server shutdown, and indicator connection/loss through a simulated D-Bus
+host. The Linux-desktop-screenshots artifact contains the fallback window.
+
+These checks do not demonstrate a full desktop session's launcher or error dialog. Before
 publishing, install on a supported graphical Linux desktop and verify launching
 from the applications menu, first-run setup, browser opening, a startup error,
-restart and Quit. Record the desktop/distribution and results on PR #97.
-Linux tray and login startup remain separate unfinished portions of #9.
+restart and Quit. Record the desktop/distribution and results on the current
+Linux desktop PR. The browser recorder in the automated GTK test validates
+launch arguments, not a real browser window or a real login cycle.
 
 ## Remaining platforms and validation
 

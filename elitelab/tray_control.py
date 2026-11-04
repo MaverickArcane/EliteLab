@@ -1,4 +1,4 @@
-"""Verified local actions for the Windows desktop tray."""
+"""Verified local actions shared by the packaged desktop controls."""
 import json
 from pathlib import Path
 import urllib.request
@@ -15,10 +15,11 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class TrayControl:
-    def __init__(self, config, refresh=None):
+    def __init__(self, config, refresh=None, autostart_factory=None):
         self.config = config
         self.refresh = refresh
         self.child = None
+        self.autostart_factory = autostart_factory
 
     def set_child(self, child):
         self.child = child
@@ -58,13 +59,13 @@ class TrayControl:
         return bool(open_dashboard(url + ('setup/' if setup else ''), self.config))
 
     def autostart_status(self):
-        return Autostart(self.config.ROOT).status()
+        return (self.autostart_factory or Autostart)(self.config.ROOT).status()
 
     def toggle_autostart(self):
-        setting = Autostart(self.config.ROOT)
+        setting = (self.autostart_factory or Autostart)(self.config.ROOT)
         state = setting.status()
         if state == 'conflict':
-            raise ValueError('Another EliteLab startup entry exists. Change it in Windows Startup apps first.')
+            raise ValueError('Another EliteLab startup entry exists. Change it in your system startup settings first.')
         return setting.set_enabled(state != 'enabled')
 
     def shutdown(self):

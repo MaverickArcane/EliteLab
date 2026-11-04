@@ -5,6 +5,7 @@ __pycache__/
 .venv/
 dist/
 artifacts/
+linux-desktop-screenshots/
 runtime/
 *.log
 .DS_Store

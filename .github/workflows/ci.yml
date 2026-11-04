@@ -194,6 +194,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y desktop-file-utils
           python3 scripts/smoke_debian.py dist/*.deb --installed-ci
+      - name: Native Linux desktop controls under Xvfb
+        run: |
+          sudo apt-get install -y python3-gi gir1.2-gtk-3.0 gir1.2-ayatanaappindicator3-0.1 xvfb xauth
+          dpkg-deb -x dist/*.deb dist/linux-desktop-test
+          GDK_BACKEND=x11 dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/smoke_linux_desktop.py dist/linux-desktop-test/usr/lib/elitelab
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Linux-desktop-screenshots
+          path: linux-desktop-screenshots/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: EliteLab-debian

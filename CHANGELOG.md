@@ -2,9 +2,11 @@
 
 ## Unreleased
 
+- Linux package: add tray controls with a fallback window, opt-in desktop login startup, and Chromium app-window launch. Verify native GTK actions and indicator host connection/loss under Xvfb (#9).
+
 - Packaging: validate Debian installation, upgrades and removal in CI, preserving user settings and saved data. Version tags prepare a draft release with tested Windows/Debian packages, source and checksums; publication remains a reviewed step (#9).
 
-- Linux: build a Debian package with a desktop launcher and per-user data directory (#9). Release distribution and Linux tray support remain pending.
+- Linux: build a Debian package with a desktop launcher and per-user data directory (#9). Release distribution remains pending.
 
 - Windows bundle: opt in to starting at sign-in from the tray. The setting is off by default; uninstall removes only this installation's own entry (#9).
 
