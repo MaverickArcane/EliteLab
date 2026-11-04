@@ -4,7 +4,6 @@ Compile with a unique --app-id reserved for the test; never run this against a
 release installer because setup and uninstall modify that ID's user registry.
 """
 import argparse
-import ctypes
 import hashlib
 import json
 import msvcrt
@@ -65,10 +64,15 @@ def smoke(installer):
         fallback_env.update(HOMEDRIVE=profile.drive, HOMEPATH=str(profile)[len(profile.drive):])
         flags = subprocess.CREATE_NO_WINDOW
         startup = Autostart(app, value_name=app_id)
-        programs = ctypes.create_unicode_buffer(32768)
-        if ctypes.windll.shell32.SHGetFolderPathW(None, 2, None, 0, programs):
-            raise OSError('Cannot locate the current-user Start Menu Programs folder')
-        shortcut = Path(programs.value) / group / 'EliteLab.lnk'
+        # Resolve shell folders in the installer's private profile environment,
+        # not the parent process's real user profile.
+        programs = subprocess.check_output([sys.executable, '-c',
+            'import ctypes; p = ctypes.create_unicode_buffer(32768); '
+            'result = ctypes.windll.shell32.SHGetFolderPathW(None, 2, None, 0, p); '
+            'assert result == 0, result; print(p.value)'],
+            env={**env, 'PYTHONIOENCODING': 'utf-8'}, encoding='utf-8',
+            creationflags=flags, timeout=15).strip()
+        shortcut = Path(programs) / group / 'EliteLab.lnk'
         assert not shortcut.parent.exists(), 'Unique test shortcut folder already exists'
         # Inno ignores /GROUP when DisableProgramGroupPage=yes; the builder
         # embeds the unique group so even failed tests cannot touch a user's link.
@@ -101,7 +105,7 @@ def smoke(installer):
                 raise RuntimeError('Default-profile install failed: ' + setup_log.read_text(errors='replace')[-4000:])
             for name in ('runtime/pythonw.exe', '.windows-bundle', 'Launch EliteLab.vbs', 'elitelab/windows_tray.py'):
                 assert (app / name).is_file(), name
-            assert shortcut.is_file(), 'Installer did not create the Start Menu shortcut'
+            assert shortcut.is_file(), 'Installer did not create the Start Menu shortcut at ' + str(shortcut) + '\n' + setup_log.read_text(errors='replace')[-4000:]
             smoke_shortcut(shortcut, app, env, root / 'shortcut-test')
             assert startup.status() == 'disabled', 'Unique test startup value already exists'
             startup.set_enabled(True)
