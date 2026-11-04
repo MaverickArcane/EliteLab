@@ -69,7 +69,15 @@ or an actual user login. Record the macOS version and results on the macOS PR.
 
 ## Remaining validation
 
-Windows uses the existing isolated installer smoke test and embedded-runtime
-launcher test. Do not close #9 based on the existence of this workflow alone.
+Windows CI creates a Start Menu shortcut in a unique test folder, verifies its
+target/arguments/working directory, launches through the shortcut and exercises
+dashboard and Quit through native window messages. A separate embedded-runtime
+check drives the tray's native menu commands, verifies login check/disabled
+states and ownership, simulates icon loss and taskbar recreation, and checks
+restart followed by Quit. Tests use fixture journals, temporary settings/data,
+a browser recorder, and unique test registry values. They do not manipulate an
+existing EliteLab installation or its sign-in entry. Manual checks still cover
+a real browser, pointer interaction with the notification-area menu and a real
+Windows sign-in. Do not close #9 based on the existence of CI alone.
 Mining #3 additionally requires the outstanding real-game
 checks listed on that issue; fixture tests cannot establish current game rules.

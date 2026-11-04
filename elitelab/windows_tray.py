@@ -63,6 +63,7 @@ register_message = signature(user32, 'RegisterWindowMessageW', wintypes.UINT, wi
 
 WM_CLOSE = 0x0010
 WM_DESTROY = 0x0002
+WM_COMMAND = 0x0111
 WM_TRAY = 0x8001
 WM_RBUTTONUP = 0x0205
 WM_LBUTTONDBLCLK = 0x0203
@@ -101,10 +102,10 @@ class WindowsTray:
         if self.handle:
             post(self.handle, WM_CLOSE, 0, 0)
 
-    def _menu(self):
+    def _create_menu(self):
         menu = create_menu()
         if not menu:
-            return
+            raise ctypes.WinError(ctypes.get_last_error())
         try:
             append_menu(menu, 0, 1, 'Open dashboard')
             append_menu(menu, 0, 2, 'Open setup')
@@ -116,21 +117,33 @@ class WindowsTray:
             label = 'Start at sign-in' + (' (another copy)' if startup == 'conflict' else ' (unavailable)' if startup == 'unavailable' else '')
             append_menu(menu, flags, 4, label)
             append_menu(menu, 0, 3, 'Quit EliteLab')
+            return menu
+        except BaseException:
+            destroy_menu(menu)
+            raise
+
+    def _menu(self):
+        menu = self._create_menu()
+        try:
             point = wintypes.POINT()
             if not cursor(ctypes.byref(point)):
                 return
             foreground(self.handle)
-            chosen = track_menu(menu, 0x0100 | 0x0002, point.x, point.y, 0, self.handle, None)
-            if chosen == 1:
-                self._open(False)
-            elif chosen == 2:
-                self._open(True)
-            elif chosen == 4:
-                self.control.toggle_autostart()
-            elif chosen == 3 and not self.control.shutdown():
-                self.notify('EliteLab is not available on loopback yet. If it is bound to a specific network address, use the dashboard controls.')
+            # Native menus deliver WM_COMMAND after TrackPopupMenu returns.
+            track_menu(menu, 0x0002, point.x, point.y, 0, self.handle, None)
+            post(self.handle, 0, 0, 0)
         finally:
             destroy_menu(menu)
+
+    def _command(self, chosen):
+        if chosen == 1:
+            self._open(False)
+        elif chosen == 2:
+            self._open(True)
+        elif chosen == 4:
+            self.control.toggle_autostart()
+        elif chosen == 3 and not self.control.shutdown():
+            self.notify('EliteLab is not available on loopback yet. If it is bound to a specific network address, use the dashboard controls.')
 
     def _open(self, setup):
         if not self.control.open(setup):
@@ -138,6 +151,9 @@ class WindowsTray:
 
     def _window_proc(self, hwnd, msg, wparam, lparam):
         try:
+            if msg == WM_COMMAND and lparam == 0 and (wparam >> 16) == 0:
+                self._command(wparam & 0xffff)
+                return 0
             if self.taskbar_created and msg == self.taskbar_created:
                 if not self._add_icon():
                     self.notify('The tray icon could not be restored. Use Quit in the dashboard to stop EliteLab.')
