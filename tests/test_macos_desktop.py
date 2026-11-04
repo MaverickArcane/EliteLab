@@ -15,7 +15,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from elitelab.macos_autostart import MacAutostart
-from elitelab.macos_desktop import read_commands, stop_child
+from elitelab.macos_desktop import read_commands, run, stop_child
 from elitelab import window
 from test_elitelab import config
 
@@ -124,6 +124,14 @@ class MacDesktopTests(unittest.TestCase):
         stop_child(control)
         child.terminate.assert_not_called()
         child.kill.assert_called_once()
+
+    def test_check_cannot_pass_when_server_exits_without_becoming_ready(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            child = Mock(poll=Mock(return_value=0), returncode=0)
+            with patch.object(config, 'DATA_DIR', tmp), patch('elitelab.macos_desktop.subprocess.Popen', return_value=child):
+                with self.assertRaisesRegex(RuntimeError, 'own ready server'):
+                    run(check=True)
+            child.terminate.assert_not_called()
 
     def test_runtime_checksum_and_archive_escape_are_rejected(self):
         if not hasattr(tarfile, 'data_filter'):

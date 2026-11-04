@@ -105,6 +105,8 @@ def run(check=False):
                         emit(event='result', action=action, login=control.autostart_status())
                     except (OSError, ValueError) as error:
                         emit(event='error', message=str(error))
+                if check and child.returncode != 75:
+                    raise RuntimeError('Check did not start its own ready server. Quit any running EliteLab and retry. See ' + str(log_path))
                 if child.returncode != 75:
                     if child.returncode:
                         raise RuntimeError('Server exited with status ' + str(child.returncode) + '. See ' + str(log_path))
