@@ -33,10 +33,15 @@
       <input name="data_dir" type="text" autocomplete="off" spellcheck="false">
       <span class="note" data-hint="data_dir"></span>
     </label>
-    <div class="field">Browser
-      <span data-browser class="muted"></span>
-      <span class="note">Read-only here. Set it in the settings file or with ELITELAB_BROWSER.</span>
-    </div>
+  </section>
+  <section class="card">
+    <h2>Browser</h2>
+    <label class="field">Open EliteLab with
+      <select name="browser_choice" data-browser></select>
+      <span class="note" data-hint="browser_choice"></span>
+    </label>
+    <p class="note">Uses your default browser unless you choose an installed browser. Opens a normal tab using that browser's existing settings, without creating a separate profile. After saving, restart EliteLab and use Open dashboard from its tray or menu. This tab stays in its current browser.</p>
+    <p class="note" data-browser-override hidden></p>
   </section>
   <section class="card">
     <h2>Connections</h2>

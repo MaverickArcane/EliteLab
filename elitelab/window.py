@@ -9,6 +9,54 @@ import webbrowser
 
 log = logging.getLogger(__name__)
 
+BROWSER_NAMES = {'default': 'System default', 'chrome': 'Google Chrome', 'firefox': 'Mozilla Firefox',
+                 'edge': 'Microsoft Edge', 'brave': 'Brave', 'chromium': 'Chromium', 'safari': 'Safari'}
+
+
+def installed_browsers():
+    """Resolve fixed browser IDs locally; never accept an executable from HTTP."""
+    found = {}
+    if os.name == 'nt':
+        paths = {'chrome': r'Google\Chrome\Application\chrome.exe', 'firefox': r'Mozilla Firefox\firefox.exe',
+                 'edge': r'Microsoft\Edge\Application\msedge.exe',
+                 'brave': r'BraveSoftware\Brave-Browser\Application\brave.exe',
+                 'chromium': r'Chromium\Application\chrome.exe'}
+        for name, relative in paths.items():
+            for key in ('PROGRAMFILES', 'PROGRAMFILES(X86)', 'LOCALAPPDATA'):
+                base = os.environ.get(key)
+                if base:
+                    path = os.path.join(base, relative)
+                    if os.path.isfile(path):
+                        found[name] = path
+                        break
+    elif sys.platform == 'darwin':
+        names = {'chrome': ('Google Chrome', 'Google Chrome'), 'firefox': ('Firefox', 'firefox'),
+                 'edge': ('Microsoft Edge', 'Microsoft Edge'), 'brave': ('Brave Browser', 'Brave Browser'),
+                 'chromium': ('Chromium', 'Chromium'), 'safari': ('Safari', 'Safari')}
+        for name, (app, binary) in names.items():
+            for root in (Path.home() / 'Applications', Path('/Applications')):
+                path = root / (app + '.app') / 'Contents' / 'MacOS' / binary
+                if path.is_file():
+                    found[name] = str(path)
+                    break
+    else:
+        names = {'chrome': ('google-chrome', 'google-chrome-stable'), 'firefox': ('firefox',),
+                 'edge': ('microsoft-edge',), 'brave': ('brave-browser',),
+                 'chromium': ('chromium', 'chromium-browser')}
+        for name, binaries in names.items():
+            for binary in binaries:
+                path = shutil.which(binary)
+                if path:
+                    found[name] = path
+                    break
+    return found
+
+
+def browser_options():
+    default = 'Windows default' if os.name == 'nt' else 'System default'
+    return [{'id': 'default', 'label': default}] + [
+        {'id': name, 'label': BROWSER_NAMES[name]} for name in installed_browsers()]
+
 
 def browser_candidates(configured=""):
     """Configured executable first; then known Chromium installations on Windows."""
@@ -47,7 +95,19 @@ def macos_browsers(configured="", applications=None):
 
 
 def open_dashboard(url, config):
-    """Use app mode for desktop packages, with the usual browser fallback."""
+    """Respect the saved browser choice; custom app windows require an override."""
+    if not config.BROWSER:
+        choice = getattr(config, 'BROWSER_CHOICE', 'default')
+        if choice != 'default':
+            executable = installed_browsers().get(choice)
+            if executable:
+                try:
+                    subprocess.Popen([executable, url], close_fds=True)
+                    return True
+                except OSError as error:
+                    log.warning('Could not open the selected browser: %s', error)
+            log.warning('Selected browser is unavailable; opening the system default browser.')
+        return webbrowser.open(url)
     linux = sys.platform.startswith('linux') and (Path(config.ROOT) / '.linux-package').is_file()
     macos = sys.platform == 'darwin' and (Path(config.ROOT) / '.macos-bundle').is_file()
     bundled = portable_windows(config.ROOT) or linux or macos

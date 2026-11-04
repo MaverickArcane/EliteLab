@@ -40,6 +40,7 @@ Module-level constants read at import time. Precedence for `host`, `port`, `jour
 | `HOST`, `PORT` | `ELITELAB_HOST`, `ELITELAB_PORT` | `127.0.0.1`, `8766`; an invalid host (not IPv4 or a host name) or port falls back with a warning |
 | `ALLOWED_HOSTS` | `ELITELAB_ALLOWED_HOSTS` | empty set; lower-cased extra names the request Host rule accepts |
 | `BROWSER` | `ELITELAB_BROWSER` | `""`; reserved for the launcher, read-only on the setup page |
+| `BROWSER_CHOICE` | `ELITELAB_BROWSER_CHOICE` | `default`; setup accepts only fixed IDs resolved against locally detected browsers, never executable paths |
 | `RESTART_EXIT_CODE` | | `75`; `start()` returns it after `request_restart()` and the start scripts loop on it |
 | `JOURNAL_DIR` | `ELITELAB_JOURNAL_DIR` | `/journals` if it exists, else `~/Saved Games/Frontier Developments/Elite Dangerous` |
 | `WEB_DIR`, `MODULES_DIR`, `DATA_DIR` | `ELITELAB_WEB_DIR`, `ELITELAB_MODULES_DIR`, `ELITELAB_DATA_DIR` | `web/`, `modules/`, `data/` under ROOT |

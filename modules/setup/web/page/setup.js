@@ -35,8 +35,16 @@
     form.elements.journal_dir_custom.value = known ? '' : v.journal_dir;
     form.elements.port.value = v.port;
     form.elements.data_dir.value = v.data_dir;
-    $('[data-browser]').textContent = v.browser || 'not set';
-    for (const k of ['journal_dir', 'port', 'data_dir']) hint(k, d.sources);
+    const choices = d.browser_options || [{id: 'default', label: 'System default'}];
+    const chosen = v.browser_choice || 'default';
+    const missing = !choices.some(c => c.id === chosen);
+    form.elements.browser_choice.innerHTML = choices.map(c => `<option value="${esc(c.id)}">${esc(c.label)}</option>`).join('') +
+      (missing ? `<option value="${esc(chosen)}">${esc(chosen)} (unavailable; will use system default)</option>` : '');
+    form.elements.browser_choice.value = chosen;
+    const override = $('[data-browser-override]');
+    override.hidden = !v.browser;
+    override.textContent = v.browser ? 'A custom browser override is active. Remove browser from the settings file or unset ELITELAB_BROWSER to use this selection.' : '';
+    for (const k of ['journal_dir', 'port', 'data_dir', 'browser_choice']) hint(k, d.sources);
     restartBtn.hidden = !d.restart_required;
   }
 
@@ -48,9 +56,10 @@
       journal_dir: custom || (picked ? picked.value : baseline.journal_dir),
       port: form.elements.port.value.trim(),
       data_dir: form.elements.data_dir.value.trim(),
+      browser_choice: form.elements.browser_choice.value,
     };
     const out = {};
-    for (const k of Object.keys(now)) if (String(now[k]) !== String(baseline[k])) out[k] = k === 'port' ? Number(now[k]) : now[k];
+    for (const k of Object.keys(now)) if (String(now[k]) !== String(baseline[k] ?? (k === 'browser_choice' ? 'default' : ''))) out[k] = k === 'port' ? Number(now[k]) : now[k];
     return out;
   }
 

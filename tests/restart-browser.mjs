@@ -71,10 +71,31 @@ try {
   await send('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
   await send('Page.navigate',{url:base+'/setup/'});
   for(let i=0;i<100;i++){if(await evaluate("document.querySelector('[name=port]')?.value === '"+oldPort+"'"))break;await sleep(100);}
+  const initialSetup=await (await fetch(base+'/api/setup')).json();
+  assert.equal(await evaluate("document.querySelector('[name=browser_choice]').value"),'default');
+  const browserChoice=initialSetup.browser_options.find(b=>b.id==='chrome') || initialSetup.browser_options.find(b=>b.id!=='default');
+  assert.ok(browserChoice,'The browser regression runner must have a detected browser');
+  assert.deepEqual(await evaluate("Array.from(document.querySelector('[name=browser_choice]').options,o=>o.value)"),initialSetup.browser_options.map(b=>b.id));
+  await evaluate(`document.querySelector('[name=browser_choice]').value=${JSON.stringify(browserChoice.id)};document.querySelector('[data-setup-form]').requestSubmit();true`);
+  for(let i=0;i<100;i++){if(await evaluate("document.querySelector('[data-status]').textContent.includes('Saved browser_choice')"))break;await sleep(100);}
+  assert.equal(JSON.parse(fs.readFileSync(settings,'utf8')).browser_choice,browserChoice.id);
+  await send('Page.reload');
+  for(let i=0;i<100;i++){if(await evaluate(`document.querySelector('[name=browser_choice]')?.value === ${JSON.stringify(browserChoice.id)}`))break;await sleep(100);}
+  assert.equal(await evaluate("document.querySelector('[name=browser_choice]').value"),browserChoice.id);
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth + 1'));
+  if(process.env.ELITELAB_SCREENSHOT_DIR) {
+    fs.mkdirSync(process.env.ELITELAB_SCREENSHOT_DIR,{recursive:true});
+    await evaluate("document.querySelector('[name=browser_choice]').closest('section').scrollIntoView();true");
+    const shot=await send('Page.captureScreenshot',{format:'png'});
+    fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'browser-choice-mobile.png'),Buffer.from(shot.data,'base64'));
+  }
+  await send('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
+  await evaluate('window.scrollTo(0,0);true');
   const otherHostBlocked=await evaluate(`fetch('http://localhost:${oldPort}/api/health',{mode:'no-cors'}).then(()=>false,()=>true)`);
   assert.equal(otherHostBlocked,true);
   await evaluate(`document.querySelector('[name=port]').value='${newPort}';document.querySelector('[data-setup-form]').requestSubmit();true`);
-  for(let i=0;i<100;i++){if(await evaluate("!document.querySelector('[data-restart]').hidden"))break;await sleep(100);}
+  for(let i=0;i<100;i++){if(await evaluate("document.querySelector('[data-status]').textContent.includes('Saved port')"))break;await sleep(100);}
   assert.equal(JSON.parse(fs.readFileSync(settings,'utf8')).port,newPort);
   if(process.env.ELITELAB_SCREENSHOT_DIR) {
     fs.mkdirSync(process.env.ELITELAB_SCREENSHOT_DIR,{recursive:true});
@@ -92,6 +113,9 @@ try {
   assert.equal(server.exitCode,null,'Setup launcher exited during restart');
   const restarted=await (await fetch(location+'api/health')).json();
   assert.equal(restarted.ready,true);assert.notEqual(restarted.pid,firstPid);
+  const savedBrowser=await (await fetch(location+'api/setup')).json();
+  assert.equal(savedBrowser.values.browser_choice,browserChoice.id);
+  assert.deepEqual(savedBrowser.pending,{});
   const dashboardPolicy=(await fetch(location)).headers.get('content-security-policy');
   assert.match(dashboardPolicy,/connect-src 'self';/);
   console.log('Setup launcher changed-port restart passed: new server PID and browser reached the new dashboard under CSP.');

@@ -9,23 +9,24 @@ import socket
 
 from elitelab.core import config, journals
 from elitelab.core.watcher import journal_files
+from elitelab import window
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 NS = "setup"
-KEYS = ("journal_dir", "port", "host", "data_dir", "browser")      # reported
-SAVEABLE = ("journal_dir", "port", "host", "data_dir")               # browser names an executable: file or env only
+KEYS = ("journal_dir", "port", "host", "data_dir", "browser", "browser_choice")
+SAVEABLE = ("journal_dir", "port", "host", "data_dir", "browser_choice")  # raw executable remains file/env only
 PATH_KEYS = ("journal_dir", "data_dir")
 ENV_NAMES = {"journal_dir": "ELITELAB_JOURNAL_DIR", "port": "ELITELAB_PORT", "host": "ELITELAB_HOST",
-             "data_dir": "ELITELAB_DATA_DIR"}
+             "data_dir": "ELITELAB_DATA_DIR", "browser_choice": "ELITELAB_BROWSER_CHOICE"}
 FLAG_NAMES = {"journal_dir": "--journals", "port": "--port", "host": "--host"}
 HOST_MESSAGE = "host must be an IPv4 address such as 127.0.0.1 or 0.0.0.0, or a host name such as localhost."
-NOT_ALLOWED = "Only journal_dir, port, host and data_dir can be saved here."
+NOT_ALLOWED = "Only journal_dir, port, host, data_dir and browser_choice can be saved here."
 BROWSER_NOT_ALLOWED = "browser can only be set in the settings file or with ELITELAB_BROWSER."
 
 
 def _running():
     return {"journal_dir": config.JOURNAL_DIR, "port": config.PORT, "host": config.HOST,
-            "data_dir": config.DATA_DIR, "browser": config.BROWSER}
+            "data_dir": config.DATA_DIR, "browser": config.BROWSER, "browser_choice": config.BROWSER_CHOICE}
 
 
 def _home():
@@ -52,6 +53,10 @@ def _typed(path):
 
 def _clean(key, value):
     """Return the value as it will be stored, or raise ValueError with a plain sentence."""
+    if key == "browser_choice":
+        if not isinstance(value, str) or value not in window.BROWSER_NAMES:
+            raise ValueError('browser_choice must be a browser ID from the setup list.')
+        return value
     if key == "port":
         if isinstance(value, bool) or not isinstance(value, (int, str)):
             raise ValueError("port must be a whole number between 1024 and 65535.")
@@ -139,7 +144,8 @@ class Setup:
         return {"path": config.SETTINGS_PATH, "exists": os.path.exists(config.SETTINGS_PATH),
                 "values": _running(), "sources": {k: config.SOURCES.get(k, "default") for k in KEYS},
                 "pending": pending, "restart_required": bool(pending),
-                "journal_found": bool(journal_files()), "journal_candidates": found}
+                "journal_found": bool(journal_files()), "journal_candidates": found,
+                "browser_options": window.browser_options()}
 
     def save(self, q):
         q = q or {}
@@ -160,6 +166,11 @@ class Setup:
                 before = None
             if value == before:
                 continue
+            if key == 'browser_choice':
+                if value != 'default' and value not in window.installed_browsers():
+                    raise ValueError('That browser is no longer installed. Refresh setup and choose an available browser.')
+                if config.BROWSER:
+                    warnings.append('A custom browser override is set. Remove browser from the settings file or unset ELITELAB_BROWSER for this choice to apply.')
             changes[key] = value
             if key in PATH_KEYS and not os.path.isdir(value):
                 warnings.append(f"Folder does not exist yet: {value}")
@@ -204,9 +215,9 @@ def setup(core, module):
     core.http.route("/api/setup", s.status, tool="get_setup", module=module.name,
                     description="First-run setup state: the settings file path, the values the lab is running with and where each "
                                 "came from, values saved but not yet applied (pending), whether a restart is needed, whether "
-                                "journal files were found, and candidate Elite Dangerous journal folders with journal counts.")
+                                "journal files were found, candidate journal folders, and installed browser choices (IDs and labels).")
     core.http.route("/api/setup", s.save, tool="save_setup", method="POST", module=module.name,
-                    description="Save settings to the settings file. Only journal_dir, port, host and data_dir are accepted; "
+                    description="Save settings to the settings file. Only journal_dir, port, host, data_dir and browser_choice are accepted; "
                                 "other keys are rejected. Nothing is applied live: changed values take effect after "
                                 "restart_elitelab. A port already in use or an address the lab could not "
                                 "listen on is refused. Returns the same shape as get_setup plus saved and warnings (for "
@@ -216,7 +227,8 @@ def setup(core, module):
                             "host": {"type": "string", "description": "Bind address: an IPv4 address such as 127.0.0.1 (this machine only) or "
                                                                      "0.0.0.0 (all interfaces), or a host name such as localhost. "
                                                                      "Refused when the lab could not listen there."},
-                            "data_dir": {"type": "string", "description": "Folder for the lab's own files such as wishlists"}})
+                            "data_dir": {"type": "string", "description": "Folder for the lab's own files such as wishlists"},
+                            "browser_choice": {"type": "string", "description": "default or an installed browser ID from get_setup.browser_options; never an executable path"}})
     core.http.route("/api/setup/journals", s.inspect, tool="inspect_journal_folder", method="POST", module=module.name,
                     description="Check one folder for Elite Dangerous journals without saving anything: returns the "
                                 "normalised path, whether it exists, how many Journal.*.log files it holds and the newest "

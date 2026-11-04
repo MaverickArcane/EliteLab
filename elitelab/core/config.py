@@ -180,6 +180,7 @@ ALLOWED_HOSTS = {h.strip().lower().rstrip(".") for h in os.environ.get("ELITELAB
 PORT = _pick("port", "ELITELAB_PORT", 8766, _port)
 JOURNAL_DIR = _pick("journal_dir", "ELITELAB_JOURNAL_DIR", _default_journal_dir, _path)
 BROWSER = _pick("browser", "ELITELAB_BROWSER", "")
+BROWSER_CHOICE = _pick("browser_choice", "ELITELAB_BROWSER_CHOICE", "default")
 RESTART_EXIT_CODE = 75      # exit status that tells a supervising wrapper to start the lab again
 WEB_DIR = os.environ.get("ELITELAB_WEB_DIR", os.path.join(ROOT, "web"))
 MODULES_DIR = os.environ.get("ELITELAB_MODULES_DIR", os.path.join(ROOT, "modules"))
