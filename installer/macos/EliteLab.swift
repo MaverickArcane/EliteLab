@@ -45,7 +45,9 @@ final class Desktop: NSObject, NSApplicationDelegate {
         process.standardInput = input
         process.standardOutput = output
         process.terminationHandler = { [weak self] process in
-            DispatchQueue.main.async {
+            // terminateLater runs a nested modal loop. A callback queued on the
+            // serial main dispatch queue can deadlock when Quit began there.
+            RunLoop.main.perform(inModes: [.default, .modalPanel, .eventTracking]) {
                 guard let self = self else { return }
                 if self.checking { exit(process.terminationStatus == 0 && self.checkStep == 5 ? 0 : 1) }
                 if process.terminationStatus != 0 && !self.receivedError {

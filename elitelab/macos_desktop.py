@@ -83,7 +83,8 @@ def run(check=False):
                                 headers = {'Authorization': 'Bearer ' + config.AUTH_TOKEN} if config.AUTH_TOKEN else {}
                                 req = urllib.request.Request(url + 'api/journal', headers=headers)
                                 with opener.open(req, timeout=5) as response:
-                                    emit(event='check', journal=json.load(response))
+                                    journal = json.load(response)
+                                emit(event='check', journal={key: journal.get(key) for key in ('cmdr', 'system')})
                                 stop_child(control)
                                 return child.returncode
                         elif time.monotonic() > deadline:
