@@ -42,6 +42,11 @@ jobs:
         with:
           name: EliteLab-debian
           path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: EliteLab-macos-*
+          merge-multiple: true
+          path: dist
       - name: Verify packages and create source archive
         env:
           RELEASE_TAG: ${{ github.ref_name }}

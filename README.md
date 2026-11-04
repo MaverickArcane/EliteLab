@@ -402,6 +402,35 @@ The package stores data under `$XDG_DATA_HOME/elitelab` (normally
 files in place. Source installations keep using their existing `data` folder.
 The package is not yet published as a release. Maintainers can prepare tested package assets with the [release procedure](docs/RELEASE-PACKAGES.md).
 
+### macOS installer
+
+CI builds separate `.pkg` artifacts for Apple Silicon (`arm64`) and Intel
+(`x86_64`). Install the matching package, then open **EliteLab** in Applications.
+Python is included. The EliteLab menu-bar item opens the dashboard or setup and
+offers **Quit EliteLab**. Closing the browser leaves the server running.
+Chrome, Chromium, Brave and Edge use a dedicated app window; Safari and other
+default browsers use a tab. On a Mac, choose a synced/copied journal folder in setup.
+
+The packages have no Developer ID signature or notarization. For a trusted
+download, attempt to open it, then use **System Settings > Privacy & Security >
+Open Anyway** if macOS blocks it. Older macOS versions also allow
+Control-click/right-click **Open**. See [Apple's instructions](https://support.apple.com/en-us/102445).
+The app has an ad-hoc signature for local integrity, which does not establish
+developer trust. These packages are CI artifacts until a release is published.
+
+**Start at login** is off by default. The menu toggle creates or removes
+`~/Library/LaunchAgents/net.elitelab.desktop.plist` for the next graphical login.
+It leaves externally edited entries alone. Settings remain in
+`~/.config/elitelab/settings.json`; data, browser profile and logs default to
+`~/Library/Application Support/EliteLab`. Explicit configured paths take precedence.
+
+Before upgrading or removing the app, use **Quit EliteLab**. Run the new package
+to upgrade in place. To uninstall, turn off **Start at login**, then move
+`/Applications/EliteLab.app` to the Trash. Settings and saved data remain in your
+home folder. If the app is already gone, remove its LaunchAgent manually; leaving
+it behind can reopen EliteLab after reinstalling. Other installations' startup
+entries and personal files are never removed by the package.
+
 ### Linux and macOS source setup
 
 Extract the source ZIP into a writable directory. Install Python 3.10 or newer

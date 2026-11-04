@@ -37,13 +37,24 @@ def linux_browsers(configured=""):
             if (found := shutil.which(name))]
 
 
+def macos_browsers(configured="", applications=None):
+    if configured:
+        return [configured]
+    roots = applications if applications is not None else (Path.home() / 'Applications', Path('/Applications'))
+    names = ('Google Chrome', 'Chromium', 'Brave Browser', 'Microsoft Edge')
+    return [str(path) for name in names for root in roots
+            if (path := Path(root) / (name + '.app') / 'Contents' / 'MacOS' / name).is_file()]
+
+
 def open_dashboard(url, config):
-    """Use app mode for Windows/Linux packages, with the usual browser fallback."""
+    """Use app mode for desktop packages, with the usual browser fallback."""
     linux = sys.platform.startswith('linux') and (Path(config.ROOT) / '.linux-package').is_file()
-    bundled = portable_windows(config.ROOT) or linux
+    macos = sys.platform == 'darwin' and (Path(config.ROOT) / '.macos-bundle').is_file()
+    bundled = portable_windows(config.ROOT) or linux or macos
     if bundled:
         profile = str(Path(config.DATA_DIR) / "browser")
-        for executable in (linux_browsers(config.BROWSER) if linux else browser_candidates(config.BROWSER)):
+        discover = macos_browsers if macos else linux_browsers if linux else browser_candidates
+        for executable in discover(config.BROWSER):
             try:
                 subprocess.Popen([executable, "--app=" + url, "--user-data-dir=" + profile,
                                   "--window-size=1440,1000", "--no-first-run", "--no-default-browser-check"],

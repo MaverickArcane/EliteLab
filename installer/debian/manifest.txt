@@ -33,6 +33,8 @@ elitelab/desktop.py
 elitelab/instance.py
 elitelab/linux_autostart.py
 elitelab/linux_tray.py
+elitelab/macos_autostart.py
+elitelab/macos_desktop.py
 elitelab/mcp.py
 elitelab/tray_control.py
 elitelab/window.py

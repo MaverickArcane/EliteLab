@@ -16,9 +16,9 @@ from elitelab import __version__
 ALLOWED = {'.py', '.json', '.js', '.css', '.html'}
 
 
-def stage(source, target):
-    source, target = Path(source), Path(target)
-    app = target/'usr'/'lib'/'elitelab'
+def copy_application(source, app):
+    """Copy the shared, explicit source manifest into an empty application root."""
+    source, app = Path(source), Path(app)
     manifest = source/'installer'/'debian'/'manifest.txt'
     seen = set()
     for name in manifest.read_text(encoding='ascii').splitlines():
@@ -39,6 +39,12 @@ def stage(source, target):
     for required in ('elitelab/__main__.py','elitelab/desktop.py','modules/setup/module.json','web/index.html'):
         if not (app/required).is_file():
             raise ValueError('missing required application file')
+
+
+def stage(source, target):
+    source, target = Path(source), Path(target)
+    app = target/'usr'/'lib'/'elitelab'
+    copy_application(source, app)
     (app/'.linux-package').write_text('Debian package\n', encoding='ascii', newline='\n')
     bindir=target/'usr'/'bin'; bindir.mkdir(parents=True, exist_ok=True)
     for name, module in (('elitelab','elitelab'),('elitelab-desktop','elitelab.desktop')):
