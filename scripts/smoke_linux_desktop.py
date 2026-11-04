@@ -24,7 +24,12 @@ def smoke(app, screenshots):
         browser.write_text('#!/usr/bin/python3\nimport json,sys\nfrom pathlib import Path\n'
                            'Path(' + repr(str(root / 'browser.json')) + ').write_text(json.dumps(sys.argv[1:]))\n')
         browser.chmod(0o755)
-        env = {k:v for k,v in os.environ.items() if not k.upper().startswith(('ELITELAB_', 'PYTHON'))}
+        # Preserve only the disposable graphical session, not interpreter,
+        # loader or application overrides from the invoking environment.
+        session_keys = ('DISPLAY', 'XAUTHORITY', 'DBUS_SESSION_BUS_ADDRESS',
+                        'XDG_RUNTIME_DIR', 'GDK_BACKEND', 'LANG', 'LC_ALL')
+        env = {key:os.environ[key] for key in session_keys if key in os.environ}
+        env.update(PATH=os.defpath, GSETTINGS_BACKEND='memory')
         with socket.socket() as probe:
             probe.bind(('127.0.0.1', 0))
             port = probe.getsockname()[1]
@@ -61,7 +66,7 @@ def smoke(app, screenshots):
         owner = None
         with (root / 'server.log').open('w') as log:
             child = subprocess.Popen([sys.executable, '-m', 'elitelab', 'serve', '--no-browser'],
-                                     cwd=app, env=env, stdout=log, stderr=log)
+                                     cwd=app, env=env, stdout=log, stderr=log, shell=False)
             try:
                 control = TrayControl(config, autostart_factory=LinuxAutostart)
                 control.set_child(child)
