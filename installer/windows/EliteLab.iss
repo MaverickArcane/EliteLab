@@ -58,11 +58,21 @@ function NativeCloseHandle(Handle: THandle): Boolean;
   external 'CloseHandle@kernel32.dll stdcall';
 
 function AcquireGuard: Boolean;
-var Dir, FileName: String;
+var Dir, FileName, ProfileDir: String;
 begin
   Result := False;
   Dir := GetEnv('ELITELAB_INSTANCE_DIR');
-  if Dir = '' then Dir := ExpandConstant('{userprofile}\.elitelab');
+  if Dir = '' then begin
+    { Match Python's Windows Path.home() lookup; userprofile is not an Inno constant. }
+    ProfileDir := GetEnv('USERPROFILE');
+    if (ProfileDir = '') and (GetEnv('HOMEPATH') <> '') then
+      ProfileDir := GetEnv('HOMEDRIVE') + GetEnv('HOMEPATH');
+    if ProfileDir = '' then begin
+      SuppressibleMsgBox('Cannot locate the Windows user profile. Set USERPROFILE or an absolute ELITELAB_INSTANCE_DIR and try again.', mbError, MB_OK, IDOK);
+      exit;
+    end;
+    Dir := AddBackslash(ProfileDir) + '.elitelab';
+  end;
   if not (((Length(Dir) >= 3) and (Copy(Dir, 2, 2) = ':\')) or (Copy(Dir, 1, 2) = '\\')) then begin
     SuppressibleMsgBox('The EliteLab instance directory must be an absolute path during installation.', mbError, MB_OK, IDOK);
     exit;
