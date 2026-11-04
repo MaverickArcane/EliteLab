@@ -47,7 +47,7 @@ class MacDesktopTests(unittest.TestCase):
             self.assertEqual(setting.status(), 'disabled')
             setting.set_enabled(True)
             entry = plistlib.loads(setting.path.read_bytes())
-            self.assertEqual(entry['ProgramArguments'], ['/usr/bin/open', '-a', str(root.parent.parent.parent)])
+            self.assertEqual(entry['ProgramArguments'], ['/usr/bin/open', '-a', str(root.parent.parent.parent.resolve())])
             self.assertIs(entry['RunAtLoad'], True)
             self.assertNotIn('KeepAlive', entry)
             self.assertEqual(MacAutostart(root, home).status(), 'enabled')

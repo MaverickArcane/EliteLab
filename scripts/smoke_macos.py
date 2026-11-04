@@ -104,7 +104,16 @@ def smoke(package):
                 assert settings.read_bytes() == settings_bytes
                 assert sentinel.read_bytes() == b'{"saved":true}\n'
             # Native AppKit menu targets: enable/disable login, dashboard, setup, Quit.
-            subprocess.run([str(native), '--ui-check'], env=env, check=True, timeout=100)
+            with subprocess.Popen([str(native), '--ui-check'], env=env) as native_check:
+                try:
+                    assert native_check.wait(timeout=100) == 0, 'Native menu check failed'
+                except subprocess.TimeoutExpired:
+                    subprocess.run(['/usr/bin/sample', str(native_check.pid), '1', '1'], timeout=15)
+                    raise
+                finally:
+                    if native_check.poll() is None:
+                        native_check.kill()
+                        native_check.wait(timeout=10)
             assert not login.exists(), 'Login toggle did not remove its own entry'
             recorded = browser_log.read_text()
             assert f'--app=http://127.0.0.1:{port}/setup/' in recorded

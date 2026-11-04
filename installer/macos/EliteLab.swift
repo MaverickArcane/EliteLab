@@ -1,6 +1,10 @@
 import AppKit
 import Foundation
 
+func trace(_ message: String) {
+    if CommandLine.arguments.contains("--ui-check") { fputs("UI check: \(message)\n", stderr) }
+}
+
 // The private stdin/stdout pipe accepts fixed actions, never shell commands.
 func backend(check: Bool) -> Process {
     let root = Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/app")
@@ -24,6 +28,7 @@ final class Desktop: NSObject, NSApplicationDelegate {
     let checking = CommandLine.arguments.contains("--ui-check")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        trace("application launched")
         NSApp.setActivationPolicy(.accessory)
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.title = "EliteLab"
@@ -36,6 +41,7 @@ final class Desktop: NSObject, NSApplicationDelegate {
         }
         login = menu.items[2]
         item.menu = menu
+        trace("menu created")
         process.standardInput = input
         process.standardOutput = output
         process.terminationHandler = { [weak self] process in
@@ -51,6 +57,7 @@ final class Desktop: NSObject, NSApplicationDelegate {
         }
         do {
             try process.run()
+            trace("backend launched")
             // Release the parent's copies so EOF detects either side exiting.
             output.fileHandleForWriting.closeFile()
             input.fileHandleForReading.closeFile()
@@ -81,6 +88,7 @@ final class Desktop: NSObject, NSApplicationDelegate {
     }
 
     func receive(_ message: [String: Any]) {
+        trace("received \(message["event"] ?? "unknown") \(message["action"] ?? "")")
         if let state = message["login"] as? String {
             login.state = state == "enabled" ? .on : .off
         }
@@ -148,7 +156,10 @@ if CommandLine.arguments.contains("--check") {
     catch { fputs("\(error)\n", stderr); exit(1) }
 }
 signal(SIGPIPE, SIG_IGN)
+trace("creating application")
 let app = NSApplication.shared
+trace("creating delegate")
 let delegate = Desktop()
 app.delegate = delegate
+trace("entering run loop")
 app.run()
