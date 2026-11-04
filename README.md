@@ -393,7 +393,7 @@ The package stores data under `$XDG_DATA_HOME/elitelab` (normally
 `~/.local/share/elitelab`) and settings under `$XDG_CONFIG_HOME/elitelab`
 (normally `~/.config/elitelab`). Removing the package leaves those per-user
 files in place. Source installations keep using their existing `data` folder.
-The package is not yet published as a release.
+The package is not yet published as a release. Maintainers can prepare tested package assets with the [release procedure](docs/RELEASE-PACKAGES.md).
 
 ### Linux and macOS source setup
 

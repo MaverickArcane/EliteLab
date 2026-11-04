@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Packaging: validate Debian installation, upgrades and removal in CI, preserving user settings and saved data. Version tags prepare a draft release with tested Windows/Debian packages, source and checksums; publication remains a reviewed step (#9).
+
 - Linux: build a Debian package with a desktop launcher and per-user data directory (#9). Release distribution and Linux tray support remain pending.
 
 - Windows bundle: opt in to starting at sign-in from the tray. The setting is off by default; uninstall removes only this installation's own entry (#9).
