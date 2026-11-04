@@ -44,8 +44,8 @@ Name: "{autodesktop}\EliteLab"; Filename: "{sys}\wscript.exe"; Parameters: """{a
 Filename: "{sys}\wscript.exe"; Parameters: """{app}\Launch EliteLab.vbs"""; WorkingDir: "{app}"; Description: "Launch EliteLab"; Flags: nowait postinstall skipifsilent
 
 [INI]
-Filename: "{app}\desktop-browser.ini"; Section: "Desktop"; Key: "Browser"; String: "{code:SelectedBrowser}"; Flags: uninsdeleteentry uninsdeletekeyifempty uninsdeletefileifempty
-Filename: "{app}\desktop-browser.ini"; Section: "Desktop"; Key: "Profile"; String: "{code:SelectedProfile}"; Flags: uninsdeleteentry uninsdeletekeyifempty uninsdeletefileifempty
+Filename: "{app}\desktop-browser.ini"; Section: "Desktop"; Key: "Browser"; String: "{code:SelectedBrowser}"; Flags: uninsdeleteentry uninsdeletesectionifempty
+Filename: "{app}\desktop-browser.ini"; Section: "Desktop"; Key: "Profile"; String: "{code:SelectedProfile}"; Flags: uninsdeleteentry uninsdeletesectionifempty
 
 [Code]
 var GuardHandle: THandle;
