@@ -68,7 +68,7 @@ def smoke(installer):
         # not the parent process's real user profile.
         programs = subprocess.check_output([sys.executable, '-c',
             'import ctypes; p = ctypes.create_unicode_buffer(32768); '
-            'result = ctypes.windll.shell32.SHGetFolderPathW(None, 2, None, 0, p); '
+            'result = ctypes.windll.shell32.SHGetFolderPathW(None, 0x4002, None, 0, p); '
             'assert result == 0, result; print(p.value)'],
             env={**env, 'PYTHONIOENCODING': 'utf-8'}, encoding='utf-8',
             creationflags=flags, timeout=15).strip()
