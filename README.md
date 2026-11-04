@@ -412,9 +412,9 @@ Chrome, Chromium, Brave and Edge use a dedicated app window; Safari and other
 default browsers use a tab. On a Mac, choose a synced/copied journal folder in setup.
 
 The packages have no Developer ID signature or notarization. For a trusted
-download, try Control-click/right-click **Open**; if macOS still blocks it,
-use **System Settings > Privacy & Security > Open Anyway** after attempting to
-open it. Do not disable Gatekeeper globally. See [Apple's instructions](https://support.apple.com/en-us/102445).
+download, attempt to open it, then use **System Settings > Privacy & Security >
+Open Anyway** if macOS blocks it. Older macOS versions also allow
+Control-click/right-click **Open**. See [Apple's instructions](https://support.apple.com/en-us/102445).
 The app has an ad-hoc signature for local integrity, which does not establish
 developer trust. These packages are CI artifacts until a release is published.
 

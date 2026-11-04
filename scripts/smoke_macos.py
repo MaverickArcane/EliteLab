@@ -70,7 +70,7 @@ def smoke(package):
                 assert result.returncode == 0, result.stdout + result.stderr
                 messages = [json.loads(line) for line in result.stdout.splitlines()]
                 assert any(m.get('event') == 'check' and m['journal'].get('cmdr') == 'Testpilot' for m in messages), messages
-                process = subprocess.Popen([str(python), '-E', '-s', '-u', '-m', 'elitelab.macos_desktop'],
+                process = subprocess.Popen([str(python), '-E', '-s', '-B', '-u', '-m', 'elitelab.macos_desktop'],
                     cwd=source, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
                 messages = queue.Queue()
                 def collect(stream):
@@ -110,6 +110,11 @@ def smoke(package):
             assert f'--app=http://127.0.0.1:{port}/setup/' in recorded
             assert '--user-data-dir=' + str(data / 'browser') in recorded
             assert not (source / 'data').exists(), 'App wrote data inside its installation'
+            subprocess.run(['/usr/bin/codesign', '--verify', '--deep', '--strict', str(APP)], check=True)
+        except BaseException:
+            for log in sorted((data / 'logs').glob('desktop-*.log')):
+                print(log.name + ':\n' + log.read_text(errors='replace')[-12000:], file=sys.stderr)
+            raise
         finally:
             if process is not None and process.poll() is None:
                 process.stdin.close()  # Parent EOF must also stop/reap the owned server.

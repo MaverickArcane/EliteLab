@@ -67,7 +67,7 @@ def run(check=False):
                 args = ['--no-browser'] if check or not first else ['--open-browser']
                 if first and not Path(config.SETTINGS_PATH).is_file():
                     args.append('--setup')
-                child = subprocess.Popen([sys.executable, '-E', '-s', '-m', 'elitelab', 'serve', *args],
+                child = subprocess.Popen([sys.executable, '-E', '-s', '-B', '-m', 'elitelab', 'serve', *args],
                     stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, env=env)
                 control.set_child(child)
                 ready = False

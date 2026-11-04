@@ -7,7 +7,7 @@ func backend(check: Bool) -> Process {
     let process = Process()
     process.executableURL = root.appendingPathComponent("runtime/bin/python3")
     process.currentDirectoryURL = root
-    process.arguments = ["-E", "-s", "-u", "-m", "elitelab.macos_desktop"] + (check ? ["--check"] : [])
+    process.arguments = ["-E", "-s", "-B", "-u", "-m", "elitelab.macos_desktop"] + (check ? ["--check"] : [])
     process.environment = ProcessInfo.processInfo.environment.filter { !$0.key.uppercased().hasPrefix("PYTHON") }
     return process
 }
@@ -130,6 +130,10 @@ final class Desktop: NSObject, NSApplicationDelegate {
     @objc func openSetup() { send("setup") }
     @objc func toggleLogin() { send("login") }
     @objc func quit() { NSApp.terminate(nil) }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        send("open")
+        return false
+    }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if !process.isRunning { return .terminateNow }
         if !quitting { quitting = true; send("quit") }
