@@ -383,11 +383,18 @@ settings file, run from a terminal:
 ### Debian and Ubuntu package
 
 CI builds an unsigned `.deb` and SHA-256 checksum as workflow artifacts. The
-package needs system Python 3.10 or newer and Zenity; a package manager can
-install its dependencies. After installing, open **EliteLab** from the desktop
-applications menu. Setup and the dashboard open in your normal browser. Use
-the dashboard's Quit control to stop the server. The initial Linux package does
-not include a tray icon or start-at-sign-in option.
+package manager installs Python 3.10 or newer, Zenity and GTK/Ayatana bindings.
+After installing, open **EliteLab** from the applications menu. The indicator
+menu opens the dashboard or setup and offers **Quit EliteLab**. A small control
+window provides the same actions on desktops without an indicator host.
+Chromium-family browsers open a dedicated app window; other browsers use a tab.
+
+Start at login is off by default. Enable it from the indicator or control window.
+This creates `$XDG_CONFIG_HOME/autostart/elitelab.desktop` (normally under
+`~/.config`). Disable it from the same control. An externally edited entry is
+left alone and must be managed in your desktop's startup settings. The entry's
+`TryExec` prevents it from launching after the package has been removed; reinstalling
+restores the saved login preference. Source installs do not load GTK or enable login startup.
 
 The package stores data under `$XDG_DATA_HOME/elitelab` (normally
 `~/.local/share/elitelab`) and settings under `$XDG_CONFIG_HOME/elitelab`

@@ -31,6 +31,8 @@ elitelab/core/unlock_research.py
 elitelab/core/watcher.py
 elitelab/desktop.py
 elitelab/instance.py
+elitelab/linux_autostart.py
+elitelab/linux_tray.py
 elitelab/mcp.py
 elitelab/tray_control.py
 elitelab/window.py

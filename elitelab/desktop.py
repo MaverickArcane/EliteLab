@@ -54,16 +54,25 @@ def run(data_dir, settings_path, executable=None, popen=subprocess.Popen, on_chi
 
 
 def tray_enabled():
-    return os.name == 'nt'
+    return os.name == 'nt' or linux_package()
+
+
+def linux_package():
+    return sys.platform.startswith('linux') and (Path(__file__).resolve().parents[1] / '.linux-package').is_file()
 
 
 def tray_main(config):
     from .tray_control import TrayControl
-    from .windows_tray import WindowsTray
-    control = TrayControl(config, refresh=lambda: importlib.reload(config))
     try:
-        tray = WindowsTray(control, notify)
-    except OSError as error:
+        if linux_package():
+            from .linux_tray import LinuxTray as Tray
+            from .linux_autostart import LinuxAutostart
+            control = TrayControl(config, refresh=lambda: importlib.reload(config), autostart_factory=LinuxAutostart)
+        else:
+            from .windows_tray import WindowsTray as Tray
+            control = TrayControl(config, refresh=lambda: importlib.reload(config))
+        tray = Tray(control, notify)
+    except (OSError, ImportError, ValueError) as error:
         notify('The tray icon could not start. Use Quit in the dashboard to stop EliteLab. ' + str(error))
         return run(config.DATA_DIR, config.SETTINGS_PATH)
     result = {}

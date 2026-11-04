@@ -1,8 +1,10 @@
-"""Open the portable Windows dashboard in a dedicated browser window."""
+"""Open packaged dashboards in a dedicated browser window where supported."""
 import logging
 import os
 from pathlib import Path
 import subprocess
+import shutil
+import sys
 import webbrowser
 
 log = logging.getLogger(__name__)
@@ -28,12 +30,20 @@ def portable_windows(root):
     return os.name == "nt" and (Path(root) / ".windows-bundle").is_file()
 
 
+def linux_browsers(configured=""):
+    if configured:
+        return [configured]
+    return [found for name in ('google-chrome', 'chromium', 'chromium-browser', 'brave-browser', 'microsoft-edge')
+            if (found := shutil.which(name))]
+
+
 def open_dashboard(url, config):
-    """Use app mode for a Windows bundle; otherwise open the usual browser tab."""
-    bundled = portable_windows(config.ROOT)
+    """Use app mode for Windows/Linux packages, with the usual browser fallback."""
+    linux = sys.platform.startswith('linux') and (Path(config.ROOT) / '.linux-package').is_file()
+    bundled = portable_windows(config.ROOT) or linux
     if bundled:
         profile = str(Path(config.DATA_DIR) / "browser")
-        for executable in browser_candidates(config.BROWSER):
+        for executable in (linux_browsers(config.BROWSER) if linux else browser_candidates(config.BROWSER)):
             try:
                 subprocess.Popen([executable, "--app=" + url, "--user-data-dir=" + profile,
                                   "--window-size=1440,1000", "--no-first-run", "--no-default-browser-check"],

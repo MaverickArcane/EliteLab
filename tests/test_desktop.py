@@ -10,6 +10,20 @@ from elitelab import desktop
 
 
 class DesktopTests(unittest.TestCase):
+    def test_linux_package_selects_linux_controls_and_login_backend(self):
+        closed = threading.Event()
+        captured = []
+        class FakeTray:
+            def __init__(self, control, notify): captured.append(control)
+            def close(self): closed.set()
+            def loop(self):
+                if not closed.wait(2): raise RuntimeError('tray was not closed')
+        config = SimpleNamespace(DATA_DIR='unused', SETTINGS_PATH='unused')
+        from elitelab.linux_autostart import LinuxAutostart
+        with patch('elitelab.desktop.linux_package', return_value=True), patch.dict(sys.modules, {'elitelab.linux_tray':SimpleNamespace(LinuxTray=FakeTray)}), patch('elitelab.desktop.run', return_value=(0, Path('log'))):
+            self.assertEqual(desktop.tray_main(config), (0, Path('log')))
+        self.assertIs(captured[0].autostart_factory, LinuxAutostart)
+
     def test_first_run_opens_setup_and_restart_does_not_open_another_window(self):
         with tempfile.TemporaryDirectory() as tmp:
             children = [Mock(wait=Mock(return_value=75)), Mock(wait=Mock(return_value=0))]
