@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Windows installer: fix the unknown `userprofile` constant on ordinary install/uninstall. Resolve the profile like the bundled runtime and test the lifecycle without an instance-directory override.
+
 - Mining: recommend MeritMiner for mining merit routes, with a direct link from the Mining card and guidance in the mining assistant prompt.
 
 - macOS: build Apple Silicon and Intel installers with bundled Python, native menu-bar controls, opt-in login startup and Chromium app windows. CI checks installation, native actions, restart, upgrades and removal while preserving user data (#55).
