@@ -7,6 +7,9 @@
 #ifndef AppIdValue
   #define AppIdValue "MaverickArcane.EliteLab"
 #endif
+#ifndef AppGroupName
+  #define AppGroupName "EliteLab"
+#endif
 
 [Setup]
 AppId={#AppIdValue}
@@ -14,7 +17,7 @@ AppName=EliteLab
 AppVersion={#AppVersion}
 AppPublisher=MaverickArcane
 DefaultDirName={localappdata}\Programs\EliteLab
-DefaultGroupName=EliteLab
+DefaultGroupName={#AppGroupName}
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible

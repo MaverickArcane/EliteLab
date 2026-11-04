@@ -84,18 +84,19 @@ def build(bundle, compiler, output, app_id='MaverickArcane.EliteLab'):
     if not Path(compiler).is_file():
         raise ValueError('Inno Setup compiler not found')
     verify_bundle(bundle)
+    group = 'EliteLab test ' + app_id if app_id.startswith('EliteLab.Installer.Test.') else 'EliteLab'
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='elitelab-installer-stage-') as temporary:
         stage = Path(temporary) / 'EliteLab'
         stage_bundle(bundle, stage)
         subprocess.run([str(compiler), '/Qp', '/DStagingDir=' + str(stage), '/DAppVersion=' + __version__,
-                        '/DAppIdValue=' + app_id, '/O' + str(output.parent), '/F' + output.stem,
+                        '/DAppIdValue=' + app_id, '/DAppGroupName=' + group, '/O' + str(output.parent), '/F' + output.stem,
                         str(ROOT / 'installer' / 'windows' / 'EliteLab.iss')], check=True)
     if not output.is_file():
         raise RuntimeError('Inno Setup did not produce the expected installer')
     digest = hashlib.sha256(output.read_bytes()).hexdigest()
     output.with_suffix(output.suffix + '.sha256').write_text(f'{digest}  {output.name}\n', encoding='ascii')
-    output.with_suffix(output.suffix + '.build.json').write_text(json.dumps({'app_id': app_id, 'sha256': digest}) + '\n', encoding='ascii')
+    output.with_suffix(output.suffix + '.build.json').write_text(json.dumps({'app_id': app_id, 'group': group, 'sha256': digest}) + '\n', encoding='ascii')
     return output
 
 

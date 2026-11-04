@@ -5,11 +5,17 @@ workflow passes. It attaches the Windows installer, Debian package, macOS instal
 archive and SHA-256 files. It does not publish the draft automatically.
 
 1. Finish review and merge the intended release changes.
-2. Update `elitelab.__version__` and release notes in that release commit.
+2. Update `elitelab.__version__` and review `docs/releases/<version>.md` in that
+   release commit. The workflow requires this file and uses it as the draft body.
 3. Tag that exact commit as `v<version>`. The workflow rejects a tag that differs
    from the application version. Manual runs must select that tag, not a branch.
 4. Check the draft's package names, checksums, CI results and supported platforms.
 5. Complete the manual desktop checks below, then publish the reviewed draft.
+
+The prepared version is **0.6.0**. It has not been tagged or published by the
+preparation changes. Review the candidate notes, merge the intended changes,
+then create `v0.6.0` on that exact merged commit to run the release workflow.
+Remove candidate-only wording from the draft body after completing validation.
 
 The source archive is generated from Git's committed tree. Runtime journals,
 settings and local work are excluded. Builds are unsigned; checksums detect
@@ -69,7 +75,15 @@ or an actual user login. Record the macOS version and results on the macOS PR.
 
 ## Remaining validation
 
-Windows uses the existing isolated installer smoke test and embedded-runtime
-launcher test. Do not close #9 based on the existence of this workflow alone.
+Windows CI creates a Start Menu shortcut in a unique test folder, verifies its
+target/arguments/working directory, launches through the shortcut and exercises
+dashboard and Quit through native window messages. A separate embedded-runtime
+check drives the tray's native menu commands, verifies login check/disabled
+states and ownership, simulates icon loss and taskbar recreation, and checks
+restart followed by Quit. Tests use fixture journals, temporary settings/data,
+a browser recorder, and unique test registry values. They do not manipulate an
+existing EliteLab installation or its sign-in entry. Manual checks still cover
+a real browser, pointer interaction with the notification-area menu and a real
+Windows sign-in. Do not close #9 based on the existence of CI alone.
 Mining #3 additionally requires the outstanding real-game
 checks listed on that issue; fixture tests cannot establish current game rules.

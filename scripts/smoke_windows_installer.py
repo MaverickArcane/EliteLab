@@ -4,6 +4,7 @@ Compile with a unique --app-id reserved for the test; never run this against a
 release installer because setup and uninstall modify that ID's user registry.
 """
 import argparse
+import ctypes
 import hashlib
 import json
 import msvcrt
@@ -20,6 +21,7 @@ import winreg
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from elitelab.autostart import Autostart, RUN_KEY
+from smoke_windows_desktop import smoke_shortcut
 
 
 def smoke(installer):
@@ -29,6 +31,9 @@ def smoke(installer):
     app_id = metadata.get('app_id', '')
     if not app_id.startswith('EliteLab.Installer.Test.') or len(app_id) < 32:
         raise ValueError('installer must have a unique test application ID')
+    group = 'EliteLab test ' + app_id
+    if metadata.get('group') != group:
+        raise ValueError('installer must have a unique compiled Start Menu group')
     if hashlib.sha256(installer.read_bytes()).hexdigest() != metadata.get('sha256'):
         raise ValueError('installer does not match its build metadata')
     with tempfile.TemporaryDirectory(prefix='EliteLab installer test ') as tmp:
@@ -55,7 +60,14 @@ def smoke(installer):
         env['ELITELAB_SETTINGS'] = str(root / 'settings.json')
         flags = subprocess.CREATE_NO_WINDOW
         startup = Autostart(app, value_name=app_id)
-        args = [str(installer), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NOICONS',
+        programs = ctypes.create_unicode_buffer(32768)
+        if ctypes.windll.shell32.SHGetFolderPathW(None, 2, None, 0, programs):
+            raise OSError('Cannot locate the current-user Start Menu Programs folder')
+        shortcut = Path(programs.value) / group / 'EliteLab.lnk'
+        assert not shortcut.parent.exists(), 'Unique test shortcut folder already exists'
+        # Inno ignores /GROUP when DisableProgramGroupPage=yes; the builder
+        # embeds the unique group so even failed tests cannot touch a user's link.
+        args = [str(installer), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
                 '/TASKS=', '/DIR=' + str(app)]
         try:
             relative_env = {**env, 'ELITELAB_INSTANCE_DIR':'relative-instance'}
@@ -77,6 +89,8 @@ def smoke(installer):
             subprocess.run(args, env=env, creationflags=flags, timeout=120, check=True)
             for name in ('runtime/pythonw.exe', '.windows-bundle', 'Launch EliteLab.vbs', 'elitelab/windows_tray.py'):
                 assert (app / name).is_file(), name
+            assert shortcut.is_file(), 'Installer did not create the Start Menu shortcut'
+            smoke_shortcut(shortcut, app, env, root / 'shortcut-test')
             assert startup.status() == 'disabled', 'Unique test startup value already exists'
             startup.set_enabled(True)
             assert startup.status() == 'enabled'
@@ -149,6 +163,7 @@ def smoke(installer):
             while (app/'runtime'/'pythonw.exe').exists() and time.monotonic() < deadline:
                 time.sleep(.1)
             assert not (app/'runtime'/'pythonw.exe').exists(), 'Application was not removed'
+            assert not shortcut.exists(), 'Uninstall retained the test Start Menu shortcut'
             assert startup.status() == 'disabled', 'Owned sign-in entry should be removed on uninstall'
             assert sentinel.read_text(encoding='ascii') == 'preserve' and legacy.read_text(encoding='ascii') == 'keep'
             # The uninstaller clone can briefly retain the guard after its
