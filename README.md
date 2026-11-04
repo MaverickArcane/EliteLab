@@ -29,7 +29,7 @@ Use **Quit** before installing an update. A source checkout launched with
 for that desktop experience. The portable ZIP uses **Launch EliteLab.vbs** for
 its tray launcher.
 
-See the [platform setup instructions](#debian-and-ubuntu-package) and
+See the [platform setup instructions](#quick-start) and
 [0.6.0 release notes](docs/releases/0.6.0.md) for upgrades and data locations.
 
 ![EliteLab desktop dashboard with the cockpit theme, ship readouts, and engineering panels](docs/screenshot.jpg)

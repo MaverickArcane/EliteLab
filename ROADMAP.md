@@ -4,55 +4,64 @@ A personal cockpit dashboard today. Easier setup and better trading tools next. 
 
 **Current release:** [v0.5.0](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.5.0)
 
-**Updated:** 2026-10-25
+**Updated:** 2026-11-04
 
 This is the proposed order of work. Linked issues hold the detailed scope and progress. Release dates and the choice of 1.x versus 2.x for multiplayer are still open.
 
 | Stage | Status | What players get |
 | --- | --- | --- |
 | [v0.5.0](#already-shipped) | Released | Live dashboard, engineering tools, carrier tracking, and a redesigned ship card |
-| [Next 0.x release](#next-0x-release) | Planned | Easier setup and the first trading improvements |
-| [Later 0.x releases](#later-0x-releases) | Backlog | Standalone app builds, mining, journal history, and selected data integrations |
+| [Next 0.x release](#next-0x-release) | 0.6.0 preparation | Desktop installers, setup, trading, materials planning, mining and journal history |
+| [Remaining 0.x work](#later-0x-releases) | Validation and access gates | Desktop release checks, real-game mining validation and Frontier registration |
 | [Future 1.x or 2.x](#future-1x-or-2x-play-together) | Roadmap epic | Multiple commanders, synced dashboards, and leader-managed group objectives |
 
 ## Next 0.x release
 
-**Goal: make EliteLab easier to start and more useful during a trading session.**
+**0.6.0 is prepared, not published.** The current public release remains 0.5.0.
+See [candidate release notes](docs/releases/0.6.0.md) and the
+[package release procedure](docs/RELEASE-PACKAGES.md).
 
 | Order | Work | First useful outcome | Issue |
 | --- | --- | --- | --- |
 | 1 | Setup scripts for Windows, Linux, and macOS | Implemented for the next release: runtime checks, setup page, persistent settings and launcher restart; tested on all three platforms in CI | [#40][40] |
-| 2 | Trading panels and workflow | Connect sell targets, cargo, market information, and the rares loop into a clear sequence of actions | [#41][41] |
-| 3 | Expected merits per sell target | Compare estimated returns and travel effort within the redesigned trading workflow | [#2][2] |
+| 2 | Trading panels and workflow | Merged: route comparison, selected-leg progress, cargo/market evidence, Powerplay handoff and filtered live feed | [#41][41] (closed) |
+| 3 | Expected merits per sell target | Merged: conditional rare-sale estimates and merit-first comparisons with unknown/stale evidence kept visible | [#2][2] (closed) |
 
-Materials/recipe workflow and dashboard navigation overhaul: [#64](https://github.com/MaverickArcane/EliteLab/issues/64), implemented on the materials-workflow branch pending review/merge. See [workflow](docs/MATERIAL-PLAN.md).
+Materials/recipe workflow and dashboard navigation overhaul: [#64](https://github.com/MaverickArcane/EliteLab/issues/64) is closed and merged for the next release. See [workflow](docs/MATERIAL-PLAN.md).
 
-For #41, first define which trading workflows matter most, then ship a focused improvement to the existing panels. The wider default-panel overhaul stays on the roadmap and is split into smaller follow-up issues. The workflow definition and the first improvement (route comparison table, one selected route followed from the journal, map layer) are in [docs/TRADING.md](docs/TRADING.md); the rare-goods buying loop shipped in #71.
+The trading workflow, completed panel follow-ups and combined desktop/mobile
+validation are documented in [docs/TRADING.md](docs/TRADING.md). The rare-goods
+buying loop shipped in #71.
 
-For #2, validate the merit and pricing assumptions against current observations before implementing estimates. A recorded rate for one commander and power is a hint, not a universal rule. Keep missing prices, stale market information, and estimates visible to the player.
+The #2 estimates remain conditional: a recorded rate for one commander and power
+is a hint, not a universal rule. Missing prices and stale market information stay
+visible to the player.
 
 ### Setup scripts and a standalone app are separate steps
 
 | | Setup scripts: [#40][40] | Standalone app: [#9][9] |
 | --- | --- | --- |
-| Python | Uses an installed runtime and explains missing prerequisites | Includes the runtime with the application |
+| Python | Uses an installed runtime and explains missing prerequisites | Windows/Mac include Python; Debian installs dependencies through its package manager |
 | Player experience | Extract, run setup, choose journals, launch | Download an app and launch it |
-| Priority | Next release | Later, after the initial setup and trading work |
+| Status | Merged for 0.6.0 | Installers and desktop controls implemented; release checks and publication remain |
 
 Source setup is implemented for the next release (#40). Standalone distribution remains open; it adds packaged builds and their release maintenance.
 
 ## Later 0.x releases
 
-These follow the next-release work, in the proposed order below. Move an item forward when actual usage establishes a dependency or a stronger need.
+These are the remaining non-multiplayer gates and the completed history work.
+An implementation or a passing fixture test does not establish current game rules.
 
 | Order | Work | Why it comes here | Issue |
 | --- | --- | --- | --- |
-| 4 | Standalone app with Python included | Remove the separate Python installation; add tray and optional auto-start behavior in manageable steps | [#9][9] |
+| 4 | Standalone app with Python included | Windows, Debian and both Mac architectures build in CI with desktop controls and login opt-in; finish manual release checks and publish the reviewed packages | [#9][9] |
 | 5 | Mining module | Mining desk in #62: ring/hotspot discovery, map destinations, buyer quotes, journal production and profit ledger; real in-game validation remains | [#3][3] |
-| 6 | Persistent journal index | Merged for the next release: SQLite history, credit snapshots, merit cycles, collection locations and MCP; real-archive validation remains useful | [#7][7] |
-| 7 | Frontier companion API | Investigate access and coverage when a concrete feature needs data the journal and current providers cannot supply | [#6][6] |
+| 6 | Persistent journal index | Merged for the next release: SQLite history, credit snapshots, merit cycles, collection locations and MCP | [#7][7] (closed) |
+| 7 | Frontier companion API | Investigation documented; no registered EliteLab application yet. Owner registration and authorized live validation are required before integration | [#6][6] |
 
-The companion API is not assumed to be a prerequisite for every trading improvement. Likewise, the journal index is related to future server persistence, but does not settle the multiplayer architecture.
+See [Frontier API evidence and access requirements](docs/FRONTIER-CAPI.md). The
+companion API is not a prerequisite for existing trading features. Likewise, the
+journal index does not settle the multiplayer architecture.
 
 ## Future 1.x or 2.x: play together
 
