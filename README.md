@@ -6,6 +6,32 @@ This project is vibe coded. I built it with an AI assistant while playing, to te
 
 No accounts, no uploads, no dependencies: Python standard library, one web page, no build step.
 
+## Desktop downloads
+
+The next packaged release is **0.6.0**. Until it is published on
+[Releases](https://github.com/MaverickArcane/EliteLab/releases), preview installers
+are available from successful runs under [Actions > CI](https://github.com/MaverickArcane/EliteLab/actions/workflows/ci.yml).
+Open a successful run, scroll to **Artifacts**, download the matching ZIP and
+extract it completely. GitHub requires sign-in to download workflow artifacts.
+
+| Platform | Artifact | Start the app |
+| --- | --- | --- |
+| Windows x64 | `EliteLab-Windows-installer` | Run `EliteLab-Setup-x64.exe`, then **Start > EliteLab**. Python is included. |
+| Debian / Ubuntu | `EliteLab-debian` | Install the `.deb`, then open **EliteLab** from applications. The package manager installs Python and desktop dependencies. |
+| Mac, Apple Silicon | `EliteLab-macos-arm64` | Install the `.pkg`, then open **Applications > EliteLab**. Python is included. |
+| Mac, Intel | `EliteLab-macos-x86_64` | Install the `.pkg`, then open **Applications > EliteLab**. Python is included. |
+
+On Windows, the **EliteLab tray icon** may be in the notification area's hidden
+icons menu. Right-click it for **Open dashboard**, **Open setup**, **Start at
+sign-in** and **Quit EliteLab**. Closing the browser leaves the app running.
+Use **Quit** before installing an update. A source checkout launched with
+`Start EliteLab.cmd` does not install a Start Menu shortcut; use the installer
+for that desktop experience. The portable ZIP uses **Launch EliteLab.vbs** for
+its tray launcher.
+
+See the [platform setup instructions](#debian-and-ubuntu-package) and
+[0.6.0 release notes](docs/releases/0.6.0.md) for upgrades and data locations.
+
 ![EliteLab desktop dashboard with the cockpit theme, ship readouts, and engineering panels](docs/screenshot.jpg)
 
 The current desktop layout. Screenshots use the bundled sample journals; live market data and personal builds depend on your session.

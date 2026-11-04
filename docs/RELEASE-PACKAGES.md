@@ -5,11 +5,17 @@ workflow passes. It attaches the Windows installer, Debian package, macOS instal
 archive and SHA-256 files. It does not publish the draft automatically.
 
 1. Finish review and merge the intended release changes.
-2. Update `elitelab.__version__` and release notes in that release commit.
+2. Update `elitelab.__version__` and review `docs/releases/<version>.md` in that
+   release commit. The workflow requires this file and uses it as the draft body.
 3. Tag that exact commit as `v<version>`. The workflow rejects a tag that differs
    from the application version. Manual runs must select that tag, not a branch.
 4. Check the draft's package names, checksums, CI results and supported platforms.
 5. Complete the manual desktop checks below, then publish the reviewed draft.
+
+The prepared version is **0.6.0**. It has not been tagged or published by the
+preparation changes. Review the candidate notes, merge the intended changes,
+then create `v0.6.0` on that exact merged commit to run the release workflow.
+Remove candidate-only wording from the draft body after completing validation.
 
 The source archive is generated from Git's committed tree. Runtime journals,
 settings and local work are excluded. Builds are unsigned; checksums detect

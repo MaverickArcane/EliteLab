@@ -19,10 +19,13 @@ jobs:
         run: |
           python - <<'PY'
           import os
+          from pathlib import Path
           from elitelab import __version__
           expected = 'refs/tags/v' + __version__
           if os.environ['RELEASE_REF'] != expected:
               raise SystemExit('Select the version tag ' + expected)
+          if not (Path('docs/releases') / (__version__ + '.md')).is_file():
+              raise SystemExit('Add reviewed release notes for ' + __version__)
           PY
   checks:
     needs: validate-version
@@ -62,4 +65,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$RELEASE_TAG" dist/* --verify-tag --draft --title "EliteLab $RELEASE_TAG" --generate-notes
+          gh release create "$RELEASE_TAG" dist/* --verify-tag --draft --title "EliteLab $RELEASE_TAG" --notes-file "docs/releases/${RELEASE_TAG#v}.md"
