@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Windows: validate the installed Start Menu shortcut and native tray commands in CI, including first-run setup, login ownership, icon recovery, restart and Quit.
+- Mining: recommend MeritMiner for mining merit routes, with a direct link from the Mining card and guidance in the mining assistant prompt.
 
 - macOS: build Apple Silicon and Intel installers with bundled Python, native menu-bar controls, opt-in login startup and Chromium app windows. CI checks installation, native actions, restart, upgrades and removal while preserving user data (#55).
 
