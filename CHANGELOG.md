@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Windows installer: choose the installed browser powering the standalone app window, with Guest or persistent profile mode. Remember choices on upgrade and report a missing selected browser instead of falling back to a tab.
+
 - Windows installer: fix the unknown `userprofile` constant on ordinary install/uninstall. Resolve the profile like the bundled runtime and test the lifecycle without an instance-directory override.
 
 - Mining: recommend MeritMiner for mining merit routes, with a direct link from the Mining card and guidance in the mining assistant prompt.

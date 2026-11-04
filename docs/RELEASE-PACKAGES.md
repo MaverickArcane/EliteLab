@@ -84,6 +84,10 @@ restart followed by Quit. Tests use fixture journals, temporary settings/data,
 a browser recorder, and unique test registry values. They do not manipulate an
 existing EliteLab installation or its sign-in entry. Manual checks still cover
 a real browser, pointer interaction with the notification-area menu and a real
-Windows sign-in. Do not close #9 based on the existence of CI alone.
+Windows sign-in. The installer also checks browser selection, rejects invalid
+browser/profile options and preserves choices on upgrade. Manually verify the
+App window browser and profile pages, the chosen browser's standalone frame,
+Guest mode and its browser-preference reset, and persistent-mode behavior.
+Do not close #9 based on the existence of CI alone.
 Mining #3 additionally requires the outstanding real-game
 checks listed on that issue; fixture tests cannot establish current game rules.

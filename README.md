@@ -390,9 +390,20 @@ only when it belongs to that installation.
 Closing the window alone leaves the server running. Tray actions require a
 loopback-accessible server; use the dashboard controls if bound only to a
 specific network address. Startup errors point to a
-log under the configured data folder. The bundle opens an app window using
-Edge, Chrome, Brave or Chromium, with a dedicated browser profile in the data
-folder; if no supported browser can be launched, it opens the default browser.
+log under the configured data folder. During installation, **App window browser**
+lists installed Chrome, Edge, Brave and Chromium browsers. Your Windows default
+is preselected when supported; the choice powers EliteLab's standalone window,
+without tabs or an address bar. Rerun the installer to change it. Upgrades retain
+the choice. A removed browser produces an error instead of opening a normal tab.
+
+The next installer page chooses **Guest profile** (recommended) or a persistent
+EliteLab profile. Guest mode keeps browser accounts separate, but browser-only
+layout/filter preferences reset after all guest windows close. EliteLab's saved
+data and plans remain. Persistent mode remembers browser preferences and can use
+the chosen browser's sign-in/import features. Each engine uses a separate folder
+under the configured data directory; existing browser data is not deleted.
+Both modes request sync-disabled app windows. Silent setup accepts fixed IDs with
+`/APPBROWSER=chrome|edge|brave|chromium` and `/BROWSERPROFILE=guest|persistent`.
 
 For a source ZIP, double-click **Setup EliteLab.cmd**. It checks `python`, then
 `py -3`, and opens setup after the lab answers its health check. Keep its terminal
