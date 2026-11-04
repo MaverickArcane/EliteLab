@@ -82,10 +82,12 @@ def smoke(package, installed_ci=False):
                     request('/api/trade/plan', {'commodity': 'gold', 'source': 'Buy / Sol',
                         'destination': 'Sell / Lave', 'source_price': 100, 'destination_price': 300,
                         'target': 1000, 'planned_quantity': 1000})
-                    saved = {p.relative_to(root / 'data'): p.read_bytes() for p in (root / 'data').rglob('*') if p.is_file()}
-                    assert saved, 'Application did not persist data'
                     assert request('/api/restart', {})['restarting']
                     assert process.wait(timeout=10) == 75
+                    # Snapshot only after shutdown has flushed the writers. While
+                    # running, atomic-save temporary files can disappear mid-read.
+                    saved = {p.relative_to(root / 'data'): p.read_bytes() for p in (root / 'data').rglob('*') if p.is_file()}
+                    assert saved, 'Application did not persist data'
                     if installed_ci:
                         subprocess.run(['sudo', 'apt-get', 'install', '--reinstall', '-y', str(package)], check=True)
                 else:
