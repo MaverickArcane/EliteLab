@@ -918,6 +918,10 @@ See [TRADE-POWERPLAY.md](TRADE-POWERPLAY.md) for the full response and workflow.
 `preview_material_plan` (POST `/api/wishlist/preview`) accepts wishlist_add inputs
 and returns an unsaved additional entry with ingredients and combined requirements.
 `wishlist_update` (POST `/api/wishlist/update`) accepts entry `id` and replacement
-`qty` (1-10000). Existing wishlist routes now include synthesis and legacy targets
+`qty` (1-10000), or boolean `follow_ship` for a pinned build entry. Turning following
+off saves the current requirements across ship switches and restarts, while stock
+and shortfalls stay live. Turning it on resumes current ship comparison.
+`wishlist_add` and `build_to_wishlist` also accept `follow_ship` for build entries.
+Existing wishlist routes now include synthesis and legacy targets
 with ordered stock allocation. `get_material_inventory` also returns atomic
 `inventory_known` and `observed_at` evidence. See [MATERIAL-PLAN.md](MATERIAL-PLAN.md).

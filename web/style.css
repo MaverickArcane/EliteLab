@@ -453,6 +453,8 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 .material-plan [hidden]{display:none!important}
 #wl-grades{display:flex;gap:12px;margin-bottom:12px}#wl-grades label{flex:1}
 .plan-actions{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:14px 0}.plan-actions label input{width:90px}
+.material-plan label.plan-follow{flex-direction:row;align-items:center;gap:8px}
+.material-plan .plan-follow input{width:auto;margin:0;padding:0;flex:none}
 .plan-preview-title{font-size:15px;font-weight:600;margin:18px 0 8px}
 .plan-scroll{overflow:auto;max-height:420px}.material-plan table{width:100%;font-size:13px}.material-plan th{white-space:nowrap;padding:10px 8px}.material-plan td{padding:10px 8px;vertical-align:middle}.material-plan small{display:block;color:var(--muted);font-size:11px}
 .plan-entry{border:1px solid var(--line);padding:14px 16px;margin-bottom:12px;background:var(--card-2)}.plan-entry .tag{float:right}.plan-entry .note{margin:6px 0}.plan-order{display:inline-block;color:var(--dim);margin-right:12px}.plan-entry summary{color:var(--link);cursor:pointer}.plan-empty{padding:35px 24px;border:1px dashed var(--line-2);color:var(--muted)}

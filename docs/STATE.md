@@ -188,6 +188,13 @@ The tables themselves are served by `/api/recipes` and `/api/recipes/get`, never
 
 Raw entries persist in `data/engineering_wishlist.json`; everything else is recomputed from the materials inventory (via `get_material_inventory`) on `state.materials.inventory_version` and `state.build.progress`. Source results are local to the unified card and invalidated on plan/stock changes.
 
+Build entries have `follow_ship` (defaults to true for existing entries). When false,
+`saved_needs` holds fixed material requirements and `saved_needs_at` records when
+they were saved. Ship changes and restarts do not change these requirements;
+inventory, allocation, shortages, exchanges and sourcing still update. Turning
+following back on clears the snapshot and resumes the pinned build comparison.
+`build_url` identifies the target so re-adding the same build preserves its choice.
+
 Execute `trades` in array order; intermediate receipts fund later steps. `covered`
 is the reduction of original wishlist shortfalls, excluding intermediate receipts
 and overfill. `by_trader` counts all exchanges, including intermediate ones.

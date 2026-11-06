@@ -86,9 +86,18 @@ class Wishlist:
         if e["kind"] == "material":
             return {e["key"]: int(e["qty"])}
         if e["kind"] == "build":
-            p = self.core.store.get("build", "progress") or {}
-            return {m["key"]: m["need"] for m in (p.get("materials") or []) if m["need"]}
+            if not e.get("follow_ship", True):
+                return dict(e["saved_needs"])
+            return self.build_needs()
         return gd.recipe_cost(e["key"], e.get("grade"), e.get("from_grade") or 0, e.get("rolls"), e.get("qty") or 1)
+
+    def build_needs(self, require_build=False):
+        p = self.core.store.get("build", "progress")
+        if p is None:
+            if require_build:
+                raise ValueError("Pin a build before following or saving its requirements.")
+            return {}
+        return {m["key"]: m["need"] for m in (p.get("materials") or []) if m["need"]}
 
     @staticmethod
     def material_row(key, need, have):
@@ -153,8 +162,10 @@ class Wishlist:
     def update(self, q):
         ident = q.get("id")
         if not isinstance(ident,str) or len(ident)>200: raise ValueError("Choose a saved entry id.")
-        qty = self.quantity(q.get("qty"))
         if ident.startswith("legacy:"):
+            if "follow_ship" in q:
+                raise ValueError("Only pinned build entries can follow the current ship.")
+            qty = self.quantity(q.get("qty"))
             # Do not hold our lock during another module's publish callbacks.
             key = ident[7:]
             target = (self.core.store.get("materials","wishlist") or {}).get(key)
@@ -163,8 +174,27 @@ class Wishlist:
         with self._lock:
             current = next((e for e in self.entries if e["id"]==ident),None)
             if not current: raise ValueError("Entry is no longer present.")
-            if current["kind"]=="build": raise ValueError("Pinned build quantities follow the build panel.")
-            entries = [{**e,"qty":qty} if e["id"]==ident else e for e in self.entries]
+            updated = dict(current)
+            if current["kind"] == "build":
+                if "qty" in q:
+                    raise ValueError("Pinned build quantities follow the build panel.")
+                follow = q.get("follow_ship")
+                if type(follow) is not bool:
+                    raise ValueError("follow_ship must be true or false.")
+                if not follow and current.get("follow_ship", True):
+                    updated["saved_needs"] = self.build_needs(require_build=True)
+                    updated["saved_needs_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                    updated["build_url"] = (self.core.store.get("build", "pinned") or {}).get("url")
+                if follow:
+                    self.build_needs(require_build=True)  # Do not enable tracking without a pinned build.
+                    updated.pop("saved_needs", None)
+                    updated.pop("saved_needs_at", None)
+                updated["follow_ship"] = follow
+            else:
+                if "follow_ship" in q:
+                    raise ValueError("Only pinned build entries can follow the current ship.")
+                updated["qty"] = self.quantity(q.get("qty"))
+            entries = [updated if e["id"]==ident else e for e in self.entries]
             self.core.write_data(entries,FILE)
             self.entries = entries
             self.publish()
@@ -193,10 +223,10 @@ class Wishlist:
     def _add(self, q):
         if len(self.entries)>=200: raise ValueError("Keep at most 200 saved plan entries.")
         if q.get("kind")=="build" or str(q.get("item","")).strip().lower() in ("build","pinned build"):
-            return self._add_build(q.get("label"))
+            return self._add_build(q.get("label"), q.get("follow_ship"))
         entry = self._resolve(q)
         if entry.get("status")=="ambiguous": return entry
-        if entry.get("kind")=="build": return self._add_build(q.get("label"))
+        if entry.get("kind")=="build": return self._add_build(q.get("label"), q.get("follow_ship"))
         entries = self.entries + [entry]
         self.core.write_data(entries, FILE)
         self.entries = entries
@@ -281,16 +311,27 @@ class Wishlist:
         entry.update({"id": uuid.uuid4().hex[:8], "qty": qty, "label": label, "added": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
         return entry
 
-    def _add_build(self, label):
-        """Track the pinned build as one entry whose needs follow build.progress.materials (so it shrinks as you engineer)."""
+    def _add_build(self, label, follow_ship=None):
+        """Track the pinned build, optionally saving fixed requirements instead of following ship progress."""
         if label is not None and (not isinstance(label,str) or len(label)>500):
             raise ValueError("label must be text up to 500 characters")
         pinned = self.core.store.get("build", "pinned")
         if not pinned:
             raise ValueError("no build is pinned; pin an EDSY link first")
+        previous = next((e for e in self.entries if e["kind"] == "build" and e.get("build_url") == pinned.get("url")), None)
+        if follow_ship is None:
+            follow_ship = previous.get("follow_ship", True) if previous else True
+        if type(follow_ship) is not bool:
+            raise ValueError("follow_ship must be true or false.")
         entries = [e for e in self.entries if e["kind"] != "build"]
         entry = {"kind": "build", "key": "build", "name": pinned.get("name"), "module": pinned.get("ship"), "qty": 1, "label": label,
-                 "id": uuid.uuid4().hex[:8], "added": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+                 "id": uuid.uuid4().hex[:8], "added": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                 "follow_ship": follow_ship, "build_url": pinned.get("url")}
+        if not follow_ship:
+            if previous and not previous.get("follow_ship", True):
+                entry.update(saved_needs=dict(previous["saved_needs"]), saved_needs_at=previous["saved_needs_at"])
+            else:
+                entry.update(saved_needs=self.build_needs(require_build=True), saved_needs_at=entry["added"])
         entries.append(entry)
         self.core.write_data(entries, FILE)
         self.entries = entries
@@ -420,7 +461,8 @@ def setup(core, module):
                             "kind": {"type": "string", "description": "Force the kind when the text is ambiguous", "enum": ["blueprint", "experimental", "unlock", "material", "build", "synthesis"]},
                             "module": {"type": "string", "description": "Restrict the recipe search to a module"},
                             "rolls": {"type": "string", "description": "Override rolls per grade as a list, e.g. [1,2,3,4,6]; default is the rolls_per_grade hint"},
-                            "label": {"type": "string", "description": "Free note, e.g. the ship this is for"}})
+                            "label": {"type": "string", "description": "Free note, e.g. the ship this is for"},
+                            "follow_ship": {"type": "boolean", "description": "For pinned builds: true follows current ship progress; false saves fixed requirements while inventory stays live. Defaults to true for new entries; re-adding the same build preserves its choice."}})
     core.http.route("/api/wishlist/remove", w.remove, tool="wishlist_remove", method="POST", module=module.name,
                     description="Remove saved entries by id (comma-separated), or saved plan entries with all=true. Legacy material targets use individual legacy: ids or set_wishlist mode=clear.",
                     params={"id": {"type": "string", "description": "Entry id(s) from get_engineering_wishlist"},
@@ -446,5 +488,6 @@ def setup(core, module):
     core.http.route("/api/wishlist/preview", w.preview, tool="preview_material_plan", method="POST", module=module.name,
                     description="Preview an additional recipe/material target against stock left after the saved plan. Same parameters as wishlist_add. No persistence or crafting. Includes shared requirements, shortages and inventory_known.", params=preview_params)
     core.http.route("/api/wishlist/update", w.update, tool="wishlist_update", method="POST", module=module.name,
-                    description="Set the quantity of a saved material/recipe entry by id. Preserves its identity and other plans. Does not craft or change inventory.",
-                    params={"id":{"type":"string","required":True},"qty":{"type":"integer","required":True,"minimum":1,"maximum":10000}})
+                    description="Set qty for a saved material/recipe entry, or follow_ship for a pinned build entry, by id. Turning follow_ship off saves current requirements across ship changes and restarts; inventory and shortfalls remain live. Turning it on resumes current ship comparison. Does not craft or change inventory.",
+                    params={"id":{"type":"string","required":True},"qty":{"type":"integer","minimum":1,"maximum":10000},
+                            "follow_ship":{"type":"boolean"}})

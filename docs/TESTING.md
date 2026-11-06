@@ -1,5 +1,10 @@
 # Testing
 
+`test_wishlist_follow.py` checks live vs fixed build requirements, engineering
+progress, switching ships, restart persistence, live stock changes, completed
+builds, legacy entries and failed saves. `material-plan-browser.mjs` also checks
+the checkbox, a ship change, reload persistence and toggle failure recovery.
+
 Trade-to-Powerplay handoff: `test_trade_powerplay.py` checks journal evidence,
 context invalidation and authenticated HTTP/MCP parity; `trade-powerplay-browser.mjs`
 runs the real CLI/Chrome workflow with synthetic journals/provider results and

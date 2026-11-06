@@ -42,7 +42,12 @@ stock is known. Commander changes clear inventory evidence. Saved plans remain
 local to this EliteLab installation, as before; they are not commander accounts.
 
 Blueprint costs retain the existing estimated roll counts and grade-range rules.
-Pinned builds still follow live build progress. Broker cargo requirements remain
+Pinned build entries have a **Follow current ship** checkbox. Leave it checked
+to update requirements from live build progress, or uncheck it while flying the
+engineering ship to save its current requirements before switching ships. Fixed
+requirements survive restarts; inventory, shortfalls and sourcing remain live.
+Check it again to resume tracking. Ordinary recipe quantities already stay fixed.
+Broker cargo requirements remain
 visible separately from engineering material costs. Farm sites and trader data
 retain their existing community/provider coverage limits.
 
