@@ -174,6 +174,52 @@ try {
   await evaluate("Lab.post=window.followPost;document.querySelector('[data-plan-follow]').click();true");
   await waitFor("Lab.state.wishlist.entries.find(e=>e.kind==='build')?.follow_ship===true");
   assert.equal(await evaluate("Lab.state.wishlist.entries.find(e=>e.kind==='build').units"),0);
+  // Detailed exchanges use real planner data; provider fixtures make station comparison deterministic.
+  append([{event:'Materials',timestamp:'2026-11-01T10:04:00Z',Raw:[{Name:'iron',Count:20},{Name:'carbon',Count:10},{Name:'vanadium',Count:10},{Name:'germanium',Count:10}],Manufactured:[{Name:'pharmaceuticalisolators',Count:30}],Encoded:[]}]);
+  await evaluate("Lab.post('/api/wishlist/add',{item:'chemicalmanipulators',kind:'material',qty:6})");
+  await evaluate("document.querySelector('[data-plan-tab=trading]').click();true");
+  await waitFor("document.querySelector('[data-plan-exchange]')?.textContent.includes('G5')");
+  const tradeText=await evaluate("document.querySelector('.wl-trades').textContent");
+  assert.match(tradeText,/G4/);assert.match(tradeText,/Manufactured/);assert.match(tradeText,/Chemical/);
+  assert.match(tradeText,/Stock/);assert.match(tradeText,/give : receive/);
+  const traderFixture={ref:'Leesti',pad:'L',traders:{Manufactured:[
+    {station:'Nearby Harbour',system:'Nearby',dist:8,ls:5000,pad:'L',jumps:1,type:'Coriolis Starport',economy:'Industrial'},
+    {station:'Quick Approach',system:'Quick',dist:15,ls:10,pad:'L',jumps:2,type:'Orbis Starport',economy:'Industrial'},
+    {station:'Unknown <img src=x onerror=window.traderInjected=true>',system:'Unknown',dist:20,ls:null,pad:'L',jumps:2,type:'Coriolis Starport',economy:'Industrial'}]}};
+  await evaluate(`window.traderFixture=${JSON.stringify(traderFixture)};window.stationApi=Lab.api;Lab.api=function(p,q){if(p==='/api/wishlist/traders'){window.traderQuery=q;return Promise.resolve(window.traderFixture);}return window.stationApi.call(this,p,q);};document.querySelector('[data-plan-trader-category]').value='Manufactured';document.querySelector('[data-plan-trader-category]').dispatchEvent(new Event('change'));document.querySelector('[data-plan-trader-pad]').value='L';document.querySelector('[data-plan-trader-pad]').dispatchEvent(new Event('change'));document.querySelector('#wl-traders').click();true`);
+  await waitFor("document.querySelectorAll('[data-plan-trader]').length===3");
+  assert.deepEqual(await evaluate('window.traderQuery'),{types:'Manufactured',pad:'L',limit:5});
+  assert.match(await evaluate("document.querySelector('[data-plan-traders]').textContent"),/5,000 Ls/);
+  assert.match(await evaluate("document.querySelector('[data-plan-traders]').textContent"),/Coriolis Starport/);
+  assert.equal(await evaluate("document.querySelectorAll('[data-plan-traders] img').length"),0);
+  assert.equal(await evaluate('!!window.traderInjected'),false);
+  await evaluate("document.querySelector('[data-plan-trader-sort]').value='arrival';document.querySelector('[data-plan-trader-sort]').dispatchEvent(new Event('change'));true");
+  assert.match(await evaluate("document.querySelector('[data-plan-trader]').textContent"),/Quick Approach/);
+  assert.equal(await evaluate("[...document.querySelectorAll('[data-plan-arrival]')].at(-1).textContent"),'Unknown');
+  await evaluate("window.realMaterialCopy=Lab.util.copy;Lab.util.copy=value=>{window.materialCopied=value;};document.querySelector('[data-plan-trader] [data-copy]').click();true");
+  assert.equal(await evaluate('window.materialCopied'),'Quick');
+  await evaluate("Lab.util.copy=window.realMaterialCopy;true");
+  assert.match(await evaluate("document.querySelector('[data-plan-trader] a').href"),/Quick%20Approach%20%5BQuick%5D/);
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
+  const traderScroll=await evaluate("document.querySelector('[data-plan-page=trading]').getBoundingClientRect().top+scrollY-100");
+  await capture('material-trading-desktop',1440,1100,traderScroll);
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await sleep(100);
+  await capture('material-exchanges-mobile',390,844,await evaluate("document.querySelector('.plan-sourcing').getBoundingClientRect().top+scrollY-70"));
+  await capture('material-traders-mobile',390,844,await evaluate("document.querySelector('[data-plan-trader-category]').closest('section').getBoundingClientRect().top+scrollY-70"));
+  // A failed request is visible and retryable; a stale response cannot undo a new category.
+  await evaluate("Lab.api=function(p,q){return p==='/api/wishlist/traders'?Promise.reject(Error('Trader lookup unavailable')):window.stationApi.call(this,p,q);};document.querySelector('#wl-traders').click();true");
+  await waitFor("document.querySelector('[data-plan-traders]').textContent.includes('Trader lookup unavailable')");
+  await evaluate("Lab.api=function(p,q){return p==='/api/wishlist/traders'?new Promise(r=>window.delayedTrader=r):window.stationApi.call(this,p,q);};document.querySelector('#wl-traders').click();true");
+  await waitFor('!!window.delayedTrader');
+  await evaluate("document.querySelector('[data-plan-trader-category]').value='Raw';document.querySelector('[data-plan-trader-category]').dispatchEvent(new Event('change'));window.delayedTrader(window.traderFixture);true");await sleep(100);
+  assert.equal(await evaluate("document.querySelectorAll('[data-plan-trader]').length"),0);
+  assert.match(await evaluate("document.querySelector('[data-plan-traders]').textContent"),/Selection changed/);
+  await evaluate("Lab.api=window.stationApi;true");
+  await send('Page.reload');
+  await waitFor("document.querySelector('[data-plan-tab=trading]')?.getAttribute('aria-selected')==='true'");
+  assert.equal(await evaluate("document.querySelector('[data-plan-trader-category]').value"),'Raw');
+  assert.equal(await evaluate("document.querySelector('[data-plan-trader-pad]').value"),'L');
+  assert.equal(await evaluate("document.querySelector('[data-plan-trader-sort]').value"),'arrival');
   assert.deepEqual(errors,[]);
   assert.deepEqual(await evaluate("[...document.querySelectorAll('.render-error')].map(e=>e.textContent)"),[]);
   const applicationLog=serverLog.replace(/Traceback \(most recent call last\):(?:(?!Traceback)[\s\S])*?ConnectionAbortedError: \[WinError 10053\][^\n]*\n/g,'').replace(/-{20,}\r?\nException occurred during processing of request[\s\S]*?ConnectionAbortedError: \[WinError 10053\][^\n]*\n-{20,}/g,'');

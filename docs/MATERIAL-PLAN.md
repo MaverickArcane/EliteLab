@@ -1,7 +1,7 @@
 # Materials and recipe planning
 
 Use **Materials / Recipes** in the dashboard navigation. The main panel has
-three views: Plan recipes, Inventory, and Recorded synthesis / FSD. The pinned
+four views: Plan recipes, Trade materials, Inventory, and Recorded synthesis / FSD. The pinned
 build panel follows the planner. Existing recipe-search and material panels
 remain available in Custom layout; synthesis no longer has a separate basket.
 
@@ -14,7 +14,14 @@ remain available in Custom layout; synthesis no longer has a separate basket.
    addition's costs and shortages before saving.
 3. Add to saved plan. Edit a quantity in place or remove its entry. The combined
    requirements and material exchange plan update with journal inventory changes.
-4. Find sources for a material, search sites for all shortfalls, or find traders.
+4. Use Trade materials to inspect ordered exchanges and compare nearby traders.
+   Both sides show grade, category, family, quantity and projected stock before
+   and after each step, with give:receive ratios and cross-family exchanges marked.
+   Category buttons find the matching trader. Filter by category or large pads;
+   sort the returned nearby stations by system distance or arrival distance (Ls).
+   Station cards include estimated ship jumps, pad size, station type, economy,
+   system/station copy buttons and an Inara link. Unknown distances stay unknown.
+   Find sources for a material or search sites for all shortfalls in Gather materials.
    Source results are cleared when the plan or stock changes; refresh explicitly.
 5. Use Inventory for current stock and session receipts. Use Recorded synthesis /
    FSD for actual journal craft history, injection alternatives and boost evidence.
@@ -94,9 +101,15 @@ requirements. Use the unified preview for additions to the saved plan.
 quantities, commander switches, unknown inventory, observed crafts, failed writes,
 concurrent edits, authenticated MCP tools/prompt and HTTP authentication/Host checks.
 
+`test_material_trader_details.py` checks station metadata, pad filters, precise
+jump estimates, missing/invalid distances and independent provider failures.
+`test_material_trades.py` validates before/after balances, grades, categories and
+families while executing each suggested exchange against a copy of inventory.
+
 `node tests/material-plan-browser.mjs` runs the real CLI with isolated synthetic
 journals and data. It checks persistence, live SSE updates, dirty edits, inventory,
 sourcing, FSD evidence, errors/retry, old preview rejection, layout compatibility,
-escaping and responsive screenshots. Images are fixture evidence, not an in-game
+escaping, exchange metadata, station sorting, stale trader requests, retries and
+responsive screenshots. Images are fixture evidence, not an in-game
 crafting session. Existing owner/crew, expedition, mining and history browser
 suites continue to exercise Custom layout.

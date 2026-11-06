@@ -396,16 +396,25 @@ class Wishlist:
         pad = (q.get("pad") or "").upper()
         jr = self.core.store.get("journal", "jump_range_now")
 
+        def distance(value, digits=0):
+            if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                return None
+            return round(value, digits)
+
+        def station(s):
+            dist, ls = distance(s.get("distance"), 1), distance(s.get("distance_to_arrival"))
+            raw_dist = s.get("distance")
+            jumps = math.ceil(raw_dist / jr) if dist is not None and type(jr) in (int, float) and math.isfinite(jr) and jr > 0 else None
+            return {"system": s.get("system_name"), "station": s.get("name"), "dist": dist, "jumps": jumps,
+                   "ls": ls, "pad": svc.pad(s), "type": s.get("type"), "economy": s.get("primary_economy")}
+
         def one(t):
             filters = {"material_trader": {"value": [t]}}
             if pad == "L":
                 filters["has_large_pad"] = {"value": True}
             try:
                 d = svc.spansh_stations(filters, ref, size=limit, ttl=1800)
-                return t, [{"system": s.get("system_name"), "station": s.get("name"), "dist": round(s.get("distance", 0), 1),
-                            "jumps": (math.ceil(s.get("distance", 0) / jr) if jr else None),
-                            "ls": round(s.get("distance_to_arrival") or 0), "pad": svc.pad(s), "type": s.get("type"),
-                            "economy": s.get("primary_economy")} for s in d.get("results", [])]
+                return t, [station(s) for s in d.get("results", [])]
             except Exception as ex:
                 return t, {"error": str(ex)}
 
@@ -477,8 +486,9 @@ def setup(core, module):
                                 "1->3 per grade down and 6->1 per grade up, other families cost 6x more.",
                     params={"reserve": {"type": "integer", "description": "Units of each material to keep back", "default": 0}})
     core.http.route("/api/wishlist/traders", w.traders, tool="find_material_traders", module=module.name,
-                    description="Nearest material traders by type (Spansh), default from the current system and only for the types "
-                                "the trade plan needs. Includes distance, jump estimate, pad size and station type.",
+                    description="Nearest material traders by category (Spansh), default from the current system and only for the categories "
+                                "the trade plan needs. Includes system distance (Ly), arrival distance from the main star (ls), "
+                                "jump estimate, pad size, station type and economy. Missing distances stay null.",
                     params={"types": {"type": "string", "description": "Comma-separated subset of Raw, Manufactured, Encoded; default = types in the trade plan, else all"},
                             "ref": {"type": "string", "description": "Reference system; default = current system"},
                             "limit": {"type": "integer", "description": "Traders per type (<=10)", "default": 3},

@@ -1,5 +1,10 @@
 # Testing
 
+Material trading detail: `test_material_trader_details.py` checks unknown vs
+zero distances, precise jump estimates, station detail and provider failures.
+The material plan browser test covers grade/family/ratio details, category/pad
+selection, arrival sorting, unknown approaches, escaping, stale results and retry.
+
 `test_wishlist_follow.py` checks live vs fixed build requirements, engineering
 progress, switching ships, restart persistence, live stock changes, completed
 builds, legacy entries and failed saves. `material-plan-browser.mjs` also checks

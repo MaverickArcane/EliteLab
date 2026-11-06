@@ -178,6 +178,12 @@ The tables themselves are served by `/api/recipes` and `/api/recipes/get`, never
 
 ## wishlist (module: wishlist)
 
+Exchange `give` and `get` rows include category, family, grade, quantity and
+projected `before`/`after` stock for that ordered step. Unresolved requirements
+retain material identity. Trader destination `dist` (Ly), `ls` (arrival from
+the main star) and `jumps` are null when their inputs are unavailable, not zero.
+Zero remains a valid reported distance. Inventory rows also include family.
+
 | Key | Type |
 |---|---|
 | `entries` | `[{id, kind (blueprint/experimental/unlock/material/build/synthesis), key, name, module, grade, from_grade, qty, rolls, label, added, commodities?, broker?, materials, units, short, complete}]`; a `build` entry's needs are `build.progress.materials` |

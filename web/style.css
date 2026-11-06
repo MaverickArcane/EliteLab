@@ -462,6 +462,27 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 @media(max-width:900px){.plan-columns{grid-template-columns:1fr}.plan-injections{grid-template-columns:1fr}#workspace-heading>span{display:none}}
 @media(max-width:760px){#workspace-nav{padding:4px 10px 0}#workspace-nav button{padding:10px 12px}#workspace-heading{padding:16px 14px 0}#workspace-heading h2{font-size:21px}.plan-intro,.plan-heading{align-items:start;flex-direction:column}.plan-composer{padding:14px}.plan-tabs button{padding:10px}.plan-entry .tag{float:none;margin-left:8px}}
 .plan-columns>*{min-width:0}.plan-scroll{max-width:100%}.plan-composer form{min-width:0}.material-plan .plan-intro .note{margin:0 0 10px}
+.material-plan h4{font-size:14px;margin:0 0 14px;color:var(--fg)}
+.plan-material-meta{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.plan-grade{display:inline-block;padding:2px 6px;border:1px solid var(--line-2);color:var(--accent);font-size:11px;white-space:nowrap}
+.plan-supply-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:28px;align-items:start}
+.plan-supply-layout>section{min-width:0}.plan-supply-layout>section+section{padding-left:24px;border-left:1px solid var(--line)}
+.plan-exchange-summary{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.plan-exchange-list{list-style:none;padding:0;margin:0;max-height:720px;overflow:auto}
+.plan-exchange{border:1px solid var(--line);padding:16px;margin:0 0 12px;background:var(--bg-2)}
+.plan-exchange-heading{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11px;margin-bottom:14px;color:var(--muted)}
+.plan-exchange-heading>b{color:var(--fg);margin-right:auto}.plan-exchange-pair{display:grid;grid-template-columns:minmax(0,1fr) 64px minmax(0,1fr);gap:12px}
+.plan-exchange-pair strong{display:block;margin:6px 0;overflow-wrap:anywhere;font-size:14px}.plan-exchange-rate{text-align:center;align-self:center;color:var(--accent)}
+.plan-exchange-rate small{font-size:10px}.plan-unresolved{margin-top:16px}.plan-unresolved summary{cursor:pointer;color:var(--link)}
+.plan-trader-filters{display:flex;gap:12px;flex-wrap:wrap}.plan-trader-filters label{flex:1;min-width:130px}
+.plan-trader-group{margin-top:20px}.plan-trader{padding:16px;border:1px solid var(--line);margin-bottom:12px;background:var(--bg-2);overflow-wrap:anywhere}
+.plan-trader-title{display:flex;gap:12px;align-items:start;justify-content:space-between;margin-bottom:6px}
+.plan-trader-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:18px 0 12px}.plan-trader-metrics .k{display:block;font-size:10px;line-height:1.5}
+.plan-trader-metrics strong{display:block;font-size:14px;margin-top:4px}.plan-trader .plan-actions{margin-bottom:0;align-items:center}
+.plan-farm-sources{margin-top:24px;border-top:1px solid var(--line);padding-top:20px}
+[data-plan-page="trading"] .plan-sourcing{border-top:0;margin-top:0;padding-top:0}
+@media(max-width:1000px){.plan-supply-layout{grid-template-columns:1fr}.plan-supply-layout>section+section{padding-left:0;padding-top:20px;border-left:0;border-top:1px solid var(--line)}}
+@media(max-width:480px){.plan-exchange{padding:12px}.plan-exchange-pair{grid-template-columns:1fr}.plan-exchange-rate{text-align:left}.plan-exchange-rate small{display:inline;margin-left:8px}.plan-trader{padding:12px}.plan-trader-metrics{gap:8px}.plan-trader-metrics strong{font-size:13px}}
 
 /* Rare-goods target planning */
 .target-desk { overflow-wrap:anywhere; }
