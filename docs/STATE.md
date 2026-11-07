@@ -606,6 +606,13 @@ releases its inventory lock before synchronous callbacks. Build edits are
 serialized. Build and wishlist edits publish only after their disk write succeeds.
 
 History responses and commander selection are documented in [HISTORY.md](HISTORY.md).
+
+`ptn` owns a separate revisioned plan and bounded prior-plan summaries in
+`ptn.json`. Its namespace also publishes current context, last bounded route scan,
+public official-board snapshot, readiness and scenario economics. It reads journal
+and trade evidence without mutating their namespaces. Browser preferences and
+selected tab use `ptn.preferences.v1` and `ptn.tab.v1`; no game or Discord action is
+performed. See [PTN-TRADING.md](PTN-TRADING.md).
 `history.selected_commander` is browser-only state shared with the map.
 
 Wishlist entries also expose ingredient allocations (`reserved_before`, `available`,

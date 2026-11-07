@@ -83,6 +83,7 @@ import {StateFeed} from './state-feed.js';
     materials:{label:'Materials / Recipes',description:'Saved recipes, shared materials and recorded synthesis',cards:['wishlist','build']},
     flight:{label:'Flight',description:'Route planning and ship status',cards:['neutron','ship','location','map','feed']},
     trade:{label:'Trading',description:'Commodity routes, cargo and carrier operations',cards:['personal','loop','cargo','market','targets','haul','party','trade','carrier']},
+    ptn:{label:'PTN desk',description:'Find a better offer. Scout both ends. Give haulers a reason to fly.',cards:['ptn']},
     mining:{label:'Mining',description:'Mining sessions, locations and buyers',cards:['mining','cargo','map']},
     powerplay:{label:'Powerplay',description:'Pledge, merits, sell targets and combat',cards:['powerplay','merits','targets','loop','combat']},
     history:{label:'History',description:'Recorded balances, merit cycles and collection locations',cards:['history']},
@@ -108,7 +109,7 @@ import {StateFeed} from './state-feed.js';
   function setWorkspace(id){if(!WORKSPACES[id])return;workspace=id;ls.set('workspace.v1',id);workspaceView();}
   document.getElementById('workspace-nav').onclick=e=>{const b=e.target.closest('[data-workspace]');if(b)setWorkspace(b.dataset.workspace);};
   Lab.util.tabKeys(document.getElementById('workspace-nav'),'[data-workspace]');
-  Lab.focusCard=id=>{setWorkspace(id==='wishlist'?'materials':'all');if(!mounted[id])showCard(id);const card=mounted[id]?.sec;card?.classList.remove('collapsed');card?.scrollIntoView({block:'start',behavior:'smooth'});};
+  Lab.focusCard=id=>{setWorkspace(id==='wishlist'?'materials':id==='ptn'?'ptn':'all');if(!mounted[id])showCard(id);const card=mounted[id]?.sec;card?.classList.remove('collapsed');card?.scrollIntoView({block:'start',behavior:'smooth'});};
 
   const isMobile = () => matchMedia('(max-width: 760px)').matches;
   const mounted = {};                // id -> { sec, off, def, body }

@@ -1,0 +1,6 @@
+{
+  "name": "ptn", "version": "1.0.0",
+  "description": "Hauler-focused PTN route scouting, payout planning and affiliate adverts.",
+  "requires": ["journal", "trade"], "provides": ["ptn"], "order": 29,
+  "cards": [{"id": "ptn", "title": "PTN trade desk", "span": 12, "script": "card.js", "order": 44}]
+}

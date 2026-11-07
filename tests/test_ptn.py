@@ -1,0 +1,295 @@
+"""PTN economic guarantees, market evidence and independent operation persistence."""
+import copy
+from datetime import datetime, timedelta, timezone
+import random
+import tempfile
+import unittest
+from unittest.mock import patch
+
+from test_elitelab import Core, config, loader
+from modules.ptn.planning import DEFAULTS, advert, pricing, settings
+
+
+class PricingTests(unittest.TestCase):
+    def test_whole_percent_prices_preserve_floors_and_conserve_every_credit(self):
+        rng = random.Random(5)
+        for _ in range(120):
+            mean = rng.randint(100,100000)
+            buy = rng.randint(10,20000)
+            sell = buy+rng.randint(45000,150000)
+            r = pricing(buy,sell,18000,mean,DEFAULTS)
+            if r['settings_valid']:
+                self.assertGreaterEqual(r['loading_per_ton'],DEFAULTS['loading_floor'])
+                self.assertGreaterEqual(r['unloading_per_ton'],DEFAULTS['unloading_floor'])
+                self.assertGreaterEqual(r['owner_per_ton'],DEFAULTS['owner_floor'])
+                self.assertEqual(r['hauler_total']+r['owner_total'],r['gross_total'])
+                self.assertEqual(r['carrier_buy'],(mean*r['buy_percent']+50)//100)
+                self.assertEqual(r['carrier_sell'],(mean*r['sell_percent']+50)//100)
+
+    def test_absent_reference_and_impossible_price_range_are_not_valid_settings(self):
+        self.assertFalse(pricing(100,100000,18000,None,DEFAULTS)['settings_valid'])
+        self.assertFalse(pricing(100,100000,18000,1,DEFAULTS)['settings_valid'])
+        self.assertFalse(pricing(100,20000,18000,10000,DEFAULTS)['settings_valid'])
+
+    def test_surplus_mode_maximizes_weaker_hauler_payout_and_can_be_disabled(self):
+        shared=pricing(4000,75000,18000,10000,DEFAULTS)
+        retained=pricing(4000,75000,18000,10000,{**DEFAULTS,'share_surplus':False})
+        self.assertEqual((shared['loading_per_ton'],shared['unloading_per_ton']),(34200,34300))
+        self.assertEqual(shared['owner_per_ton'],2500)
+        self.assertEqual((retained['loading_per_ton'],retained['unloading_per_ton']),(20000,20000))
+        self.assertEqual(retained['owner_after_reserve'],553000000)
+        asymmetric=pricing(4000,75000,18000,10000,{**DEFAULTS,'unloading_floor':40000})
+        self.assertGreaterEqual(asymmetric['unloading_per_ton'],40000)
+        self.assertGreaterEqual(asymmetric['loading_per_ton'],20000)
+        self.assertGreaterEqual(asymmetric['owner_per_ton'],2500)
+
+    def test_exact_affiliate_markdown_no_rounding_up_and_no_mentions(self):
+        text = advert('N.A.C. TEST','K9T-GVT','Liquor','Port','System','loading',20047,18001)
+        self.assertEqual(text,'**N.A.C. TEST (K9T-GVT)** is loading **Liquor** from **Port** (L pads) in **System**. 20.047k/unit profit, 18.001k units')
+        self.assertIn('is unloading **Liquor** to **Port**',advert('Test','K9T-GVT','Liquor','Port','System','unloading',20000,18000))
+        with self.assertRaises(ValueError):
+            advert('@everyone','K9T-GVT','Liquor','Port','System','loading',20000,18000)
+        with self.assertRaises(ValueError):
+            advert('Test\nAnother line','K9T-GVT','Liquor','Port','System','loading',20000,18000)
+
+    def test_settings_reject_invalid_and_unbounded_inputs(self):
+        for query in ({'quantity':True},{'radius':float('nan')},{'max_hop':501},{'hours':25},
+                      {'loading_floor':0},{'breadth':49},{'cost_reserve':-1},{'avoid_active':'maybe'}):
+            with self.subTest(query=query),self.assertRaises(ValueError):
+                settings(query)
+
+
+class PTNTests(unittest.TestCase):
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory(prefix='elitelab-ptn-test-')
+        self.addCleanup(temp.cleanup)
+        self.data_dir = temp.name
+        for name,value in [('DATA_DIR',temp.name),('OFFLINE',False)]:
+            p = patch.object(config,name,value);p.start();self.addCleanup(p.stop)
+        self.core = Core();self.addCleanup(self.core.close)
+        self.buy = dict(commodityName='liquor',marketId=101,stationName='Buy Port',systemName='Source',stationType='Orbis',
+                       systemX=20,systemY=0,systemZ=0,maxLandingPadSize=3,distanceToArrival=100,
+                       buyPrice=4000,sellPrice=3900,stock=500000,demand=10,meanPrice=10000,
+                       bodyName='Source A 2',bodyId=2,updatedAt=self.time())
+        self.sell = {**self.buy,'marketId':202,'stationName':'Sell Port','systemName':'Buyer','systemX':200,
+                     'sellPrice':75000,'buyPrice':0,'demand':200000,'bodyName':'Buyer A 3'}
+        self.board = dict(last_updated=self.time(),missions=[dict(mission_type='load',commodity='Gold',
+            system='Elsewhere',station='Station',carrier_name='P.T.N. Test',carrier_identifier='ABC-123',profit=30,demand='18.0')])
+        self.fetch_patch = patch.object(self.core.services,'fetch_json',side_effect=self.fetch)
+        self.fetch_patch.start();self.addCleanup(self.fetch_patch.stop)
+        loader.load_all(self.core)
+        self.desk = self.core.modules['ptn'].ptn
+        self.core.store.update('journal',{'cmdr':'Fixture Pilot','system':'Sol','star_pos':[0,0,0],
+            'carrier':{'name':'N.A.C. Test','callsign':'TST-001','system':'Sol','free_space':25000,'reserved_space':0,
+                       'balance':2000000000,'stats_time':self.time()},'docked':False})
+
+    @staticmethod
+    def time(hours=0):
+        return (datetime.now(timezone.utc)+timedelta(hours=hours)).isoformat().replace('+00:00','Z')
+
+    def fetch(self,url,*args,**kwargs):
+        if url.endswith('/missions'):return copy.deepcopy(self.board)
+        if url.endswith('/commodities'):
+            return [dict(commodityName=name,totalStock=500000,minBuyPrice=4000,maxSellPrice=75000)
+                    for name in ('liquor','gold','silver','agronomictreatment')]
+        if '/exports?' in url or '/imports?' in url:
+            return [copy.deepcopy(self.buy if '/exports?' in url else self.sell)]
+        raise RuntimeError('PTN fixture blocks unrelated provider requests')
+
+    def call(self,name,**q):
+        return self.core.http.tools[name].fn(q)
+
+    def scan(self,**q):
+        return self.call('find_ptn_routes',**q)
+
+    def choose(self):
+        r = self.scan()['rows'][0]
+        return self.call('select_ptn_route',revision=self.desk.data['revision'],id=r['id'])
+
+    def mutate(self,action,**q):
+        return self.call('update_ptn_plan',revision=self.desk.data['revision'],action=action,**q)
+
+    def capture(self,side):
+        target = self.buy if side=='buy' else self.sell
+        ts = self.time()
+        self.desk.dock_event('journal.Docked',{'timestamp':ts})
+        self.core.store.update('journal',dict(docked=True,system=target['systemName'],station=target['stationName'],station_type='Orbis'))
+        self.core.bus.emit('journal.file.Market',dict(timestamp=self.time(),MarketID=target['marketId'],
+            StationName=target['stationName'],StarSystem=target['systemName'],Items=[dict(Name='$liquor_name;',Name_Localised='Liquor',
+                BuyPrice=target['buyPrice'],SellPrice=target['sellPrice'],Stock=target['stock'],Demand=target['demand'],MeanPrice=10000)]))
+        return self.call('capture_ptn_market',revision=self.desk.data['revision'],side=side)
+
+    def scout(self):
+        self.choose();self.capture('buy');return self.capture('sell')
+
+    def carrier(self,**values):
+        c = self.core.store.get('journal','carrier');self.core.store.set('journal','carrier',{**c,**values})
+
+    def confirmed(self):
+        self.scout();self.mutate('stage',stage='loading');self.carrier(system='Source')
+        return self.mutate('confirm',price=24000,remaining=18000,
+                           checks={k:True for k in ('near_station','docking_open','funds_checked','competition_checked')})
+
+    def test_niche_defaults_orbital_filters_and_both_end_radius(self):
+        r = self.scan()
+        self.assertEqual([row['commodity'] for row in r['rows']],['liquor'])
+        self.assertTrue(r['rows'][0]['viable'])
+        self.assertEqual(r['rows'][0]['pricing']['owner_after_reserve'],40000000)
+        self.assertGreaterEqual(r['rows'][0]['pricing']['loading_per_ton'],34000)
+        self.assertGreaterEqual(r['rows'][0]['pricing']['unloading_per_ton'],34000)
+        self.assertEqual(self.core.store.get('ptn')['result']['scanned'],1)
+        for changes in ({'stationType':'CraterOutpost'},{'maxLandingPadSize':2},{'stationType':'Unknown'},
+                        {'isPlanetary':True},{'systemX':501},{'updatedAt':self.time(-7)},
+                        {'distanceToArrival':None},{'distanceToArrival':3000},{'demand':0}):
+            old = self.sell;self.sell = {**old,**changes}
+            self.assertEqual(self.scan()['rows'],[],changes)
+            self.sell = old
+        self.sell['updatedAt']=self.time(1)
+        self.assertEqual(self.scan()['rows'],[])
+
+    def test_no_floor_relaxation_near_misses_and_missing_reference(self):
+        self.sell['sellPrice']=30000
+        r = self.scan()['rows'][0]
+        self.assertFalse(r['viable']);self.assertGreater(r['pricing']['spread_short'],0)
+        self.sell['sellPrice']=75000
+        self.buy['meanPrice']=self.sell['meanPrice']=None
+        self.assertFalse(self.scan()['rows'][0]['viable'])
+
+    def test_board_exclusion_benchmark_unknown_and_stale(self):
+        self.board['missions'][0]['commodity']='Liquor'
+        self.assertEqual(self.scan()['rows'],[])
+        self.assertEqual(self.scan(avoid_active=False)['rows'][0]['official_competitors'],0)
+        self.assertEqual(self.desk.board['benchmarks']['loading'],30000)
+        self.board['last_updated']=self.time(-1)
+        row = self.scan()['rows'][0]
+        self.assertIsNone(row['official_competitors'])
+        self.assertFalse(self.desk.board['available'])
+
+    def test_station_competition_and_supply_buffer(self):
+        self.board['missions'][0].update(commodity='Liquor',station='Buy Port',system='Source')
+        self.buy['stock']=30000
+        row = self.scan(avoid_active=False)['rows'][0]
+        self.assertEqual(row['official_competitors'],1)
+        self.assertFalse(row['viable'])
+
+    def test_select_and_cancel_do_not_mutate_existing_trade(self):
+        self.core.store.update('trade',{'plan':{'commodity':'silver'},'operation':{'stage':'cancelled'}})
+        before = self.core.store.get('trade')
+        self.choose();self.mutate('stage',stage='cancelled')
+        self.assertEqual(before,self.core.store.get('trade'))
+
+    def test_scout_capture_requires_current_station_and_snapshot_and_does_not_invent_prices(self):
+        self.choose()
+        with self.assertRaisesRegex(ValueError,'Dock'):
+            self.call('capture_ptn_market',revision=self.desk.data['revision'],side='buy')
+        state = self.capture('buy')
+        self.assertEqual(state['plan']['scouts']['buy']['source'],'Local market journal')
+        self.assertEqual(state['plan']['name'],'Liquor')
+        self.desk.docked_at=datetime.now(timezone.utc).timestamp()+1
+        with self.assertRaisesRegex(ValueError,'Dock'):
+            self.call('capture_ptn_market',revision=self.desk.data['revision'],side='buy')
+
+    def test_scouts_and_price_checks_gate_advert_on_server(self):
+        self.choose()
+        with self.assertRaisesRegex(ValueError,'Scout'):
+            self.mutate('stage',stage='loading')
+        state = self.confirmed()
+        self.assertTrue(state['operation']['ready'])
+        result = self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
+        self.assertIn('**N.A.C. Test (TST-001)** is loading **Liquor**',result['advert'])
+        self.assertTrue(result['copy_text'].endswith('\nSCO FSD recommended.'))
+        self.assertEqual(result['profit_per_ton'],20000)
+        self.assertEqual(result['remaining'],18000)
+        self.mutate('confirm',price=23999,remaining=18000,checks=state['operation']['checks'])
+        with self.assertRaisesRegex(ValueError,'underpays'):
+            self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
+
+    def test_other_carrier_orders_do_not_count_as_free_space_but_this_confirmed_order_does(self):
+        self.confirmed();self.carrier(free_space=0,reserved_space=18000)
+        self.assertFalse(self.desk.view()['operation']['ready'])
+        self.core.store.set('trade','orders',{'liquor':dict(side='buy',price=24000,quantity=18000,updated_at=self.time())})
+        self.assertTrue(self.desk.view()['operation']['ready'])
+        self.core.store.set('trade','orders',{'silver':dict(side='buy',price=24000,quantity=18000,updated_at=self.time())})
+        self.assertFalse(self.desk.view()['operation']['ready'])
+
+    def test_unloading_retains_real_loading_cost_and_does_not_require_loading_station_revisit(self):
+        state = self.confirmed()
+        self.mutate('confirm',price=25000,remaining=0,checks=state['operation']['checks'])
+        self.mutate('stage',stage='transit');self.mutate('stage',stage='unloading');self.carrier(system='Buyer')
+        self.desk.data['plan']['scouts']['buy']['observed_at']=self.time(-12)
+        self.desk.data['plan']['scouts']['buy']['volume']=0
+        state = self.mutate('confirm',price=55000,remaining=5000,checks=state['operation']['checks'])
+        self.assertTrue(state['operation']['ready'])
+        costs=state['operation']['pricing']
+        self.assertEqual(costs['owner_per_ton'],30000)
+        self.assertEqual(costs['hauler_total']+costs['owner_total'],costs['gross_total'])
+        result = self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
+        self.assertIn('is unloading **Liquor** to **Sell Port**',result['advert'])
+        self.assertIn('5k units',result['advert'])
+        with self.assertRaisesRegex(ValueError,'zero'):
+            self.mutate('stage',stage='complete')
+        self.mutate('remaining',remaining=0)
+        self.assertEqual(self.mutate('stage',stage='complete')['plan']['stage'],'complete')
+
+    def test_remaining_volume_is_used_for_partial_order(self):
+        state = self.confirmed()
+        self.mutate('confirm',price=24000,remaining=5000,checks=state['operation']['checks'])
+        self.desk.data['plan']['scouts']['buy']['volume']=6000
+        self.assertTrue(self.desk.view()['operation']['ready'])
+
+    def test_scout_and_order_expiry_are_rechecked_at_advert_time(self):
+        self.confirmed()
+        self.desk.data['plan']['orders']['loading']['checked_at']=self.time(-2)
+        with self.assertRaisesRegex(ValueError,'hour old'):
+            self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
+        self.desk.data['plan']['scouts']['sell']['observed_at']=self.time(-7)
+        with self.assertRaisesRegex(ValueError,'expired'):
+            self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
+
+    def test_stale_carrier_stats_block_capacity_claim_until_management_is_refreshed(self):
+        self.confirmed();self.carrier(stats_time=self.time(-2))
+        with self.assertRaisesRegex(ValueError,'Carrier Management'):
+            self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
+        self.carrier(stats_time=self.time())
+        self.assertTrue(self.desk.view()['operation']['ready'])
+
+    def test_atomic_save_stale_revision_owner_scope_and_persistence(self):
+        self.choose();before=copy.deepcopy(self.desk.data)
+        with patch.object(self.core,'write_data',side_effect=OSError('disk full')):
+            with self.assertRaises(OSError):self.mutate('stage',stage='cancelled')
+        self.assertEqual(self.desk.data,before)
+        with self.assertRaisesRegex(ValueError,'changed'):
+            self.call('update_ptn_plan',revision=0,action='stage',stage='cancelled')
+        self.core.store.set('party','mode','member')
+        with self.assertRaisesRegex(ValueError,'owner'):
+            self.mutate('stage',stage='cancelled')
+        self.core.store.set('party','mode','solo')
+        self.core.store.set('journal','cmdr','Other pilot')
+        with self.assertRaisesRegex(ValueError,'commander'):
+            self.mutate('stage',stage='cancelled')
+        reloaded=type(self.desk)(self.core)
+        self.assertEqual(reloaded.data['plan'],before['plan'])
+
+    def test_manual_post_confirmation_and_expiry_do_not_send_anything(self):
+        self.confirmed()
+        with patch.object(self.core.services,'fetch_json',side_effect=AssertionError('no posting')):
+            state=self.mutate('posted',link='https://discord.com/channels/1/2/3')
+        self.assertIsNotNone(state['operation']['posted'])
+        self.desk.data['plan']['posted']['loading']['at']=self.time(-49)
+        self.assertTrue(self.desk.view()['operation']['advert_expired'])
+
+    def test_newer_journal_order_updates_advert_quantity_and_changed_price_blocks_copy(self):
+        self.confirmed()
+        self.core.store.set('trade','orders',{'liquor':dict(side='buy',price=24000,quantity=12000,updated_at=self.time(0.001))})
+        result=self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
+        self.assertEqual(result['remaining'],12000)
+        self.assertIn('12k units',result['advert'])
+        self.core.store.set('trade','orders',{'liquor':dict(side='buy',price=23000,quantity=12000,updated_at=self.time(0.001))})
+        with self.assertRaisesRegex(ValueError,'newer journal order'):
+            self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
+
+    def test_no_network_at_startup_or_view_and_offline_search_has_actionable_error(self):
+        with patch.object(self.core.services,'fetch_json',side_effect=AssertionError('no network')):
+            self.desk.view();self.desk.publish()
+        with patch.object(config,'OFFLINE',True),self.assertRaisesRegex(ValueError,'offline'):
+            self.scan()

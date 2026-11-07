@@ -913,6 +913,12 @@ disable it. A changed token is rejected. `eligibility` stays `unknown` and
 `expected_merits` stays null. It neither fetches markets nor changes the route.
 See [TRADE-POWERPLAY.md](TRADE-POWERPLAY.md) for the full response and workflow.
 
+## PTN affiliate trade planning
+
+The separate PTN module exposes route discovery, journal scouting, owner-reviewed
+order checks and exact affiliate adverts. All mutations use a current revision.
+See [PTN-TRADING.md](PTN-TRADING.md) for its seven tools and evidence requirements.
+
 ## Unified materials and recipe planning
 
 `preview_material_plan` (POST `/api/wishlist/preview`) accepts wishlist_add inputs

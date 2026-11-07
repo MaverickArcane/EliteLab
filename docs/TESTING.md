@@ -1,5 +1,10 @@
 # Testing
 
+PTN carrier planning has isolated economic/evidence tests in `test_ptn.py` and a
+real HTTP/SSE browser run, `node tests/ptn-browser.mjs`, with fixture market visits,
+both phases, exact affiliate Markdown and responsive captures. No messages are
+sent to Discord. See [PTN-TRADING.md](PTN-TRADING.md#validation).
+
 Tabbed layouts and material workspace: the material plan browser test checks
 3440x1440, 1920x1080, 1366x768 and 1280x720 sizing, internal list scrolling,
 requirements filters, recipe preselection, keyboard navigation and tab roles.
