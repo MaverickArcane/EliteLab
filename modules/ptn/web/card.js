@@ -1,6 +1,6 @@
 /* Carrier trade discovery, explicit payout arithmetic and checked PTN adverts. */
 (() => {
-  const {esc,fmt,ls}=Lab.util, KEY='ptn.preferences.v2';
+  const {esc,fmt,ls}=Lab.util, KEY='ptn.preferences.v3';
   const money=n=>`${fmt(n)} Cr`, short=n=>n==null?'Unknown':`${(n/1e6).toLocaleString(undefined,{maximumFractionDigits:2})}m`;
   const age=iso=>{const t=Date.parse(iso);if(!Number.isFinite(t))return 'Age unknown';const m=Math.max(0,Math.floor((Date.now()-t)/60000));return m<60?`${m} min ago`:`${Math.floor(m/60)} h ago`;};
   const button=(action,text,cls='',disabled=false)=>`<button type="button" data-ptn-action="${action}" class="${cls}" ${disabled?'disabled':''}>${text}</button>`;
@@ -8,6 +8,7 @@
   const link=(href,text)=>`<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
   const metric=(label,value,sub='',cls='')=>`<div class="ptn-metric ${cls}"><span class="k">${label}</span><strong>${value}</strong>${sub?`<small>${sub}</small>`:''}</div>`;
   const field=(name,label,value,min=0,max=1e9)=>`<label>${label}<input name="${name}" type="number" min="${min}" max="${max}" step="1" value="${esc(value)}" required></label>`;
+  const jumpField=(name,label,value)=>`<label>${label}<select name="${name}">${[500,1000,1500,2000,2500].map(n=>`<option value="${n}" ${Number(value)===n?'selected':''}>${n/500} jump${n===500?'':'s'}</option>`).join('')}</select></label>`;
   const stages=['scouting','loading','transit','unloading','complete'];
   const stageNames=['Scout','Load','Move','Unload','Complete'];
   const tabs={find:'Find trades',run:'Scout & run',advert:'Advert',board:'Public board'};
@@ -27,6 +28,8 @@
       <p class="note">Large pads. Unloading stays orbital. Prices must leave you a positive return after the reserve.</p>
       <label>Who does the hauling?<select name="haul_mode">${Object.entries(modes).map(([id,label])=>`<option value="${id}" ${p.haul_mode===id?'selected':''}>${label}</option>`).join('')}</select></label>
       <button type="submit" class="primary ptn-scan" ${u.busy||d.searching?'disabled':''}>${u.busy||d.searching?'Searching markets...':'Search routes'}</button>
+      <div class="ptn-fields">${jumpField('radius','Carrier to loading station',p.radius)}${jumpField('max_hop','Loading to buyer',p.max_hop)}</div>
+      <p class="note">All non-rare commodities by default. Jump counts are minimums at 500 Ly; intermediate systems and fuel must be checked.</p>
       <label class="ptn-check-line"><span><input type="checkbox" name="allow_surface_loading" ${p.allow_surface_loading?'checked':''}> Include surface loading</span><small>Off by default. Surface ports may have cheaper stock, with a longer trip for haulers.</small></label>
       <div class="ptn-fields">${field('loading_floor','Minimum loading payout / t',p.loading_floor,1,1000000)}${field('unloading_floor','Minimum unloading payout / t',p.unloading_floor,1,1000000)}</div>
       <div class="ptn-payout-presets"><span class="note">Set minimums and keep surplus:</span><div class="ptn-actions">${button('payout-20-20','20k load / 20k unload','mini')}${button('payout-30-20','30k load / 20k unload','mini')}</div><small class="muted">Both presets use public haulers on both legs. Search again to apply.</small></div>
@@ -42,9 +45,9 @@
         ${button('exclude-cargo','Exclude cargo recorded aboard','mini')}
       </details>
       <details class="ptn-more" data-ptn-detail="limits"><summary>Search limits</summary><div class="ptn-fields">
-        ${field('min_quantity','Smallest order / t',p.min_quantity,1,25000)}${field('breadth','Commodities to scan',p.breadth,1,48)}
-        ${field('radius','Both stops within / Ly',p.radius,1,500)}${field('max_hop','Carrier leg at most / Ly',p.max_hop,1,500)}${field('hours','Report age / hours',p.hours,1,24)}${field('arrival','Arrival approach / Ls',p.arrival,1,50000)}
-      </div></details>
+        ${field('min_quantity','Smallest order / t',p.min_quantity,1,25000)}${field('breadth','Commodity limit / 0 = all',p.breadth,0,500)}
+        ${field('hours','Report age / hours',p.hours,1,24)}${field('arrival','Star approach / Ls (0 = any)',p.arrival,0,10000000)}
+      </div><p class="note">Distance from the star matters when scouting. Haulers travel from your carrier; confirm parking near the station body.</p></details>
       <details class="ptn-more" data-ptn-detail="scenario"><summary>Hauler earnings example</summary><div class="ptn-fields">${field('hauler_capacity','Example hold / t',p.hauler_capacity,1,1000)}${field('cycle_minutes','Round trip / min',p.cycle_minutes,1,60)}${field('haulers','Number of haulers',p.haulers,1,50)}</div><p class="note">These are assumptions, not measured turnout or completion times.</p></details></form>`;
   }
 
@@ -54,8 +57,9 @@
     const payout=(phase,label)=>metric(label,paid(p,phase)?money(c[phase+'_per_ton'])+'/t':'You haul',paid(p,phase)?`${short(c[phase+'_per_ton']*p.hauler_capacity)} Cr / ${fmt(p.hauler_capacity)} t`:'No public payout','ptn-hauler');
     return `<article class="ptn-route ${r.viable?'':'ptn-prospect'}"><div class="ptn-route-top"><div class="ptn-route-name"><div><h3>${esc(r.name)}</h3><span class="note">${fmt(r.quantity)} t &middot; ${esc(modes[p.haul_mode]||modes.both)}</span></div></div><span class="tag ${r.viable?'ok':'warn'}">${r.viable?c.meets_target?'Meets preferred payout':'Profitable, below preferred payout':shortfall?`${fmt(shortfall)} Cr/t shortfall`:'Requirements not met'}</span></div>
       <div class="ptn-route-numbers">${r.viable?`${payout('loading','Hauler / loading')}${payout('unloading','Hauler / unloading')}${metric('Carrier after reserve',short(c.owner_after_reserve)+' Cr',`${money(c.owner_per_ton)}/t before costs`)}`:`${metric('Available station spread',money(c.gross_per_ton)+'/t')}${metric('Required minimum spread',money(requiredSpread)+'/t')}${metric('Payout shortfall',shortfall?money(shortfall)+'/t':'See rejection details','','warn')}`}</div>
-      <div class="ptn-route-summary">${[['buy','Load'],['sell','Unload']].map(([side,label])=>`<div><span class="k">${label} &middot; ${money(r[side].price)}/t</span><b>${esc(r[side].station)}</b><span>${esc(r[side].system)}</span><small>${stationLabel(r[side])} &middot; L pads<br>${fmt(Math.round(r[side].arrival_ls))} Ls &middot; ${age(r[side].observed_at)}</small></div>`).join('')}</div>
-      <div class="ptn-route-foot"><div class="note">${fmt(r.route_distance)} Ly carrier leg &middot; ${r.supply_buffer}&times; supply buffer<br>${r.common?'Common carrier cargo':'Less common carrier cargo'} &middot; ${r.official_competitors==null?'Official competition unknown':`${r.official_competitors} official loading adverts here`}</div>
+      ${r.viable?`<p class="note ptn-profit-breakdown">Station spread ${money(c.gross_per_ton)}/t &minus; hauler payouts ${money(c.loading_per_ton+c.unloading_per_ton)}/t = your margin ${money(c.owner_per_ton)}/t before costs.</p>`:''}
+      <div class="ptn-route-summary">${[['buy','Load'],['sell','Unload']].map(([side,label])=>`<div><span class="k">${label} &middot; ${money(r[side].price)}/t</span><b>${esc(r[side].station)}</b><span>${esc(r[side].system)}</span><small>${fmt(r[side].volume)} t ${side==='buy'?'supply':'demand'} &middot; ${stationLabel(r[side])} &middot; L pads<br>${fmt(Math.round(r[side].arrival_ls))} Ls &middot; ${age(r[side].observed_at)}</small></div>`).join('')}</div>
+      <div class="ptn-route-foot"><div class="note">${r.approach_jumps==null?'':`To load: ${r.approach_jumps} jump minimum (${fmt(r.approach_distance)} Ly) &middot; `}To sell: ${r.trade_jumps??Math.ceil(r.route_distance/500)} jump minimum (${fmt(r.route_distance)} Ly)<br>${r.supply_buffer}&times; supply buffer &middot; ${r.official_competitors==null?'Official competition unknown':`${r.official_competitors} official loading adverts here`}</div>
       <button type="button" class="${r.viable?'primary':''}" data-ptn-select="${esc(r.id)}" ${u.busy?'disabled':''}>${selected?'Restart station checks':r.viable?'Use this route':'Inspect candidate'}</button></div>
       <details class="ptn-route-detail" data-ptn-detail="${esc(r.id)}"><summary>Station details, funding and price settings</summary><div class="ptn-stops">${stop(r.buy,'Load from')}${stop(r.sell,'Unload to')}</div>
         ${r.viable?`<p class="note">Initial funding: ${money(c.funding)}. ${p.haul_mode==='self_load'?'Station purchase cost':`Carrier buy: ${money(c.carrier_buy)}/t (${c.buy_percent}%)`}. ${p.haul_mode==='self_unload'?'Unload at the station yourself':`Carrier sell: ${money(c.carrier_sell)}/t (${c.sell_percent}%)`}. Reserve: ${money(c.cost_reserve)}.</p><p class="note">Hauler scenario: ${short(r.hauler_hour_scenario)} Cr/h at your ${p.cycle_minutes} min round trip. Confirm actual prices in game.</p>`:''}</details>
@@ -70,7 +74,7 @@
       ${d.context.free_space===0?`<p class="ptn-capacity-note">Your last carrier report has no free space; ${fmt(d.context.reserved_space)} t is reserved by buy orders. Check existing orders in Carrier Management before starting a new load. Report: ${age(d.context.stats_at)}.</p>`:''}
       ${r?`<p class="note">${esc(modes[r.settings.haul_mode]||modes.both)}. ${r.settings.allow_surface_loading?'Orbital or surface loading':'Orbital loading'}; orbital unloading. ${r.settings.share_surplus?'Surplus goes to haulers.':'You keep surplus above the payout minimums.'} Preferred payout ${money(r.settings.payout_target||20000)}/t on each paid leg. Figures are estimates until scouted.</p>`:''}
       ${r?.surface_excluded?.count?`<div class="ptn-surface-note"><b>${fmt(r.surface_excluded.count)} surface loading sources excluded by orbital-only</b><p class="note">These have an estimated profitable route to an orbital buyer at your selected payouts. Counts cover this scan only.</p><ul>${r.surface_excluded.examples.map(s=>`<li>${esc(s.commodity)} &middot; ${esc(s.station)} / ${esc(s.system)}</li>`).join('')}</ul>${button('surface-search','Search with surface loading','mini',u.busy||d.searching)}</div>`:''}
-      ${r?`<p class="note">${r.scanned} commodities scanned near ${esc(r.origin)} &middot; ${age(r.checked_at)}. ${esc(r.scope)}</p>`:''}
+      ${r?`<p class="note">${r.coverage?.completed??r.scanned} / ${r.available} commodities fully checked from ${esc(r.origin)} &middot; ${age(r.checked_at)}. Sorted by carrier return after reserve. ${esc(r.scope)}</p>`:''}
       ${r?.warnings.length?`<details class="ptn-more"><summary class="warn">${r.warnings.length} data notes</summary>${r.warnings.map(w=>`<p class="note">${esc(w)}</p>`).join('')}</details>`:''}
       ${rows.length?rows.map((row,i)=>routeCard(row,u,i)).join(''):`<div class="ptn-empty"><h3>${r?u.near?'No rejected candidates.':u.targetOnly?'No offers reach the preferred payout.':'No routes match these filters.':'Search nearby carrier trades'}</h3><p>${r?u.targetOnly?'Profitable alternatives remain available under All profitable.':'Try including common cargo, allowing smaller orders, or adjusting each leg\'s payout. Prices must still cover both hauler payouts and your reserve.':'The search splits available profit between you and public haulers, then shows the actual payout on each leg.'}</p>${r&&u.targetOnly?button('qualified','Show all profitable routes'):r?button('normal-search','Restore normal search settings'):''}${r&&near.length&&!u.near?button('near','View rejected candidates'):''}</div>`}
     </section></div>`;
@@ -191,7 +195,16 @@
       if(d.revision<u.data.revision)return;
       if(d.plan&&(!d.operation||d.operation.revision!==d.revision||d.operation.plan_id!==d.plan.id||d.operation.stage!==d.plan.stage))return;
       if(!d.plan&&d.operation)return;
-      u.data=d;if(!Object.keys(u.prefs).length&&d.defaults)u.prefs={...d.defaults,...ls.get(KEY,{})};u.draw();
+      u.data=d;if(!Object.keys(u.prefs).length&&d.defaults){
+        const saved=ls.get(KEY,null),old=ls.get('ptn.preferences.v2',null);
+        u.prefs={...d.defaults,...(saved||old||{})};
+        if(!saved&&old){
+          Object.assign(u.prefs,{radius:1500,max_hop:1500,arrival:0,breadth:0,share_surplus:false,haul_mode:'both'});
+          for(const name of ['loading_floor','unloading_floor'])if(old[name]===10000)u.prefs[name]=d.defaults[name];
+          u.status='Search updated: all commodities, three carrier jumps per leg, surplus kept by you. Review payouts before searching.';
+        }
+        ls.set(KEY,u.prefs);
+      }u.draw();
     },
     unmount(el){el._ptn?.cleanup();}
   });

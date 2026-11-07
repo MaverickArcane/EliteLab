@@ -10,10 +10,10 @@ ORBITAL = {'Coriolis', 'Orbis', 'Ocellus', 'AsteroidBase', 'Outpost', 'Dodec',
            'Coriolis Starport', 'Orbis Starport', 'Ocellus Starport', 'Asteroid base', 'Dodec Starport'}
 SURFACE = {'CraterOutpost', 'CraterPort', 'OnFootSettlement', 'Planetary Outpost',
            'Planetary Port', 'Odyssey Settlement'}
-DEFAULTS = dict(quantity=18000, loading_floor=10000, unloading_floor=10000, owner_floor=1000,
-                radius=450, max_hop=450, hours=24, arrival=10000, breadth=32, skip_common=False,
+DEFAULTS = dict(quantity=18000, loading_floor=20000, unloading_floor=20000, owner_floor=1000,
+                radius=1500, max_hop=1500, hours=24, arrival=0, breadth=0, skip_common=False,
                 avoid_active=False, excluded='', hauler_capacity=784, cycle_minutes=5, haulers=3,
-                cost_reserve=5000000, share_surplus=True, haul_mode='both', payout_target=20000,
+                cost_reserve=5000000, share_surplus=False, haul_mode='both', payout_target=20000,
                 allow_partial=True, min_quantity=2000, allow_surface_loading=False)
 
 
@@ -77,8 +77,8 @@ def key(value):
 def settings(query):
     out = {}
     bounds = dict(quantity=(1, 25000), loading_floor=(1, 1000000), unloading_floor=(1, 1000000),
-                  owner_floor=(0, 1000000), radius=(1, 500), max_hop=(1, 500), hours=(1, 24),
-                  arrival=(1, 50000), breadth=(1, 48), hauler_capacity=(1, 1000), cycle_minutes=(1, 60),
+                  owner_floor=(0, 1000000), radius=(1, 2500), max_hop=(1, 2500), hours=(1, 24),
+                  arrival=(0, 10000000), breadth=(0, 500), hauler_capacity=(1, 1000), cycle_minutes=(1, 60),
                   haulers=(1, 50), cost_reserve=(0, 10**10), payout_target=(1, 1000000), min_quantity=(1,25000))
     for name, default in DEFAULTS.items():
         value = query.get(name, default)

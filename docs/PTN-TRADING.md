@@ -8,15 +8,27 @@ the existing Carrier job. Cancelling a local plan does not cancel those actions.
 ## Offer and discovery
 
 Defaults: up to 18,000 t, a preferred public payout of 20,000 Cr/t, minimum public
-payouts of 10,000 Cr/t, 1,000 Cr/t minimum carrier margin before costs, a
-5,000,000 Cr fuel/fee reserve, and 450 Ly radius and carrier leg. Common and active
+payouts of 20,000 Cr/t, 1,000 Cr/t minimum carrier margin before costs, a
+5,000,000 Cr fuel/fee reserve, and 1,500 Ly to the loading source and from there
+to the buyer. Common and active
 commodities are included; explicit exclusion controls remain available. Smaller
 orders down to 2,000 t are allowed when supply or demand cannot cover the maximum.
-Report age is at most 24 hours and station approach at most 10,000 Ls.
+Report age is at most 24 hours. The optional station approach limit defaults to
+0 (no cutoff): a carrier parked near the station body can make hauling practical
+even when that station is far from the main star. Arrival distance remains visible.
 Loading and unloading are orbital by default. Surface loading is an explicit
 option; unloading remains orbital. Large pads are required in both cases.
 
-The preferred payout is a ranking target, not a rejection threshold. All profitable
+All non-rare catalog commodities are searched by default (`breadth=0`, safety
+cap 500), after explicit exclusions. Stale catalog prices and stock only prioritize
+requests; they cannot exclude a commodity. Completion counts distinguish checked
+commodities from missing feeds and optional commodity limits. Up to six candidates
+per commodity and 200 total are returned, with alternate loading sources included
+before filling every slot with buyers for one source, ranked by carrier return after reserve,
+then hauler payout and minimum jumps. These remain bounded market reports, not an
+exhaustive list of every station.
+
+The preferred payout is a comparison target, not a rejection threshold. Profitable
 routes are visible by default; "At target" filters them explicitly. Minimum public
 payouts remain hard limits. These preferences are not PTN rules or promises of
 turnout. The board shortcut changes the preferred target, never those hard limits.
@@ -27,7 +39,8 @@ payout or advert; its purchase cost or sale proceeds come from the station. The
 owner records the actual average price and remaining tonnes during that phase.
 The full order still requires hauling; self-hauling does not make those trips free.
 
-Surplus-sharing mode maximizes the weaker public payout, then combined public
+By default, the carrier retains the spread above both public payout minimums.
+Optional surplus-sharing mode maximizes the weaker public payout, then combined public
 payout, over the available carrier price settings. It reserves the larger of the
 owner's per-tonne margin and `floor(cost_reserve / actual_quantity) + 1`. Thus every
 qualified result retains a strictly positive total after the reserve, including
@@ -49,20 +62,32 @@ Sources:
 
 - Ardent/EDDN: `https://api.ardent-insight.com/v2/commodities` and
   `/system/name/{system}/commodity/name/{commodity}/nearby/exports` or `imports`.
-  Up to 1,000 nearby reports per side, 15 eligible orbital stations per side and
-  15 surface loading sources for each
-  of at most 48 catalog candidates; default 32. The old global best-100 endpoints
-  could discard local stations before local filters ran. It is not an
-  exhaustive route search and is not Inara market data.
+  Nearby also excludes the reference system. Two bulk current-system
+  `/system/name/{system}/commodities/exports` or `imports` calls restore those
+  markets, bounded to 10,000 orders per side with explicit coverage warnings.
+  Nearby endpoints silently cap distance at 500 Ly and return up to 1,000 reports.
+  Wider searches add `/commodity/name/{commodity}/exports` or `imports` for up to
+  100 global price leaders per side. Coordinates then enforce the requested bounds.
+  Date-based provider requests include one extra UTC date; local timestamp checks
+  enforce the exact selected hours, including quotes from before midnight.
+  Global price leaders supplement nearby reports; they do not replace them.
+  Newest reports win per market before validation. Up to 50 eligible orbital
+  stops per side and 50 surface sources survive for pairing. Missing or capped
+  feeds are counted. Coverage beyond 500 Ly can miss stations outside the global
+  top 100; this is not exhaustive market coverage and is not Inara data.
 - Public PTN missions: `https://pilotstradenetwork.com/wp-json/ptn/v1/missions`.
   Only official adverts are covered. Affiliate adverts and unadvertised carriers
   are unknown. Board snapshots older than 15 minutes are unavailable. Displayed
   medians are comparisons, not market requirements or predictions of turnout.
 
 Discovery excludes surface unloading, carriers, unknown station types, missing
-large pads, missing coordinates/arrival distances and stale reports. Both stops
-must be within the selected radius of the carrier and within the selected
-carrier leg of each other. Zero demand is not assumed unlimited.
+large pads, missing coordinates/arrival distances and stale reports. The loading
+source must be within the selected starting radius; the buyer must be within the
+selected leg distance from that source, even if beyond the starting radius.
+Controls allow one to five 500 Ly carrier jumps per leg. Displayed counts use
+unrounded straight-line distances and are lower bounds, not plotted routes.
+Check intermediate systems and include all travel in the editable cost reserve;
+fuel usage and tritium cost are not simulated. Zero demand is not assumed unlimited.
 Known surface types are CraterOutpost, CraterPort and OnFootSettlement, plus
 their Planetary Outpost, Planetary Port and Odyssey Settlement aliases. Surface
 loading remains excluded until enabled. A summary counts distinct commodity/source
@@ -133,9 +158,12 @@ historical loading cost after departure. Mutations require the current revision;
 failed disk writes leave the previous plan intact. A party member cannot mutate
 the owner's plan. No remote network calls occur in bus handlers or at startup.
 
-The UI uses `ptn.preferences.v2`; old browser preferences remain stored under v1
-but do not reapply the old restrictive defaults. Saved operations retain their
-explicit route settings. "Restore normal search settings" resets only the search
+The UI uses `ptn.preferences.v3`. Migration from v2 widens both legs to 1,500 Ly,
+removes the star-approach cutoff, checks all commodities, uses public haulers on
+both legs and retains surplus.
+Custom payout minimums and order size are retained; old default 10k minimums
+become 20k. The form explains the migration before searching. Saved operations
+retain their explicit route settings. "Restore normal search settings" resets only the search
 form. Search settings and result lists scroll independently on desktop; open
 details, focused fields and scroll positions survive live state updates.
 Revision, plan identity and stage markers keep queued SSE fields from replacing
@@ -179,11 +207,13 @@ review:
   captured normalized market. Discovery's 24-hour window cannot authorize a
   24-hour-old posting scout. Expired board snapshots no longer supply benchmarks.
 - Provider exception details are not returned in public-board errors. Searches
-  allow only one active scan, four provider workers, at most 48 commodities,
-  1,000 reports per side, 15 orbital stations per side and 15 surface sources. After a 90-second
+  allow only one active scan, four provider workers, at most 500 commodities,
+  1,000 nearby and 100 global reports per side, 50 orbital stops per side and 50
+  surface sources. After a 300-second
   report deadline queued work is cancelled and completed reports are returned
   with a coverage warning. In-flight requests may take the shared 40-second
-  socket timeout to finish. Catalog/board requests precede that report deadline.
+  socket timeout per request to finish (up to two sequential feeds per running
+  job). Catalog/board and current-system requests precede that report deadline.
   The shared network layer bounds each response at 8 MiB and caches requests.
 
 Real HTTP tests verify configured-token authentication, hostile Origin rejection,
@@ -211,6 +241,10 @@ checks, atomic persistence, advert injection protection, normal-search defaults,
 both self-hauling modes, nearby-report coverage, deadlines and
 real HTTP security boundaries. Surface tests cover opt-in, hidden profitable
 source counts, station and pad restrictions, legacy plans, scouting and adverts.
+Wider-search tests cover more than 48 commodities, stale catalog totals, separate
+source/buyer bounds, multi-jump distances, retained-profit ranking, deduplication,
+missing global feeds, current-system markets, distant station approaches,
+alternate loading sources and honest partial coverage.
 
 `node tests/ptn-browser.mjs` uses real HTTP/SSE and offline provider/journal
 fixtures for discovery, scout rejection/retry, both trading phases, posting

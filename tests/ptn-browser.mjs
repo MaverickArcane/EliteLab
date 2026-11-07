@@ -52,9 +52,15 @@ try{
   await click('[data-ptn-action=normal-search]');
   await evaluate("document.querySelector('[data-ptn-search]').requestSubmit();true");
   await wait("document.querySelectorAll('.ptn-route').length===1&&!document.querySelector('[data-ptn-select]').disabled");
-  assert.match(await evaluate("document.querySelector('.ptn-route').textContent"),/13m Cr/);
+  assert.match(await evaluate("document.querySelector('.ptn-route').textContent"),/553m Cr/);
   assert.equal(await evaluate("document.querySelector('[name=skip_common]').checked"),false);
-  assert.match(await evaluate("document.querySelector('.ptn-route').textContent"),/35,000 Cr/);
+  assert.match(await evaluate("document.querySelector('.ptn-route').textContent"),/20,000 Cr/);
+  assert.match(await evaluate("document.querySelector('.ptn-route-summary').textContent"),/500,000 t supply.*200,000 t demand/s);
+  assert.match(await evaluate("document.querySelector('.ptn-route-foot').textContent"),/To load: 1 jump minimum.*To sell: 1 jump minimum/s);
+  assert.equal(await evaluate("document.querySelector('[name=radius]').value"),'1500');
+  assert.equal(await evaluate("document.querySelector('[name=max_hop]').value"),'1500');
+  assert.equal(await evaluate("document.querySelector('[name=breadth]').value"),'0');
+  assert.equal(await evaluate("document.querySelector('[name=share_surplus]').checked"),false);
   await evaluate("document.querySelector('[data-ptn-detail=limits]').open=true;document.querySelector('[name=loading_floor]').focus();document.querySelector('.ptn-search').scrollTop=600;true");
   const searchScroll=await evaluate("document.querySelector('.ptn-search').scrollTop");
   await post('/audit/ptn/move',{system:'Sol',free_space:24999});
@@ -81,7 +87,7 @@ try{
   await click('[data-ptn-action=advert]');await click('[data-ptn-action=generate]');
   await wait("document.querySelector('[data-ptn-advert-text]').textContent.includes('**N.A.C. Test (TST-001)**')");
   const advert=await evaluate("document.querySelector('[data-ptn-advert-text]').textContent");
-  assert.equal(advert,'**N.A.C. Test (TST-001)** is loading **Liquor** from **Buy Port** (L pads) in **Source**. 35k/unit profit, 18k units\nSCO FSD recommended.');
+  assert.equal(advert,'**N.A.C. Test (TST-001)** is loading **Liquor** from **Buy Port** (L pads) in **Source**. 20k/unit profit, 18k units\nSCO FSD recommended.');
   await shot('ptn-advert-1920x1080',1920,1080);
   await shot('ptn-advert-390x844',390,844);
   await send('Emulation.setDeviceMetricsOverride',{width:1920,height:1080,deviceScaleFactor:1,mobile:false});
@@ -98,22 +104,24 @@ try{
   await click('[data-ptn-tab=board]');await click('[data-ptn-action=board-refresh]');await wait("!!document.querySelector('.ptn-board-table')&&!document.querySelector('[data-ptn-action=board-refresh]').disabled");
   await shot('ptn-public-board-1920x1080',1920,1080);
   await click('[data-ptn-action=beat-board]');assert.equal(await evaluate("document.querySelector('[name=payout_target]').value"),'31000');
-  assert.equal(await evaluate("document.querySelector('[name=loading_floor]').value"),'10000');
+  assert.equal(await evaluate("document.querySelector('[name=loading_floor]').value"),'20000');
   await send('Page.reload');await wait("document.querySelector('[name=payout_target]')?.value==='31000'");
   const state=await(await fetch(base+'/api/ptn')).json();assert.equal(state.plan.stage,'unloading');
   // Ordinary margins and smaller orders remain useful instead of an empty default.
   await post('/audit/ptn/scenario',{name:'ordinary'});
   await click('[data-ptn-action=normal-search]');
+  await evaluate("for(const name of ['loading_floor','unloading_floor']){const input=document.querySelector('[name='+name+']');input.value='10000';input.dispatchEvent(new Event('input',{bubbles:true}));}true");
   await evaluate("document.querySelector('[data-ptn-search]').requestSubmit();true");
   await wait("document.querySelector('.ptn-route')?.textContent.includes('5,000 t')&&!document.querySelector('.ptn-scan').disabled");
   assert.match(await evaluate("document.querySelector('.ptn-route').textContent"),/below preferred payout/);
-  assert.match(await evaluate("document.querySelector('.ptn-route').textContent"),/0.5m Cr/);
+  assert.match(await evaluate("document.querySelector('.ptn-route').textContent"),/25m Cr/);
   await shot('ptn-ordinary-1920x1080',1920,1080);
   await click('[data-ptn-action=target-only]');
   assert.equal(await evaluate("document.querySelectorAll('.ptn-route').length"),0);
   await click('[data-ptn-action=qualified]');
   assert.equal(await evaluate("document.querySelectorAll('.ptn-route').length"),1);
   // Owner loading frees up spread for a larger, checked unloading payout.
+  await click('[name=share_surplus]');
   await evaluate("{const input=document.querySelector('[name=haul_mode]');input.value='self_load';input.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-ptn-search]').requestSubmit();}true");
   await wait("document.querySelector('.ptn-route')?.textContent.includes('I load; haulers unload')&&!document.querySelector('.ptn-scan').disabled");
   assert.match(await evaluate("document.querySelector('.ptn-route').textContent"),/24,900 Cr/);
@@ -173,6 +181,11 @@ try{
   assert.match(await evaluate("document.querySelector('.ptn-board-table').textContent"),/<svg/);
   assert.equal(await evaluate("document.querySelectorAll('.ptn-board-table svg').length"),0);
   assert.equal(await evaluate("globalThis.ptnInjected===true"),false);
+  // Broad-search migration keeps customized payouts and order size, and never changes the saved plan.
+  await click('[data-ptn-tab=find]');
+  await evaluate("Lab.util.ls.set('ptn.preferences.v3',null);Lab.util.ls.set('ptn.preferences.v2',{radius:450,max_hop:450,breadth:32,share_surplus:true,quantity:23000,loading_floor:28000,unloading_floor:10000,allow_surface_loading:false});true");
+  await send('Page.reload');await wait("document.querySelector('[name=loading_floor]')?.value==='28000'");
+  assert.deepEqual(await evaluate("({radius:document.querySelector('[name=radius]').value,leg:document.querySelector('[name=max_hop]').value,breadth:document.querySelector('[name=breadth]').value,sharing:document.querySelector('[name=share_surplus]').checked,unload:document.querySelector('[name=unloading_floor]').value,quantity:document.querySelector('[name=quantity]').value})"),{radius:'1500',leg:'1500',breadth:'0',sharing:false,unload:'20000',quantity:'23000'});
   assert.deepEqual(errors,[]);assert.deepEqual(await evaluate("[...document.querySelectorAll('.render-error')].map(e=>e.textContent)"),[]);
   console.log('PTN discovery, smaller orders, public and owner-hauling phases, optional surface loading, payout presets, journal scouts, checked Markdown, soft targets, live form preservation, injected text, persistence and responsive bounds passed. Synthetic journals and provider fixtures. '+screenshots);
   await send('Browser.close').catch(()=>{});

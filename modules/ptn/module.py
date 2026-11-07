@@ -18,7 +18,8 @@ MARKETS = 'https://api.ardent-insight.com/v2'
 FILE = 'ptn.json'
 PHASES = ('scouting', 'loading', 'transit', 'unloading', 'complete', 'cancelled')
 CHECKS = ('near_station', 'docking_open', 'funds_checked', 'competition_checked')
-SCAN_SECONDS = 90
+SCAN_SECONDS = 300
+STATIONS_PER_KIND = 50
 
 
 class PTN:
@@ -140,19 +141,43 @@ class PTN:
             raise ValueError('Carrier coordinates are unknown. Wait for a location report and retry.')
         return pos
 
-    def quotes(self, commodity, side, prefs, origin, system):
+    def quotes(self, commodity, side, prefs, origin, system, current=()):
         minimum = min(prefs['min_quantity'],prefs['quantity']) if prefs['allow_partial'] else prefs['quantity']
-        query = urlencode(dict(minVolume=minimum, maxDaysAgo=math.ceil(prefs['hours']/24),
-                               maxDistance=prefs['radius'], fleetCarriers=0))
-        # Global best-100 lists were discarding nearby stations before our filters
-        # ran. The documented nearby endpoints return up to 1000 in this area.
-        raw = self.core.services.fetch_json(MARKETS+'/system/name/'+quote(system,safe='')+
-                                            '/commodity/name/'+quote(commodity, safe='')+'/nearby'+
-                                            ('/exports?' if side=='buy' else '/imports?')+query, ttl=180)
-        if not isinstance(raw, list):
-            raise ValueError('Unexpected commodity report response.')
+        # The provider silently clamps nearby requests to 500 Ly. Combine them
+        # with global price leaders instead of pretending maxDistance=1500 works.
+        # Buyers may be beyond the start radius: the final leg is checked per pair.
+        radius = prefs['radius'] if side=='buy' else prefs['radius']+prefs['max_hop']
+        # Provider filters use whole UTC dates with a strict > comparison.
+        # Fetch the preceding date too, then enforce exact hours below.
+        query = dict(minVolume=minimum,maxDaysAgo=math.ceil(prefs['hours']/24)+1,fleetCarriers=0)
+        suffix = '/exports?' if side=='buy' else '/imports?'
+        urls = [(MARKETS+'/system/name/'+quote(system,safe='')+'/commodity/name/'+quote(commodity,safe='')+
+                 '/nearby'+suffix+urlencode({**query,'maxDistance':min(radius,500)}),1000)]
+        if radius>500:
+            urls.append((MARKETS+'/commodity/name/'+quote(commodity,safe='')+suffix+urlencode(query),100))
+        raw, failures, capped, successful = list(current), 0, 0, 0
+        for url,limit in urls:
+            try:
+                report = self.core.services.fetch_json(url,ttl=300)
+                if not isinstance(report,list):
+                    raise ValueError('Unexpected commodity report response.')
+                raw.extend(report[:limit])
+                capped += len(report)>=limit
+                successful += 1
+            except Exception:
+                failures += 1
+        # Resolve duplicate reports before filtering so a newer exhausted or
+        # invalid quote cannot resurrect an older, favorable price.
+        latest = {}
+        for r in raw:
+            if (not isinstance(r,dict) or key(r.get('commodityName'))!=key(commodity)
+                    or type(r.get('marketId')) is not int or not 0<r['marketId']<=2**63):
+                continue
+            previous = latest.get(r['marketId'])
+            if not previous or stamp(r.get('updatedAt'))>=stamp(previous.get('updatedAt')):
+                latest[r['marketId']] = r
         clock, out = datetime.now(timezone.utc).timestamp(), []
-        for r in raw[:1000]:
+        for r in latest.values():
             if not isinstance(r, dict) or r.get('maxLandingPadSize')!=3:
                 continue
             kind = station_kind(r.get('stationType'), r.get('isPlanetary'))
@@ -165,8 +190,9 @@ class PTN:
             volume = r.get('stock' if side=='buy' else 'demand')
             arrival, pos = r.get('distanceToArrival'), [r.get('system'+a) for a in 'XYZ']
             if not (type(price) is int and 0 < price <= 10**9 and type(volume) is int and minimum<=volume<=10**12
-                    and finite(arrival) and 0<=arrival<=prefs['arrival'] and all(finite(n) for n in pos)
-                    and -300<=age<=prefs['hours']*3600 and math.dist(origin,pos)<=prefs['radius']):
+                    and finite(arrival) and 0<=arrival<=10**10 and (not prefs['arrival'] or arrival<=prefs['arrival'])
+                    and all(finite(n) for n in pos)
+                    and -300<=age<=prefs['hours']*3600 and math.dist(origin,pos)<=radius):
                 continue
             if type(r.get('marketId')) is not int or not 0<r['marketId']<=2**63:
                 continue
@@ -184,11 +210,9 @@ class PTN:
         # Retain separate buckets so cheap surface sources cannot displace orbital
         # choices. Hidden surface comparisons use the same validated reports.
         out.sort(key=lambda r:r['price'] if side=='buy' else -r['price'])
-        unique = {}
-        for report in out:
-            unique.setdefault(report['market_id'],report)
-        return ([r for r in unique.values() if not r['surface']][:15]
-                + [r for r in unique.values() if r['surface']][:15])
+        return dict(rows=([r for r in out if not r['surface']][:STATIONS_PER_KIND]
+                         + [r for r in out if r['surface']][:STATIONS_PER_KIND]),
+                    failures=failures,capped=capped,successful=successful,complete=not failures)
 
     def search(self, q):
         prefs = settings(q)
@@ -234,29 +258,51 @@ class PTN:
             if (not isinstance(name, str) or not name.isascii() or not name.isalnum() or len(name)>100
                     or key(name) in excluded or key(name) in seen or r.get('rare') or is_rare(name)):
                 continue
-            stock, buy, sell = r.get('totalStock'), r.get('minBuyPrice'), r.get('maxSellPrice')
-            minimum = min(prefs['min_quantity'],prefs['quantity']) if prefs['allow_partial'] else prefs['quantity']
-            if not all(finite(n) for n in (stock,buy,sell)) or stock<minimum or not 0<buy<sell<=10**9:
-                continue
+            # Catalog summaries can lag the live order feeds by months. They
+            # prioritize work only; stale stock/spread must never exclude cargo.
+            buy,sell = r.get('minBuyPrice'),r.get('maxSellPrice')
+            spread = sell-buy if all(finite(n) and 0<=n<=10**9 for n in (buy,sell)) else 0
             seen.add(key(name))
-            catalog.append((sell-buy,name))
+            catalog.append((spread,name))
         catalog.sort(reverse=True)
-        candidates = [name for _,name in catalog[:prefs['breadth']]]
-        reports = {}
+        candidates = [name for _,name in (catalog[:prefs['breadth']] if prefs['breadth'] else catalog)][:500]
+        # Nearby deliberately omits the reference system. Fetch its markets in
+        # two bulk calls so arriving at a source never removes it from discovery.
+        current_reports, current_complete = {}, True
+        minimum = min(prefs['min_quantity'],prefs['quantity']) if prefs['allow_partial'] else prefs['quantity']
+        local_query = urlencode(dict(minVolume=minimum,maxDaysAgo=math.ceil(prefs['hours']/24)+1,fleetCarriers=0))
+        for side in ('buy','sell'):
+            try:
+                local = self.core.services.fetch_json(MARKETS+'/system/name/'+quote(context['system'],safe='')+
+                    '/commodities/'+('exports?' if side=='buy' else 'imports?')+local_query,ttl=300)
+                if not isinstance(local,list):
+                    raise ValueError('Unexpected current-system reports.')
+                if len(local)>10000:
+                    warnings.append('Current-system reports reached the 10,000-order limit; coverage is partial.')
+                    current_complete = False
+                for row in local[:10000]:
+                    if isinstance(row,dict) and isinstance(row.get('commodityName'),str) and len(row['commodityName'])<=100:
+                        current_reports.setdefault((key(row['commodityName']),side),[]).append(row)
+            except Exception:
+                current_complete = False
+                warnings.append(f'Current-system {side} reports unavailable; local station coverage is incomplete.')
+        reports, coverage = {}, {}
         with ThreadPoolExecutor(max_workers=4) as pool:
-            jobs = {pool.submit(self.quotes,name,side,prefs,origin,context['system']):(name,side)
+            jobs = {pool.submit(self.quotes,name,side,prefs,origin,context['system'],current_reports.get((key(name),side),())):(name,side)
                     for name in candidates for side in ('buy','sell')}
             try:
                 for done, job in enumerate(as_completed(jobs,timeout=SCAN_SECONDS),1):
                     name,side = jobs[job]
                     try:
-                        reports[name,side] = job.result()
+                        report = job.result()
+                        reports[name,side] = report['rows']
+                        coverage[name,side] = report
                     except Exception:
                         reports[name,side] = []
                         warnings.append(f'{name}: {side} reports unavailable.')
                     if done%4==0 or done==len(jobs):
                         with self.lock:
-                            self.progress = dict(done=done,total=len(jobs),message=f'{done} of {len(jobs)} market reports checked')
+                            self.progress = dict(done=done,total=len(jobs),message=f'{done} of {len(jobs)} commodity sides checked; searching {len(candidates)} commodities')
                             self.publish()
             except FuturesTimeout:
                 warnings.insert(0,'Market search reached its time limit. Results include completed reports only; retry for more coverage.')
@@ -267,7 +313,7 @@ class PTN:
                         reports[report_key] = []
         rows, hidden_sources = [], {}
         for commodity in candidates:
-            pairs = []
+            pairs, prices = [], {}
             for buy in reports[commodity,'buy']:
                 for sell in reports[commodity,'sell']:
                     distance = math.dist(buy['pos'],sell['pos'])
@@ -282,7 +328,10 @@ class PTN:
                         quantity = min(quantity,buy['volume']//(1+loading_at_source),sell['volume'])
                         if quantity<prefs['min_quantity']:
                             continue
-                    payout = pricing(buy['price'],sell['price'],quantity,ref.get('mean_price'),prefs)
+                    price_key = (buy['price'],sell['price'],quantity,ref.get('mean_price'))
+                    if price_key not in prices:
+                        prices[price_key] = pricing(*price_key,prefs)
+                    payout = prices[price_key]
                     buffer = buy['volume']/(quantity*(1+loading_at_source))
                     reasons = []
                     if not payout['settings_valid']:
@@ -302,6 +351,9 @@ class PTN:
                                   - max(buy['arrival_ls'],sell['arrival_ls'])/1000,1)
                     row = dict(id=secrets.token_hex(10), commodity=commodity, name=display_names.get(key(commodity),commodity.title()),
                                buy=buy,sell=sell,quantity=quantity,route_distance=round(distance,1),
+                               approach_distance=round(math.dist(origin,buy['pos']),1),
+                               approach_jumps=math.ceil(math.dist(origin,buy['pos'])/500),
+                               trade_jumps=math.ceil(distance/500),
                                pricing=payout,viable=viable,reasons=reasons,supply_buffer=round(buffer,2),
                                official_competitors=loading_at_source if board['available'] else None,
                                common=commodity in COMMON,official_active=len(active) if board['available'] else None,
@@ -314,15 +366,45 @@ class PTN:
                                 hidden_sources[source_key] = row
                     else:
                         pairs.append(row)
-            pairs.sort(key=lambda r:(not r['viable'],not r['pricing']['meets_target'],-r['score'],-r['quantity']))
-            rows.extend(pairs[:2])
-        rows.sort(key=lambda r:(not r['viable'],not r['pricing']['meets_target'],-r['score'],-r['pricing']['owner_after_reserve']))
+            pairs.sort(key=self.route_rank)
+            # Show alternative loading locations before filling all six places
+            # with different buyers for the same source (carrier parking can fill).
+            choices, per_source = [], {}
+            for row in pairs:
+                if row['viable']!=pairs[0]['viable']:
+                    break
+                source = row['buy']['market_id']
+                if per_source.get(source,0)>=2:
+                    continue
+                per_source[source] = per_source.get(source,0)+1
+                choices.append(row)
+                if len(choices)==6:
+                    break
+            chosen = {row['id'] for row in choices}
+            for row in pairs:
+                if len(choices)==6:
+                    break
+                if row['id'] not in chosen:
+                    choices.append(row)
+            rows.extend(choices[:6])
+        rows.sort(key=self.route_rank)
         hidden = sorted(hidden_sources.values(),key=lambda r:-r['score'])
-        result = dict(rows=rows[:48],scanned=len(candidates),available=len(catalog),excluded=sorted(excluded),
+        checked = sum(all(coverage.get((name,side),{}).get('successful') for side in ('buy','sell')) for name in candidates)
+        completed = sum(all(coverage.get((name,side),{}).get('complete') for side in ('buy','sell')) for name in candidates)
+        failures = sum(r['failures'] for r in coverage.values())
+        if failures:
+            warnings.append(f'{failures} market feeds failed. Completed feeds are included; retry for missing coverage.')
+        if completed<len(candidates):
+            warnings.insert(0,f'Partial search: {completed} of {len(candidates)} commodities completed all market feeds.')
+        result = dict(rows=rows[:200],scanned=checked,attempted=len(candidates),available=len(catalog),excluded=sorted(excluded),
+                      coverage=dict(completed=completed,requested=len(candidates),catalog=len(catalog),
+                          capped_feeds=sum(r['capped'] for r in coverage.values()),failed_feeds=failures,
+                          all_commodities=completed==len(catalog) and current_complete,
+                          current_system_complete=current_complete,routes_found=len(rows)),
                       viable=sum(r['viable'] for r in rows),checked_at=now(),origin=context['system'],settings=prefs,
                       surface_excluded=dict(count=len(hidden),examples=[dict(commodity=r['name'],station=r['buy']['station'],
                           system=r['buy']['system']) for r in hidden[:3]]),
-                      warnings=warnings[:15],scope='Nearby Ardent/EDDN reports; up to 1000 reports per side, 15 orbital stops per side and 15 surface loading sources per commodity. Verify in game.',
+                      warnings=warnings[:15],scope='Current-system markets, up to 1000 nearby reports plus 100 global price leaders per side, 50 eligible stops of each type. Market coverage is bounded; not every station is returned. Verify in game.',
                       context=dict(callsign=context['callsign'],commander=context['commander'],system=context['system']))
         with self.lock:
             current = self.context()
@@ -331,6 +413,13 @@ class PTN:
             self.results = result
             self.publish()
         return result
+
+    @staticmethod
+    def route_rank(row):
+        # Hauler minimums already gate viability. Rank what the owner keeps,
+        # rather than allowing supply buffers to outweigh hundreds of millions.
+        return (not row['viable'],-row['pricing']['owner_after_reserve'],
+                -row['pricing']['advertised_per_ton'],row['approach_jumps']+row['trade_jumps'],-row['score'])
 
     def select(self, q):
         with self.lock:
@@ -594,12 +683,16 @@ def setup(core, module):
     search_params['allow_partial']['description']='Allow smaller orders down to min_quantity when reports cannot support quantity. Every result carries its actual size and recalculated reserve.'
     search_params['owner_floor']['description']='Minimum carrier margin per tonne before the cost reserve. A positive total return after the reserve is always required.'
     search_params['allow_surface_loading']['description']='Include known large-pad surface loading stations. Default false. Unloading remains orbital. Excluded surface sources with profitable pairs are summarized separately.'
+    search_params['radius']['description']='Maximum Ly from current carrier to loading source; default 1500 (three 500 Ly jumps minimum). Buyers are checked from the source, not the starting carrier.'
+    search_params['max_hop']['description']='Maximum Ly from loading source to buyer; default 1500. Multi-jump legs are allowed; displayed jumps are straight-line lower bounds, not plotted paths.'
+    search_params['breadth']['description']='Commodity limit: 0 (default) checks every non-rare catalog commodity after explicit exclusions, up to 500. Nonzero limits are optional. Coverage reports incomplete scans.'
+    search_params['arrival']['description']='Optional maximum station distance from the main star in Ls; 0 (default) imposes no cutoff. This is a scouting approach, not the hauler trip from a carrier parked near the body.'
     core.http.route('/api/ptn',lambda q:desk.view(),tool='get_ptn_desk',module=module.name,
                     description='PTN carrier plan, independent of Carrier job. Includes scouted prices, payout floors, readiness blockers, order confirmations and public official-board comparisons. No game or Discord actions.')
     core.http.route('/api/ptn/board',desk.refresh_board,tool='get_ptn_public_board',module=module.name,
                     description='Refresh public official PTN missions and median loading/unloading payouts. Affiliate adverts and unadvertised carriers are not covered. Failure is unknown competition, not zero.')
     core.http.route('/api/ptn/search',desk.search,tool='find_ptn_routes',params=search_params,module=module.name,
-                    description='Find profitable large-pad carrier routes using nearby Ardent/EDDN reports. Orbital-only by default; surface loading is optional. Default: 20k preferred payout, 10k minimum per public leg, up to 18k tonnes with smaller orders allowed, common cargo included. Supports owner hauling one leg. Positive carrier return after the reserve is mandatory. No game or Discord actions; scout prices before posting.')
+                    description='Search every non-rare catalog commodity using nearby and global Ardent/EDDN reports, ranked by carrier return after reserve. Default: sources within 1500 Ly of carrier, buyers within 1500 Ly of source, orbital-only, 20k minimum per public leg, retain surplus, up to 18k tonnes with smaller orders allowed. Market coverage is bounded and reported. No game or Discord actions; scout prices before posting.')
     core.http.route('/api/ptn/select',desk.select,tool='select_ptn_route',method='POST',module=module.name,
                     params={**revision,'id':dict(type='string',required=True,description='Route id from the latest PTN scan.')},
                     description='Save an independent PTN scouting plan from a recent candidate. Replaces only the local PTN draft; never changes Carrier job, game orders or Discord messages.')
