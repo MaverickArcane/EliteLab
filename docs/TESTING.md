@@ -1,5 +1,11 @@
 # Testing
 
+Tabbed layouts and material workspace: the material plan browser test checks
+3440x1440, 1920x1080, 1366x768 and 1280x720 sizing, internal list scrolling,
+requirements filters, recipe preselection, keyboard navigation and tab roles.
+It also checks independent preset/saved layouts, reload persistence, deleting an
+active saved layout and restoring the original custom arrangement.
+
 Material trading detail: `test_material_trader_details.py` checks unknown vs
 zero distances, precise jump estimates, station detail and provider failures.
 The material plan browser test covers grade/family/ratio details, category/pad

@@ -82,7 +82,26 @@ Resize (`wireResize`): `pointerdown` on `.resize` (bottom-right corner). Column 
 
 Collapse: toggles `.collapsed` (hides body and resize handle). Hide: `hideCard(id)` unmounts and records in `hidden`. Show: `showCard(id)` builds the card and inserts it at its position among currently mounted cards.
 
-Menu (`renderMenu`): lock checkbox, export (layout JSON to clipboard), import (prompt), presets (buttons), saved layouts (name input + save, chips with load/delete, stored in `localStorage.layouts.v1`), and a checkbox per card. `applyLayout(l, name)` replaces the layout and remounts everything.
+The Layouts workspace exposes Custom, built-in presets and named saved layouts
+as tabs. Each tab remembers its panel arrangement in `layout.tabs.v1`; the
+selected tab is `layout.active.v1`. Existing `layout.v1` and `layouts.v1` remain
+compatible. Switching workflow workspaces preserves the active layout. Deleting
+an active saved layout returns to Custom. Saving over a named layout updates its
+tab snapshot. Names are escaped as text.
+
+Menu (`renderMenu`): lock, export/import, Reset to preset, explicit saved-layout
+load/delete, save current and panel visibility. Tabs restore their last edited
+arrangement; menu preset/load actions restore the original preset/saved template.
+`applyLayout(l, name, selection)` saves the departing tab before switching and
+remounting cards. Arrow keys, Home and End work in tab bars via `Lab.util.tabKeys`.
+
+The material panel uses the same tab styling with proper tab/tabpanel roles,
+selected state and a single keyboard tab stop. Its summary and navigation sit
+outside the scrolling view. Requirements, inventory, recipe preview and exchange
+columns scroll within the bounded panel, preserving form controls across tabs.
+The Materials workspace has a maximum width of 1800px. The panel calculates its
+available viewport height (maximum 900px) on resize and relayout and removes its
+listeners on unmount. Other workspaces retain their full-width grid.
 
 Presets are plain objects `{order, spans, hidden}` in `PRESETS` in app.js. Cards not in `order` follow in manifest order; cards in `hidden` are not mounted.
 

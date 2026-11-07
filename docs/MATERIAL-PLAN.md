@@ -1,27 +1,30 @@
 # Materials and recipe planning
 
 Use **Materials / Recipes** in the dashboard navigation. The main panel has
-four views: Plan recipes, Trade materials, Inventory, and Recorded synthesis / FSD. The pinned
+seven tabs: Wishlist, Add recipes, Requirements, Trading, Gather, Inventory, and
+Synthesis / FSD. The pinned
 build panel follows the planner. Existing recipe-search and material panels
 remain available in Custom layout; synthesis no longer has a separate basket.
 
 ## Workflow
 
-1. Select synthesis/FSD injection, a material target, engineering blueprint,
+1. Open Add recipes and select synthesis/FSD injection, a material target, engineering blueprint,
    experimental effect, technology broker unlock, or pinned build.
 2. Choose the recipe and quantity. For engineering choose current and target
    grades. The preview shows per-ingredient stock, earlier requirements, this
    addition's costs and shortages before saving.
-3. Add to saved plan. Edit a quantity in place or remove its entry. The combined
+3. Open Wishlist to edit a quantity, stop following the current ship or remove an
+   entry. Open Requirements for the combined material list; filter by category,
+   material name, family or grade. The combined
    requirements and material exchange plan update with journal inventory changes.
-4. Use Trade materials to inspect ordered exchanges and compare nearby traders.
+4. Use Trading to inspect ordered exchanges and compare nearby traders.
    Both sides show grade, category, family, quantity and projected stock before
    and after each step, with give:receive ratios and cross-family exchanges marked.
    Category buttons find the matching trader. Filter by category or large pads;
    sort the returned nearby stations by system distance or arrival distance (Ls).
    Station cards include estimated ship jumps, pad size, station type, economy,
    system/station copy buttons and an Inara link. Unknown distances stay unknown.
-   Find sources for a material or search sites for all shortfalls in Gather materials.
+   Find sources for a material or search sites for all shortfalls in Gather.
    Source results are cleared when the plan or stock changes; refresh explicitly.
 5. Use Inventory for current stock and session receipts. Use Recorded synthesis /
    FSD for actual journal craft history, injection alternatives and boost evidence.
@@ -31,6 +34,12 @@ planning target, not a queue that runs in game. Observed crafts reduce journal
 inventory but do not automatically reduce planned quantities. Edit the plan when
 your intended remaining work changes. Injection and jet-cone boosts do not stack;
 a planned injection is not evidence that one was applied.
+
+The panel keeps its summary and tabs visible while the selected view scrolls.
+On desktop, recipe editing/preview and exchanges/stations use adjacent columns;
+on narrow screens they stack. The Materials workspace is capped at 1800px wide,
+and panel height follows available viewport space up to 900px. It is checked at
+3440x1440 ultrawide, 1920x1080, 1366x768 and 1280x720, plus mobile widths.
 
 ## Shared stock and unknown inventory
 

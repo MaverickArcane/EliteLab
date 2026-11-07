@@ -220,6 +220,52 @@ try {
   assert.equal(await evaluate("document.querySelector('[data-plan-trader-category]').value"),'Raw');
   assert.equal(await evaluate("document.querySelector('[data-plan-trader-pad]').value"),'L');
   assert.equal(await evaluate("document.querySelector('[data-plan-trader-sort]').value"),'arrival');
+  // The material desk stays within common widescreen viewports, with internal lists.
+  await evaluate("document.querySelector('[data-workspace=materials]').click();true");
+  await evaluate("(async()=>{const rows=document.querySelector('#card-wishlist > .body')._plan.options.materials.Raw.slice(0,16);for(const row of rows)await Lab.post('/api/wishlist/add',{item:row.key,kind:'material',qty:30});})()");
+  for(const [width,height] of [[3440,1440],[1920,1080],[1366,768],[1280,720]]){
+    await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
+    await evaluate("scrollTo(0,0);document.querySelector('[data-plan-tab=plan]').click();true");await sleep(250);
+    const geometry=await evaluate("({bottom:document.querySelector('#card-wishlist').getBoundingClientRect().bottom,width:document.querySelector('#card-wishlist').getBoundingClientRect().width,viewport:innerHeight,scrollHeight:document.querySelector('.wl-entries').scrollHeight,listHeight:document.querySelector('.wl-entries').clientHeight,visible:[...document.querySelectorAll('[data-plan-page]')].filter(p=>!p.hidden).length})");
+    assert.ok(geometry.bottom<=height+2,JSON.stringify({width,height,...geometry}));
+    assert.ok(geometry.width<=1800,JSON.stringify(geometry));
+    assert.ok(geometry.scrollHeight>geometry.listHeight);assert.equal(geometry.visible,1);
+    await capture(`materials-wishlist-${width}x${height}`,width,height);
+  }
+  await send('Emulation.setDeviceMetricsOverride',{width:1920,height:1080,deviceScaleFactor:1,mobile:false});
+  await evaluate("var desk=document.querySelector('#card-wishlist > .body');var module=desk._plan.options.modules.find(m=>m.blueprints.some(b=>b.key==='FSD_LongRange'));desk._preselect({kind:'blueprint',module:module.module,key:'FSD_LongRange'});true");
+  await waitFor("document.querySelector('[data-plan-preview]').textContent.toLowerCase().includes('increased range')");
+  assert.equal(await evaluate("document.querySelector('[data-plan-tab=add]').getAttribute('aria-selected')"),'true');
+  await capture('materials-add-recipes-1920x1080',1920,1080);
+  await evaluate("document.querySelector('[data-plan-tab=requirements]').click();document.querySelector('[data-plan-needs-category]').value='Manufactured';document.querySelector('[data-plan-needs-category]').dispatchEvent(new Event('change'));document.querySelector('[data-plan-needs-filter]').value='chemical';document.querySelector('[data-plan-needs-filter]').dispatchEvent(new Event('input'));true");
+  assert.match(await evaluate("document.querySelector('.wl-needs tbody').textContent"),/Chemical Manipulators/);
+  await capture('materials-requirements-1920x1080',1920,1080);
+  await evaluate("var tab=document.querySelector('[data-plan-tab=plan]');tab.click();tab.focus();tab.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));true");
+  assert.equal(await evaluate("document.activeElement.dataset.planTab"),'add');
+  assert.equal(await evaluate("document.querySelector('[data-plan-page=add]').hidden"),false);
+  // Built-in and saved layout tabs retain independent panel arrangements.
+  await evaluate("document.querySelector('[data-workspace=all]').click();true");
+  assert.equal(await evaluate("document.querySelector('#layout-tabs').hidden"),false);
+  const customLayout=await evaluate("(()=>{const copy=Lab.util.copy;Lab.util.copy=text=>window.exportedLayout=JSON.parse(text);document.querySelector('#lm-export').click();Lab.util.copy=copy;return window.exportedLayout;})()");
+  await evaluate("[...document.querySelectorAll('#layout-tabs button')].find(b=>b.dataset.layoutName==='Carrier ops').click();true");
+  assert.equal(await evaluate("document.querySelector('#workspace-heading h2').textContent"),'Carrier ops');
+  await evaluate("document.querySelector('#layout-menu input[data-id=ship]').click();true");
+  assert.ok(await evaluate("JSON.parse(localStorage.getItem('layout.v1')).hidden.includes('ship')"));
+  await evaluate("[...document.querySelectorAll('#layout-tabs button')].find(b=>b.dataset.layoutName==='Engineering').click();[...document.querySelectorAll('#layout-tabs button')].find(b=>b.dataset.layoutName==='Carrier ops').click();true");
+  assert.ok(await evaluate("JSON.parse(localStorage.getItem('layout.v1')).hidden.includes('ship')"));
+  await evaluate("document.querySelector('#lm-name').value='Test widescreen';document.querySelector('#lm-save').click();true");
+  assert.ok(await evaluate("[...document.querySelectorAll('#layout-tabs button')].some(b=>b.dataset.layoutKind==='saved'&&b.dataset.layoutName==='Test widescreen')"));
+  await evaluate("[...document.querySelectorAll('#layout-tabs button')].find(b=>b.dataset.layoutKind==='saved').click();true");
+  await capture('dashboard-layout-tabs',1920,1080);
+  await send('Page.reload');
+  await waitFor("document.querySelector('#layout-tabs [aria-selected=true]')?.dataset.layoutName==='Test widescreen'");
+  assert.ok(await evaluate("JSON.parse(localStorage.getItem('layout.v1')).hidden.includes('ship')"));
+  await evaluate("document.querySelector('#layout-menu [data-del]').click();true");
+  assert.equal(await evaluate("document.querySelector('#layout-tabs [aria-selected=true]').dataset.layoutKind"),'custom');
+  const restored=await evaluate("JSON.parse(localStorage.getItem('layout.v1'))");
+  for(const key of ['order','spans','hidden','collapsed','locked'])assert.deepEqual(restored[key],customLayout[key]);
+  await evaluate("var tab=document.querySelector('#layout-tabs [data-layout-kind=custom]');tab.focus();tab.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));true");
+  assert.equal(await evaluate("document.activeElement.dataset.layoutName"),'Expedition');
   assert.deepEqual(errors,[]);
   assert.deepEqual(await evaluate("[...document.querySelectorAll('.render-error')].map(e=>e.textContent)"),[]);
   const applicationLog=serverLog.replace(/Traceback \(most recent call last\):(?:(?!Traceback)[\s\S])*?ConnectionAbortedError: \[WinError 10053\][^\n]*\n/g,'').replace(/-{20,}\r?\nException occurred during processing of request[\s\S]*?ConnectionAbortedError: \[WinError 10053\][^\n]*\n-{20,}/g,'');
