@@ -26,12 +26,19 @@ class MaterialTradeTests(unittest.TestCase):
             donor, target = step["give"]["key"], step["get"]["key"]
             give, get = gd.trade_ratio(donor, target)
             paid, received = step["give"]["qty"], step["get"]["qty"]
+            for side, key in (("give", donor), ("get", target)):
+                self.assertEqual(step[side]["category"], gd.MATERIAL_BY_KEY[key]["category"])
+                self.assertEqual(step[side]["family"], gd.MATERIAL_BY_KEY[key]["family"])
+                self.assertEqual(step[side]["grade"], gd.MATERIAL_BY_KEY[key]["grade"])
+                self.assertEqual(step[side]["before"], stock.get(key, 0))
             self.assertGreater(paid, 0)
             self.assertEqual(paid % give, 0)
             self.assertEqual(received, paid // give * get)
             self.assertEqual(step["ratio"], f"{give}:{get}")
             stock[donor] = stock.get(donor, 0) - paid
             stock[target] = stock.get(target, 0) + received
+            self.assertEqual(step["give"]["after"], stock[donor])
+            self.assertEqual(step["get"]["after"], stock[target])
             self.assertGreaterEqual(stock[donor], needs.get(donor, 0) + max(0, reserve), step)
             self.assertLessEqual(stock[target], gd.MATERIAL_CAPS[gd.MATERIAL_BY_KEY[target]["grade"]], step)
             self.assertEqual(gd.MATERIAL_BY_KEY[donor]["category"], gd.MATERIAL_BY_KEY[target]["category"])

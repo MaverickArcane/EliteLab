@@ -74,7 +74,7 @@ class Materials:
         m = self.catalog.get(key, {})
         grade = m.get("grade")
         return {"key": key, "name": m.get("name") or self.names.get(key) or key, "category": m.get("category") or self.cats.get(key),
-                "grade": grade, "cap": self.caps.get(grade), "count": self.inv.get(key, 0)}
+                "grade": grade, "family": m.get("family"), "cap": self.caps.get(grade), "count": self.inv.get(key, 0)}
 
     # -- events ---------------------------------------------------------------------
     def add(self, name, count, category=None, localised=None):
@@ -278,7 +278,7 @@ def setup(core, module):
                                                  "materials": m.rows(q.get("category"), q.get("grade"), str(q.get("only_wishlist", "")).lower() in ("1", "true"),
                                                                      str(q.get("only_short", "")).lower() in ("1", "true"))},
                     tool="get_materials", module=module.name,
-                    description="Engineering materials inventory with grade, cap (300/250/200/150/100 for G1-G5), wishlist need and shortfall per material. "
+                    description="Engineering materials inventory with category, family, grade, cap (300/250/200/150/100 for G1-G5), wishlist need and shortfall per material. "
                                 "Each row also has gained: pickups, rewards and trader receipts since the latest LoadGame, rebuilt on replay; "
                                 "null if that session boundary is unavailable. Session totals and the latest gain are included.",
                     params={"category": {"type": "string", "description": "Raw, Manufactured or Encoded", "enum": ["Raw", "Manufactured", "Encoded"]},

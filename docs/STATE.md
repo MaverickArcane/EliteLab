@@ -178,6 +178,12 @@ The tables themselves are served by `/api/recipes` and `/api/recipes/get`, never
 
 ## wishlist (module: wishlist)
 
+Exchange `give` and `get` rows include category, family, grade, quantity and
+projected `before`/`after` stock for that ordered step. Unresolved requirements
+retain material identity. Trader destination `dist` (Ly), `ls` (arrival from
+the main star) and `jumps` are null when their inputs are unavailable, not zero.
+Zero remains a valid reported distance. Inventory rows also include family.
+
 | Key | Type |
 |---|---|
 | `entries` | `[{id, kind (blueprint/experimental/unlock/material/build/synthesis), key, name, module, grade, from_grade, qty, rolls, label, added, commodities?, broker?, materials, units, short, complete}]`; a `build` entry's needs are `build.progress.materials` |
@@ -187,6 +193,13 @@ The tables themselves are served by `/api/recipes` and `/api/recipes/get`, never
 | `updated` | ISO timestamp of the last recompute |
 
 Raw entries persist in `data/engineering_wishlist.json`; everything else is recomputed from the materials inventory (via `get_material_inventory`) on `state.materials.inventory_version` and `state.build.progress`. Source results are local to the unified card and invalidated on plan/stock changes.
+
+Build entries have `follow_ship` (defaults to true for existing entries). When false,
+`saved_needs` holds fixed material requirements and `saved_needs_at` records when
+they were saved. Ship changes and restarts do not change these requirements;
+inventory, allocation, shortages, exchanges and sourcing still update. Turning
+following back on clears the snapshot and resumes the pinned build comparison.
+`build_url` identifies the target so re-adding the same build preserves its choice.
 
 Execute `trades` in array order; intermediate receipts fund later steps. `covered`
 is the reduction of original wishlist shortfalls, excluding intermediate receipts

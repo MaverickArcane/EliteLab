@@ -51,11 +51,14 @@ def plan_trades(rows, inv, reserve=0):
     def exchange(stock, steps, donor, target, batches):
         give, get = ratio(donor, target)
         a, b = materials[donor], materials[target]
+        before_give, before_get = stock.get(donor, 0), stock.get(target, 0)
         stock[donor] = stock.get(donor, 0) - give * batches
         stock[target] = stock.get(target, 0) + get * batches
         steps.append({"category": b["category"], "ratio": f"{give}:{get}", "same_family": a["family"] == b["family"],
-                      "give": {"key": donor, "name": a["name"], "grade": a["grade"], "qty": give * batches},
-                      "get": {"key": target, "name": b["name"], "grade": b["grade"], "qty": get * batches}})
+                      "give": {"key": donor, "name": a["name"], "grade": a["grade"], "qty": give * batches,
+                               "category": a["category"], "family": a["family"], "before": before_give, "after": stock[donor]},
+                      "get": {"key": target, "name": b["name"], "grade": b["grade"], "qty": get * batches,
+                              "category": b["category"], "family": b["family"], "before": before_get, "after": stock[target]}})
 
     def record(steps):
         trades.extend(steps)
@@ -148,7 +151,7 @@ def plan_trades(rows, inv, reserve=0):
         if limited:
             break
 
-    unresolved = [{"key": r["key"], "name": r["name"], "grade": r["grade"], "category": r["category"],
+    unresolved = [{"key": r["key"], "name": r["name"], "grade": r["grade"], "category": r["category"], "family": r.get("family"),
                    "short": short(r["key"]), **({"note": "not tradeable"} if r["key"] not in materials else {})}
                   for r in rows if short(r["key"])]
     by = {}

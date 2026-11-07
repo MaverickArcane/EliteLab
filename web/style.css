@@ -453,6 +453,8 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 .material-plan [hidden]{display:none!important}
 #wl-grades{display:flex;gap:12px;margin-bottom:12px}#wl-grades label{flex:1}
 .plan-actions{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:14px 0}.plan-actions label input{width:90px}
+.material-plan label.plan-follow{flex-direction:row;align-items:center;gap:8px}
+.material-plan .plan-follow input{width:auto;margin:0;padding:0;flex:none}
 .plan-preview-title{font-size:15px;font-weight:600;margin:18px 0 8px}
 .plan-scroll{overflow:auto;max-height:420px}.material-plan table{width:100%;font-size:13px}.material-plan th{white-space:nowrap;padding:10px 8px}.material-plan td{padding:10px 8px;vertical-align:middle}.material-plan small{display:block;color:var(--muted);font-size:11px}
 .plan-entry{border:1px solid var(--line);padding:14px 16px;margin-bottom:12px;background:var(--card-2)}.plan-entry .tag{float:right}.plan-entry .note{margin:6px 0}.plan-order{display:inline-block;color:var(--dim);margin-right:12px}.plan-entry summary{color:var(--link);cursor:pointer}.plan-empty{padding:35px 24px;border:1px dashed var(--line-2);color:var(--muted)}
@@ -460,6 +462,63 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 @media(max-width:900px){.plan-columns{grid-template-columns:1fr}.plan-injections{grid-template-columns:1fr}#workspace-heading>span{display:none}}
 @media(max-width:760px){#workspace-nav{padding:4px 10px 0}#workspace-nav button{padding:10px 12px}#workspace-heading{padding:16px 14px 0}#workspace-heading h2{font-size:21px}.plan-intro,.plan-heading{align-items:start;flex-direction:column}.plan-composer{padding:14px}.plan-tabs button{padding:10px}.plan-entry .tag{float:none;margin-left:8px}}
 .plan-columns>*{min-width:0}.plan-scroll{max-width:100%}.plan-composer form{min-width:0}.material-plan .plan-intro .note{margin:0 0 10px}
+.material-plan h4{font-size:14px;margin:0 0 14px;color:var(--fg)}
+.plan-material-meta{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.plan-grade{display:inline-block;padding:2px 6px;border:1px solid var(--line-2);color:var(--accent);font-size:11px;white-space:nowrap}
+.plan-supply-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:28px;align-items:start}
+.plan-supply-layout>section{min-width:0}.plan-supply-layout>section+section{padding-left:24px;border-left:1px solid var(--line)}
+.plan-exchange-summary{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.plan-exchange-list{list-style:none;padding:0;margin:0;max-height:720px;overflow:auto}
+.plan-exchange{border:1px solid var(--line);padding:16px;margin:0 0 12px;background:var(--bg-2)}
+.plan-exchange-heading{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11px;margin-bottom:14px;color:var(--muted)}
+.plan-exchange-heading>b{color:var(--fg);margin-right:auto}.plan-exchange-pair{display:grid;grid-template-columns:minmax(0,1fr) 64px minmax(0,1fr);gap:12px}
+.plan-exchange-pair strong{display:block;margin:6px 0;overflow-wrap:anywhere;font-size:14px}.plan-exchange-rate{text-align:center;align-self:center;color:var(--accent)}
+.plan-exchange-rate small{font-size:10px}.plan-unresolved{margin-top:16px}.plan-unresolved summary{cursor:pointer;color:var(--link)}
+.plan-trader-filters{display:flex;gap:12px;flex-wrap:wrap}.plan-trader-filters label{flex:1;min-width:130px}
+.plan-trader-group{margin-top:20px}.plan-trader{padding:16px;border:1px solid var(--line);margin-bottom:12px;background:var(--bg-2);overflow-wrap:anywhere}
+.plan-trader-title{display:flex;gap:12px;align-items:start;justify-content:space-between;margin-bottom:6px}
+.plan-trader-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:18px 0 12px}.plan-trader-metrics .k{display:block;font-size:10px;line-height:1.5}
+.plan-trader-metrics strong{display:block;font-size:14px;margin-top:4px}.plan-trader .plan-actions{margin-bottom:0;align-items:center}
+.plan-farm-sources{margin-top:24px;border-top:1px solid var(--line);padding-top:20px}
+[data-plan-page="trading"] .plan-sourcing{border-top:0;margin-top:0;padding-top:0}
+@media(max-width:1000px){.plan-supply-layout{grid-template-columns:1fr}.plan-supply-layout>section+section{padding-left:0;padding-top:20px;border-left:0;border-top:1px solid var(--line)}}
+@media(max-width:480px){.plan-exchange{padding:12px}.plan-exchange-pair{grid-template-columns:1fr}.plan-exchange-rate{text-align:left}.plan-exchange-rate small{display:inline;margin-left:8px}.plan-trader{padding:12px}.plan-trader-metrics{gap:8px}.plan-trader-metrics strong{font-size:13px}}
+
+/* Tabbed material workspace: stable controls, bounded content for widescreen displays. */
+.material-plan{height:var(--plan-height,660px);display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.workspace-focused[data-active-workspace=materials]{max-width:1800px;margin-inline:auto}
+body[data-active-workspace=materials] #workspace-heading{max-width:1800px;margin-inline:auto}
+.plan-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:20px;align-items:center;flex:none;margin:0 0 16px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.plan-overview .k{display:block;font-size:10px;margin-bottom:5px}.plan-overview strong{font-size:22px;color:var(--fg);font-weight:600}.plan-overview .tag{font-size:10px}
+.view-tabs,.plan-tabs{display:flex;flex:none;gap:4px;overflow-x:auto;scrollbar-width:thin;border-bottom:1px solid var(--line);margin:0 0 16px}
+.view-tabs button,.plan-tabs button{background:transparent;color:var(--muted);border:0;border-radius:0;border-bottom:2px solid transparent;padding:10px 14px;white-space:nowrap;font-size:12px}
+.view-tabs button.active,.view-tabs button[aria-selected=true],.plan-tabs button.active{color:var(--fg);border-bottom-color:var(--accent);background:var(--accent-soft)}
+.view-tabs button:focus-visible,.plan-tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+#workspace-nav,#layout-tabs{margin:0}#layout-tabs{padding:0 20px;background:var(--bg-2);position:relative;z-index:2}
+#layout-tabs[hidden]{display:none}.layout-saved-mark{font-size:9px;margin-left:6px;color:var(--muted)}
+#workspace-heading{padding-top:12px}#workspace-heading h2{font-size:22px}
+.plan-tabs button span{display:inline-block;margin-left:5px;color:var(--muted);font-size:10px}
+.plan-workpage{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.material-plan .plan-message{flex:none;margin-top:8px;font-size:12px}.material-plan .plan-message:empty{display:none}
+.plan-compose-layout{display:grid;grid-template-columns:minmax(260px,.7fr) minmax(0,1.3fr);height:100%;gap:20px}
+.plan-compose-layout>section{min-height:0;min-width:0;overflow:auto;overscroll-behavior:contain;padding:16px;border:1px solid var(--line);background:var(--bg-2)}
+.plan-compose-layout .plan-scroll{max-height:none;overflow:visible}.material-plan .plan-compose-layout h3{margin-bottom:16px}
+.plan-saved{display:flex;flex-direction:column;height:100%;min-height:0}.plan-saved>.plan-heading{flex:none;margin-bottom:16px}.plan-saved h3{margin-bottom:4px}
+.plan-saved>.wl-entries{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-content:start}
+.plan-saved .plan-entry{margin:0;min-width:0}.plan-saved .plan-entry .plan-actions{align-items:center}.plan-saved .plan-scroll{max-height:240px}.plan-saved>p{flex:none;margin:12px 0 0}
+.plan-saved .plan-entry:only-child{grid-column:1/-1}
+.plan-workpage[data-plan-page=plan],.plan-workpage[data-plan-page=requirements],.plan-workpage[data-plan-page=trading],.plan-workpage[data-plan-page=inventory]{overflow:hidden}
+.plan-workpage .plan-requirements{margin:0;padding:0;border:0;height:100%;display:flex;flex-direction:column;min-height:0}
+.plan-requirement-filters{display:flex;gap:12px;margin:12px 0}.plan-requirement-filters>label:first-child{flex:1}.plan-requirement-filters input{width:100%}
+.wl-needs{display:flex;flex-direction:column;flex:1;min-height:0}.wl-needs>p{flex:none;margin:4px 0 12px}.wl-needs>.plan-scroll{flex:1;max-height:none}
+.material-plan thead th{position:sticky;top:0;z-index:1;background:var(--bg-2)}
+.material-plan [data-plan-page=inventory]{display:flex;flex-direction:column}.material-plan [data-plan-page=inventory]>.plan-actions{margin-top:0;flex:none}
+[data-plan-inventory]{flex:1;min-height:0;display:flex;flex-direction:column}[data-plan-inventory]>.plan-scroll{flex:1;max-height:none}
+.plan-workpage .plan-sourcing{display:flex;flex-direction:column;height:100%;min-height:0;margin:0;padding:0;border:0}
+.plan-workpage .plan-supply-layout{flex:1;min-height:0;gap:20px}.plan-workpage .plan-supply-layout>section{min-height:0;overflow:auto;overscroll-behavior:contain;padding-right:8px}
+.plan-workpage .plan-exchange-list{max-height:none;overflow:visible}.plan-workpage .plan-farm-sources{margin:0;border:0;padding:0}
+@media(max-width:1000px){.plan-saved>.wl-entries{grid-template-columns:1fr}.plan-workpage .plan-supply-layout{grid-template-columns:1fr 1fr}.plan-compose-layout{grid-template-columns:minmax(240px,.8fr) minmax(0,1.2fr)}.plan-workpage .plan-supply-layout>section+section{padding-top:0;padding-left:16px;border-top:0;border-left:1px solid var(--line)}}
+@media(max-width:760px){.plan-overview{gap:10px;grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:10px;padding-bottom:10px}.plan-overview>.tag{grid-column:1/-1;justify-self:start}.plan-overview strong{font-size:18px}.plan-tabs{margin-bottom:12px}.plan-tabs button{padding:9px 10px}.plan-compose-layout{grid-template-columns:1fr;height:auto}.plan-compose-layout>section{overflow:visible}.plan-workpage .plan-supply-layout{display:block;overflow:auto}.plan-workpage .plan-supply-layout>section{overflow:visible}.plan-workpage .plan-supply-layout>section+section{margin-top:20px;padding:20px 0 0;border-left:0;border-top:1px solid var(--line)}.plan-saved>.plan-heading{flex-direction:row;align-items:center;gap:8px}.plan-saved .plan-entry{padding:12px}.plan-requirement-filters{flex-wrap:wrap}}
 
 /* Rare-goods target planning */
 .target-desk { overflow-wrap:anywhere; }
