@@ -141,6 +141,7 @@ modules/wishlist/module.json
 modules/wishlist/module.py
 modules/wishlist/trading.py
 modules/wishlist/web/card.js
+modules/wishlist/web/trading.js
 web/app.js
 web/index.html
 web/state-feed.js
