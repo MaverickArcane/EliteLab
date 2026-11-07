@@ -1,8 +1,10 @@
 # Testing
 
-PTN carrier planning has isolated economic/evidence tests in `test_ptn.py` and a
+PTN carrier planning has isolated economic/evidence tests in `test_ptn.py`, real
+HTTP authentication/CSRF/input boundary tests in `test_ptn_security.py`, and a
 real HTTP/SSE browser run, `node tests/ptn-browser.mjs`, with fixture market visits,
-both phases, exact affiliate Markdown and responsive captures. No messages are
+both public phases, self-loading, smaller orders, provider-text injection,
+exact affiliate Markdown and responsive captures. No messages are
 sent to Discord. See [PTN-TRADING.md](PTN-TRADING.md#validation).
 
 Tabbed layouts and material workspace: the material plan browser test checks

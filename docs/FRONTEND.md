@@ -137,9 +137,11 @@ History fetch: `loadHistory()` refetches when range, selected commander or `hist
 
 The PTN desk has its own focused workspace and four keyboard-accessible tabs:
 Find trades, Scout & run, Advert and Public board. It keeps a bounded viewport
-with internal scrolling, compact short-screen metrics, responsive columns and
+with independently scrolling search/results columns, compact short-screen metrics,
+expandable route details, responsive columns and
 escaped journal/provider text. Inputs survive SSE updates and the server checks
-readiness again when copying an advert. See [PTN-TRADING.md](PTN-TRADING.md).
+readiness again when copying an advert. Preferred payouts are soft targets;
+profitable alternatives remain visible. See [PTN-TRADING.md](PTN-TRADING.md).
 
 The look is a cockpit instrument panel: near-black blue background with a faint scanline texture, HUD orange for titles, labels of record and anything that needs attention, cyan for secondary readings, angular panels (3 px radius) with orange corner brackets, uppercase letter-spaced micro-labels, tabular numbers, segmented gauge bars. The header is a readout strip (label above value). Bahnschrift when present, Segoe UI otherwise.
 

@@ -611,7 +611,7 @@ History responses and commander selection are documented in [HISTORY.md](HISTORY
 `ptn.json`. Its namespace also publishes current context, last bounded route scan,
 public official-board snapshot, readiness and scenario economics. It reads journal
 and trade evidence without mutating their namespaces. Browser preferences and
-selected tab use `ptn.preferences.v1` and `ptn.tab.v1`; no game or Discord action is
+selected tab use `ptn.preferences.v2` and `ptn.tab.v1`; no game or Discord action is
 performed. See [PTN-TRADING.md](PTN-TRADING.md).
 `history.selected_commander` is browser-only state shared with the map.
 

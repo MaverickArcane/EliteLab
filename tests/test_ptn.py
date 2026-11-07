@@ -1,13 +1,19 @@
 """PTN economic guarantees, market evidence and independent operation persistence."""
 import copy
+from concurrent.futures import TimeoutError as FuturesTimeout
 from datetime import datetime, timedelta, timezone
 import random
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from test_elitelab import Core, config, loader
-from modules.ptn.planning import DEFAULTS, advert, pricing, settings
+from modules.ptn.planning import DEFAULTS as CURRENT_DEFAULTS, advert, pricing, settings, paid_leg
+
+# Preserve the original explicit preferences in the existing workflow regressions.
+# New-default and mixed-hauling coverage below uses CURRENT_DEFAULTS directly.
+DEFAULTS = {**CURRENT_DEFAULTS,'loading_floor':20000,'unloading_floor':20000,'owner_floor':2500,
+            'hours':6,'arrival':2000,'skip_common':True,'avoid_active':True,'allow_partial':False}
 
 
 class PricingTests(unittest.TestCase):
@@ -93,6 +99,7 @@ class PTNTests(unittest.TestCase):
             return [dict(commodityName=name,totalStock=500000,minBuyPrice=4000,maxSellPrice=75000)
                     for name in ('liquor','gold','silver','agronomictreatment')]
         if '/exports?' in url or '/imports?' in url:
+            if '/commodity/name/liquor/' not in url:return []
             return [copy.deepcopy(self.buy if '/exports?' in url else self.sell)]
         raise RuntimeError('PTN fixture blocks unrelated provider requests')
 
@@ -100,7 +107,7 @@ class PTNTests(unittest.TestCase):
         return self.core.http.tools[name].fn(q)
 
     def scan(self,**q):
-        return self.call('find_ptn_routes',**q)
+        return self.call('find_ptn_routes',**{**DEFAULTS,**q})
 
     def choose(self):
         r = self.scan()['rows'][0]
@@ -130,7 +137,7 @@ class PTNTests(unittest.TestCase):
         return self.mutate('confirm',price=24000,remaining=18000,
                            checks={k:True for k in ('near_station','docking_open','funds_checked','competition_checked')})
 
-    def test_niche_defaults_orbital_filters_and_both_end_radius(self):
+    def test_explicit_niche_preferences_orbital_filters_and_both_end_radius(self):
         r = self.scan()
         self.assertEqual([row['commodity'] for row in r['rows']],['liquor'])
         self.assertTrue(r['rows'][0]['viable'])
@@ -293,3 +300,163 @@ class PTNTests(unittest.TestCase):
             self.desk.view();self.desk.publish()
         with patch.object(config,'OFFLINE',True),self.assertRaisesRegex(ValueError,'offline'):
             self.scan()
+
+    def test_normal_defaults_find_ordinary_spread_without_requiring_target(self):
+        self.sell['sellPrice']=30000
+        r=self.call('find_ptn_routes')['rows'][0]
+        self.assertTrue(r['viable'])
+        self.assertFalse(r['pricing']['meets_target'])
+        self.assertGreaterEqual(r['pricing']['loading_per_ton'],10000)
+        self.assertGreater(r['pricing']['owner_after_reserve'],0)
+        self.assertFalse(r['settings']['skip_common'])
+        self.assertFalse(r['settings']['avoid_active'])
+
+    def test_nearby_search_does_not_lose_stations_after_first_100_reports(self):
+        original=self.fetch
+        def fetch(url,*a,**kw):
+            if '/nearby/exports?' in url:
+                return [{**self.buy,'stationType':'CraterPort'} for _ in range(100)]+[self.buy]
+            return original(url,*a,**kw)
+        with patch.object(self.core.services,'fetch_json',side_effect=fetch) as fetcher:
+            self.assertTrue(self.call('find_ptn_routes')['rows'][0]['viable'])
+        urls=[c.args[0] for c in fetcher.call_args_list if '/exports?' in c.args[0]]
+        self.assertTrue(all('/system/name/Sol/commodity/name/' in url and '/nearby/' in url for url in urls))
+        self.assertTrue(all('maxDistance=450' in url and 'minVolume=2000' in url for url in urls))
+
+    def test_partial_orders_use_actual_quantity_in_all_money_and_advert_fields(self):
+        self.sell['demand']=5000
+        row=self.call('find_ptn_routes')['rows'][0]
+        self.assertEqual(row['quantity'],5000)
+        self.assertTrue(row['viable'])
+        c=row['pricing']
+        self.assertEqual(c['owner_after_reserve'],c['owner_per_ton']*5000-CURRENT_DEFAULTS['cost_reserve'])
+        self.call('select_ptn_route',id=row['id'],revision=0)
+        self.capture('buy');self.capture('sell');self.carrier(system='Source')
+        self.mutate('stage',stage='loading')
+        state=self.mutate('confirm',price=c['carrier_buy'],remaining=5000,
+                          checks={k:True for k in ('near_station','docking_open','funds_checked','competition_checked')})
+        self.assertTrue(state['operation']['ready'])
+        text=self.call('prepare_ptn_advert',revision=self.desk.data['revision'])['advert']
+        self.assertIn('5k units',text)
+        self.core.store.set('journal','system','Source')
+        self.assertEqual(self.call('find_ptn_routes',allow_partial=False)['rows'],[])
+        self.sell['demand']=1999
+        self.assertEqual(self.call('find_ptn_routes')['rows'],[])
+
+    def test_self_loading_records_actual_cost_and_only_advertises_unloading(self):
+        row=self.call('find_ptn_routes',haul_mode='self_load')['rows'][0]
+        self.assertEqual(row['pricing']['loading_per_ton'],0)
+        self.assertGreater(row['pricing']['unloading_per_ton'],60000)
+        self.call('select_ptn_route',id=row['id'],revision=0)
+        self.capture('buy');self.capture('sell');self.mutate('stage',stage='loading')
+        self.mutate('confirm',price=4100,remaining=0)
+        with self.assertRaisesRegex(ValueError,'yourself'):
+            self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
+        self.mutate('stage',stage='transit');self.mutate('stage',stage='unloading');self.carrier(system='Buyer')
+        state=self.mutate('confirm',price=5200,remaining=18000,
+                          checks={k:True for k in ('near_station','docking_open','funds_checked','competition_checked')})
+        self.assertTrue(state['operation']['ready'])
+        self.assertEqual(state['operation']['pricing']['owner_per_ton'],1100)
+        costs=state['operation']['pricing']
+        self.assertEqual(costs['hauler_total']+costs['owner_total'],costs['gross_total'])
+        self.assertEqual(self.call('prepare_ptn_advert',revision=self.desk.data['revision'])['profit_per_ton'],69800)
+
+    def test_self_unloading_only_advertises_loading_and_records_sale_proceeds(self):
+        row=self.call('find_ptn_routes',haul_mode='self_unload')['rows'][0]
+        self.assertGreater(row['pricing']['loading_per_ton'],60000)
+        self.assertEqual(row['pricing']['unloading_per_ton'],0)
+        self.call('select_ptn_route',id=row['id'],revision=0)
+        self.capture('buy');self.capture('sell');self.mutate('stage',stage='loading');self.carrier(system='Source')
+        self.mutate('confirm',price=74000,remaining=18000,
+                    checks={k:True for k in ('near_station','docking_open','funds_checked','competition_checked')})
+        self.assertEqual(self.call('prepare_ptn_advert',revision=self.desk.data['revision'])['profit_per_ton'],70000)
+        self.mutate('remaining',remaining=0);self.mutate('stage',stage='transit');self.mutate('stage',stage='unloading')
+        state=self.mutate('confirm',price=75500,remaining=0)
+        self.assertEqual(state['operation']['pricing']['owner_per_ton'],1500)
+        with self.assertRaisesRegex(ValueError,'yourself'):
+            self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
+        self.assertEqual(self.mutate('stage',stage='complete')['plan']['stage'],'complete')
+
+    def test_provider_fields_and_commodity_identity_are_validated(self):
+        for change in ({'commodityName':'gold'},{'stationName':{'html':'x'}},{'stationName':'x\u2028oops'},
+                       {'marketId':True},{'demand':10**20},{'systemX':float('inf')},{'bodyName':'x\u202eabc'}):
+            old=self.sell;self.sell={**old,**change}
+            self.assertEqual(self.call('find_ptn_routes')['rows'],[],change)
+            self.sell=old
+        self.buy['meanPrice']=self.sell['meanPrice']=10**100
+        self.assertFalse(self.call('find_ptn_routes')['rows'][0]['viable'])
+
+    def test_scan_cannot_be_selected_after_owner_or_carrier_location_change(self):
+        row=self.scan()['rows'][0]
+        self.carrier(system='Other system')
+        with self.assertRaisesRegex(ValueError,'location or owner'):
+            self.call('select_ptn_route',id=row['id'],revision=0)
+
+    def test_stale_raw_market_cannot_supply_a_fresh_mean_price(self):
+        self.choose();self.capture('buy')
+        self.desk.latest_market['timestamp']=self.time(-1)
+        state=self.call('capture_ptn_market',revision=self.desk.data['revision'],side='buy')
+        self.assertIsNone(state['plan']['scouts']['buy']['mean_price'])
+
+    def test_advert_rejects_unicode_controls_and_invalid_phases(self):
+        for name in ('x\u2028pwn','x\u202epwn','x\x7fpwn','x\u200bpwn'):
+            with self.assertRaises(ValueError):advert(name,'TST-001','Liquor','Port','System','loading',20000,18000)
+        with self.assertRaises(ValueError):advert('Test','TST-001','Liquor','Port','System','scouting',20000,18000)
+
+    def test_discord_link_must_be_a_message_url_without_suffix_or_controls(self):
+        self.confirmed()
+        for link in ('https://discord.com/channels/1/2/3\n@everyone','https://discord.com/channels/1/2/3?x=1',
+                     'https://discord.com/channels/../@everyone','https://discord.com/channels/1/2'):
+            with self.assertRaisesRegex(ValueError,'Discord message link'):self.mutate('posted',link=link)
+
+    def test_search_timeout_reports_partial_coverage_and_releases_scan_lock(self):
+        # The loader imports a fresh module object, so patch its own globals.
+        # Inject the executor timeout without relying on wall-clock scheduling.
+        with patch.object(self.desk,'quotes',return_value=[]),patch.dict(
+                self.desk.scan.__globals__,{'as_completed':Mock(side_effect=FuturesTimeout)}):
+            result=self.call('find_ptn_routes')
+        self.assertIn('time limit',result['warnings'][0])
+        self.assertFalse(self.desk.searching)
+        self.assertEqual(result['rows'],[])
+
+    def test_concurrent_scan_is_rejected_and_old_board_is_not_a_current_benchmark(self):
+        self.desk.searching=True
+        with patch.object(self.core.services,'fetch_json',side_effect=AssertionError('no parallel scan')):
+            with self.assertRaisesRegex(ValueError,'already running'):self.scan()
+        self.desk.searching=False
+        self.desk.refresh_board()
+        self.desk.board['updated_at']=self.time(-1)
+        board=self.desk.view()['board']
+        self.assertFalse(board['available'])
+        self.assertEqual(board['benchmarks'],{})
+
+
+class FlexiblePricingTests(unittest.TestCase):
+    def test_modes_conserve_money_and_never_spend_the_carrier_return(self):
+        rng=random.Random(127)
+        for mode in ('both','self_load','self_unload'):
+            for _ in range(180):
+                quantity=rng.randint(2000,25000)
+                prefs={**CURRENT_DEFAULTS,'haul_mode':mode,'cost_reserve':rng.randint(0,20000000),
+                       'owner_floor':rng.randint(0,3000),'share_surplus':rng.choice((True,False))}
+                buy=rng.randint(1,30000);sell=buy+rng.randint(5000,200000)
+                c=pricing(buy,sell,quantity,rng.randint(100,40000),prefs)
+                if not c['settings_valid']:continue
+                self.assertGreater(c['owner_after_reserve'],0)
+                self.assertEqual(c['hauler_total']+c['owner_total'],c['gross_total'])
+                for phase in ('loading','unloading'):
+                    if paid_leg(prefs,phase):self.assertGreaterEqual(c[phase+'_per_ton'],prefs[phase+'_floor'])
+                    else:self.assertEqual(c[phase+'_per_ton'],0)
+
+    def test_zero_owner_floor_still_requires_positive_profit_after_reserve(self):
+        p={**CURRENT_DEFAULTS,'owner_floor':0,'cost_reserve':5000000}
+        c=pricing(4000,50000,5000,10000,p)
+        self.assertTrue(c['settings_valid']);self.assertGreater(c['owner_after_reserve'],0)
+        self.assertFalse(pricing(4000,25000,5000,10000,p)['settings_valid'])
+
+    def test_optional_preferences_are_bounded_and_target_does_not_change_floors(self):
+        p=settings({'payout_target':999999})
+        c=pricing(4000,30000,18000,10000,p)
+        self.assertTrue(c['settings_valid']);self.assertFalse(c['meets_target'])
+        for q in ({'haul_mode':'admin'},{'min_quantity':20000},{'allow_partial':'maybe'},{'payout_target':-1}):
+            with self.assertRaises(ValueError):settings(q)
