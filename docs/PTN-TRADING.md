@@ -13,6 +13,8 @@ payouts of 10,000 Cr/t, 1,000 Cr/t minimum carrier margin before costs, a
 commodities are included; explicit exclusion controls remain available. Smaller
 orders down to 2,000 t are allowed when supply or demand cannot cover the maximum.
 Report age is at most 24 hours and station approach at most 10,000 Ls.
+Loading and unloading are orbital by default. Surface loading is an explicit
+option; unloading remains orbital. Large pads are required in both cases.
 
 The preferred payout is a ranking target, not a rejection threshold. All profitable
 routes are visible by default; "At target" filters them explicitly. Minimum public
@@ -32,6 +34,10 @@ qualified result retains a strictly positive total after the reserve, including
 smaller orders and a zero owner-margin preference. Switch sharing off to retain
 the spread above the public payout minimums instead. On a self-hauled leg, the
 unpaid payout is zero and excluded from the optimization objective.
+Loading and unloading minimums and surplus sharing are visible in the main form.
+The 20k/20k and 30k/20k presets set independent minimums, use public haulers on
+both legs, and turn sharing off so the carrier keeps the remainder. They leave
+station filters, order size and the preferred comparison target unchanged.
 
 The whole-percent model uses 5%-1000% and `(mean * percent + 50) // 100`.
 Suggested prices must support public payout minimums and the owner margin. Unknown
@@ -43,7 +49,8 @@ Sources:
 
 - Ardent/EDDN: `https://api.ardent-insight.com/v2/commodities` and
   `/system/name/{system}/commodity/name/{commodity}/nearby/exports` or `imports`.
-  Up to 1,000 nearby reports per side and 15 eligible stations per side for each
+  Up to 1,000 nearby reports per side, 15 eligible orbital stations per side and
+  15 surface loading sources for each
   of at most 48 catalog candidates; default 32. The old global best-100 endpoints
   could discard local stations before local filters ran. It is not an
   exhaustive route search and is not Inara market data.
@@ -52,10 +59,18 @@ Sources:
   are unknown. Board snapshots older than 15 minutes are unavailable. Displayed
   medians are comparisons, not market requirements or predictions of turnout.
 
-Discovery excludes surface stations, carriers, unknown station types, missing
+Discovery excludes surface unloading, carriers, unknown station types, missing
 large pads, missing coordinates/arrival distances and stale reports. Both stops
 must be within the selected radius of the carrier and within the selected
 carrier leg of each other. Zero demand is not assumed unlimited.
+Known surface types are CraterOutpost, CraterPort and OnFootSettlement, plus
+their Planetary Outpost, Planetary Port and Odyssey Settlement aliases. Surface
+loading remains excluded until enabled. A summary counts distinct commodity/source
+pairs that otherwise have a profitable route to an orbital buyer, using the same
+payout, reserve, volume, competition, age and distance checks. It shows up to three
+examples and an explicit button to enable surface loading and search again.
+These counts cover only the bounded scan and are estimates, not scouted offers.
+Separate station buckets keep cheap surface stock from displacing orbital options.
 
 Common cargo exclusions are optional through the common-cargo toggle and custom
 list: agronomic treatment, gold, silver, bertrandite, indite, gallite, palladium,
@@ -76,10 +91,12 @@ measure or guarantee actual traffic, completion times or a competitive offer.
 
 1. Select a candidate; this saves a scouting plan with a revision and immutable
    carrier/commander identity. Choosing a new plan replaces only the PTN draft.
-2. Dock at each selected orbital station and open its market. Capture the current
+2. Dock at each selected station and open its market. Capture the current
    visit's journal snapshot. The server requires matching market ID, station,
    system, station type and a snapshot no older than 15 minutes. The recorded
    price, volume, source and observation time remain visible.
+   Surface capture requires the saved surface-loading option, a loading stop and
+   a matching surface station category; enabling it cannot permit surface buyers.
 3. Open loading after both scouts and the economic checks pass. On a public leg,
    confirm proximity
    to the station body, docking access, market funding/service and competition.
@@ -95,6 +112,8 @@ measure or guarantee actual traffic, completion times or a competitive offer.
    `affiliate-trade-alerts` without role pings, and review/confirm Roomba. The
    optional separate note is `SCO FSD recommended.` Exact profits and quantities
    use up to three decimal places in `k` notation, never rounded up.
+   Surface loading adds a brief surface-port note; Odyssey is named only for a
+   known Odyssey station type. The journal determines the captured station type.
 6. Record posting locally only after posting and confirming in Discord. The
    optional message link and 48-hour timeout are local reminders. Update the
    original message using `/aco stock_update`; Roomba reactions close it.
@@ -161,7 +180,7 @@ review:
   24-hour-old posting scout. Expired board snapshots no longer supply benchmarks.
 - Provider exception details are not returned in public-board errors. Searches
   allow only one active scan, four provider workers, at most 48 commodities,
-  1,000 reports per side and 15 eligible stations per side. After a 90-second
+  1,000 reports per side, 15 orbital stations per side and 15 surface sources. After a 90-second
   report deadline queued work is cancelled and completed reports are returned
   with a coverage warning. In-flight requests may take the shared 40-second
   socket timeout to finish. Catalog/board requests precede that report deadline.
@@ -190,11 +209,12 @@ exclusions and failures, journal scouting, stale data, capacity reservations,
 partial orders, historical purchase costs, actual prices, owner scope, revision
 checks, atomic persistence, advert injection protection, normal-search defaults,
 both self-hauling modes, nearby-report coverage, deadlines and
-real HTTP security boundaries.
+real HTTP security boundaries. Surface tests cover opt-in, hidden profitable
+source counts, station and pad restrictions, legacy plans, scouting and adverts.
 
 `node tests/ptn-browser.mjs` uses real HTTP/SSE and offline provider/journal
 fixtures for discovery, scout rejection/retry, both trading phases, posting
 readiness, exact Markdown, soft board targets, smaller orders, owner loading,
-provider HTML injection and reload persistence. Captures and
+provider HTML injection, asymmetric payout presets, surface loading and reload persistence. Captures and
 viewport bounds cover 3440x1440, 1920x1080, 1366x768, 1280x720 and 390x844.
 CI preserves these images. Fixtures are illustrative, not live opportunities.

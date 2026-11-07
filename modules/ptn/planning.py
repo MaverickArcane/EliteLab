@@ -8,11 +8,23 @@ from datetime import datetime, timezone
 COMMON = ['agronomictreatment', 'gold', 'silver', 'bertrandite', 'indite', 'gallite', 'palladium', 'tritium']
 ORBITAL = {'Coriolis', 'Orbis', 'Ocellus', 'AsteroidBase', 'Outpost', 'Dodec',
            'Coriolis Starport', 'Orbis Starport', 'Ocellus Starport', 'Asteroid base', 'Dodec Starport'}
+SURFACE = {'CraterOutpost', 'CraterPort', 'OnFootSettlement', 'Planetary Outpost',
+           'Planetary Port', 'Odyssey Settlement'}
 DEFAULTS = dict(quantity=18000, loading_floor=10000, unloading_floor=10000, owner_floor=1000,
                 radius=450, max_hop=450, hours=24, arrival=10000, breadth=32, skip_common=False,
                 avoid_active=False, excluded='', hauler_capacity=784, cycle_minutes=5, haulers=3,
                 cost_reserve=5000000, share_surplus=True, haul_mode='both', payout_target=20000,
-                allow_partial=True, min_quantity=2000)
+                allow_partial=True, min_quantity=2000, allow_surface_loading=False)
+
+
+def station_kind(station_type, planetary=False):
+    if not isinstance(station_type, str):
+        return None
+    if station_type in SURFACE:
+        return 'surface'
+    if station_type in ORBITAL and not planetary:
+        return 'orbital'
+    return None
 
 
 def paid_leg(prefs, phase):
@@ -72,9 +84,9 @@ def settings(query):
         value = query.get(name, default)
         if name in bounds:
             out[name] = integer(value, name.replace('_', ' '), *bounds[name])
-        elif name in ('skip_common', 'avoid_active', 'share_surplus', 'allow_partial'):
+        elif name in ('skip_common', 'avoid_active', 'share_surplus', 'allow_partial', 'allow_surface_loading'):
             if value not in (True, False, 'true', 'false', '1', '0'):
-                raise ValueError('Choose whether to exclude common and active commodities.')
+                raise ValueError(name.replace('_', ' ') + ' must be true or false.')
             out[name] = value in (True, 'true', '1')
         elif name == 'haul_mode':
             if value not in ('both', 'self_load', 'self_unload'):

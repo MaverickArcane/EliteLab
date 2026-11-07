@@ -24,6 +24,8 @@ def scenario(q):
     fixture.buy, fixture.sell = copy.deepcopy(original_buy), copy.deepcopy(original_sell)
     if q.get('name')=='ordinary':
         fixture.sell.update(sellPrice=30000,demand=5000)
+    if q.get('name')=='surface':
+        fixture.buy.update(stationType='OnFootSettlement',isPlanetary=True)
     if q.get('name')=='injection':
         fixture.buy['stationName']='<img src=x onerror="globalThis.ptnInjected=true">'
         fixture.board['missions'][0]['carrier_name']='<svg onload="globalThis.ptnInjected=true">'

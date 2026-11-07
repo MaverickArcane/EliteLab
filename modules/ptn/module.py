@@ -10,8 +10,8 @@ from statistics import median
 from urllib.parse import quote, urlencode
 
 from elitelab.core.gamedata import is_rare, norm
-from modules.ptn.planning import (COMMON, DEFAULTS, ORBITAL, advert, finite, integer, key, line,
-                                  now, paid_leg, owner_minimum, pricing, settings, stamp)
+from modules.ptn.planning import (COMMON, DEFAULTS, advert, finite, integer, key, line,
+                                  now, paid_leg, owner_minimum, pricing, settings, stamp, station_kind)
 
 BOARD = 'https://pilotstradenetwork.com/wp-json/ptn/v1/missions'
 MARKETS = 'https://api.ardent-insight.com/v2'
@@ -153,9 +153,10 @@ class PTN:
             raise ValueError('Unexpected commodity report response.')
         clock, out = datetime.now(timezone.utc).timestamp(), []
         for r in raw[:1000]:
-            if not isinstance(r, dict) or r.get('stationType') not in ORBITAL or r.get('maxLandingPadSize')!=3:
+            if not isinstance(r, dict) or r.get('maxLandingPadSize')!=3:
                 continue
-            if r.get('isPlanetary') or r.get('isProhibited') or r.get('isRare'):
+            kind = station_kind(r.get('stationType'), r.get('isPlanetary'))
+            if not kind or (kind=='surface' and side!='buy') or r.get('isProhibited') or r.get('isRare'):
                 continue
             if key(r.get('commodityName')) != key(commodity):
                 continue
@@ -175,12 +176,19 @@ class PTN:
             except ValueError:
                 continue
             out.append(dict(market_id=r['marketId'], station=station_name, system=system_name,
-                station_type=r['stationType'], price=price, volume=volume, arrival_ls=arrival, pos=pos,
+                station_type=r['stationType'], surface=kind=='surface', price=price, volume=volume, arrival_ls=arrival, pos=pos,
                 distance=round(math.dist(origin,pos),1), body=body,
                 body_id=r.get('bodyId') if type(r.get('bodyId')) is int else None,
                 mean_price=r.get('meanPrice') if type(r.get('meanPrice')) is int and 0<r['meanPrice']<=10**9 else None,
                 observed_at=r['updatedAt'], source='Ardent / EDDN'))
-        return sorted(out,key=lambda r:r['price'] if side=='buy' else -r['price'])[:15]
+        # Retain separate buckets so cheap surface sources cannot displace orbital
+        # choices. Hidden surface comparisons use the same validated reports.
+        out.sort(key=lambda r:r['price'] if side=='buy' else -r['price'])
+        unique = {}
+        for report in out:
+            unique.setdefault(report['market_id'],report)
+        return ([r for r in unique.values() if not r['surface']][:15]
+                + [r for r in unique.values() if r['surface']][:15])
 
     def search(self, q):
         prefs = settings(q)
@@ -257,7 +265,7 @@ class PTN:
                     if report_key not in reports:
                         job.cancel()
                         reports[report_key] = []
-        rows = []
+        rows, hidden_sources = [], {}
         for commodity in candidates:
             pairs = []
             for buy in reports[commodity,'buy']:
@@ -298,13 +306,23 @@ class PTN:
                                official_competitors=loading_at_source if board['available'] else None,
                                common=commodity in COMMON,official_active=len(active) if board['available'] else None,
                                score=score,hauler_hour_scenario=round(scenario_hr),settings=prefs)
-                    pairs.append(row)
+                    if buy['surface'] and not prefs.get('allow_surface_loading',False):
+                        if viable:
+                            source_key = (commodity,buy['market_id'])
+                            previous = hidden_sources.get(source_key)
+                            if not previous or score>previous['score']:
+                                hidden_sources[source_key] = row
+                    else:
+                        pairs.append(row)
             pairs.sort(key=lambda r:(not r['viable'],not r['pricing']['meets_target'],-r['score'],-r['quantity']))
             rows.extend(pairs[:2])
         rows.sort(key=lambda r:(not r['viable'],not r['pricing']['meets_target'],-r['score'],-r['pricing']['owner_after_reserve']))
+        hidden = sorted(hidden_sources.values(),key=lambda r:-r['score'])
         result = dict(rows=rows[:48],scanned=len(candidates),available=len(catalog),excluded=sorted(excluded),
                       viable=sum(r['viable'] for r in rows),checked_at=now(),origin=context['system'],settings=prefs,
-                      warnings=warnings[:15],scope='Nearby Ardent/EDDN reports; up to 1000 reports and 15 eligible stations per side per commodity. Verify in game.',
+                      surface_excluded=dict(count=len(hidden),examples=[dict(commodity=r['name'],station=r['buy']['station'],
+                          system=r['buy']['system']) for r in hidden[:3]]),
+                      warnings=warnings[:15],scope='Nearby Ardent/EDDN reports; up to 1000 reports per side, 15 orbital stops per side and 15 surface loading sources per commodity. Verify in game.',
                       context=dict(callsign=context['callsign'],commander=context['commander'],system=context['system']))
         with self.lock:
             current = self.context()
@@ -448,11 +466,15 @@ class PTN:
             market = j.get('market') or {}
             target = plan['route'][side]
             clock = datetime.now(timezone.utc).timestamp()
-            if (not j.get('docked') or j.get('station_type') not in ORBITAL or j.get('system')!=target['system']
+            kind = station_kind(j.get('station_type'))
+            expected_kind = station_kind(target.get('station_type'))
+            surface_allowed = side=='buy' and plan['route']['settings'].get('allow_surface_loading',False)
+            if (not j.get('docked') or not kind or kind!=expected_kind or (kind=='surface' and not surface_allowed)
+                    or j.get('system')!=target['system']
                     or j.get('station')!=target['station'] or market.get('market_id')!=target['market_id']
                     or not -300<=clock-stamp(market.get('timestamp'))<=900
                     or stamp(market.get('timestamp'))<self.docked_at):
-                raise ValueError('Dock at this orbital station and open its commodity market now, then capture again.')
+                raise ValueError('Dock at the selected station with the allowed station type and open its commodity market now, then capture again.')
             item = next((r for r in market.get('commodities',[]) if key(r.get('key'))==key(plan['commodity'])),None)
             if not item:
                 raise ValueError('The selected commodity is missing from the current market snapshot.')
@@ -468,7 +490,8 @@ class PTN:
             if type(mean) is not int or not 0<mean<=10**9:
                 mean = None
             data = copy.deepcopy(self.data)
-            data['plan']['scouts'][side] = {**target,'price':price,'volume':volume,'mean_price':mean,
+            data['plan']['scouts'][side] = {**target,'station_type':j['station_type'],'surface':kind=='surface',
+                                          'price':price,'volume':volume,'mean_price':mean,
                                           'observed_at':market['timestamp'],'source':'Local market journal'}
             if item.get('name'):
                 data['plan']['name'] = line(item['name'],'Commodity')
@@ -549,7 +572,12 @@ class PTN:
             stop = op['buy'] if op['phase']=='loading' else op['sell']
             profit = op['pricing']['loading_per_ton' if op['phase']=='loading' else 'unloading_per_ton']
             text = advert(p['carrier'],p['callsign'],p['name'],stop['station'],stop['system'],op['phase'],profit,op['remaining'])
-            notes = 'SCO FSD recommended.' if p.get('sco') else ''
+            notes = []
+            if station_kind(stop.get('station_type'))=='surface':
+                notes.append('Odyssey surface port.' if stop['station_type'] in ('OnFootSettlement','Odyssey Settlement') else 'Surface port.')
+            if p.get('sco'):
+                notes.append('SCO FSD recommended.')
+            notes = ' '.join(notes)
             return dict(advert=text,notes=notes,copy_text=text+('\n'+notes if notes else ''),profit_per_ton=profit,
                         remaining=op['remaining'],instructions='Use /aco trade and review its generated string, then paste in affiliate-trade-alerts without role pings. Review and confirm Roomba; close it with the appropriate completion reaction. This desk does not post or close Discord adverts.')
 
@@ -565,18 +593,19 @@ def setup(core, module):
     search_params['payout_target']['description']='Preferred public payout in Cr/t. Ranks routes but never silently changes minimum payouts or hides profitable alternatives.'
     search_params['allow_partial']['description']='Allow smaller orders down to min_quantity when reports cannot support quantity. Every result carries its actual size and recalculated reserve.'
     search_params['owner_floor']['description']='Minimum carrier margin per tonne before the cost reserve. A positive total return after the reserve is always required.'
+    search_params['allow_surface_loading']['description']='Include known large-pad surface loading stations. Default false. Unloading remains orbital. Excluded surface sources with profitable pairs are summarized separately.'
     core.http.route('/api/ptn',lambda q:desk.view(),tool='get_ptn_desk',module=module.name,
                     description='PTN carrier plan, independent of Carrier job. Includes scouted prices, payout floors, readiness blockers, order confirmations and public official-board comparisons. No game or Discord actions.')
     core.http.route('/api/ptn/board',desk.refresh_board,tool='get_ptn_public_board',module=module.name,
                     description='Refresh public official PTN missions and median loading/unloading payouts. Affiliate adverts and unadvertised carriers are not covered. Failure is unknown competition, not zero.')
     core.http.route('/api/ptn/search',desk.search,tool='find_ptn_routes',params=search_params,module=module.name,
-                    description='Find profitable large-pad orbital carrier routes using nearby Ardent/EDDN reports. Default: 20k preferred payout, 10k minimum per public leg, up to 18k tonnes with smaller orders allowed, common cargo included. Supports owner hauling one leg. Positive carrier return after the reserve is mandatory. No game or Discord actions; scout prices before posting.')
+                    description='Find profitable large-pad carrier routes using nearby Ardent/EDDN reports. Orbital-only by default; surface loading is optional. Default: 20k preferred payout, 10k minimum per public leg, up to 18k tonnes with smaller orders allowed, common cargo included. Supports owner hauling one leg. Positive carrier return after the reserve is mandatory. No game or Discord actions; scout prices before posting.')
     core.http.route('/api/ptn/select',desk.select,tool='select_ptn_route',method='POST',module=module.name,
                     params={**revision,'id':dict(type='string',required=True,description='Route id from the latest PTN scan.')},
                     description='Save an independent PTN scouting plan from a recent candidate. Replaces only the local PTN draft; never changes Carrier job, game orders or Discord messages.')
     core.http.route('/api/ptn/capture',desk.capture,tool='capture_ptn_market',method='POST',module=module.name,
                     params={**revision,'side':dict(type='string',enum=['buy','sell'],required=True,description='buy = loading station; sell = unloading station.')},
-                    description='Capture the current journal commodity price and volume at the selected orbital station. Requires docking and a market snapshot from the current visit within 15 minutes. Invalidates order checks; never fabricates a scout visit.')
+                    description='Capture the current journal commodity price and volume at the selected station, respecting the saved surface-loading preference. Requires docking and a market snapshot from the current visit within 15 minutes. Invalidates order checks; never fabricates a scout visit.')
     core.http.route('/api/ptn/update',desk.update,tool='update_ptn_plan',method='POST',module=module.name,
                     params={**revision,'action':dict(type='string',required=True,enum=['stage','confirm','remaining','posted']),
                         'stage':dict(type='string',enum=list(PHASES)),'checks':dict(type='object',description='Explicit booleans: near_station, docking_open, funds_checked, competition_checked.'),

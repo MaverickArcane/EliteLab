@@ -30,6 +30,7 @@
 .ptn-presets,.ptn-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.ptn-actions a{font-size:11px}.ptn-scan{padding:12px 9px;display:flex;justify-content:space-between;font-weight:600;font-size:12px;gap:5px}
 .ptn-search .ptn-check-line{display:flex;flex-direction:column;gap:5px}.ptn-check-line label,.ptn-check-line>span{display:flex;align-items:flex-start;gap:8px;color:var(--fg);font-size:11px}.ptn-check-line small{font-size:10px;line-height:1.45;color:var(--dim)}
 .ptn-search input[type=checkbox],.ptn-flight-checks input[type=checkbox]{width:14px;height:14px;flex:none;margin:1px 0 0;accent-color:var(--accent)}
+.ptn-payout-presets{display:flex;flex-direction:column;gap:7px}.ptn-payout-presets small{font-size:10px}.ptn-surface-note{padding:12px;border:1px solid var(--line-2);margin-bottom:12px;background:var(--bg-2);font-size:11px;overflow-wrap:anywhere}.ptn-surface-note p{margin:7px 0}.ptn-surface-note ul{padding-left:17px;color:var(--muted)}.ptn-surface-note li{margin-block:5px}
 .ptn-more{border-block-start:1px solid var(--line);padding-top:10px;font-size:11px}.ptn-more summary{cursor:pointer;color:var(--muted);margin-bottom:10px}.ptn-more .ptn-fields{margin-top:12px}
 .ptn-section-heading{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:12px 0}.ptn-section-heading .k{color:var(--accent-2)}
 .ptn-opportunities>.note{font-size:10px;margin:0 0 12px;max-width:85ch}

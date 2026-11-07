@@ -134,6 +134,36 @@ try{
   await wait("!document.querySelector('[data-ptn-action=advert]').disabled");
   await click('[data-ptn-action=advert]');await click('[data-ptn-action=generate]');
   await wait("document.querySelector('[data-ptn-advert-text]').textContent.includes('24.9k/unit profit, 5k units')");
+  // Surface sources stay excluded until enabled; independent public payouts keep surplus.
+  await post('/audit/ptn/scenario',{name:'surface'});await click('[data-ptn-tab=find]');
+  await click('[data-ptn-action=normal-search]');await click('[data-ptn-action=payout-20-20]');
+  assert.equal(await evaluate("document.querySelector('[name=loading_floor]').value"),'20000');
+  await click('[data-ptn-action=payout-30-20]');
+  assert.deepEqual(await evaluate("({load:document.querySelector('[name=loading_floor]').value,unload:document.querySelector('[name=unloading_floor]').value,mode:document.querySelector('[name=haul_mode]').value,sharing:document.querySelector('[name=share_surplus]').checked,surface:document.querySelector('[name=allow_surface_loading]').checked})"),{load:'30000',unload:'20000',mode:'both',sharing:false,surface:false});
+  await evaluate("document.querySelector('[data-ptn-search]').requestSubmit();true");
+  await wait("!!document.querySelector('.ptn-surface-note')&&!document.querySelector('.ptn-scan').disabled");
+  assert.equal(await evaluate("document.querySelectorAll('.ptn-route').length"),0);
+  assert.match(await evaluate("document.querySelector('.ptn-surface-note').textContent"),/1 surface loading sources.*Liquor.*Buy Port/s);
+  await click('[data-ptn-action=surface-search]');
+  await wait("document.querySelector('.ptn-route')?.textContent.includes('Odyssey surface port')&&!document.querySelector('.ptn-scan').disabled");
+  assert.match(await evaluate("document.querySelector('.ptn-route-numbers').textContent"),/30,000 Cr.*20,000 Cr.*373m Cr/s);
+  assert.match(await evaluate("document.querySelector('.ptn-overview .ptn-metric').textContent"),/loading payout30,000 Cr\/tUnloading: 20,000 Cr\/t/);
+  assert.equal(await evaluate("document.querySelector('.ptn-surface-note')"),null);
+  await shot('ptn-surface-payouts-1920x1080',1920,1080);
+  await send('Page.reload');await wait("document.querySelector('[name=allow_surface_loading]')?.checked&&!document.querySelector('.ptn-scan').disabled");
+  assert.equal(await evaluate("document.querySelector('[name=share_surplus]').checked"),false);
+  assert.equal(await evaluate("document.querySelector('[name=loading_floor]').value"),'30000');
+  await click('[data-ptn-select]');await wait("!!document.querySelector('[data-ptn-capture=buy]')");
+  await post('/audit/ptn/visit',{side:'buy'});await post('/audit/ptn/visit',{side:'sell'});
+  await wait("document.querySelectorAll('.ptn-stop-label .tag.ok').length===2");
+  await post('/audit/ptn/move',{system:'Source'});await click('[data-ptn-stage=loading]');
+  await wait("!!document.querySelector('[data-ptn-confirm]')&&!document.querySelector('[data-ptn-confirm] button').disabled");
+  for(const name of ['near_station','docking_open','funds_checked','competition_checked'])await click(`[name=${name}]`);
+  await evaluate("document.querySelector('[data-ptn-confirm]').requestSubmit();true");
+  await wait("!document.querySelector('[data-ptn-action=advert]').disabled");
+  await click('[data-ptn-action=advert]');await click('[data-ptn-action=generate]');
+  await wait("document.querySelector('[data-ptn-advert-text]').textContent.includes('Odyssey surface port. SCO FSD recommended.')");
+  assert.match(await evaluate("document.querySelector('[data-ptn-advert-text]').textContent"),/30k\/unit profit, 18k units\nOdyssey surface port\. SCO FSD recommended\./);
   // Provider HTML is text, including inside copy buttons and public-board rows.
   await post('/audit/ptn/scenario',{name:'injection'});await click('[data-ptn-tab=find]');
   await evaluate("document.querySelector('[data-ptn-search]').requestSubmit();true");
@@ -144,6 +174,6 @@ try{
   assert.equal(await evaluate("document.querySelectorAll('.ptn-board-table svg').length"),0);
   assert.equal(await evaluate("globalThis.ptnInjected===true"),false);
   assert.deepEqual(errors,[]);assert.deepEqual(await evaluate("[...document.querySelectorAll('.render-error')].map(e=>e.textContent)"),[]);
-  console.log('PTN discovery, smaller orders, public and owner-hauling phases, journal scouts, checked Markdown, soft targets, live form preservation, injected text, persistence and responsive bounds passed. Synthetic journals and provider fixtures. '+screenshots);
+  console.log('PTN discovery, smaller orders, public and owner-hauling phases, optional surface loading, payout presets, journal scouts, checked Markdown, soft targets, live form preservation, injected text, persistence and responsive bounds passed. Synthetic journals and provider fixtures. '+screenshots);
   await send('Browser.close').catch(()=>{});
 }finally{ws?.close();chrome?.kill();server.kill();}

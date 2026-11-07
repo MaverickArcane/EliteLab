@@ -60,7 +60,8 @@ class PricingTests(unittest.TestCase):
 
     def test_settings_reject_invalid_and_unbounded_inputs(self):
         for query in ({'quantity':True},{'radius':float('nan')},{'max_hop':501},{'hours':25},
-                      {'loading_floor':0},{'breadth':49},{'cost_reserve':-1},{'avoid_active':'maybe'}):
+                      {'loading_floor':0},{'breadth':49},{'cost_reserve':-1},{'avoid_active':'maybe'},
+                      {'allow_surface_loading':'maybe'}):
             with self.subTest(query=query),self.assertRaises(ValueError):
                 settings(query)
 
@@ -120,7 +121,7 @@ class PTNTests(unittest.TestCase):
         target = self.buy if side=='buy' else self.sell
         ts = self.time()
         self.desk.dock_event('journal.Docked',{'timestamp':ts})
-        self.core.store.update('journal',dict(docked=True,system=target['systemName'],station=target['stationName'],station_type='Orbis'))
+        self.core.store.update('journal',dict(docked=True,system=target['systemName'],station=target['stationName'],station_type=target['stationType']))
         self.core.bus.emit('journal.file.Market',dict(timestamp=self.time(),MarketID=target['marketId'],
             StationName=target['stationName'],StarSystem=target['systemName'],Items=[dict(Name='$liquor_name;',Name_Localised='Liquor',
                 BuyPrice=target['buyPrice'],SellPrice=target['sellPrice'],Stock=target['stock'],Demand=target['demand'],MeanPrice=10000)]))
@@ -161,6 +162,80 @@ class PTNTests(unittest.TestCase):
         self.sell['sellPrice']=75000
         self.buy['meanPrice']=self.sell['meanPrice']=None
         self.assertFalse(self.scan()['rows'][0]['viable'])
+
+    def test_surface_loading_is_opt_in_and_hidden_sources_are_profitable(self):
+        self.buy.update(stationType='CraterOutpost',isPlanetary=True)
+        result = self.scan()
+        self.assertEqual(result['rows'],[])
+        self.assertEqual(result['surface_excluded'],dict(count=1,examples=[dict(
+            commodity='Liquor',station='Buy Port',system='Source')]))
+        row = self.scan(allow_surface_loading=True)['rows'][0]
+        self.assertTrue(row['buy']['surface'])
+        self.assertFalse(row['sell']['surface'])
+        self.assertTrue(row['viable'])
+        self.sell['sellPrice']=30000
+        self.assertEqual(self.scan()['surface_excluded']['count'],0)
+        self.sell['sellPrice']=75000
+        self.buy['meanPrice']=self.sell['meanPrice']=None
+        self.assertEqual(self.scan()['surface_excluded']['count'],0)
+
+    def test_surface_filter_preserves_pad_age_volume_and_station_safety_checks(self):
+        self.buy.update(stationType='CraterPort',isPlanetary=True)
+        original = copy.deepcopy(self.buy)
+        for changes in ({'maxLandingPadSize':2},{'stationType':'Unknown'},{'stationType':'FleetCarrier'},
+                        {'stationType':['CraterPort']},{'isProhibited':True},{'isRare':True},
+                        {'stock':100},{'updatedAt':self.time(-7)},{'systemX':501},{'distanceToArrival':None}):
+            with self.subTest(changes=changes):
+                self.buy = {**original,**changes}
+                result = self.scan(allow_surface_loading=True)
+                self.assertEqual(result['rows'],[])
+                self.assertEqual(result['surface_excluded']['count'],0)
+        self.buy = original
+        self.sell['stationType']='CraterPort'
+        self.assertEqual(self.scan(allow_surface_loading=True)['rows'],[])
+
+    def test_surface_scout_and_advert_and_asymmetric_public_payouts(self):
+        self.buy['stationType']='OnFootSettlement'
+        row = self.scan(allow_surface_loading=True,loading_floor=30000,unloading_floor=20000,share_surplus=False)['rows'][0]
+        self.assertEqual(row['pricing']['loading_per_ton'],30000)
+        self.assertEqual(row['pricing']['unloading_per_ton'],20000)
+        self.assertEqual(row['pricing']['owner_after_reserve'],373000000)
+        self.call('select_ptn_route',revision=self.desk.data['revision'],id=row['id'])
+        state = self.capture('buy')
+        self.assertTrue(state['plan']['scouts']['buy']['surface'])
+        self.core.store.set('journal','station_type','Orbis')
+        with self.assertRaisesRegex(ValueError,'Dock'):
+            self.call('capture_ptn_market',revision=self.desk.data['revision'],side='buy')
+        self.capture('sell');self.mutate('stage',stage='loading');self.carrier(system='Source')
+        self.mutate('confirm',price=34000,remaining=18000,
+                    checks={k:True for k in ('near_station','docking_open','funds_checked','competition_checked')})
+        result = self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
+        self.assertIn('30k/unit profit, 18k units',result['advert'])
+        self.assertEqual(result['notes'],'Odyssey surface port. SCO FSD recommended.')
+        self.assertEqual(result['copy_text'].count('\n'),1)
+
+    def test_legacy_orbital_plan_cannot_capture_a_surface_market(self):
+        self.choose()
+        self.desk.data['plan']['route']['settings'].pop('allow_surface_loading',None)
+        self.buy['stationType']='CraterPort'
+        with self.assertRaisesRegex(ValueError,'Dock'):
+            self.capture('buy')
+
+    def test_hidden_sources_are_deduplicated_and_do_not_displace_orbital_choices(self):
+        fetch = self.fetch
+        def many_sources(url,*args,**kwargs):
+            reports = fetch(url,*args,**kwargs)
+            if reports and '/exports?' in url:
+                return [{**self.buy,'marketId':500+i,'buyPrice':3000,'stationType':'CraterPort'} for i in range(20)]+reports
+            if reports and '/imports?' in url:
+                return reports+[{**self.sell,'marketId':203,'sellPrice':74000}]
+            return reports
+        with patch.object(self.core.services,'fetch_json',side_effect=many_sources):
+            result = self.scan()
+        self.assertEqual(len(result['rows']),2)
+        self.assertTrue(all(not r['buy']['surface'] for r in result['rows']))
+        self.assertEqual(result['surface_excluded']['count'],15)
+        self.assertEqual(len(result['surface_excluded']['examples']),3)
 
     def test_board_exclusion_benchmark_unknown_and_stale(self):
         self.board['missions'][0]['commodity']='Liquor'
@@ -315,7 +390,7 @@ class PTNTests(unittest.TestCase):
         original=self.fetch
         def fetch(url,*a,**kw):
             if '/nearby/exports?' in url:
-                return [{**self.buy,'stationType':'CraterPort'} for _ in range(100)]+[self.buy]
+                return [{**self.buy,'marketId':500+i,'stationType':'CraterPort'} for i in range(100)]+[self.buy]
             return original(url,*a,**kw)
         with patch.object(self.core.services,'fetch_json',side_effect=fetch) as fetcher:
             self.assertTrue(self.call('find_ptn_routes')['rows'][0]['viable'])
