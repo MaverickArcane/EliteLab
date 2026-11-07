@@ -9,7 +9,7 @@ the existing Carrier job. Cancelling a local plan does not cancel those actions.
 
 Defaults: 18,000 t, 20,000 Cr/t minimum for loading and unloading, 2,500 Cr/t
 minimum carrier margin, a 5,000,000 Cr fuel/fee reserve, and 450 Ly radius and
-carrier leg. These are adjustable preferences, not PTN rules. Hauler-first mode
+carrier leg. These are adjustable preferences, not PTN rules. Surplus-sharing mode
 shares surplus spread after the owner's minimum: it maximizes the weaker hauler
 payout, then combined hauler payout, over the available carrier price settings.
 Switch it off to retain the spread above the two payout floors instead.
@@ -41,7 +41,9 @@ list: agronomic treatment, gold, silver, bertrandite, indite, gallite, palladium
 and tritium. The public-board exclusion optionally skips commodities with an
 official advert. Failure of that feed is shown as unknown competition. Known
 same-station, same-commodity loading adverts reduce the available supply buffer.
-The desk shows near misses without silently reducing payout floors.
+Matching routes are the default results. Rejected candidates are shown only when
+requested, with the available spread, required spread and shortfall instead of
+projected profits or hauler earnings. Payout floors are not silently reduced.
 
 The hauler credits/hour and operation-time figures are explicit scenarios using
 an editable example hold, round-trip time and number of haulers. They do not

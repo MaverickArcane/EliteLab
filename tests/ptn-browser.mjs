@@ -40,6 +40,16 @@ try{
   await wait("!!document.querySelector('[data-workspace=ptn]')");
   await click('[data-workspace=ptn]');await wait("!!document.querySelector('[data-ptn-search]')");
   await shot('ptn-empty-1920x1080',1920,1080);
+  // A route unable to pay both legs stays rejected and is never the default result.
+  await evaluate("for(const name of ['loading_floor','unloading_floor']){const input=document.querySelector('[name='+name+']');input.value='60000';input.dispatchEvent(new Event('input',{bubbles:true}));}document.querySelector('[data-ptn-search]').requestSubmit();true");
+  await wait("document.querySelector('.ptn-status').textContent.includes('Search complete')&&!document.querySelector('.ptn-scan').disabled");
+  assert.equal(await evaluate("document.querySelectorAll('.ptn-route').length"),0);
+  assert.match(await evaluate("document.querySelector('.ptn-opportunities').textContent"),/No routes match these filters/);
+  await click('[data-ptn-action=near]');
+  assert.match(await evaluate("document.querySelector('.ptn-route').textContent"),/51,500 Cr\/t shortfall/);
+  assert.doesNotMatch(await evaluate("document.querySelector('.ptn-route').textContent"),/Carrier after reserve|Cr\/h|Hauler \/ loading/);
+  await shot('ptn-rejected-1920x1080',1920,1080);
+  await click('[data-ptn-payout="20000"]');
   await evaluate("document.querySelector('[data-ptn-search]').requestSubmit();true");
   await wait("document.querySelectorAll('.ptn-route').length===1&&!document.querySelector('[data-ptn-select]').disabled");
   assert.match(await evaluate("document.querySelector('.ptn-route').textContent"),/40m Cr/);
