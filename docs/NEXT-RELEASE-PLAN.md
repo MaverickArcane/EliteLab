@@ -126,6 +126,35 @@ results are authoritative for the integration status after this record is commit
 
 ## Execution record
 
+### Completion audit
+
+The initial integration implemented group-mining setup and the PTN-to-Carrier-ops
+handoff, but left mined-load-to-PTN unloading as a manual future extension. The
+follow-up completes item 5 with the implemented and regression-tested workflow:
+
+1. An owner-only, revision-checked handoff from a departed mining job and
+   checked carrier stock to an independent PTN unloading plan.
+2. A real buyer visit and market capture. A mined load has no station-buy
+   scout, and its acquisition cost must remain unknown unless established.
+3. Fresh buyer demand, carrier location/stock, actual sell order and posting
+   checks before preparing an unloading advert through the existing PTN flow.
+4. Preserved source job progress and rejection of stale, mismatched,
+   contradictory or unauthorized evidence; HTTP, persistence and browser coverage.
+5. Updated guides, API/state references and roadmap describing the implemented
+   workflow. [PR #120](https://github.com/MaverickArcane/EliteLab/pull/120)
+   records follow-up CI and development integration.
+
+Completion validation on `release/complete-mining-handoff`: 797 Python tests
+passed with 11 platform skips, including six mined-load guard/persistence tests
+and the expanded two-client mining-to-PTN regression. Owner/crew, PTN and release
+browser workflows passed; mined-load desktop/mobile screenshots were inspected.
+All 31 JavaScript files pass syntax checks, changed Markdown local links resolve,
+and the Debian allowlist includes the new helper. Cross-platform CI, review and
+the merge receipt belong to the follow-up PR; no live game action is claimed.
+Its first Linux browser run exposed an early post-reload state read in the new
+test. The corrected wait requires a new document and initialized PTN/trade state
+before checking persistence; it keeps the complete advert assertions intact.
+
 ### Preservation and integration
 
 - Local source preserved without changing the original checkout in draft
@@ -147,7 +176,9 @@ results are authoritative for the integration status after this record is commit
 - Carrier ops is separate. Group mining uses the existing authenticated crew
   transport, equal whole-tonne quotas and explicit prices. PTN handoff preserves
   confirmed loading prices and releases its lock before publishing carrier state.
-  Mining-specific PTN adverts remain manual, without fabricated station scouting.
+  Departed mined loads can prepare PTN unloading adverts after buyer scouting,
+  checked stock above the saved baseline and actual sell-order confirmation.
+  Acquisition cost/net profit stay unknown; the source crew job remains intact.
 - Overview credits, shield state, module accents, fewer default layouts and Second
   screen are implemented. Saved/custom layouts survive; maps default to
   Overview/Flight. Expedition bio capabilities/limits and Rare goods retention are

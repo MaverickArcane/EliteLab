@@ -31,6 +31,17 @@ def sale(q):
     return core.store.get('selling')
 
 core.http.route('/audit/selling/sale',sale,method='POST')
+
+def mining_buyer(q):
+    timestamp=datetime.now(timezone.utc).isoformat()
+    core.bus.emit('journal.Docked',dict(event='Docked',timestamp=timestamp,StationName='Buyer',StarSystem='Lave',StationType='Orbis',MarketID=456))
+    core.bus.emit('journal.file.Market',dict(timestamp=datetime.now(timezone.utc).isoformat(),MarketID=456,
+        StationName='Buyer',StarSystem='Lave',Items=[dict(Name='$platinum_name;',Name_Localised='Platinum',
+        BuyPrice=0,SellPrice=280000,Stock=0,Demand=1000,MeanPrice=57000,Consumer=True)]))
+    fixture.carrier(system='Lave',stats_time=fixture.time())
+    return core.store.get('ptn')
+
+core.http.route('/audit/mining/buyer',mining_buyer,method='POST')
 server=ThreadingHTTPServer(('127.0.0.1',0),make_handler(core))
 print(server.server_port,flush=True)
 try:

@@ -10,6 +10,18 @@ Release additions (all inherit normal authorization/Origin/Host checks):
 | `clear_cargo_sale_plan` | POST `/api/selling/clear` | Clears only current commander's route |
 | `plan_mining_loading` | POST `/api/trade/mining` | Ring, buyer, quantity, checked stock and actual miner buy price |
 | `handoff_ptn_to_carrier` | POST `/api/ptn/carrier` | PTN revision plus checked stock; explicit independent draft |
+| `handoff_mining_to_ptn` | POST `/api/ptn/mining` | PTN revision, source mining job ID/version, docked buyer ID, checked stock and quantity; independent unloading plan |
+
+`handoff_mining_to_ptn` requires `revision`, `operation_id`,
+`operation_updated_at`, `buyer_market_id`, `checked_stock` and `quantity`.
+Optional `unloading_floor` defaults to 20,000 Cr/t. Quantity is 1-25,000 t,
+bounded by the mining job size and checked stock above its saved baseline.
+The job must have departed and be unpaused; the current owner/carrier and fresh
+large-pad orbital buyer visit must match. Active PTN plans are not overwritten.
+Capture only `side=sell`, then `update_ptn_plan action=stage stage=unloading`.
+For this plan, `action=confirm` also requires `checked_stock` alongside price,
+remaining and the four checks. `action=stock checked_stock=...` rechecks stock
+while scouting or unloading. All updates require the current PTN revision.
 
 `find_ptn_routes` now starts a background search; poll `get_ptn_desk.search_job`.
 Both search tools return promptly instead of requiring one long MCP request.
@@ -936,7 +948,7 @@ See [TRADE-POWERPLAY.md](TRADE-POWERPLAY.md) for the full response and workflow.
 
 The separate PTN module exposes route discovery, journal scouting, owner-reviewed
 order checks and exact affiliate adverts. All mutations use a current revision.
-See [PTN-TRADING.md](PTN-TRADING.md) for its seven tools and evidence requirements.
+See [PTN-TRADING.md](PTN-TRADING.md) for its tools and evidence requirements.
 
 ## Unified materials and recipe planning
 

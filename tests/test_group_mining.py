@@ -46,6 +46,27 @@ class GroupMiningTests(unittest.TestCase):
         for action in ('depart','unload'):
             tools['manage_carrier_operation'].fn({'action':action,'id':op['id']})
         self.assertFalse(f.leader_core.store.get('trade','plan')['carrier_price_known'])
+        # The same two-client mining job can prepare a checked public unload.
+        clock=datetime.now(timezone.utc).isoformat()
+        f.leader_core.store.set('journal','carrier',dict(name='Group Carrier',callsign='TST-001',
+            system='Lave',stats_time=clock,free_space=24000,reserved_space=0))
+        f.leader_core.bus.emit('journal.Docked',dict(event='Docked',timestamp=clock,
+            StationName='Buyer',StarSystem='Lave',StationType='Orbis',MarketID=456))
+        f.leader_core.bus.emit('journal.file.Market',dict(timestamp=datetime.now(timezone.utc).isoformat(),
+            MarketID=456,StationName='Buyer',StarSystem='Lave',Items=[dict(Name='$platinum_name;',
+            Name_Localised='Platinum',SellPrice=280000,BuyPrice=0,Demand=1000,Stock=0,MeanPrice=57000,Consumer=True)]))
+        source_job=f.leader_core.store.get('trade','job')
+        ptn=tools['get_ptn_desk'].fn({})
+        ptn=tools['handoff_mining_to_ptn'].fn(dict(revision=ptn['revision'],operation_id=op['id'],
+            operation_updated_at=source_job['operation']['updated_at'],buyer_market_id=456,
+            checked_stock=40,quantity=20,unloading_floor=20000))
+        ptn=tools['capture_ptn_market'].fn(dict(revision=ptn['revision'],side='sell'))
+        ptn=tools['update_ptn_plan'].fn(dict(revision=ptn['revision'],action='stage',stage='unloading'))
+        ptn=tools['update_ptn_plan'].fn(dict(revision=ptn['revision'],action='confirm',price=250000,
+            remaining=20,checked_stock=40,checks={k:True for k in ('near_station','docking_open','funds_checked','competition_checked')}))
+        advert=tools['prepare_ptn_advert'].fn(dict(revision=ptn['revision']))
+        self.assertEqual(advert['remaining'],20);self.assertEqual(advert['profit_per_ton'],30000)
+        self.assertEqual(f.leader_core.store.get('trade','job'),source_job)
         f.member.report_work({'activity':'ready'})
         sold={**sale,'MarketID':456,'timestamp':datetime.now(timezone.utc).isoformat()}
         bus.emit('journal.MarketSell',sold);f.member.report_work({'activity':'ready'})

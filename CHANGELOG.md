@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Complete group mining through PTN unloading: hand off a departed mining job,
+  scout the real buyer, preserve starting stock and confirm the actual sell order
+  before preparing an advert. Keep crew progress intact and mining acquisition
+  cost/net profit unknown. Show mining-specific loading instructions to crew.
+
 - Keep cargo and personal market responses bounded with 25-station pages after
   live reports exceeded the shared 8 MiB response limit at 100 per page.
 

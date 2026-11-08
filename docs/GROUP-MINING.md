@@ -43,17 +43,42 @@ starting stock, and copy the route into Carrier ops. This uses the current PTN
 revision and refuses to overwrite an active carrier job. It does not advance a
 PTN phase or place an order. Each desk's phase changes remain explicit.
 
-Mining loading can feed the same carrier unloading workflow. The PTN desk's
-station-buy scout is not mining acquisition evidence: do not fabricate a buy
-visit or import a mined load as a scouted station round trip. For a mining load,
-use Carrier ops' unloading job and follow PTN's current manual posting procedure
-with checked stock, order price and buyer quote. Automatic mining-specific PTN
-advert preparation remains a future extension. EliteLab does not post messages,
-pay commanders, close adverts or control Roomba.
+For a mined load, use the reverse handoff to prepare public unloading:
+
+1. Finish loading and depart the unpaused mining job. Dock at the intended
+   large-pad orbital buyer and open its commodity market. If the job has a
+   verified destination market ID, the buyer must match it.
+2. In Carrier ops, click **Prepare PTN unloading**. Finish or cancel any existing
+   PTN plan first. Enter the physical carrier stock you have checked, tonnes to
+   advertise and minimum public payout. The advertised quantity must fit both
+   the job size and checked stock above the job's saved starting stock.
+3. Create the mined-load plan, then capture the buyer market in PTN. There is no
+   loading-station scout: this cargo came from mining. Check the buyer's current
+   price and demand, then open unloading.
+4. Move the carrier and set its sell order in game. Refresh Carrier Management.
+   Confirm physical stock again, the actual sell price and remaining tonnes,
+   parking near the buyer, open docking, market service and competition.
+5. Prepare and review the unloading advert. Follow the existing PTN posting
+   steps, then record posting locally. Recheck stock, prices, demand and order
+   when they change; buyer, stock, order and carrier confirmations expire after
+   an hour. Newer contradictory ledger or order evidence blocks advertising.
+6. Track crew deliveries in Carrier ops and public order progress in PTN. Set
+   each desk's stages explicitly; the handoff does not change crew progress or
+   complete the source job. Confirm zero remaining before completing PTN.
+
+The desk shows the hauler's sale spread and estimated carrier proceeds. Mining
+acquisition cost and owner net profit remain unknown; it does not invent a
+zero-cost purchase. Stock below the saved baseline cannot be advertised through
+this plan. A stock recheck is available before opening unloading if the initial
+confirmation expires. EliteLab does not post messages, pay commanders, close
+adverts or control Roomba.
 
 `plan_mining_loading` exposes the setup through HTTP/MCP/CLI.
-`handoff_ptn_to_carrier` performs the explicit PTN handoff. The offline regression
+`handoff_ptn_to_carrier` copies a scouted loading route to Carrier ops;
+`handoff_mining_to_ptn` imports a departed mined load with revision, source-job
+version and checked stock. The offline regression
 uses two real HTTP clients to verify equal shares, duplicate/replay protection,
-reconnect and unloading; real group play remains an in-game release check.
+reconnect, PTN advert preparation and continued crew unloading. Real group play
+remains an in-game release check.
 See [Trading](TRADING.md), [PTN desk](PTN-TRADING.md) and
 [future shared server](MULTIPLAYER-PLAN.md).

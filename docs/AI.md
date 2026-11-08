@@ -6,7 +6,11 @@ travel tradeoffs before selecting a returned ID. Never call proceeds net profit
 when acquisition costs are unknown. `find_ptn_routes` also starts background work;
 poll `get_ptn_desk`. `plan_mining_loading` needs the actual carrier buy price and
 checked starting stock; `handoff_ptn_to_carrier` needs the current PTN revision.
-Neither executes game orders or posts messages. [Guides](WORKSPACES.md) describe
+For a departed mined load, `handoff_mining_to_ptn` also needs the current source
+job ID/version, visited buyer ID, checked physical stock and advertised quantity.
+Capture only the buyer, then confirm actual stock and sell order before preparing
+an unloading advert. Mining acquisition cost and owner net profit stay unknown.
+These tools do not execute game orders or post messages. [Guides](WORKSPACES.md) describe
 the current UI; material coverage and engineering completion are separate.
 
 EliteLab is built so an assistant can look at your live game and act on it. There are three ways in, all backed by the same self-describing API.

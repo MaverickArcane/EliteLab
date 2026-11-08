@@ -36,6 +36,16 @@ Journal sales use a serialized writer outside the bus thread and retained receip
 deduplication. Credit history and shields preserve their evidence limits.
 
 Validation results and CI links are maintained in [the execution record](NEXT-RELEASE-PLAN.md).
+
+The completion audit found that mined-load PTN adverts had been deferred despite
+the approved ring-to-unloading scope. The follow-up implements a separate
+buyer-only PTN plan. Review covers source-job revision and owner/carrier checks,
+retained stock baseline, newer contradictory inventory/orders/markets, hourly
+expiry, failed-write rollback, independent crew progress and null acquisition
+profit. HTTP clients exercise loading through PTN advert and continued crew
+unloading; the browser exercises the actual handoff form, stock/order checks,
+advert and persistence. No station-buy scout is fabricated for mined cargo.
+
 Real group play, reward eligibility, changing live markets, accessibility with a
 screen reader and the release operator's final desktop installation checks are
 not established by fixture tests. No release tag or public distribution is made
