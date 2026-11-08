@@ -762,6 +762,31 @@ class PTN:
                 raise ValueError('Unknown PTN plan action.')
             return self.commit(data)
 
+    def carrier_handoff(self, q):
+        with self.lock:
+            self.guard(q)
+            plan = self.data.get('plan')
+            if not plan or plan['stage'] not in ('scouting', 'loading'):
+                raise ValueError('Hand off a scouted route before leaving the loading phase.')
+            stock = integer(q.get('starting_stock'), 'Checked starting carrier stock', 0, 1000000)
+            operation = self.operation(plan)
+            if operation['scout_blockers']:
+                raise ValueError('Finish current station scouting before handing this route to Carrier ops.')
+            buy,sell = operation['buy'],operation['sell']
+            route = plan['route']
+            tool = self.core.http.tools.get('plan_carrier_trade')
+            if not tool:
+                raise ValueError('Carrier operations module is unavailable.')
+            confirmed = plan['orders'].get('loading') if paid_leg(route['settings'],'loading') else None
+            candidate = dict(commodity=plan['commodity'],source=buy['station']+' / '+buy['system'],
+                destination=sell['station']+' / '+sell['system'],source_market_id=buy['market_id'],
+                destination_market_id=sell['market_id'],mode='load',source_price=buy['price'],
+                destination_price=sell['price'],carrier_price=confirmed['price'] if confirmed else operation['pricing']['carrier_buy'],
+                carrier_price_known=bool(confirmed),target=stock+route['quantity'],planned_quantity=route['quantity'],crew_enabled=False)
+        # The checked revision is an immutable snapshot. Do not hold the PTN
+        # lock while publishing trade state: trade listeners also publish PTN.
+        return tool.fn(candidate)
+
     def make_advert(self, q):
         with self.lock:
             self.guard(q)
@@ -809,6 +834,9 @@ def setup(core, module):
     core.http.route('/api/ptn/select',desk.select,tool='select_ptn_route',method='POST',module=module.name,
                     params={**revision,'id':dict(type='string',required=True,description='Route id from the latest PTN scan.')},
                     description='Save an independent PTN scouting plan from a recent candidate. Replaces only the local PTN draft; never changes Carrier job, game orders or Discord messages.')
+    core.http.route('/api/ptn/carrier',desk.carrier_handoff,tool='handoff_ptn_to_carrier',method='POST',module=module.name,
+                    params={**revision,'starting_stock':dict(type='integer',required=True,description='Owner-checked existing tonnes of this commodity aboard the carrier.')},
+                    description='Copy a freshly scouted PTN loading route and agreed prices into a local Carrier ops plan for crew coordination. Rejects an active carrier job. PTN stages remain independent; no order is placed and no game or Discord action occurs.')
     core.http.route('/api/ptn/capture',desk.capture,tool='capture_ptn_market',method='POST',module=module.name,
                     params={**revision,'side':dict(type='string',enum=['buy','sell'],required=True,description='buy = loading station; sell = unloading station.')},
                     description='Capture the current journal commodity price and volume at the selected station, respecting the saved surface-loading preference. Requires docking and a market snapshot from the current visit within 15 minutes. Unlimited demand requires explicit zero-demand buyer evidence in that journal. Invalidates order checks; never fabricates a scout visit.')

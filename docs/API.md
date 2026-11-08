@@ -1,5 +1,22 @@
 # API / AI tools
 
+Release additions (all inherit normal authorization/Origin/Host checks):
+
+| Tool | Route | Contract |
+| --- | --- | --- |
+| `find_cargo_buyers` | POST `/api/selling/search` | Bounded background search; returns job and polling instruction |
+| `get_cargo_sale_plan` | GET `/api/selling` | Search status/results, cargo and saved sale progress |
+| `select_cargo_sale_plan` | POST `/api/selling/select` | Current search ID; rejects changed cargo/location and old search |
+| `clear_cargo_sale_plan` | POST `/api/selling/clear` | Clears only current commander's route |
+| `plan_mining_loading` | POST `/api/trade/mining` | Ring, buyer, quantity, checked stock and actual miner buy price |
+| `handoff_ptn_to_carrier` | POST `/api/ptn/carrier` | PTN revision plus checked stock; explicit independent draft |
+
+`find_ptn_routes` now starts a background search; poll `get_ptn_desk.search_job`.
+Both search tools return promptly instead of requiring one long MCP request.
+MCP's HTTP adapter rejects all redirects, including same-origin redirects;
+it never forwards its bearer token to a redirect target. Cookie SSE sessions
+close on expiry and must authenticate again to reconnect.
+
 ## `get_mining_status` - `GET /api/mining` - module: mining
 
 No parameters. Latest prospector composition and refinery output by commodity

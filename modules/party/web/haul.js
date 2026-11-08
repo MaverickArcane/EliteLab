@@ -78,7 +78,7 @@
       const copy = (key, value) => { const button = el.querySelector(`[data-haul-copy="${key}"]`); button.disabled = value == null || value === ''; if (button.disabled) delete button.dataset.copy; else button.dataset.copy = String(value); };
       set('phase', d.stale ? 'Connection stale' : d.paused ? 'Paused' : phases[d.phase]);
       set('commodity', d.commodity); set('role', d.owner ? p.mode === 'idle' ? 'Owner / solo' : 'Carrier owner' : 'Crew');
-      set('action', actions[d.action]); set('reason', d.reason); set('quantity', d.quantity == null ? '--' : tons(d.quantity));
+      set('action', p.plan?.activity==='mining'&&d.action==='buy'?'Mine your next load':actions[d.action]); set('reason', p.plan?.activity==='mining'&&d.action==='buy'?'Mine the assigned commodity at the agreed ring, then sell to the carrier buy order. Production alone does not count as a delivery.':d.reason); set('quantity', d.quantity == null ? '--' : tons(d.quantity));
       set('quantity-label', ['buy','transfer_out'].includes(d.action) ? 'Pick up now' : ['deliver','transfer_in'].includes(d.action) ? 'Deliver now' : 'This run');
       const assignment=d.assignment, leg=['transit','unloading','complete'].includes(d.phase) ? 'unloading' : 'loading';
       el.querySelector('[data-assignment]').hidden=!assignment;
@@ -113,7 +113,7 @@
         set('profit-remaining',money(income.remaining));set('profit-estimated',money(income.estimated));
         set('profit-breakdown',`Recorded: loading ${money(income.loading.recorded)} | unloading ${money(income.unloading.recorded)}. Estimates follow your assigned work.`);
       }
-      set('earnings-note', d.owner ? 'Your direct transfers count toward progress. Owner profit estimates are in Carrier job.' : 'Margin at agreed prices on acknowledged deliveries; excludes fuel, fees and personal bonuses. '+(assignment ? 'Bars show progress against your assigned tonnes.' : 'Bars show your contribution to the job target.'));
+      set('earnings-note', p.plan?.activity==='mining'&&d.phase==='loading'?`Agreed carrier purchase: ${fmt(p.plan.carrier_price)} Cr/t. This is a payout estimate, not mining net profit. Direct transfers are unpaid; only in-game market sales pay credits.`:d.owner ? 'Your direct transfers count toward progress. Owner profit estimates are in Carrier job.' : 'Margin at agreed prices on acknowledged deliveries; excludes fuel, fees and personal bonuses. '+(assignment ? 'Bars show progress against your assigned tonnes.' : 'Bars show your contribution to the job target.'));
       el.querySelector('.haul-personal').title = el.querySelector('[data-value=earnings-note]').textContent;
       el.querySelector('.haul-pay').title = 'Estimated margin at agreed prices, before fuel, fees and personal bonuses.';
       el.querySelector('.haul-quantity').title = 'Suggested load, not reserved stock. Confirm quantity and price in game.';

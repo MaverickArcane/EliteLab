@@ -1,5 +1,12 @@
 # Front-end reference
 
+Release navigation is documented in [Workspaces](WORKSPACES.md). `selling` is
+the primary Trading card; Carrier ops has its own workspace; `credits` reuses
+History's chart at the bottom of Overview. The shell renders optional manifest
+card `sources: [{label, url}]` footers with HTTPS links. These stay outside card
+render regions; viewport-capped cards account for footer height. The new release
+browser regression covers these workspaces, sales and responsive layouts.
+
 `web/index.html` is a shell with a header, an empty `#grid`, a `#toasts` container and a footer. Everything else is built by `web/app.js` and the module card scripts. Plain ES2020, no bundler, no framework. Files are served with `Cache-Control: no-store`, so a browser refresh always gets the current code.
 
 ## Boot sequence (app.js, bottom IIFE)

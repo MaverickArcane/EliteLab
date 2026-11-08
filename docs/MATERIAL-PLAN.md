@@ -1,5 +1,10 @@
 # Materials and recipe planning
 
+For the user walkthrough, see [Materials / Recipes with GIFs](MATERIALS-GUIDE.md).
+The exchange tab is now named **Trade materials** to distinguish it from cargo
+Trading. Pinned-build comparison includes partial-grade quality; direct blueprint
+grades remain above-current-grade roll hints. Follow/freeze behavior is unchanged.
+
 Use **Materials / Recipes** in the dashboard navigation. The main panel has
 seven tabs: Wishlist, Add recipes, Requirements, Trading, Gather, Inventory, and
 Synthesis / FSD. The pinned

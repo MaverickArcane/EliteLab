@@ -1,5 +1,11 @@
 # EliteLab
 
+Next-release navigation: [workspaces and layouts](docs/WORKSPACES.md),
+[sell the cargo aboard](docs/CARGO-SELLING.md), [group mining and carrier loading](docs/GROUP-MINING.md),
+and [PTN desk](docs/PTN-TRADING.md). Trading now starts with nearby cargo buyers;
+carrier operations have their own tab. Maps default to Overview and Flight.
+See [data sources](docs/SOURCES.md) and the [release execution record](docs/NEXT-RELEASE-PLAN.md).
+
 A small, self-hosted dashboard for Elite Dangerous that an AI assistant can also talk to. It reads the game's journal files on your PC, shows what is going on right now (location, ship, cargo, Powerplay, carrier, materials, a star map), and exposes the same data as tools that Claude Code, any MCP client, or a shell script can call.
 
 This project is vibe coded. I built it with an AI assistant while playing, to test things out in Elite and to have a dashboard I can interact with and call on with AI help. It is not polished software and does not try to be. Anyone is welcome to fork it, mess around with it, rip modules out, add their own, or take it somewhere else entirely. If you find a bug, open an issue with the journal lines around it. If you build a module, open a PR. Nothing fancy.
@@ -38,7 +44,10 @@ The current desktop layout. Screenshots use the bundled sample journals; live ma
 
 ### Engineering workspace
 
-Switch to the Engineering preset to bring build planning, the wishlist, recipes, and material farming together.
+Open **Materials / Recipes** for saved recipes, build requirements, exchanges and
+gathering. The [step-by-step guide with GIFs](docs/MATERIALS-GUIDE.md) covers the
+complete workflow. The older screenshot below illustrates engineering panels;
+the current workspace has dedicated workflow tabs.
 
 ![Engineering preset showing build planning, the engineering wishlist, recipes, and material farm sites](docs/engineering.jpg)
 
@@ -63,7 +72,8 @@ tab alone does not stop the server. Windows dashboard and party ports are exclus
 |---|---|---|
 | journal | Location, Ship, Cargo, Rares at this market, Live feed | `get_commander_state` |
 | carrier | Fleet carrier: owned details or one pinned visitor carrier | `get_followed_carrier`, `pin_fleet_carrier`, `unpin_fleet_carrier`, `refresh_followed_carrier` |
-| trade | Carrier stock ledger, loading/unloading plan, margins, run counts and buy/sell stops; team operation stages, crew workload split and profit shares, delivery corrections and diagnostics | `get_carrier_trade`, `plan_carrier_trade`, `reconcile_carrier_stock`, `reset_carrier_inventory`, `get_trade_profiles`, `find_carrier_opportunities`, `select_carrier_opportunity`, `find_trade_spots`, `get_carrier_price_reference`, `manage_carrier_operation`, `configure_trade_workload`, `preview_trade_profit`, `correct_hauling_delivery`, `export_hauling_diagnostics` |
+| trade | Carrier stock ledger, loading/unloading plan, margins, run counts and buy/sell stops; team operation stages, crew workload split and profit shares, delivery corrections and diagnostics | `get_carrier_trade`, `plan_carrier_trade`, `plan_mining_loading`, `reconcile_carrier_stock`, `reset_carrier_inventory`, `get_trade_profiles`, `find_carrier_opportunities`, `select_carrier_opportunity`, `find_trade_spots`, `get_carrier_price_reference`, `manage_carrier_operation`, `configure_trade_workload`, `preview_trade_profit`, `correct_hauling_delivery`, `export_hauling_diagnostics` |
+| selling | Cargo buyers, demand-limited multi-stop routes and observed sale progress | `find_cargo_buyers`, `get_cargo_sale_plan`, `select_cargo_sale_plan`, `clear_cargo_sale_plan` |
 | party | Private LAN/tailnet hauling party: member cargo and location, shared leader plan, crew activity and delivery reports | `get_hauling_party`, `host_hauling_party`, `join_hauling_party`, `report_hauling_work`, `leave_hauling_party` |
 | powerplay | Power, rank, merits, merits this session, cycle countdown | `get_powerplay_status` |
 | merits | Merits per hour and per activity, worked out from the journal | `get_merits_summary` |

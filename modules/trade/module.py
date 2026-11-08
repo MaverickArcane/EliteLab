@@ -283,6 +283,9 @@ class Trade:
             raise ValueError("Leave the party to create a separate carrier plan.")
         p = {k: text(q.get(k, ""), k, k == "commodity") for k in ("commodity", "source", "destination")}
         p["commodity"] = norm(p["commodity"])
+        p["activity"] = q.get("activity", "trade")
+        if p["activity"] not in ("trade", "mining"):
+            raise ValueError("Choose trade or mining activity.")
         for field in ("source_market_id", "destination_market_id", "carrier_market_id"):
             p[field] = number(q.get(field, 0) or (self.data["carrier_id"] if field == "carrier_market_id" else 0) or 0, field)
         p["mode"] = q.get("mode", "load")
@@ -335,6 +338,27 @@ class Trade:
             d["workload"] = None
             self.commit(d)
             return self.core.store.get(NS)
+
+    def mining_plan(self, q):
+        """Prepare ring-to-carrier loading using the existing authenticated crew job."""
+        source = text(q.get('source', ''), 'Mining ring and system', True)
+        destination = text(q.get('destination', ''), 'Unloading station and system', True)
+        quantity = number(q.get('quantity'), 'Additional tonnes to load', 1000000)
+        stock = number(q.get('starting_stock'), 'Checked starting carrier stock', 1000000)
+        pay = number(q.get('miner_price'), 'Actual carrier buy price', 10**9)
+        resale = number(q.get('destination_price'), 'Reported buyer price', 10**9)
+        if not quantity or not pay or not resale or stock+quantity>1000000:
+            raise ValueError('Enter positive load size, carrier buy price and buyer price, with a total target up to one million tonnes.')
+        carrier_id = self.data.get('carrier_id')
+        if type(carrier_id) is not int or carrier_id<=0:
+            raise ValueError('Open the owned carrier market in game first so journal deliveries can match its market ID.')
+        # The checked stock defines this job's baseline; it does not replace the
+        # carrier inventory ledger or claim that a buy order has been placed.
+        return self.plan(dict(commodity=q.get('commodity'),source=source,destination=destination,
+            activity='mining',mode='load',target=stock+quantity,planned_quantity=quantity,
+            carrier_market_id=carrier_id,destination_market_id=q.get('destination_market_id',0),
+            carrier_price=pay,carrier_price_known=True,destination_price=resale,
+            source_price=0,price_basis='unknown acquisition',crew_enabled=False))
 
     def reset_inventory(self, q):
         keep = q.get("keep_tritium", False)
@@ -530,6 +554,15 @@ class Trade:
 
 def setup(core, module):
     desk = Trade(core)
+    core.http.route('/api/trade/mining',desk.mining_plan,tool='plan_mining_loading',method='POST',module=module.name,
+        description='Prepare a group mining load from a named ring into the owned carrier, with a checked starting stock and actual miner buy price. Saves only a local plan. Start the party and carrier operation to share equal whole-tonne quotas; matching carrier sales or transfers count deliveries, refinery production does not. Mining net profit remains unknown. Requires a chosen unloading station and reported price; no game orders or payments.',
+        params={'commodity':dict(type='string',required=True),'source':dict(type='string',required=True,description='Ring / system to mine.'),
+            'destination':dict(type='string',required=True,description='Buyer station / system for later unloading.'),
+            'quantity':dict(type='integer',required=True,description='Additional tonnes to load, 1 to 1000000.'),
+            'starting_stock':dict(type='integer',required=True,description='Owner-checked tonnes already aboard the carrier.'),
+            'miner_price':dict(type='integer',required=True,description='Actual in-game carrier buy order price, Cr/t.'),
+            'destination_price':dict(type='integer',required=True,description='Reported buyer price, Cr/t; verify before unloading.'),
+            'destination_market_id':dict(type='integer',description='Verified buyer market ID if known; zero keeps automatic unloading matching disabled.')})
     profiles = MarketProfiles(core, desk)
     core.http.route("/api/trade/price-reference", profiles.price_reference, tool="get_carrier_price_reference", module=module.name,
         description="Retrieve the newest commodity meanPrice from local journals or Ardent/EDDN reports within 24 hours. This is a reported reference for the carrier 100% setting, not the average of station buy/sell prices. Live in-game prices take precedence. warnings lists Ardent fetch failures or offline mode; when no reference is found the error states why.",
@@ -577,6 +610,7 @@ def setup(core, module):
     core.http.route("/api/trade/plan", desk.plan, method="POST", tool="plan_carrier_trade", module=module.name,
         description="Save a load/unload plan. Target is desired stock remaining aboard the carrier. Prices are Cr/t estimates, excluding expenses; capacity 0 uses your ship. Does not place in-game orders.",
         params={**{k: {"type": "string", "description": k, "required": k == "commodity"} for k in ("commodity", "source", "destination", "mode")},
+                "activity": {"type":"string", "enum":["trade","mining"], "default":"trade", "description":"Mining changes crew loading guidance; it does not count refinery production as delivery."},
                 **{k: {"type": "integer", "description": k, "default": 0} for k in ("target", "ship_capacity", "source_price", "carrier_price", "destination_price", "bonus_per_ton")},
                 **{k: {"type": "integer", "default": 0, "description": "Verified market ID for automatic crew delivery matching; 0 is unknown."} for k in ("source_market_id", "destination_market_id", "carrier_market_id")},
                 "carrier_mean_price": {"type":"integer", "default":0, "description":"Current commodity price at the carrier's 100% setting; 0 means unknown. Used for whole-percentage carrier prices."},

@@ -14,7 +14,8 @@
       const u=el._plan={dead:false,seq:0,sourceSeq:0,traderSeq:0,previewTimer:null,options:null,tab:'plan',preselected:null,version:null,busy:false};
       const $=s=>el.querySelector(s);
       el.innerHTML=`<div class="plan-overview"><div><span class="k">Saved entries</span><strong data-plan-stat="entries">0</strong></div><div><span class="k">Materials short</span><strong data-plan-stat="materials">Unknown</strong></div><div><span class="k">Units short</span><strong data-plan-stat="units">Unknown</strong></div><span class="tag" data-plan-stock></span></div>
-        <div class="plan-tabs view-tabs" role="tablist" aria-label="Materials workflow"><button role="tab" data-plan-tab="plan">Wishlist <span data-plan-tab-count="plan"></span></button><button role="tab" data-plan-tab="add">Add recipes</button><button role="tab" data-plan-tab="requirements">Requirements <span data-plan-tab-count="requirements"></span></button><button role="tab" data-plan-tab="trading">Trading</button><button role="tab" data-plan-tab="gather">Gather</button><button role="tab" data-plan-tab="inventory">Inventory</button><button role="tab" data-plan-tab="evidence">Synthesis / FSD</button></div>
+        <div class="plan-help note">Start with Add recipes, then check Requirements and choose Trade materials or Gather. <a href="https://github.com/MaverickArcane/EliteLab/blob/development/docs/MATERIALS-GUIDE.md" target="_blank" rel="noopener">Step-by-step guide with GIFs</a></div>
+        <div class="plan-tabs view-tabs" role="tablist" aria-label="Materials workflow"><button role="tab" data-plan-tab="plan">Wishlist <span data-plan-tab-count="plan"></span></button><button role="tab" data-plan-tab="add">Add recipes</button><button role="tab" data-plan-tab="requirements">Requirements <span data-plan-tab-count="requirements"></span></button><button role="tab" data-plan-tab="trading">Trade materials</button><button role="tab" data-plan-tab="gather">Gather</button><button role="tab" data-plan-tab="inventory">Inventory</button><button role="tab" data-plan-tab="evidence">Synthesis / FSD</button></div>
         <div data-plan-page="add" hidden><div class="plan-compose-layout"><section class="plan-composer"><h3>Add to plan</h3>
           <form data-plan-form><label>Type<select id="wl-kind">${opt('synthesis','Synthesis / FSD injection')}${opt('material','Material target')}${opt('blueprint','Engineering blueprint')}${opt('experimental','Experimental effect')}${opt('unlock','Tech broker unlock')}${opt('build','Pinned build')}</select></label>
           <label data-plan-module>Category / module<select id="wl-module"></select></label><label data-plan-recipe>Recipe / material<select id="wl-recipe"></select></label>
@@ -35,7 +36,8 @@
       for(const tab of el.querySelectorAll('[data-plan-tab]')){tab.id='materials-tab-'+tab.dataset.planTab;tab.setAttribute('aria-controls','materials-page-'+tab.dataset.planTab);}
       Lab.util.tabKeys($('.plan-tabs'),'[data-plan-tab]');
       u.fit=()=>{if(!el.isConnected||el.closest('.workspace-off'))return;const top=el.getBoundingClientRect().top+scrollY;
-        const available=top<innerHeight*.65?innerHeight-top-24:innerHeight-180;
+        const footer=el.parentElement.querySelector('.card-sources')?.getBoundingClientRect().height||0;
+        const available=top<innerHeight*.65?innerHeight-top-24-footer:innerHeight-180-footer;
         const height=Math.round(Math.max(380,Math.min(900,innerHeight-80,available)));
         if(el.style.getPropertyValue('--plan-height')!==height+'px')el.style.setProperty('--plan-height',height+'px');
       };

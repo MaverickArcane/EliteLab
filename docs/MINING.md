@@ -1,5 +1,11 @@
 # Mining desk
 
+Mining now omits the map by default and includes the cargo panel. Select a ring,
+then use [Carrier ops group-mining setup](GROUP-MINING.md) for equal-tonne shared
+loading and explicit miner payouts. Refinery production and delivered cargo are
+separate evidence. Credit quotes remain separate from mining merit eligibility;
+the real-game validation in issue #3 is still required.
+
 The Mining card connects finding a ring, tracking production and selling the
 haul. Use the Mining & trade layout for the full-width desk, or enable Mining
 in the Layout menu. Journal tracking works offline; community searches require

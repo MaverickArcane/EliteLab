@@ -319,6 +319,7 @@ class Journal:
                 key = norm(i.get("Name"))
                 display = i.get("Name_Localised") or i.get("Name")
                 items.append({"name": display, "key": key, "count": i.get("Count"), "stolen": i.get("Stolen", 0),
+                              "mission_id": i.get("MissionID"),
                               "rare": key in self._market_rares or is_rare(key) or is_rare(display)})
             st["cargo"] = {"count": data.get("Count"), "items": items, "timestamp": data.get("timestamp")}
             self.push({"cargo"})

@@ -1,5 +1,20 @@
 # State reference
 
+Release additions:
+
+- `selling`: complete cargo context; transient bounded search `job`/`result`;
+  current commander's persisted `plan`, next stop, remaining quantities,
+  cargo-change/stale-quote flags, observed purchases and persistence error.
+- `trade.plan.activity`: `trade` (default) or `mining`; mining has unknown
+  acquisition cost and explicit checked loading target and miner buy price.
+- `ptn.search_job`: ID, status, start/finish timestamps and error, independent
+  of the persisted PTN operation. `plan.invalid_scouts` blocks advert readiness.
+- Build rows expose current quality, target quality, completion certainty and
+  finishing-roll estimates. Progress separates `materials_covered` and
+  `upgrade_complete`; missing quality is not a completed upgrade.
+- Cargo item `mission_id` retains journal MissionID so legal cargo searches can
+  exclude mission cargo. Overview `credits` is a card, not a second state namespace.
+
 Mining publishes `mining.summary`, an atomic snapshot of session refinery output,
 latest prospector composition, recorded rate and `profit` (attributed sales,
 operating costs, remaining units and recent transactions), plus `powerplay`

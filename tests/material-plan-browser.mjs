@@ -53,6 +53,17 @@ try {
   });
   const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
   const waitFor=async expression=>{for(let i=0;i<450;i++){if(await evaluate(expression))return;await sleep(100);}assert.fail('Timed out: '+expression+'\n'+JSON.stringify(await evaluate("({map:document.querySelector('#card-map')?.textContent,history:Lab.state.history,errors:[...document.querySelectorAll('.render-error')].map(e=>e.textContent)})"))+'\n'+serverLog);};
+  // Optional documentation frames capture the same fixture-driven UI under test.
+  const frames={};
+  const record=async(name,tab)=>{
+    if(!process.env.ELITELAB_GIF_FRAMES)return;
+    if(tab)await evaluate(`document.querySelector('[data-plan-tab=${tab}]').click();true`);
+    await send('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
+    await evaluate('scrollTo(0,0);true');await sleep(350);
+    const dir=path.join(process.env.ELITELAB_GIF_FRAMES,name);fs.mkdirSync(dir,{recursive:true});
+    const shot=await send('Page.captureScreenshot',{format:'png'});
+    fs.writeFileSync(path.join(dir,String(frames[name]=(frames[name]||0)+1).padStart(2,'0')+'.png'),Buffer.from(shot.data,'base64'));
+  };
   await send('Runtime.enable');await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await send('Page.navigate',{url:base});
@@ -63,6 +74,7 @@ try {
   await waitFor("document.querySelector('[data-plan-preview]')?.textContent.includes('crafts available')");
   assert.equal(await evaluate("document.querySelector('#card-wishlist').classList.contains('workspace-off')"),false);
   const layoutBefore=await evaluate("localStorage.getItem('layout.v1')");
+  await record('materials-recipes','add');
   await evaluate("document.querySelector('#wl-qty').value='4';document.querySelector('#wl-qty').dispatchEvent(new Event('input'));document.querySelector('[data-plan-form]').requestSubmit();true");
   await waitFor("Lab.state.wishlist.entries?.some(e=>e.kind==='synthesis'&&e.qty===4)");
   // SSE can publish the entry before the submit handler finishes its refresh.
@@ -70,11 +82,14 @@ try {
   await waitFor("!document.querySelector('#wl-add').disabled");
   await evaluate("document.querySelector('#wl-recipe').value='fsd_injection_standard';document.querySelector('#wl-recipe').dispatchEvent(new Event('change'));document.querySelector('#wl-qty').value='2';document.querySelector('#wl-qty').dispatchEvent(new Event('input'));document.querySelector('[data-plan-form]').requestSubmit();true");
   await waitFor("Lab.state.wishlist.entries?.filter(e=>e.kind==='synthesis').length===2");
+  await record('materials-recipes','add');await record('materials-recipes','plan');await record('materials-recipes','requirements');
   const plan=await (await fetch(base+'/api/wishlist')).json();
   assert.equal(plan.entries.filter(e=>e.kind==='synthesis')[1].craftable,0);
   assert.equal(plan.needs.find(r=>r.key==='germanium').need,6);
   assert.equal(plan.needs.find(r=>r.key==='germanium').short,3);
+  await record('materials-progress','requirements');
   // Composer and unsaved quantity edits survive journal/SSE changes.
+  await evaluate("document.querySelector('[data-plan-tab=plan]').click();true");
   await evaluate("document.querySelector('#wl-qty').value='7';document.querySelector('#wl-qty').dispatchEvent(new Event('input'));var row=[...document.querySelectorAll('[data-plan-entry]')].find(e=>e.textContent.includes('FSD Injection'));row.querySelector('input').value='3';row.querySelector('input').focus();row.querySelector('details').open=true;true");
   append([{event:'MaterialCollected',timestamp:'2026-11-01T10:01:00Z',Name:'germanium',Category:'Raw',Count:2}]);
   await waitFor("Lab.state.wishlist.needs?.find(r=>r.key==='germanium')?.have===5");
@@ -83,6 +98,7 @@ try {
   assert.equal(await evaluate("document.activeElement.closest('[data-plan-entry]').querySelector('details').open"),true);
   await evaluate("document.activeElement.closest('[data-plan-entry]').querySelector('[data-plan-edit]').click();true");
   await waitFor("Lab.state.wishlist.entries?.some(e=>e.kind==='synthesis'&&e.qty===3)");
+  await record('materials-progress','requirements');await record('materials-progress','inventory');
   await evaluate("document.querySelector('#wl-qty').value='2';document.querySelector('#wl-qty').dispatchEvent(new Event('input'));true");
   await waitFor("document.querySelector('[data-plan-preview]').textContent.includes('crafts available')");
   // Workspace switching is navigation, not a rewrite of custom layout.
@@ -150,7 +166,7 @@ try {
   assert.equal(await evaluate("document.querySelector('#card-ship').classList.contains('collapsed')"),true);
   assert.equal(await evaluate("!!document.querySelector('#card-cargo')"),false);
   // Fixed build requirements survive loadouts and reloads; resuming tracks again.
-  const target={Ship:'sidewinder',ShipName:'Engineering ship',Modules:[{Slot:'FrameShiftDrive',Item:'int_hyperdrive_size2_class5',Engineering:{BlueprintName:'FSD_LongRange',Level:5}}]};
+  const target={Ship:'sidewinder',ShipName:'Engineering ship',Modules:[{Slot:'FrameShiftDrive',Item:'int_hyperdrive_size2_class5',Engineering:{BlueprintName:'FSD_LongRange',Level:5,Quality:1}}]};
   await evaluate(`Lab.post('/api/build/pin',{url:${JSON.stringify(JSON.stringify(target))}})`);
   await evaluate("document.querySelector('#wl-kind').value='build';document.querySelector('#wl-kind').dispatchEvent(new Event('change'));true");
   await waitFor("!document.querySelector('[data-plan-follow-option]').hidden");
@@ -179,6 +195,7 @@ try {
   await evaluate("Lab.post('/api/wishlist/add',{item:'chemicalmanipulators',kind:'material',qty:6})");
   await evaluate("document.querySelector('[data-plan-tab=trading]').click();true");
   await waitFor("document.querySelector('[data-plan-exchange]')?.textContent.includes('G5')");
+  await record('materials-exchanges','requirements');await record('materials-exchanges','trading');
   const tradeText=await evaluate("document.querySelector('.wl-trades').textContent");
   assert.match(tradeText,/G4/);assert.match(tradeText,/Manufactured/);assert.match(tradeText,/Chemical/);
   assert.match(tradeText,/Stock/);assert.match(tradeText,/give : receive/);
@@ -198,6 +215,7 @@ try {
   assert.equal(await evaluate("[...document.querySelectorAll('[data-plan-arrival]')].at(-1).textContent"),'Unknown');
   await evaluate("window.realMaterialCopy=Lab.util.copy;Lab.util.copy=value=>{window.materialCopied=value;};document.querySelector('[data-plan-trader] [data-copy]').click();true");
   assert.equal(await evaluate('window.materialCopied'),'Quick');
+  await record('materials-exchanges','trading');
   await evaluate("Lab.util.copy=window.realMaterialCopy;true");
   assert.match(await evaluate("document.querySelector('[data-plan-trader] a').href"),/Quick%20Approach%20%5BQuick%5D/);
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
@@ -247,11 +265,11 @@ try {
   await evaluate("document.querySelector('[data-workspace=all]').click();true");
   assert.equal(await evaluate("document.querySelector('#layout-tabs').hidden"),false);
   const customLayout=await evaluate("(()=>{const copy=Lab.util.copy;Lab.util.copy=text=>window.exportedLayout=JSON.parse(text);document.querySelector('#lm-export').click();Lab.util.copy=copy;return window.exportedLayout;})()");
-  await evaluate("[...document.querySelectorAll('#layout-tabs button')].find(b=>b.dataset.layoutName==='Carrier ops').click();true");
-  assert.equal(await evaluate("document.querySelector('#workspace-heading h2').textContent"),'Carrier ops');
+  await evaluate("[...document.querySelectorAll('#layout-tabs button')].find(b=>b.dataset.layoutName==='Second screen').click();true");
+  assert.equal(await evaluate("document.querySelector('#workspace-heading h2').textContent"),'Second screen');
   await evaluate("document.querySelector('#layout-menu input[data-id=ship]').click();true");
   assert.ok(await evaluate("JSON.parse(localStorage.getItem('layout.v1')).hidden.includes('ship')"));
-  await evaluate("[...document.querySelectorAll('#layout-tabs button')].find(b=>b.dataset.layoutName==='Engineering').click();[...document.querySelectorAll('#layout-tabs button')].find(b=>b.dataset.layoutName==='Carrier ops').click();true");
+  await evaluate("[...document.querySelectorAll('#layout-tabs button')].find(b=>b.dataset.layoutName==='Expedition').click();[...document.querySelectorAll('#layout-tabs button')].find(b=>b.dataset.layoutName==='Second screen').click();true");
   assert.ok(await evaluate("JSON.parse(localStorage.getItem('layout.v1')).hidden.includes('ship')"));
   await evaluate("document.querySelector('#lm-name').value='Test widescreen';document.querySelector('#lm-save').click();true");
   assert.ok(await evaluate("[...document.querySelectorAll('#layout-tabs button')].some(b=>b.dataset.layoutKind==='saved'&&b.dataset.layoutName==='Test widescreen')"));

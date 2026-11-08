@@ -8,6 +8,21 @@
     const pts=rows.map((r,i)=>[25+(times[i]-first)/Math.max(1,last-first)*950,150-(r.credits-low)/Math.max(1,high-low)*115]);
     return `<svg class="history-chart" viewBox="0 0 1000 180" role="img" aria-label="Recorded credit balance snapshots; line connects observations only"><path d="M25 150 H975" stroke="currentColor" opacity=".2"/><polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="var(--accent-2)" stroke-width="2"/>${pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="var(--accent)"><title>${esc(rows[i].timestamp)}: ${money(rows[i].credits)}</title></circle>`).join('')}<text x="25" y="18" fill="currentColor">${money(high)}</text><text x="25" y="174" fill="currentColor">${esc(rows[0].timestamp.slice(0,10))}</text><text x="975" y="174" text-anchor="end" fill="currentColor">${esc(rows.at(-1).timestamp.slice(0,10))}</text></svg>`;
   }
+  Lab.card({id:'credits',requires:['history','journal'],
+    mount(el){el._credits={token:null,generation:0,dead:false,timer:null};el.innerHTML='<p class="note">Loading recorded credit balances...</p>';},
+    render(el,S){
+      const u=el._credits,token=JSON.stringify([S.history?.version,S.journal?.cmdr]);
+      if(u.token===token)return;u.token=token;const generation=++u.generation;
+      clearTimeout(u.timer);el.innerHTML='<p class="note">Reading credit history...</p>';
+      const load=async()=>{try{const d=await Lab.api('/api/history/analytics',{days:30,commander:'auto'});if(u.dead||u.generation!==generation)return;
+        el.innerHTML=d.selection_required?'<p>Select a commander in History to inspect their credit records.</p>':`<div class="row"><b>${money(d.credits.at(-1)?.credits)}</b><span class="muted">Latest recorded balance</span><button class="mini" data-credit-history>Open History</button></div>${plot(d.credits)}<p class="note">Last 30 days of recorded balances. Gaps are unknown; this is not a profit ledger.</p>`;
+        el.querySelector('[data-credit-history]')?.addEventListener('click',()=>Lab.focusCard('history'));
+        if(d.index.pending_files)u.timer=setTimeout(load,1000);
+      }catch(error){if(!u.dead&&u.generation===generation)el.textContent=error.message;}};
+      u.timer=setTimeout(load,150);
+    },
+    unmount(el){el._credits.dead=true;++el._credits.generation;clearTimeout(el._credits.timer);}
+  });
   function draw(el,d) {
     const st=d.index||{}, total=d.totals||{}, select=el.querySelector('[name=commander]'), selected=select.value;
     select.innerHTML='<option value="auto">Current / only commander</option>'+d.commanders.map(c=>`<option value="${esc(c.key)}">${esc(c.name)} (${esc(c.key)})</option>`).join('');

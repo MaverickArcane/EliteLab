@@ -79,12 +79,14 @@ import {StateFeed} from './state-feed.js';
   const layoutToken=(kind,name='')=>kind==='custom'?'custom':kind+':'+name;
   const saveLayout = () => {ls.set(LAYOUT_KEY, layout);const tabs=ls.get(LAYOUT_TABS_KEY,{});tabs[layoutToken(activeLayout.kind,activeLayout.name)]=layout;ls.set(LAYOUT_TABS_KEY,tabs);};
   const WORKSPACES = {
-    overview:{label:'Overview',description:'Ship, location and recent activity',cards:['location','ship','cargo','feed','map']},
+    overview:{label:'Overview',description:'Ship, location and recent activity',cards:['location','ship','cargo','feed','map','credits']},
     materials:{label:'Materials / Recipes',description:'Saved recipes, shared materials and recorded synthesis',cards:['wishlist','build']},
     flight:{label:'Flight',description:'Route planning and ship status',cards:['neutron','ship','location','map','feed']},
-    trade:{label:'Trading',description:'Commodity routes, cargo and carrier operations',cards:['personal','loop','cargo','market','targets','haul','party','trade','carrier']},
+    ship:{label:'Ship',description:'Loadout, integrity and engineering status',cards:['ship']},
+    trade:{label:'Trading',description:'Sell cargo nearby or plan a round trip',cards:['selling','cargo','personal']},
+    carrier:{label:'Carrier ops',description:'Plan loading, mining and crew operations',cards:['trade','haul','party','carrier']},
     ptn:{label:'PTN desk',description:'Carrier routes, station checks and affiliate trade adverts',cards:['ptn']},
-    mining:{label:'Mining',description:'Mining sessions, locations and buyers',cards:['mining','cargo','map']},
+    mining:{label:'Mining',description:'Mining sessions, locations and buyers',cards:['mining','cargo']},
     powerplay:{label:'Powerplay',description:'Pledge, merits, sell targets and combat',cards:['powerplay','merits','targets','loop','combat']},
     history:{label:'History',description:'Recorded balances, merit cycles and collection locations',cards:['history']},
     all:{label:'Layouts',description:'Choose a layout tab or arrange your own panels',cards:null}
@@ -148,8 +150,9 @@ import {StateFeed} from './state-feed.js';
   function buildCard(c) {
     const def = Lab.cards[c.id];
     const sec = document.createElement('section'); sec.className = 'card'; sec.id = 'card-' + c.id; sec.dataset.id = c.id;
-    if (layout.collapsed.includes(c.id)) sec.classList.add('collapsed');
+    if (layout.collapsed.includes(c.id) || (workspace==='trade'&&c.id==='personal')) sec.classList.add('collapsed');
     sec.innerHTML = `<h2><span class="grip" title="drag to move">⋮⋮</span><span class="title">${esc(c.title)}</span><span class="mod">${esc(c.module)}</span><span class="right"></span><span class="tools"><button class="icon" data-act="collapse" title="collapse">–</button><button class="icon" data-act="hide" title="hide">×</button></span></h2><div class="body"></div><div class="resize" title="drag to resize"></div>`;
+    if(c.sources?.length){const footer=document.createElement('div');footer.className='card-sources note';footer.innerHTML='Sources: '+c.sources.filter(s=>/^https:\/\//.test(s.url)).map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.label)}</a>`).join(' | ');sec.querySelector('.body').after(footer);}
     applySpan(sec, spanOf(c));
     if ((layout.heights || {})[c.id]) applyHeight(sec, layout.heights[c.id]);
     const body = sec.querySelector('.body'), head = sec.querySelector('.right');
@@ -309,35 +312,37 @@ import {StateFeed} from './state-feed.js';
   const ALL = () => allCards.map(c => c.id);
   const ENG = ['recipes', 'wishlist', 'farming', 'build'];       // engineering cards, hidden by the non-engineering presets
   const PRESETS = {
-    'Expedition': () => ({ order: ['neutron', 'ship', 'wishlist', 'location', 'map', 'feed'],
+    'Expedition': () => ({ order: ['neutron', 'ship', 'wishlist', 'location', 'feed'],
       spans: { neutron: 8, ship: 4, wishlist: 12, location: 4, map: 8, feed: 4 },
-      hidden: ALL().filter(id => !['neutron', 'ship', 'wishlist', 'location', 'map', 'feed'].includes(id)) }),
+      hidden: ALL().filter(id => !['neutron', 'ship', 'wishlist', 'location', 'feed'].includes(id)) }),
 
-    'Rare goods': () => ({ order: ['loop', 'cargo', 'market', 'targets', 'map', 'location'],
+    'Rare goods': () => ({ order: ['loop', 'cargo', 'market', 'targets', 'location'],
         spans: { loop: 12, cargo: 6, market: 6, targets: 12, map: 8, location: 4 },
-        hidden: ALL().filter(id => !['loop', 'cargo', 'market', 'targets', 'map', 'location'].includes(id)) }),
-    'Trading': () => ({ order: ['personal', 'cargo', 'ship', 'location', 'market', 'map', 'feed'],
+        hidden: ALL().filter(id => !['loop', 'cargo', 'market', 'targets', 'location'].includes(id)) }),
+    'Trading': () => ({ order: ['personal', 'cargo', 'ship', 'location', 'market', 'feed'],
       spans: { personal: 12, cargo: 4, ship: 4, location: 4, market: 4, map: 8, feed: 4 },
-      hidden: ALL().filter(id => !['personal', 'cargo', 'ship', 'location', 'market', 'map', 'feed'].includes(id)) }),
-    'Carrier ops': () => ({ order: ['haul', 'party', 'trade', 'carrier', 'cargo', 'location', 'ship', 'map', 'feed'],
+      hidden: ALL().filter(id => !['personal', 'cargo', 'ship', 'location', 'market', 'feed'].includes(id)) }),
+    'Carrier ops': () => ({ order: ['haul', 'party', 'trade', 'carrier', 'cargo', 'location', 'ship', 'feed'],
       spans: { haul: 5, party: 7, trade: 12, carrier: 4, cargo: 4, location: 4, ship: 4, map: 8, feed: 4 },
-      hidden: ALL().filter(id => !['haul', 'trade', 'party', 'carrier', 'cargo', 'location', 'ship', 'map', 'feed'].includes(id)) }),
-    'Default': () => ({ order: ['location', 'ship', 'build', 'wishlist', 'farming', 'recipes', 'materials', 'powerplay', 'merits', 'targets', 'combat', 'feed', 'cargo', 'market', 'carrier', 'loop', 'map'],
+      hidden: ALL().filter(id => !['haul', 'trade', 'party', 'carrier', 'cargo', 'location', 'ship', 'feed'].includes(id)) }),
+    'Default': () => ({ order: ['location', 'ship', 'build', 'wishlist', 'farming', 'recipes', 'materials', 'powerplay', 'merits', 'targets', 'combat', 'feed', 'cargo', 'market', 'carrier', 'loop'],
       spans: { location: 4, ship: 4, build: 4, wishlist: 6, farming: 6, recipes: 4, materials: 4, powerplay: 4, merits: 4, targets: 12, combat: 12, feed: 4, cargo: 4, market: 4, carrier: 4, loop: 4, map: 12 }, hidden: [] }),
-    'Powerplay': () => ({ order: ['map', 'powerplay', 'merits', 'targets', 'combat', 'location', 'loop', 'cargo', 'ship', 'feed'],
+    'Powerplay': () => ({ order: ['powerplay', 'merits', 'targets', 'combat', 'location', 'loop', 'cargo', 'ship', 'feed'],
       spans: { map: 8, powerplay: 4, merits: 4, targets: 12, combat: 12, location: 4, loop: 4, cargo: 4, ship: 4, feed: 4 }, hidden: ['materials', 'market', 'carrier', ...ENG] }),
-    'Rares run': () => ({ order: ['loop', 'cargo', 'market', 'map', 'location', 'targets', 'merits', 'ship', 'feed'],
+    'Rares run': () => ({ order: ['loop', 'cargo', 'market', 'location', 'targets', 'merits', 'ship', 'feed'],
       spans: { loop: 4, cargo: 4, market: 4, map: 8, location: 4, targets: 12, merits: 4, ship: 4, feed: 4 }, hidden: ['combat', 'materials', 'carrier', 'powerplay', ...ENG] }),
-    'Combat': () => ({ order: ['merits', 'ship', 'location', 'combat', 'map', 'feed', 'powerplay'],
+    'Combat': () => ({ order: ['merits', 'ship', 'location', 'combat', 'feed', 'powerplay'],
       spans: { merits: 4, ship: 4, location: 4, combat: 12, map: 8, feed: 4, powerplay: 4 }, hidden: ['loop', 'targets', 'materials', 'market', 'cargo', 'carrier', ...ENG] }),
-    'Mining & trade': () => ({ order: ['mining', 'cargo', 'ship', 'trade', 'party', 'carrier', 'market', 'targets', 'map', 'location', 'merits', 'feed'],
+    'Mining & trade': () => ({ order: ['mining', 'cargo', 'ship', 'trade', 'party', 'carrier', 'market', 'targets', 'location', 'merits', 'feed'],
       spans: { mining: 12, trade: 8, party: 4, cargo: 4, carrier: 4, market: 4, ship: 4, targets: 12, map: 8, location: 4, merits: 4, feed: 4 }, hidden: ['loop', 'combat', 'materials', 'powerplay', ...ENG] }),
-    'Engineering': () => ({ order: ['materials', 'wishlist', 'build', 'farming', 'recipes', 'ship', 'location', 'map', 'feed'],
+    'Engineering': () => ({ order: ['materials', 'wishlist', 'build', 'farming', 'recipes', 'ship', 'location', 'feed'],
       spans: { build: 6, wishlist: 6, farming: 6, recipes: 6, materials: 6, ship: 4, location: 4, map: 12, feed: 4 },
       hidden: ['loop', 'targets', 'combat', 'market', 'powerplay', 'merits', 'carrier', 'cargo'] }),
-    'Second screen': () => ({ order: ['map', 'location', 'feed', 'merits'], spans: { map: 12, location: 4, feed: 4, merits: 4 },
-      hidden: ALL().filter(id => !['map', 'location', 'feed', 'merits'].includes(id)) }),
+    'Second screen': () => ({ order: ['ship', 'location', 'cargo', 'merits', 'feed'], spans: { ship: 6, location: 6, cargo: 4, merits: 4, feed: 4 }, heights: {ship:340,feed:240,cargo:240},
+      hidden: ALL().filter(id => !['ship', 'location', 'cargo', 'merits', 'feed'].includes(id)) }),
   };
+  const PRIMARY_PRESETS = ['Expedition','Rare goods','Second screen'];
+  const visiblePresets=()=>Object.keys(PRESETS).filter(name=>PRIMARY_PRESETS.includes(name)||(activeLayout.kind==='preset'&&activeLayout.name===name)||Object.hasOwn(ls.get(LAYOUT_TABS_KEY,{}),layoutToken('preset',name)));
   const SAVED_KEY = 'layouts.v1';
   const savedLayouts = () => ls.get(SAVED_KEY, {});
   function applyLayout(l, name, selection={kind:'custom',name:''}) {saveLayout();activeLayout=selection;ls.set('layout.active.v1',activeLayout);l=migrateLayout(l);workspace='all';ls.set('workspace.v1','all');layout = { order: l.order || [], spans: l.spans || {}, heights: l.heights || {}, hidden: l.hidden || [], collapsed: l.collapsed || [], locked: !!l.locked, pack: l.pack !== false }; saveLayout(); mountCards(); if (name) Lab.toast(`Layout: ${name}`); }
@@ -350,7 +355,7 @@ import {StateFeed} from './state-feed.js';
     const nav=document.getElementById('layout-tabs');nav.hidden=workspace!=='all';
     const saved=savedLayouts();
     if((activeLayout.kind==='preset'&&!Object.hasOwn(PRESETS,activeLayout.name))||(activeLayout.kind==='saved'&&!Object.hasOwn(saved,activeLayout.name))){activeLayout={kind:'custom',name:''};ls.set('layout.active.v1',activeLayout);}
-    const choices=[{kind:'custom',name:'',label:'Custom'},...Object.keys(PRESETS).map(name=>({kind:'preset',name,label:name})),...Object.keys(saved).map(name=>({kind:'saved',name,label:name}))];
+    const choices=[{kind:'custom',name:'',label:'Custom'},...visiblePresets().map(name=>({kind:'preset',name,label:name})),...Object.keys(saved).map(name=>({kind:'saved',name,label:name}))];
     const focused=nav.querySelector(':focus'),hadFocus=!!focused;
     nav.innerHTML=choices.map((choice,index)=>{const selected=choice.kind===activeLayout.kind&&choice.name===activeLayout.name;return `<button id="layout-tab-${index}" role="tab" aria-controls="grid" aria-selected="${selected}" tabindex="${selected?0:-1}" data-layout-kind="${choice.kind}" data-layout-name="${esc(choice.name)}">${esc(choice.label)}${choice.kind==='saved'?'<span class="layout-saved-mark">saved</span>':''}</button>`;}).join('');
     if(hadFocus)nav.querySelector('[aria-selected=true]')?.focus({preventScroll:true});
@@ -366,8 +371,9 @@ import {StateFeed} from './state-feed.js';
     menu.innerHTML = `
       <div class="menu-row"><label><input type="checkbox" id="lm-lock" ${layout.locked ? 'checked' : ''}> lock</label><label title="let smaller cards move up to fill gaps left by wide ones"><input type="checkbox" id="lm-pack" ${layout.pack !== false ? 'checked' : ''}> fill gaps</label><label title="beep with alerts (merits, low fuel, interdiction, carrier jump)"><input type="checkbox" id="lm-sound" ${Lab.notifySound && Lab.notifySound() ? 'checked' : ''}> sound</label><button class="mini" id="lm-export">export</button><button class="mini" id="lm-import">import</button></div>
       <div class="menu-sec">Reset to preset</div>
-      <div class="menu-chips">${Object.keys(PRESETS).map(n => `<button class="mini" data-preset="${esc(n)}">${esc(n)}</button>`).join('')}</div>
-      <div class="menu-sec">Saved layouts</div>
+      <div class="menu-chips">${PRIMARY_PRESETS.map(n => `<button class="mini" data-preset="${esc(n)}">${esc(n)}</button>`).join('')}</div>
+      <details><summary>Additional presets</summary><div class="menu-chips">${Object.keys(PRESETS).filter(n=>!PRIMARY_PRESETS.includes(n)).map(n=>`<button class="mini" data-preset="${esc(n)}">${esc(n)}</button>`).join('')}</div></details>
+        <div class="menu-sec">Saved layouts</div>
       <div class="menu-row"><input id="lm-name" placeholder="name this layout" size="16"><button class="mini primary" id="lm-save">save current</button></div>
       <div class="menu-chips">${Object.keys(saved).length ? Object.keys(saved).map(n => `<span class="chip"><button class="mini" data-load="${esc(n)}">${esc(n)}</button><button class="mini icon" data-del="${esc(n)}" title="delete">×</button></span>`).join('') : '<span class="muted" style="font-size:12px">none yet</span>'}</div>
       <div class="menu-sec">Cards</div>

@@ -1,0 +1,6 @@
+{
+  "name": "selling", "version": "1.0.0",
+  "description": "Nearby buyers and multi-stop sale plans for cargo actually aboard.",
+  "requires": ["journal"], "provides": ["selling"], "order": 29,
+  "cards": [{"id":"selling", "title":"Sell cargo", "span":12, "script":"card.js", "order":45}]
+}

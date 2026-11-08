@@ -1,5 +1,11 @@
 # Contributing
 
+For the release cleanup, read [the execution plan](docs/NEXT-RELEASE-PLAN.md),
+[current workspaces](docs/WORKSPACES.md), [source attribution](docs/SOURCES.md) and
+[test instructions](docs/TESTING.md). Use an isolated instance directory for
+tests and preserve the user's running install. New market tools must distinguish
+reported price, demand, acquisition cost and actual journal evidence.
+
 This is a hobby project, built with AI assistance, and you are welcome to do whatever you like with it. The notes below are only there so changes keep working with each other. EliteLab is small on purpose: standard-library Python, no build step, modules that do not know about each other. Keep it that way and most contributions are easy.
 
 ## Set up

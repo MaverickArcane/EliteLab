@@ -1,5 +1,14 @@
 # Code reference
 
+Release files: `modules/selling/planning.py` validates reports and allocates
+quantity-limited sale stops; `module.py` owns background search, commander plans,
+journal receipt deduplication and a serialized writer; `web/card.js` renders
+the cargo workflow. `trade.mining_plan` prepares an existing crew job;
+`ptn.carrier_handoff` calls the registered carrier tool without cross-module
+imports. `tests/test_release_security.py`, `test_build_quality.py`,
+`test_ptn_release.py`, `test_selling.py`, `test_group_mining.py` and
+`release-browser.mjs` cover the release additions. See [execution record](NEXT-RELEASE-PLAN.md).
+
 `modules/mining/module.py`: `Mining` folds journal events into a bounded
 `mining.summary` store snapshot; `timestamp`, `percentage` and `text` normalize
 journal fields. `setup` exposes read-only `get_mining_status`.

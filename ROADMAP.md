@@ -1,10 +1,15 @@
 # EliteLab roadmap
 
+The current release candidate focuses on reducing visible clutter and completing
+the cargo-first workflow. [Execution and acceptance record](docs/NEXT-RELEASE-PLAN.md)
+tracks the integrated changes and remaining live-game/platform checks. Public
+release publication remains a separate step.
+
 A personal cockpit dashboard today. Easier setup and better trading tools next. A shared place to plan and fly together in a future major release.
 
 **Current release:** [v0.5.0](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.5.0)
 
-**Updated:** 2026-11-04
+**Updated:** 2026-11-08
 
 This is the proposed order of work. Linked issues hold the detailed scope and progress. Release dates and the choice of 1.x versus 2.x for multiplayer are still open.
 
@@ -16,6 +21,14 @@ This is the proposed order of work. Linked issues hold the detailed scope and pr
 | [Future 1.x or 2.x](#future-1x-or-2x-play-together) | Roadmap epic | Multiple commanders, synced dashboards, and leader-managed group objectives |
 
 ## Next 0.x release
+
+The 2026-11-08 cleanup adds cargo-first selling, separate Carrier ops, private
+group-mining setup, PTN handoff, Overview credit history, shield state, smaller
+layout choices and the Materials GIF guide. It also resolves the session/MCP,
+partial-engineering and PTN blockers (#111, #113-#117). Hosted multiplayer and
+native bio sample tracking remain future work; current Expedition limitations
+are explicit in [Workspaces](docs/WORKSPACES.md).
+
 
 **0.6.0 is prepared, not published.** The current public release remains 0.5.0.
 See [candidate release notes](docs/releases/0.6.0.md) and the

@@ -1,1 +1,29 @@
-{"name": "neutron", "version": "1.0.0", "description": "Spansh neutron highway planning, waypoint progress and Palin distance checks.", "requires": ["flight", "progression", "synthesis"], "provides": ["neutron"], "order": 69, "cards": [{"id": "neutron", "title": "Neutron highway", "span": 6, "script": "card.js", "order": 44}]}
+{
+  "name": "neutron",
+  "version": "1.0.0",
+  "description": "Spansh neutron highway planning, waypoint progress and Palin distance checks.",
+  "requires": [
+    "flight",
+    "progression",
+    "synthesis"
+  ],
+  "provides": [
+    "neutron"
+  ],
+  "order": 69,
+  "cards": [
+    {
+      "id": "neutron",
+      "title": "Neutron highway",
+      "span": 6,
+      "script": "card.js",
+      "order": 44,
+      "sources": [
+        {
+          "label": "Spansh neutron route planner",
+          "url": "https://spansh.co.uk/plotter"
+        }
+      ]
+    }
+  ]
+}

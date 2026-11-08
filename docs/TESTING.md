@@ -1,5 +1,24 @@
 # Testing
 
+Release regressions: `test_release_security.py`, `test_build_quality.py`,
+`test_ptn_release.py`, `test_selling.py` and `test_group_mining.py`. The latter
+uses two real private HTTP clients for equal tonnes, repeated/replayed sales,
+reconnect and unloading. `node tests/release-browser.mjs` checks cargo search,
+route selection, sale progress, reload, mining setup and thin workspaces.
+
+When testing beside an installed app, set `ELITELAB_INSTANCE_DIR` to a private
+temporary directory. Browser harnesses also isolate settings/data/journals and
+use an ephemeral port. Do not stop or restart the player's app.
+
+To regenerate documentation GIFs, set `ELITELAB_GIF_FRAMES` to an empty temporary
+directory and run `node tests/material-plan-browser.mjs`. In a documentation-only
+virtual environment with Pillow installed, run
+`python scripts/render_material_gifs.py <frames-directory>`.
+This encodes the real UI frames into `docs/gifs`; it adds no runtime dependency.
+Inspect the images before committing. All examples use synthetic journal and
+provider data. A passing fixture test is not a live-market or in-game acceptance
+result. Current evidence and remaining checks are in [the execution record](NEXT-RELEASE-PLAN.md).
+
 PTN carrier planning has isolated economic/evidence tests in `test_ptn.py`, real
 HTTP authentication/CSRF/input boundary tests in `test_ptn_security.py`, and a
 real HTTP/SSE browser run, `node tests/ptn-browser.mjs`, with fixture market visits,

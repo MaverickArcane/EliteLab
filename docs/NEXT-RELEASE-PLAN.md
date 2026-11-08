@@ -30,89 +30,89 @@ Target branch: development. Do not publish a release or change the running insta
 
 ### 1. Preserve and baseline
 
-- [ ] Snapshot existing uncommitted checkout on an isolated branch and push a draft
+- [x] Snapshot existing uncommitted checkout on an isolated branch and push a draft
   PR; document overlap with development. Never overwrite that checkout.
-- [ ] Review open PRs #108, #109, #110, #112 and draft #102 at their exact heads;
+- [x] Review open PRs #108, #109, #110, #112 and draft #102 at their exact heads;
   inspect review findings and relevant changes before integrating ready work.
-- [ ] Run baseline tests with separate instance/data/journal directories. Record
+- [x] Run baseline tests with separate instance/data/journal directories. Record
   versions, failures and skips. No commands stop or restart the owner's app.
 
 ### 2. Release-blocking correctness
 
-- [ ] #113: cookie-authenticated SSE stops at session expiry, including idle
+- [x] #113: cookie-authenticated SSE stops at session expiry, including idle
   streams; no further events leak; bearer and local modes keep working.
-- [ ] #114: MCP never forwards bearer credentials through a redirect; schema,
+- [x] #114: MCP never forwards bearer credentials through a redirect; schema,
   tools and resources share the same safe HTTP path; integration regression.
-- [ ] #116: installer guards still exercise normal profile lookup, while spawned
+- [x] #116: installer guards still exercise normal profile lookup, while spawned
   test apps use an isolated instance directory and never probe the owner's app.
-- [ ] #111: compare engineering grade AND quality; budget explicitly estimated
+- [x] #111: compare engineering grade AND quality; budget explicitly estimated
   finishing rolls, respect partial targets, preserve frozen snapshots, retain
   unknown evidence, and distinguish material coverage from installed completion.
-- [ ] #115: newer matching contradictory market evidence invalidates the active
+- [x] #115: newer matching contradictory market evidence invalidates the active
   PTN scout and advert confirmations; unrelated/stale requests do not; recovery
   requires valid evidence and confirmation; persistence failure stays safe.
-- [ ] #117: long PTN search uses bounded start/status calls or an equally reliable
+- [x] #117: long PTN search uses bounded start/status calls or an equally reliable
   recoverable contract; prevent duplicate scans; cover partial/failure results.
 
 ### 3. Workspace and ship polish
 
-- [ ] Overview ends with a compact credit history view.
-- [ ] Carrier operations separated from Trading; PTN workflow accessible nearby.
-- [ ] Map removed from Mining, Ship and other default non-flight views.
-- [ ] Materials has a visible starting point, contextual help and clear tab names.
-- [ ] Ship gains restrained module status colors with text labels and a shield
+- [x] Overview ends with a compact credit history view.
+- [x] Carrier operations separated from Trading; PTN workflow accessible nearby.
+- [x] Map removed from Mining, Ship and other default non-flight views.
+- [x] Materials has a visible starting point, contextual help and clear tab names.
+- [x] Ship gains restrained module status colors with text labels and a shield
   indicator using only available telemetry.
-- [ ] Smaller default layout list, retained custom presets, useful Second screen.
-- [ ] Keyboard navigation, saved-layout migration and narrow/wide screens checked.
+- [x] Smaller default layout list, retained custom presets, useful Second screen.
+- [x] Keyboard navigation, saved-layout migration and narrow/wide screens checked.
 
 ### 4. Trader-first cargo workflow
 
-- [ ] Reuse existing market providers, normalize journal commodity keys, expose
+- [x] Reuse existing market providers, normalize journal commodity keys, expose
   nearby eligible buyers for one/all carried commodities with price, cargo value,
   known cost/profit, demand, pad/access filters, age and direct source links.
-- [ ] Build bounded multi-stop sell plans from eligible quotes. Account for
+- [x] Build bounded multi-stop sell plans from eligible quotes. Account for
   quantities and shared station demand, consolidate stops, report unsold cargo,
   travel distance, estimated proceeds and strategy/coverage limits. Preserve
   unknown cost separately from revenue; reject negative/nonfinite values.
-- [ ] Saved selected plan and destination-copy actions remain usable with stale
+- [x] Saved selected plan and destination-copy actions remain usable with stale
   quotes, cargo changes, market errors and restarts; revalidate before replanning.
-- [ ] Round trips remain accessible without carrier controls crowding Trading.
-- [ ] Cargo gains useful observed cost/galaxy-average/best-found values when known.
-- [ ] Offline unit/HTTP tests cover mixed cargo, quantity limits, no results,
+- [x] Round trips remain accessible without carrier controls crowding Trading.
+- [x] Cargo gains useful observed cost/galaxy-average/best-found values when known.
+- [x] Offline unit/HTTP tests cover mixed cargo, quantity limits, no results,
   stale/invalid data, provider errors and bounded search; browser flow exercised.
 
 ### 5. Carrier, PTN and group mining
 
-- [ ] Simplify owner/crew entry points and show clear current phase/next action.
-- [ ] Coordinate ring -> paid carrier loading -> PTN unloading without pretending
+- [x] Simplify owner/crew entry points and show clear current phase/next action.
+- [x] Coordinate ring -> paid carrier loading -> PTN unloading without pretending
   to execute orders, pay credits or post Discord messages.
-- [ ] Shared mining/loading goals split whole tonnes fairly across participants,
+- [x] Shared mining/loading goals split whole tonnes fairly across participants,
   retain actual journal/manual contributions separately, show payouts as estimates,
   handle join/leave/reconnect and avoid double counting production and transfers.
-- [ ] PTN handoff is explicit and revision checked; confirmed live order prices and
+- [x] PTN handoff is explicit and revision checked; confirmed live order prices and
   inventory never silently change. Existing authentication boundaries remain.
-- [ ] Exercise two isolated clients and simulated journal events. Real group play
+- [x] Exercise two isolated clients and simulated journal events. Real group play
   remains a documented in-game acceptance check, not a claimed automated result.
 
 ### 6. Documentation and release validation
 
-- [ ] Update README, changelog, roadmap, agent/contributor docs and affected API,
+- [x] Update README, changelog, roadmap, agent/contributor docs and affected API,
   state, event, frontend, testing, trading, mining, PTN and material references.
-- [ ] Add step-by-step Materials / Recipes guide: add recipes/builds, follow/freeze,
+- [x] Add step-by-step Materials / Recipes guide: add recipes/builds, follow/freeze,
   interpret requirements, exchange/trader choice, farming, synthesis, progress.
-- [ ] Capture actual fixture-backed browser GIFs for recipe creation, exchange
+- [x] Capture actual fixture-backed browser GIFs for recipe creation, exchange
   planning and live progress; commit assets and a reproducible capture script.
-- [ ] Audit docs for obsolete claims and links; clearly separate current behavior,
+- [x] Audit docs for obsolete claims and links; clearly separate current behavior,
   future work and manual release gates. Attribute external sources in UI and docs.
 - [ ] Run full Python suite, all affected browser workflows, JS syntax checks,
   package checks and CI. Inspect screenshots, console errors and responsive views.
 - [ ] Review the final diff for regressions, security and honest estimates; push
   focused PRs, merge reviewed green work into development, check integrated CI.
-- [ ] Record unperformed live-game/platform checks. No release tag/publication.
+- [x] Record unperformed live-game/platform checks. No release tag/publication.
 
 ## Initial repository evidence
 
-- Main working checkout: C:/Users/dbric/EliteLab, branch live at 45c76a0, dirty.
+- Main working checkout: ../EliteLab, branch live at 45c76a0, dirty.
 - Development baseline: 8cc4116 (PR #107), version 0.6.0 preparation.
 - Open stack: #108 installer profile -> #109 browser choice; #110 materials/layout
   -> #112 PTN. #102 is an unfinished, isolated group-server domain prototype.
@@ -122,5 +122,66 @@ Target branch: development. Do not publish a release or change the running insta
 
 ## Execution record
 
-Pending. Update this section with commits, PRs, validation evidence and remaining
-manual checks as work completes.
+### Preservation and integration
+
+- Local source preserved without changing the original checkout in draft
+  [PR #118](https://github.com/MaverickArcane/EliteLab/pull/118), commit ecd2ae9.
+  It is archival and deliberately not merged over newer development work.
+- The approved execution plan is commit 7ba3946. Security fixes are b0c2025;
+  reviewed installer and materials/PTN stacks are integrated in 3ddcd95/f0a26fd;
+  partial engineering and PTN blockers are corrected in 81c2946.
+- [Exact PR review/dispositions](RELEASE-REVIEW-2026-11-08.md): #108/#109 and
+  #110/#112 integrated locally with blocker fixes. #102 remains a draft and is
+  excluded. Release integration PR and CI results will be recorded below.
+
+### Product result
+
+- Cargo-first Trading compares reported prices, nearby stops and one-stop sales,
+  with quantity/demand caps, unsold cargo, persistent receipt progress and honest
+  cost/coverage limits. Round trips remain accessible.
+- Carrier ops is separate. Group mining uses the existing authenticated crew
+  transport, equal whole-tonne quotas and explicit prices. PTN handoff preserves
+  confirmed loading prices and releases its lock before publishing carrier state.
+  Mining-specific PTN adverts remain manual, without fabricated station scouting.
+- Overview credits, shield state, module accents, fewer default layouts and Second
+  screen are implemented. Saved/custom layouts survive; maps default to
+  Overview/Flight. Expedition bio capabilities/limits and Rare goods retention are
+  documented rather than implying unimplemented sample tracking.
+- Materials has contextual help, clearer exchange navigation and three real UI
+  GIFs. Current docs, roadmap, API/state/frontend/testing references and source
+  attribution are updated; historical plans are identified in the docs index.
+
+### Validation completed locally
+
+- Isolated baseline: 689 Python tests, 11 platform skips, passed. Preserved local
+  snapshot: 216 tests, 1 skip, passed before PR #118.
+- Release suite: 788 tests, 11 skips, passed. Subsequent targeted checks after
+  pagination and handoff review: 18 personal-trade, 9 cargo-selling and 3 group/
+  handoff tests passed. Final integrated CI remains the merge gate.
+- Browser runs passed: general dashboard/owner/crew, Materials, release
+  workspaces/cargo/mining setup, PTN, Mining, History and Expedition. Screenshots
+  inspected; no render exceptions or page-width overflow. Materials covers
+  3440x1440, 1920x1080, 1366x768, 1280x720 and narrow screens.
+- All 30 application JavaScript files pass syntax checks. Changed Markdown local
+  links, diff whitespace and the staged Debian allowlist pass.
+- A read-only live Spansh check with a synthetic Gold/Silver hold exposed the
+  8 MiB response cap at 100 stations/page. Cargo and personal trade queries now
+  page at 25; the corrected cargo query checked 100 of 748 eligible reports and
+  produced all three strategies. This validates schema/coverage behavior, not
+  future prices, permit access, sale execution or profits.
+- GIFs encode actual fixture-browser frames (recipes, exchanges, live stock/plan
+  changes); regeneration uses an optional documentation-only Pillow environment.
+
+### Remaining release acceptance
+
+- Require green integrated CI, including native Windows installer/tray/browser
+  choices, Debian lifecycle and both macOS architectures, before merging.
+- Real commanders must validate group mining, carrier docking/order behavior,
+  physical stock, join/leave/reconnect under game conditions and public unloading.
+  No test paid credits or posted messages. Keep live mining/reward issue #3 open.
+- Powerplay sell-target eligibility and reward estimates still need in-game
+  validation. Native bio sample tracking, hosted groups and Frontier CAPI are
+  future work, not prerequisites silently represented as complete.
+- Final desktop installation checks, accessibility review and public release
+  publication remain release-operator acceptance. No production installer,
+  release tag, main-branch merge or running-app restart is performed here.

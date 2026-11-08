@@ -15,7 +15,21 @@
       "title": "Materials / Recipe Wishlist",
       "span": 12,
       "script": "card.js",
-      "order": 23
+      "order": 23,
+      "sources": [
+        {
+          "label": "EDCD recipes",
+          "url": "https://github.com/EDCD/coriolis-data/tree/master/modifications"
+        },
+        {
+          "label": "EDCD material names",
+          "url": "https://github.com/EDCD/FDevIDs/blob/master/material.csv"
+        },
+        {
+          "label": "Spansh trader search",
+          "url": "https://spansh.co.uk/stations"
+        }
+      ]
     }
   ]
 }

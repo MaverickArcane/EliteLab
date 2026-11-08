@@ -116,6 +116,10 @@ modules/ptn/web/card.js
 modules/recipes/module.json
 modules/recipes/module.py
 modules/recipes/web/card.js
+modules/selling/module.json
+modules/selling/module.py
+modules/selling/planning.py
+modules/selling/web/card.js
 modules/setup/module.json
 modules/setup/module.py
 modules/setup/web/page/index.html

@@ -1,9 +1,18 @@
 # PTN trade desk
 
+Discovery now returns a background `search_job` immediately. Poll
+`get_ptn_desk` (about every two seconds) for completion or failure; duplicate
+searches are rejected while a job runs. The browser follows the same contract.
+Newer matching contradictory journal markets revoke the affected scout and
+posting confirmations, including missing items, invalid prices and lost
+producer/consumer evidence. Recapture valid evidence and reconfirm to recover.
+See [Carrier ops handoff and mining limits](GROUP-MINING.md#working-with-ptn).
+
 The `ptn` module is a dedicated affiliate trade planner. It reads `journal` and
 `trade`, writes only `ptn`, and persists its independent operation in `ptn.json`.
-It never places game orders, moves a carrier, posts Discord messages, or changes
-the existing Carrier job. Cancelling a local plan does not cancel those actions.
+It never places game orders, moves a carrier, posts Discord messages, or implicitly changes the existing Carrier job. The explicit
+`handoff_ptn_to_carrier` action copies a freshly scouted loading route into a
+separate Carrier ops draft; it rejects stale revisions and active carrier jobs. Cancelling a local plan does not cancel those actions.
 
 ## Offer and discovery
 
