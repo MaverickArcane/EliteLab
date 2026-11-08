@@ -1,0 +1,14 @@
+{
+  "scenario": "mcp_ptn_timeout",
+  "checkout": "<USER_HOME>\\elitelab-ptn-desk",
+  "sha": "42266e39f84c74f7f3322aa671c8a78da7d40d0f",
+  "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
+  "result": {
+    "client_error": "TimeoutError",
+    "client_seconds": 90.03,
+    "server_completed": true,
+    "server_rows": 1,
+    "scan_budget_seconds": 300,
+    "fixture_note": "Offline providers delayed for 91 seconds; no external requests"
+  }
+}

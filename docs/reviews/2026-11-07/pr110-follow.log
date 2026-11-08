@@ -1,0 +1,23 @@
+python : test_build_handoff_accepts_and_preserves_follow_choice 
+(test_wishlist_follow.WishlistFollowTests.test_build_handoff_accepts_and_preserves_follow_choice) ... ok
+At line:2 char:72
++ ... dit-pr110'; python -m unittest discover -s tests -p 'test_wishlist_fo ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_build_hand..._choice) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_completed_build_can_save_an_empty_requirement_set 
+(test_wishlist_follow.WishlistFollowTests.test_completed_build_can_save_an_empty_requirement_set) ... ok
+test_fixed_requirements_persist_and_material_shortfalls_stay_live 
+(test_wishlist_follow.WishlistFollowTests.test_fixed_requirements_persist_and_material_shortfalls_stay_live) ... ok
+test_legacy_entries_still_follow_and_repeat_freeze_keeps_snapshot 
+(test_wishlist_follow.WishlistFollowTests.test_legacy_entries_still_follow_and_repeat_freeze_keeps_snapshot) ... ok
+test_live_build_tracks_engineering_until_switched_off 
+(test_wishlist_follow.WishlistFollowTests.test_live_build_tracks_engineering_until_switched_off) ... ok
+test_toggle_validation_and_failed_save_preserve_previous_plan 
+(test_wishlist_follow.WishlistFollowTests.test_toggle_validation_and_failed_save_preserve_previous_plan) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.219s
+
+OK

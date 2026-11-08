@@ -1,0 +1,14 @@
+{
+  "scenario": "mcp_redirect",
+  "checkout": "<USER_HOME>\\elitelab-audit-20261107\\checkouts\\development",
+  "sha": "8cc41163ced942440f78df65b55d1dc64c70573b",
+  "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
+  "result": {
+    "result": {},
+    "destination_authorization": [
+      "Bearer audit-fixture-token"
+    ],
+    "different_origin": true,
+    "traffic": "loopback only; synthetic token"
+  }
+}

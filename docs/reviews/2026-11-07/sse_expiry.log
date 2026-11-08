@@ -1,0 +1,18 @@
+{
+  "scenario": "sse_expiry",
+  "checkout": "<USER_HOME>\\elitelab-audit-20261107\\checkouts\\development",
+  "sha": "8cc41163ced942440f78df65b55d1dc64c70573b",
+  "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
+  "result": {
+    "stream_status": 200,
+    "initial": [
+      "event: snapshot",
+      "data: {\"audit\": {\"value\": \"before-expiry\"}, \"_version\": 1}"
+    ],
+    "expired_request_status": 401,
+    "after_expiry": [
+      "event: state",
+      "data: {\"ns\": \"audit\", \"key\": \"value\", \"value\": \"private-update-after-expiry\", \"v\": 2}"
+    ]
+  }
+}
