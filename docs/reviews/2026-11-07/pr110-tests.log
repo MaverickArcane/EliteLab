@@ -1,65 +1,65 @@
-python : test_authenticated_mcp_uses_the_same_saved_plan_and_prompt 
-(test_material_plan.MaterialPlanTests.test_authenticated_mcp_uses_the_same_saved_plan_and_prompt) ... ok
-At line:2 char:72
-+ ... dit-pr110'; python -m unittest discover -s tests -p 'test_material*.p ...
-+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (test_authentica..._prompt) ... ok:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
-test_concurrent_plan_edits_keep_entries_and_correct_totals 
-(test_material_plan.MaterialPlanTests.test_concurrent_plan_edits_keep_entries_and_correct_totals) ... ok
-test_craft_updates_inventory_but_not_planned_quantity 
-(test_material_plan.MaterialPlanTests.test_craft_updates_inventory_but_not_planned_quantity) ... ok
-test_existing_blueprint_effect_unlock_and_build_costs_preserved 
-(test_material_plan.MaterialPlanTests.test_existing_blueprint_effect_unlock_and_build_costs_preserved) ... ok
-test_failed_update_is_atomic_and_invalid_quantities_rejected 
-(test_material_plan.MaterialPlanTests.test_failed_update_is_atomic_and_invalid_quantities_rejected) ... ok
-test_legacy_saved_entries_and_material_targets_remain_editable 
-(test_material_plan.MaterialPlanTests.test_legacy_saved_entries_and_material_targets_remain_editable) ... ok
-test_preview_uses_remaining_stock_without_saving_or_crafting 
-(test_material_plan.MaterialPlanTests.test_preview_uses_remaining_stock_without_saving_or_crafting) ... ok
-test_shared_stock_allocated_once_across_recipes_and_targets 
-(test_material_plan.MaterialPlanTests.test_shared_stock_allocated_once_across_recipes_and_targets) ... ok
-test_unknown_inventory_and_commander_switch_do_not_claim_ready 
-(test_material_plan.MaterialPlanTests.test_unknown_inventory_and_commander_switch_do_not_claim_ready) ... ok
-test_new_game_resets_gains_but_inventory_dump_is_not_a_pickup 
-(test_material_sessions.MaterialSessionTests.test_new_game_resets_gains_but_inventory_dump_is_not_a_pickup) ... ok
-test_replay_preserves_inventory_and_gross_gains_across_restart 
-(test_material_sessions.MaterialSessionTests.test_replay_preserves_inventory_and_gross_gains_across_restart) ... ok
-test_spent_material_remains_visible_in_gains_and_wishlist_uses_current_count (test_material_sessions.MaterialSessionTes
-ts.test_spent_material_remains_visible_in_gains_and_wishlist_uses_current_count) ... ok
-test_unknown_session_is_reported_as_unknown 
-(test_material_sessions.MaterialSessionTests.test_unknown_session_is_reported_as_unknown) ... ok
-test_inventory_includes_material_family 
-(test_material_trader_details.MaterialTraderDetailsTests.test_inventory_includes_material_family) ... ok
-test_missing_and_invalid_distances_stay_unknown_but_zero_is_valid (test_material_trader_details.MaterialTraderDetailsTe
-sts.test_missing_and_invalid_distances_stay_unknown_but_zero_is_valid) ... ok
-test_one_provider_failure_does_not_hide_other_trader_categories (test_material_trader_details.MaterialTraderDetailsTest
-s.test_one_provider_failure_does_not_hide_other_trader_categories) ... ok
-test_station_details_and_pad_filter_keep_unrounded_jump_estimate (test_material_trader_details.MaterialTraderDetailsTes
-ts.test_station_details_and_pad_filter_keep_unrounded_jump_estimate) ... ok
-test_coverage_excludes_overfill_and_intermediate_receipts 
-(test_material_trades.MaterialTradeTests.test_coverage_excludes_overfill_and_intermediate_receipts) ... ok
-test_exhausted_search_reports_limit_without_spending_speculatively 
-(test_material_trades.MaterialTradeTests.test_exhausted_search_reports_limit_without_spending_speculatively) ... ok
-test_final_target_cap_leaves_unresolved_need 
-(test_material_trades.MaterialTradeTests.test_final_target_cap_leaves_unresolved_need) ... ok
-test_insufficient_combined_surplus_does_not_commit_partial_funding 
-(test_material_trades.MaterialTradeTests.test_insufficient_combined_surplus_does_not_commit_partial_funding) ... ok
-test_intermediate_needs_room_for_a_whole_exchange 
-(test_material_trades.MaterialTradeTests.test_intermediate_needs_room_for_a_whole_exchange) ... ok
-test_issue_57_combines_donors_before_spending_the_intermediate 
-(test_material_trades.MaterialTradeTests.test_issue_57_combines_donors_before_spending_the_intermediate) ... ok
-test_nonzero_reserve_protects_donors_and_intermediate 
-(test_material_trades.MaterialTradeTests.test_nonzero_reserve_protects_donors_and_intermediate) ... ok
-test_plan_is_independent_of_input_iteration_order 
-(test_material_trades.MaterialTradeTests.test_plan_is_independent_of_input_iteration_order) ... ok
-test_seeded_inventories_produce_executable_acyclic_plans 
-(test_material_trades.MaterialTradeTests.test_seeded_inventories_produce_executable_acyclic_plans) ... ok
-test_untradeable_and_other_categories_cannot_fund_a_chain 
-(test_material_trades.MaterialTradeTests.test_untradeable_and_other_categories_cannot_fund_a_chain) ... ok
-
-----------------------------------------------------------------------
-Ran 27 tests in 2.767s
-
-OK
+python : test_authenticated_mcp_uses_the_same_saved_plan_and_prompt
+(test_material_plan.MaterialPlanTests.test_authenticated_mcp_uses_the_same_saved_plan_and_prompt) ... ok
+At line:2 char:72
++ ... dit-pr110'; python -m unittest discover -s tests -p 'test_material*.p ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_authentica..._prompt) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+test_concurrent_plan_edits_keep_entries_and_correct_totals
+(test_material_plan.MaterialPlanTests.test_concurrent_plan_edits_keep_entries_and_correct_totals) ... ok
+test_craft_updates_inventory_but_not_planned_quantity
+(test_material_plan.MaterialPlanTests.test_craft_updates_inventory_but_not_planned_quantity) ... ok
+test_existing_blueprint_effect_unlock_and_build_costs_preserved
+(test_material_plan.MaterialPlanTests.test_existing_blueprint_effect_unlock_and_build_costs_preserved) ... ok
+test_failed_update_is_atomic_and_invalid_quantities_rejected
+(test_material_plan.MaterialPlanTests.test_failed_update_is_atomic_and_invalid_quantities_rejected) ... ok
+test_legacy_saved_entries_and_material_targets_remain_editable
+(test_material_plan.MaterialPlanTests.test_legacy_saved_entries_and_material_targets_remain_editable) ... ok
+test_preview_uses_remaining_stock_without_saving_or_crafting
+(test_material_plan.MaterialPlanTests.test_preview_uses_remaining_stock_without_saving_or_crafting) ... ok
+test_shared_stock_allocated_once_across_recipes_and_targets
+(test_material_plan.MaterialPlanTests.test_shared_stock_allocated_once_across_recipes_and_targets) ... ok
+test_unknown_inventory_and_commander_switch_do_not_claim_ready
+(test_material_plan.MaterialPlanTests.test_unknown_inventory_and_commander_switch_do_not_claim_ready) ... ok
+test_new_game_resets_gains_but_inventory_dump_is_not_a_pickup
+(test_material_sessions.MaterialSessionTests.test_new_game_resets_gains_but_inventory_dump_is_not_a_pickup) ... ok
+test_replay_preserves_inventory_and_gross_gains_across_restart
+(test_material_sessions.MaterialSessionTests.test_replay_preserves_inventory_and_gross_gains_across_restart) ... ok
+test_spent_material_remains_visible_in_gains_and_wishlist_uses_current_count (test_material_sessions.MaterialSessionTes
+ts.test_spent_material_remains_visible_in_gains_and_wishlist_uses_current_count) ... ok
+test_unknown_session_is_reported_as_unknown
+(test_material_sessions.MaterialSessionTests.test_unknown_session_is_reported_as_unknown) ... ok
+test_inventory_includes_material_family
+(test_material_trader_details.MaterialTraderDetailsTests.test_inventory_includes_material_family) ... ok
+test_missing_and_invalid_distances_stay_unknown_but_zero_is_valid (test_material_trader_details.MaterialTraderDetailsTe
+sts.test_missing_and_invalid_distances_stay_unknown_but_zero_is_valid) ... ok
+test_one_provider_failure_does_not_hide_other_trader_categories (test_material_trader_details.MaterialTraderDetailsTest
+s.test_one_provider_failure_does_not_hide_other_trader_categories) ... ok
+test_station_details_and_pad_filter_keep_unrounded_jump_estimate (test_material_trader_details.MaterialTraderDetailsTes
+ts.test_station_details_and_pad_filter_keep_unrounded_jump_estimate) ... ok
+test_coverage_excludes_overfill_and_intermediate_receipts
+(test_material_trades.MaterialTradeTests.test_coverage_excludes_overfill_and_intermediate_receipts) ... ok
+test_exhausted_search_reports_limit_without_spending_speculatively
+(test_material_trades.MaterialTradeTests.test_exhausted_search_reports_limit_without_spending_speculatively) ... ok
+test_final_target_cap_leaves_unresolved_need
+(test_material_trades.MaterialTradeTests.test_final_target_cap_leaves_unresolved_need) ... ok
+test_insufficient_combined_surplus_does_not_commit_partial_funding
+(test_material_trades.MaterialTradeTests.test_insufficient_combined_surplus_does_not_commit_partial_funding) ... ok
+test_intermediate_needs_room_for_a_whole_exchange
+(test_material_trades.MaterialTradeTests.test_intermediate_needs_room_for_a_whole_exchange) ... ok
+test_issue_57_combines_donors_before_spending_the_intermediate
+(test_material_trades.MaterialTradeTests.test_issue_57_combines_donors_before_spending_the_intermediate) ... ok
+test_nonzero_reserve_protects_donors_and_intermediate
+(test_material_trades.MaterialTradeTests.test_nonzero_reserve_protects_donors_and_intermediate) ... ok
+test_plan_is_independent_of_input_iteration_order
+(test_material_trades.MaterialTradeTests.test_plan_is_independent_of_input_iteration_order) ... ok
+test_seeded_inventories_produce_executable_acyclic_plans
+(test_material_trades.MaterialTradeTests.test_seeded_inventories_produce_executable_acyclic_plans) ... ok
+test_untradeable_and_other_categories_cannot_fund_a_chain
+(test_material_trades.MaterialTradeTests.test_untradeable_and_other_categories_cannot_fund_a_chain) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 2.767s
+
+OK

@@ -1,19 +1,19 @@
-{
-  "scenario": "mcp_ptn_timeout",
-  "checkout": "<USER_HOME>\\elitelab-ptn-desk",
-  "sha": "adbc07f95306d169a6664efe8a2775d9de4f27df",
-  "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
-  "result": {
-    "client_error": "TimeoutError",
-    "client_seconds": 90.03,
-    "server_completed": true,
-    "server_rows": 1,
-    "scan_budget_seconds": 300,
-    "delayed_requests": [
-      "https://api.ardent-insight.com/v2/commodities",
-      "https://api.ardent-insight.com/v2/system/name/Sol/commodities/exports?minVolume=2000&maxDaysAgo=2&fleetCarriers=0",
-      "https://api.ardent-insight.com/v2/system/name/Sol/commodities/imports?minVolume=2000&maxDaysAgo=2&fleetCarriers=0"
-    ],
-    "fixture_note": "Three sequential offline responses delayed 31 seconds each; each below the 40-second provider timeout"
-  }
-}
+{
+  "scenario": "mcp_ptn_timeout",
+  "checkout": "<USER_HOME>\\elitelab-ptn-desk",
+  "sha": "adbc07f95306d169a6664efe8a2775d9de4f27df",
+  "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
+  "result": {
+    "client_error": "TimeoutError",
+    "client_seconds": 90.03,
+    "server_completed": true,
+    "server_rows": 1,
+    "scan_budget_seconds": 300,
+    "delayed_requests": [
+      "https://api.ardent-insight.com/v2/commodities",
+      "https://api.ardent-insight.com/v2/system/name/Sol/commodities/exports?minVolume=2000&maxDaysAgo=2&fleetCarriers=0",
+      "https://api.ardent-insight.com/v2/system/name/Sol/commodities/imports?minVolume=2000&maxDaysAgo=2&fleetCarriers=0"
+    ],
+    "fixture_note": "Three sequential offline responses delayed 31 seconds each; each below the 40-second provider timeout"
+  }
+}

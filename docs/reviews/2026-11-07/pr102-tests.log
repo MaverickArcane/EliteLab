@@ -1,27 +1,27 @@
-python : test_concurrent_redemption_has_one_winner 
-(test_group_invitation_prototype.InvitationTests.test_concurrent_redemption_has_one_winner) ... ok
-At line:2 char:72
-+ ... dit-pr102'; python -m unittest discover -s tests -p 'test_group*proto ...
-+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (test_concurrent..._winner) ... ok:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
-test_expiry_revocation_and_persistent_rate_limit 
-(test_group_invitation_prototype.InvitationTests.test_expiry_revocation_and_persistent_rate_limit) ... ok
-test_one_use_and_membership_bound_to_new_device 
-(test_group_invitation_prototype.InvitationTests.test_one_use_and_membership_bound_to_new_device) ... ok
-test_concurrent_edits_have_one_winner (test_group_plan_prototype.GroupPlanTests.test_concurrent_edits_have_one_winner) 
-... ok
-test_membership_and_roles_are_checked_on_every_operation 
-(test_group_plan_prototype.GroupPlanTests.test_membership_and_roles_are_checked_on_every_operation) ... ok
-test_progress_is_per_account_and_cross_group_steps_are_rejected 
-(test_group_plan_prototype.GroupPlanTests.test_progress_is_per_account_and_cross_group_steps_are_rejected) ... ok
-test_revision_conflict_reorder_and_restart 
-(test_group_plan_prototype.GroupPlanTests.test_revision_conflict_reorder_and_restart) ... ok
-test_revoked_or_malformed_device_is_denied 
-(test_group_plan_prototype.GroupPlanTests.test_revoked_or_malformed_device_is_denied) ... ok
-
-----------------------------------------------------------------------
-Ran 8 tests in 0.495s
-
-OK
+python : test_concurrent_redemption_has_one_winner
+(test_group_invitation_prototype.InvitationTests.test_concurrent_redemption_has_one_winner) ... ok
+At line:2 char:72
++ ... dit-pr102'; python -m unittest discover -s tests -p 'test_group*proto ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_concurrent..._winner) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+test_expiry_revocation_and_persistent_rate_limit
+(test_group_invitation_prototype.InvitationTests.test_expiry_revocation_and_persistent_rate_limit) ... ok
+test_one_use_and_membership_bound_to_new_device
+(test_group_invitation_prototype.InvitationTests.test_one_use_and_membership_bound_to_new_device) ... ok
+test_concurrent_edits_have_one_winner (test_group_plan_prototype.GroupPlanTests.test_concurrent_edits_have_one_winner)
+... ok
+test_membership_and_roles_are_checked_on_every_operation
+(test_group_plan_prototype.GroupPlanTests.test_membership_and_roles_are_checked_on_every_operation) ... ok
+test_progress_is_per_account_and_cross_group_steps_are_rejected
+(test_group_plan_prototype.GroupPlanTests.test_progress_is_per_account_and_cross_group_steps_are_rejected) ... ok
+test_revision_conflict_reorder_and_restart
+(test_group_plan_prototype.GroupPlanTests.test_revision_conflict_reorder_and_restart) ... ok
+test_revoked_or_malformed_device_is_denied
+(test_group_plan_prototype.GroupPlanTests.test_revoked_or_malformed_device_is_denied) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.495s
+
+OK

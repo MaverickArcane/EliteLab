@@ -1,23 +1,23 @@
-python : test_bundle_checksum_rejects_corruption_and_wrong_name 
-(test_windows_installer.InstallerStageTests.test_bundle_checksum_rejects_corruption_and_wrong_name) ... ok
-At line:2 char:72
-+ ... dit-pr108'; python -m unittest discover -s tests -p 'test_windows_ins ...
-+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (test_bundle_che...ng_name) ... ok:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
-test_expanded_size_is_bounded (test_windows_installer.InstallerStageTests.test_expanded_size_is_bounded) ... ok
-test_installer_output_requires_exe (test_windows_installer.InstallerStageTests.test_installer_output_requires_exe) ... 
-ok
-test_missing_required_files_is_rejected 
-(test_windows_installer.InstallerStageTests.test_missing_required_files_is_rejected) ... ok
-test_symlink_entry_is_rejected (test_windows_installer.InstallerStageTests.test_symlink_entry_is_rejected) ... ok
-test_unsafe_names_and_case_collisions_are_rejected 
-(test_windows_installer.InstallerStageTests.test_unsafe_names_and_case_collisions_are_rejected) ... ok
-test_valid_bundle_stages_required_files 
-(test_windows_installer.InstallerStageTests.test_valid_bundle_stages_required_files) ... ok
-
-----------------------------------------------------------------------
-Ran 7 tests in 0.364s
-
-OK
+python : test_bundle_checksum_rejects_corruption_and_wrong_name
+(test_windows_installer.InstallerStageTests.test_bundle_checksum_rejects_corruption_and_wrong_name) ... ok
+At line:2 char:72
++ ... dit-pr108'; python -m unittest discover -s tests -p 'test_windows_ins ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_bundle_che...ng_name) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+test_expanded_size_is_bounded (test_windows_installer.InstallerStageTests.test_expanded_size_is_bounded) ... ok
+test_installer_output_requires_exe (test_windows_installer.InstallerStageTests.test_installer_output_requires_exe) ...
+ok
+test_missing_required_files_is_rejected
+(test_windows_installer.InstallerStageTests.test_missing_required_files_is_rejected) ... ok
+test_symlink_entry_is_rejected (test_windows_installer.InstallerStageTests.test_symlink_entry_is_rejected) ... ok
+test_unsafe_names_and_case_collisions_are_rejected
+(test_windows_installer.InstallerStageTests.test_unsafe_names_and_case_collisions_are_rejected) ... ok
+test_valid_bundle_stages_required_files
+(test_windows_installer.InstallerStageTests.test_valid_bundle_stages_required_files) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.364s
+
+OK

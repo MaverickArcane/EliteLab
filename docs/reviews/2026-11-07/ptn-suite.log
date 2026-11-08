@@ -1,43 +1,43 @@
-python : C:\Python314\Lib\tempfile.py:484: ResourceWarning: Implicitly cleaning up <HTTPError 302: 'Found'>
-At line:3 char:1
-+ python -m unittest discover -s tests -q *> <USER_HOME>\elitelab-au ...
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (C:\Python314\Li...r 302: 'Found'>:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
-  _warnings.warn(self.warn_message, ResourceWarning)
-<USER_HOME>\elitelab-ptn-desk\tests\test_trade_plan.py:96: ResourceWarning: unclosed file <_io.TextIOWrapper 
-name='<USER_HOME>\\AppData\\Local\\Temp\\elitelab-mining-hhpm081o\\personal.json' mode='r' encoding='utf-8'>
-  saved = json.loads(open(self.core.data_path('personal.json'), encoding='utf-8').read())
-ResourceWarning: Enable tracemalloc to get the object allocation traceback
-<USER_HOME>\elitelab-ptn-desk\tests\test_trade_plan.py:106: ResourceWarning: unclosed file <_io.TextIOWrapper 
-name='<USER_HOME>\\AppData\\Local\\Temp\\elitelab-mining-hhpm081o\\personal.json' mode='r' encoding='utf-8'>
-  self.assertIsNone(json.loads(open(self.core.data_path('personal.json'), encoding='utf-8').read())['plan'])
-ResourceWarning: Enable tracemalloc to get the object allocation traceback
-----------------------------------------------------------------------
-Ran 764 tests in 136.432s
-
-OK (skipped=11)
-EliteLab folder: <USER_HOME>\elitelab-ptn-desk
-Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
-EliteLab folder: <USER_HOME>\elitelab-ptn-desk
-Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
-EliteLab folder: <USER_HOME>\elitelab-ptn-desk
-Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
-EliteLab folder: <USER_HOME>\elitelab-ptn-desk
-Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
-EliteLab folder: <USER_HOME>\elitelab-ptn-desk
-Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
-EliteLab folder: <USER_HOME>\elitelab-ptn-desk
-Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
-EliteLab folder: <USER_HOME>\elitelab-ptn-desk
-Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
-EliteLab folder: <USER_HOME>\elitelab-ptn-desk
-Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
-EliteLab folder: <USER_HOME>\elitelab-ptn-desk
-Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
-EliteLab could not listen on 127.0.0.1:19000 (busy); host from default, port from default; settings file: <USER_HOME>\AppData\Local\Temp\elitelab-test-settings-bxxsmr3m\settings.json
-EliteLab 0.6.0 listening on http://127.0.0.1:<Mock name='mock.srv.server_port' id='2285779275792'>
-Journal dir: <USER_HOME>\elitelab-ptn-desk\tests\fixtures\journals  (found: True)
-Modules: none
-Ctrl+C to stop.
+python : C:\Python314\Lib\tempfile.py:484: ResourceWarning: Implicitly cleaning up <HTTPError 302: 'Found'>
+At line:3 char:1
++ python -m unittest discover -s tests -q *> <USER_HOME>\elitelab-au ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Python314\Li...r 302: 'Found'>:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  _warnings.warn(self.warn_message, ResourceWarning)
+<USER_HOME>\elitelab-ptn-desk\tests\test_trade_plan.py:96: ResourceWarning: unclosed file <_io.TextIOWrapper
+name='<USER_HOME>\\AppData\\Local\\Temp\\elitelab-mining-hhpm081o\\personal.json' mode='r' encoding='utf-8'>
+  saved = json.loads(open(self.core.data_path('personal.json'), encoding='utf-8').read())
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<USER_HOME>\elitelab-ptn-desk\tests\test_trade_plan.py:106: ResourceWarning: unclosed file <_io.TextIOWrapper
+name='<USER_HOME>\\AppData\\Local\\Temp\\elitelab-mining-hhpm081o\\personal.json' mode='r' encoding='utf-8'>
+  self.assertIsNone(json.loads(open(self.core.data_path('personal.json'), encoding='utf-8').read())['plan'])
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 764 tests in 136.432s
+
+OK (skipped=11)
+EliteLab folder: <USER_HOME>\elitelab-ptn-desk
+Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
+EliteLab folder: <USER_HOME>\elitelab-ptn-desk
+Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
+EliteLab folder: <USER_HOME>\elitelab-ptn-desk
+Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
+EliteLab folder: <USER_HOME>\elitelab-ptn-desk
+Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
+EliteLab folder: <USER_HOME>\elitelab-ptn-desk
+Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
+EliteLab folder: <USER_HOME>\elitelab-ptn-desk
+Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
+EliteLab folder: <USER_HOME>\elitelab-ptn-desk
+Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
+EliteLab folder: <USER_HOME>\elitelab-ptn-desk
+Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
+EliteLab folder: <USER_HOME>\elitelab-ptn-desk
+Keep this terminal open. Ctrl+C stops EliteLab and closes its party.
+EliteLab could not listen on 127.0.0.1:19000 (busy); host from default, port from default; settings file: <USER_HOME>\AppData\Local\Temp\elitelab-test-settings-bxxsmr3m\settings.json
+EliteLab 0.6.0 listening on http://127.0.0.1:<Mock name='mock.srv.server_port' id='2285779275792'>
+Journal dir: <USER_HOME>\elitelab-ptn-desk\tests\fixtures\journals  (found: True)
+Modules: none
+Ctrl+C to stop.

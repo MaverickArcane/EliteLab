@@ -1,4 +1,4 @@
-Diagnostic isolation applied only to app launch: cscript.exe
-Start Menu shortcut target, working directory, bundled runtime, first-run setup, dashboard and Quit passed
-Diagnostic isolation applied only to app launch: python.exe
-Installer passed: browser selection and upgrade persistence, default user profile, home fallback, explicit guard override, running guard, install, upgrade, uninstall, user-data and startup-entry preservation.
+Diagnostic isolation applied only to app launch: cscript.exe
+Start Menu shortcut target, working directory, bundled runtime, first-run setup, dashboard and Quit passed
+Diagnostic isolation applied only to app launch: python.exe
+Installer passed: browser selection and upgrade persistence, default user profile, home fallback, explicit guard override, running guard, install, upgrade, uninstall, user-data and startup-entry preservation.

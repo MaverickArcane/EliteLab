@@ -1,14 +1,14 @@
-{
-  "scenario": "partial_quality",
-  "checkout": "<USER_HOME>\\elitelab-audit-20261107\\checkouts\\development",
-  "sha": "8cc41163ced942440f78df65b55d1dc64c70573b",
-  "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
-  "result": {
-    "existing_issue": 111,
-    "current_quality": 0.4,
-    "target_quality": 1,
-    "reported_status": "ok",
-    "todo": [],
-    "materials": []
-  }
-}
+{
+  "scenario": "partial_quality",
+  "checkout": "<USER_HOME>\\elitelab-audit-20261107\\checkouts\\development",
+  "sha": "8cc41163ced942440f78df65b55d1dc64c70573b",
+  "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
+  "result": {
+    "existing_issue": 111,
+    "current_quality": 0.4,
+    "target_quality": 1,
+    "reported_status": "ok",
+    "todo": [],
+    "materials": []
+  }
+}

@@ -1,21 +1,21 @@
-python : Traceback (most recent call last):
-At line:2 char:1
-+ python scripts/smoke_windows_installer.py <USER_HOME>\elitelab-aud ...
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
-  File "<USER_HOME>\elitelab-audit-20261107\checkouts\pr109\scripts\smoke_windows_installer.py", line 269, in 
-<module>
-    smoke(args.installer)
-    ~~~~~^^^^^^^^^^^^^^^^
-  File "<USER_HOME>\elitelab-audit-20261107\checkouts\pr109\scripts\smoke_windows_installer.py", line 122, in smoke
-    smoke_shortcut(shortcut, app, env, root / 'shortcut-test')
-    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "<USER_HOME>\elitelab-audit-20261107\checkouts\pr109\scripts\smoke_windows_desktop.py", line 118, in 
-smoke_shortcut
-    wait_for(lambda: '--app=' + base + 'setup/' in lines(), 'Shortcut did not open first-run setup')
-    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "<USER_HOME>\elitelab-audit-20261107\checkouts\pr109\scripts\smoke_windows_desktop.py", line 28, in wait_for
-    raise AssertionError(message)
-AssertionError: Shortcut did not open first-run setup
+python : Traceback (most recent call last):
+At line:2 char:1
++ python scripts/smoke_windows_installer.py <USER_HOME>\elitelab-aud ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  File "<USER_HOME>\elitelab-audit-20261107\checkouts\pr109\scripts\smoke_windows_installer.py", line 269, in
+<module>
+    smoke(args.installer)
+    ~~~~~^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\elitelab-audit-20261107\checkouts\pr109\scripts\smoke_windows_installer.py", line 122, in smoke
+    smoke_shortcut(shortcut, app, env, root / 'shortcut-test')
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\elitelab-audit-20261107\checkouts\pr109\scripts\smoke_windows_desktop.py", line 118, in
+smoke_shortcut
+    wait_for(lambda: '--app=' + base + 'setup/' in lines(), 'Shortcut did not open first-run setup')
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\elitelab-audit-20261107\checkouts\pr109\scripts\smoke_windows_desktop.py", line 28, in wait_for
+    raise AssertionError(message)
+AssertionError: Shortcut did not open first-run setup

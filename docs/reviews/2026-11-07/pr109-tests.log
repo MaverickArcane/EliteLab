@@ -1,37 +1,37 @@
-python : test_bad_settings_cannot_supply_an_executable_or_change_profile_policy 
-(test_window.WindowTests.test_bad_settings_cannot_supply_an_executable_or_change_profile_policy) ... ok
-At line:2 char:72
-+ ... dit-pr109'; python -m unittest discover -s tests -p 'test_window*.py' ...
-+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (test_bad_settin..._policy) ... ok:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
-test_custom_override_and_launch_failure_stay_in_app_mode 
-(test_window.WindowTests.test_custom_override_and_launch_failure_stay_in_app_mode) ... ok
-test_explicit_persistent_profile_uses_separate_engine_folder 
-(test_window.WindowTests.test_explicit_persistent_profile_uses_separate_engine_folder) ... ok
-test_installed_choice_opens_guest_app_window_without_browser_fallback 
-(test_window.WindowTests.test_installed_choice_opens_guest_app_window_without_browser_fallback) ... ok
-test_portable_default_prefers_supported_windows_default 
-(test_window.WindowTests.test_portable_default_prefers_supported_windows_default) ... ok
-test_removed_selected_browser_never_silently_switches_to_a_tab 
-(test_window.WindowTests.test_removed_selected_browser_never_silently_switches_to_a_tab) ... ok
-test_source_checkout_keeps_standard_browser (test_window.WindowTests.test_source_checkout_keeps_standard_browser) ... 
-ok
-test_bundle_checksum_rejects_corruption_and_wrong_name 
-(test_windows_installer.InstallerStageTests.test_bundle_checksum_rejects_corruption_and_wrong_name) ... ok
-test_expanded_size_is_bounded (test_windows_installer.InstallerStageTests.test_expanded_size_is_bounded) ... ok
-test_installer_output_requires_exe (test_windows_installer.InstallerStageTests.test_installer_output_requires_exe) ... 
-ok
-test_missing_required_files_is_rejected 
-(test_windows_installer.InstallerStageTests.test_missing_required_files_is_rejected) ... ok
-test_symlink_entry_is_rejected (test_windows_installer.InstallerStageTests.test_symlink_entry_is_rejected) ... ok
-test_unsafe_names_and_case_collisions_are_rejected 
-(test_windows_installer.InstallerStageTests.test_unsafe_names_and_case_collisions_are_rejected) ... ok
-test_valid_bundle_stages_required_files 
-(test_windows_installer.InstallerStageTests.test_valid_bundle_stages_required_files) ... ok
-
-----------------------------------------------------------------------
-Ran 14 tests in 0.152s
-
-OK
+python : test_bad_settings_cannot_supply_an_executable_or_change_profile_policy
+(test_window.WindowTests.test_bad_settings_cannot_supply_an_executable_or_change_profile_policy) ... ok
+At line:2 char:72
++ ... dit-pr109'; python -m unittest discover -s tests -p 'test_window*.py' ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_bad_settin..._policy) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+test_custom_override_and_launch_failure_stay_in_app_mode
+(test_window.WindowTests.test_custom_override_and_launch_failure_stay_in_app_mode) ... ok
+test_explicit_persistent_profile_uses_separate_engine_folder
+(test_window.WindowTests.test_explicit_persistent_profile_uses_separate_engine_folder) ... ok
+test_installed_choice_opens_guest_app_window_without_browser_fallback
+(test_window.WindowTests.test_installed_choice_opens_guest_app_window_without_browser_fallback) ... ok
+test_portable_default_prefers_supported_windows_default
+(test_window.WindowTests.test_portable_default_prefers_supported_windows_default) ... ok
+test_removed_selected_browser_never_silently_switches_to_a_tab
+(test_window.WindowTests.test_removed_selected_browser_never_silently_switches_to_a_tab) ... ok
+test_source_checkout_keeps_standard_browser (test_window.WindowTests.test_source_checkout_keeps_standard_browser) ...
+ok
+test_bundle_checksum_rejects_corruption_and_wrong_name
+(test_windows_installer.InstallerStageTests.test_bundle_checksum_rejects_corruption_and_wrong_name) ... ok
+test_expanded_size_is_bounded (test_windows_installer.InstallerStageTests.test_expanded_size_is_bounded) ... ok
+test_installer_output_requires_exe (test_windows_installer.InstallerStageTests.test_installer_output_requires_exe) ...
+ok
+test_missing_required_files_is_rejected
+(test_windows_installer.InstallerStageTests.test_missing_required_files_is_rejected) ... ok
+test_symlink_entry_is_rejected (test_windows_installer.InstallerStageTests.test_symlink_entry_is_rejected) ... ok
+test_unsafe_names_and_case_collisions_are_rejected
+(test_windows_installer.InstallerStageTests.test_unsafe_names_and_case_collisions_are_rejected) ... ok
+test_valid_bundle_stages_required_files
+(test_windows_installer.InstallerStageTests.test_valid_bundle_stages_required_files) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.152s
+
+OK

@@ -1,31 +1,31 @@
-python : test_authenticated_mcp_schema_calls_resource_prompt_and_errors 
-(test_mining_powerplay.MiningPowerplayTests.test_authenticated_mcp_schema_calls_resource_prompt_and_errors) ... ok
-At line:2 char:73
-+ ... it-prompt'; python -m unittest discover -s tests -p 'test_mining_powe ...
-+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (test_authentica..._errors) ... ok:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
-test_buyer_power_filter_uses_pledge_and_rechecks_provider_claims 
-(test_mining_powerplay.MiningPowerplayTests.test_buyer_power_filter_uses_pledge_and_rechecks_provider_claims) ... ok
-test_competing_activity_travel_and_nonmined_sales_break_association 
-(test_mining_powerplay.MiningPowerplayTests.test_competing_activity_travel_and_nonmined_sales_break_association) ... ok
-test_invalid_power_inputs_fail_before_network 
-(test_mining_powerplay.MiningPowerplayTests.test_invalid_power_inputs_fail_before_network) ... ok
-test_malformed_gains_bounded_history_and_replay 
-(test_mining_powerplay.MiningPowerplayTests.test_malformed_gains_bounded_history_and_replay) ... ok
-test_mixed_and_missing_cargo_baselines_never_claim_mining_merits 
-(test_mining_powerplay.MiningPowerplayTests.test_mixed_and_missing_cargo_baselines_never_claim_mining_merits) ... ok
-test_partial_history_can_read_power_from_merit_event 
-(test_mining_powerplay.MiningPowerplayTests.test_partial_history_can_read_power_from_merit_event) ... ok
-test_recorded_totals_separate_from_estimated_sale_association 
-(test_mining_powerplay.MiningPowerplayTests.test_recorded_totals_separate_from_estimated_sale_association) ... ok
-test_resets_wrong_power_and_shutdown (test_mining_powerplay.MiningPowerplayTests.test_resets_wrong_power_and_shutdown) 
-... ok
-test_time_window_excludes_future_old_and_missing_timestamps 
-(test_mining_powerplay.MiningPowerplayTests.test_time_window_excludes_future_old_and_missing_timestamps) ... ok
-
-----------------------------------------------------------------------
-Ran 10 tests in 1.882s
-
-OK
+python : test_authenticated_mcp_schema_calls_resource_prompt_and_errors
+(test_mining_powerplay.MiningPowerplayTests.test_authenticated_mcp_schema_calls_resource_prompt_and_errors) ... ok
+At line:2 char:73
++ ... it-prompt'; python -m unittest discover -s tests -p 'test_mining_powe ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_authentica..._errors) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+test_buyer_power_filter_uses_pledge_and_rechecks_provider_claims
+(test_mining_powerplay.MiningPowerplayTests.test_buyer_power_filter_uses_pledge_and_rechecks_provider_claims) ... ok
+test_competing_activity_travel_and_nonmined_sales_break_association
+(test_mining_powerplay.MiningPowerplayTests.test_competing_activity_travel_and_nonmined_sales_break_association) ... ok
+test_invalid_power_inputs_fail_before_network
+(test_mining_powerplay.MiningPowerplayTests.test_invalid_power_inputs_fail_before_network) ... ok
+test_malformed_gains_bounded_history_and_replay
+(test_mining_powerplay.MiningPowerplayTests.test_malformed_gains_bounded_history_and_replay) ... ok
+test_mixed_and_missing_cargo_baselines_never_claim_mining_merits
+(test_mining_powerplay.MiningPowerplayTests.test_mixed_and_missing_cargo_baselines_never_claim_mining_merits) ... ok
+test_partial_history_can_read_power_from_merit_event
+(test_mining_powerplay.MiningPowerplayTests.test_partial_history_can_read_power_from_merit_event) ... ok
+test_recorded_totals_separate_from_estimated_sale_association
+(test_mining_powerplay.MiningPowerplayTests.test_recorded_totals_separate_from_estimated_sale_association) ... ok
+test_resets_wrong_power_and_shutdown (test_mining_powerplay.MiningPowerplayTests.test_resets_wrong_power_and_shutdown)
+... ok
+test_time_window_excludes_future_old_and_missing_timestamps
+(test_mining_powerplay.MiningPowerplayTests.test_time_window_excludes_future_old_and_missing_timestamps) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 1.882s
+
+OK

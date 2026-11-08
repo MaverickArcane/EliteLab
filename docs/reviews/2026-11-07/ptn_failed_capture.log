@@ -1,20 +1,20 @@
-{
-  "scenario": "ptn_failed_capture",
-  "checkout": "<USER_HOME>\\elitelab-ptn-desk",
-  "sha": "42266e39f84c74f7f3322aa671c8a78da7d40d0f",
-  "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
-  "result": {
-    "ready_before": true,
-    "capture_error": "This market does not offer this side of the trade. Recheck the commodity.",
-    "ready_after": true,
-    "blockers": [],
-    "advert": {
-      "advert": "**N.A.C. Test (TST-001)** is loading **Liquor** from **Buy Port** (L pads) in **Source**. 20k/unit profit, 18k units",
-      "notes": "SCO FSD recommended.",
-      "copy_text": "**N.A.C. Test (TST-001)** is loading **Liquor** from **Buy Port** (L pads) in **Source**. 20k/unit profit, 18k units\nSCO FSD recommended.",
-      "profit_per_ton": 20000,
-      "remaining": 18000,
-      "instructions": "Use /aco trade and review its generated string, then paste in affiliate-trade-alerts without role pings. Review and confirm Roomba; close it with the appropriate completion reaction. This desk does not post or close Discord adverts."
-    }
-  }
-}
+{
+  "scenario": "ptn_failed_capture",
+  "checkout": "<USER_HOME>\\elitelab-ptn-desk",
+  "sha": "42266e39f84c74f7f3322aa671c8a78da7d40d0f",
+  "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
+  "result": {
+    "ready_before": true,
+    "capture_error": "This market does not offer this side of the trade. Recheck the commodity.",
+    "ready_after": true,
+    "blockers": [],
+    "advert": {
+      "advert": "**N.A.C. Test (TST-001)** is loading **Liquor** from **Buy Port** (L pads) in **Source**. 20k/unit profit, 18k units",
+      "notes": "SCO FSD recommended.",
+      "copy_text": "**N.A.C. Test (TST-001)** is loading **Liquor** from **Buy Port** (L pads) in **Source**. 20k/unit profit, 18k units\nSCO FSD recommended.",
+      "profit_per_ton": 20000,
+      "remaining": 18000,
+      "instructions": "Use /aco trade and review its generated string, then paste in affiliate-trade-alerts without role pings. Review and confirm Roomba; close it with the appropriate completion reaction. This desk does not post or close Discord adverts."
+    }
+  }
+}
