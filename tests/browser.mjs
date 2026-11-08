@@ -129,6 +129,11 @@ try {
   await sleep(150);
   assert.equal(await evaluate("Lab.state.personal.ui_selected"),true);
   assert.equal(await evaluate("Lab.map.layers.personal.points(Lab.state).filter(p=>p.selected).length"),1);
+  assert.equal(await evaluate("document.querySelector('[data-workspace=flight]').getAttribute('aria-selected')"),'true');
+  assert.equal(await evaluate("document.querySelector('#card-personal').classList.contains('workspace-off')"),true);
+  // Return to the retained Trading layout before measuring its visible cards.
+  await evaluate("document.querySelector('[data-workspace=all]').click();true");
+  assert.equal(await evaluate("document.querySelector('#card-personal').classList.contains('workspace-off')"),false);
   await tradeAudit('dock_buy');
   for(let i=0;i<50;i++){await sleep(100);if(await evaluate("document.querySelector('#card-personal [data-personal-plan]').textContent.includes('Buy 100 t Gold')"))break;}
   const dockedPanel=await evaluate(`({text:document.querySelector('#card-personal [data-personal-plan]').textContent,destination:document.querySelector('[data-personal-search]').elements.destination.value,rows:document.querySelectorAll('#card-personal tbody tr[data-route]').length})`);

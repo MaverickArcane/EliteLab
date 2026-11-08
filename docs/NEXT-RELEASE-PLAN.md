@@ -182,6 +182,11 @@ Target branch: development. Do not publish a release or change the running insta
   the source footer and stays stable while scrolling between workspaces. Rare
   goods coverage checks its retained layout alongside the leaner Trading tab.
   These browser checks pass locally; CI is rerun for the fixes.
+- The next CI run caught an obsolete dashboard-test assumption: a map handoff
+  now selects Flight, so the test must return to its retained Trading layout
+  before checking that layout's responsive cards. The updated owner/crew browser
+  suite passes locally. Cargo search also reports completion explicitly and
+  retries a failed status request while the job is running.
 
 ### Remaining release acceptance
 

@@ -10,7 +10,7 @@
       const form=el.querySelector('form');
       for(const [k,v] of Object.entries(u.prefs)){const input=form.elements.namedItem(k);if(input){if(input.type==='checkbox')input.checked=!!v;else input.value=v;}}
       const message=text=>{el.querySelector('[data-sale-message]').textContent=text;};
-      const refresh=async()=>{clearTimeout(u.timer);try{const d=await Lab.api('/api/selling');if(u.dead)return;u.data=d;u.draw();if(d.job?.status==='running')u.timer=setTimeout(refresh,2000);}catch(e){if(!u.dead)message(e.message+' Retry the search or refresh the page.');}};
+      const refresh=async()=>{clearTimeout(u.timer);try{const d=await Lab.api('/api/selling');if(u.dead)return;u.data=d;u.draw();if(d.job?.status==='running')u.timer=setTimeout(refresh,2000);}catch(e){if(!u.dead){if(u.data.job?.status==='running'){message(e.message+' Search status will retry.');u.timer=setTimeout(refresh,4000);}else message(e.message+' Retry the search or refresh the page.');}}};
       u.draw=()=>{
         if(u.dead)return;
         const d=u.data,r=d.result,plan=d.plan;
@@ -18,6 +18,7 @@
         if(d.save_error)message(d.save_error);
         else if(d.job?.status==='running')message(`Checking nearby markets: ${fmt(d.job.checked)} stations received. You can switch tabs while this runs.`);
         else if(d.job?.status==='failed')message(d.job.error);
+        else if(d.job?.status==='complete'&&r)message(`Buyer search complete: ${fmt(r.checked)} stations checked. Compare the sale strategies below.`);
         el.querySelector('[data-sale-tracked]').innerHTML=plan?`<section class="sale-tracked"><div class="row"><b>${plan.complete?'Sale route complete':'Tracked sale route'}</b><button class="mini" data-sale-clear>Clear route</button></div>${plan.progress_limited?'<p class="warn">Receipt limit reached. Progress is paused; search the remaining cargo to start a new route.</p>':''}${plan.quotes_stale?'<p class="warn">Some route quotes are over 24 hours old. Refresh buyers before relying on their prices.</p>':''}${plan.cargo_changed?'<p class="warn">Cargo differs from the remaining plan. Refresh buyers before relying on these quantities.</p>':''}${plan.next_stop?stopHtml(plan.next_stop,true):'<p>All planned quantities have matching journal sales.</p>'}<details><summary>All route stops</summary>${plan.stops.map(s=>stopHtml(s,true)).join('')}</details><p class="note">Only matching station sales advance this plan. Quote values are estimates; cargo transfers and ejections are not sales.</p></section>`:'';
         const out=el.querySelector('[data-sale-results]');
         if(!r){out.innerHTML=d.context?.goods===null?'<p>Waiting for a complete cargo snapshot.</p>':`<p>${(d.context?.goods||[]).map(g=>`${fmt(g.quantity)} t ${esc(g.name)}`).join(' | ')||'No legal, unassigned cargo to sell.'}</p>`;return;}

@@ -44,6 +44,8 @@ try{
   assert.equal(await visible('trade'),false);assert.equal(await visible('map'),false);
   await evaluate("document.querySelector('.sale-filters').requestSubmit();true");
   await wait("document.querySelectorAll('[data-sale-strategy]').length===3");
+  await wait("document.querySelector('[data-sale-message]').textContent.includes('Buyer search complete')");
+  assert.equal(await evaluate("document.querySelector('.sale-filters button[type=submit]').disabled"),false);
   assert.match(await evaluate("document.querySelector('[data-sale-results]').textContent"),/2,550 Cr/);
   await click('[data-sale-select]');await wait("!!document.querySelector('[data-sale-clear]')");
   await shot('trading-buyers');await shot('trading-buyers-mobile',390,844);
