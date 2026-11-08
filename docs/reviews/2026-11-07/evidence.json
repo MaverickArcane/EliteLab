@@ -45,7 +45,7 @@
     "These are historical reproductions that assert the observed defects, not permanent passing regression tests.",
     "SSE probe uses a valid two-second signed fixture cookie to exercise the same expiry validation as the normal twelve-hour cookie.",
     "Redirect probe requires a redirect from the configured backend or its proxy; it is not an unauthenticated localhost exploit.",
-    "PTN timeout uses a 91-second provider delay with the actual client timeout and real HTTP/route handling; it does not measure live provider latency.",
+    "PTN timeout uses three sequential 31-second provider delays (each below the 40-second request limit), the actual client timeout and real HTTP/route handling; it does not measure live provider latency.",
     "Native diagnostic reruns alter test-app environment only. They do not establish that the unmodified smoke suite passes.",
     "Skipped platform tests were not claimed as executed. No native Linux/macOS rerun, full multiplayer deployment or in-game reward audit was performed.",
     "The existing partial-engineering issue 111 is reconfirmed; no duplicate issue should be created.",

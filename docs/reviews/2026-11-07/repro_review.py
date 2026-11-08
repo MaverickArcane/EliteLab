@@ -146,14 +146,15 @@ def mcp_ptn_timeout():
     fixture = PTNTests()
     fixture.setUp()
     original = fixture.core.services.fetch_json
-    first = True
+    delayed = []
     def slow_catalog(url, *args, **kwargs):
-        nonlocal first
-        # Many individually quick commodity requests can take over 90 seconds
-        # in total. Delay the first fixture request to reproduce that duration.
-        if first:
-            first = False
-            time.sleep(91)
+        # These three preflight calls are sequential. Other modules can make
+        # unrelated background calls, so do not count arbitrary provider calls.
+        selected = (url.endswith('/commodities') or
+                    ('/system/name/Sol/commodities/' in url and ('/exports?' in url or '/imports?' in url)))
+        if selected:
+            delayed.append(url)
+            time.sleep(31)
         return original(url, *args, **kwargs)
     fixture.core.services.fetch_json = slow_catalog
     try:
@@ -161,11 +162,11 @@ def mcp_ptn_timeout():
             mcp.BASE = f'http://127.0.0.1:{srv.server_port}'
             started = time.monotonic()
             try:
-                mcp._call('find_ptn_routes', dict(commodities='liquor', avoid_active=False))
+                returned = mcp._call('find_ptn_routes', dict(avoid_active=False))
             except TimeoutError as error:
                 failure = type(error).__name__
             else:
-                raise AssertionError('Expected the real 90-second MCP timeout')
+                raise AssertionError(dict(elapsed=time.monotonic()-started, delayed=delayed, returned_type=type(returned).__name__))
             elapsed = time.monotonic()-started
             deadline = time.monotonic()+10
             while fixture.desk.searching and time.monotonic()<deadline:
@@ -175,7 +176,8 @@ def mcp_ptn_timeout():
             return dict(client_error=failure, client_seconds=round(elapsed,2),
                         server_completed=not fixture.desk.searching,
                         server_rows=len(result['rows']), scan_budget_seconds=300,
-                        fixture_note='Offline providers delayed for 91 seconds; no external requests')
+                        delayed_requests=delayed,
+                        fixture_note='Three sequential offline responses delayed 31 seconds each; each below the 40-second provider timeout')
     finally:
         fixture.doCleanups()
 
