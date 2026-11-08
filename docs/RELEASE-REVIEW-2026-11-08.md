@@ -21,6 +21,15 @@ accounting, unknown costs, persistence failure, provider text escaping, saved
 layout preservation and package allowlists. Group mining reuses the existing
 authenticated party transport; it does not expose the draft hosted service.
 
+The automated security review on #119 reported eleven findings. Each named
+data flow was traced at 617c9ef: six inline reports were resolved with specific
+escaping/numeric/static-template evidence; the remaining reports already have
+resolved-path containment, escaped event attributes, fixed SQL column names with
+bound values, or fixed commands and integer child-process arguments. The
+[review disposition](https://github.com/MaverickArcane/EliteLab/pull/119#issuecomment-6724390892)
+records the evidence. The generated patch deleting the HTTP server was rejected.
+This is a disposition of those reports, not a claim of a complete security audit.
+
 The new cargo search filters locally as well as at the provider, excludes mission
 and stolen cargo, preserves unallocated quantities and reports heuristic scope.
 Journal sales use a serialized writer outside the bus thread and retained receipt

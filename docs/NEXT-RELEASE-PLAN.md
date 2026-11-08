@@ -104,11 +104,15 @@ Target branch: development. Do not publish a release or change the running insta
   planning and live progress; commit assets and a reproducible capture script.
 - [x] Audit docs for obsolete claims and links; clearly separate current behavior,
   future work and manual release gates. Attribute external sources in UI and docs.
-- [ ] Run full Python suite, all affected browser workflows, JS syntax checks,
+- [x] Run full Python suite, all affected browser workflows, JS syntax checks,
   package checks and CI. Inspect screenshots, console errors and responsive views.
-- [ ] Review the final diff for regressions, security and honest estimates; push
-  focused PRs, merge reviewed green work into development, check integrated CI.
+- [x] Review the final diff for regressions, security and honest estimates; push
+  the preservation and release PRs with validation evidence.
 - [x] Record unperformed live-game/platform checks. No release tag/publication.
+
+Development integration is gated on the final PR head's CI. [PR #119](https://github.com/MaverickArcane/EliteLab/pull/119)
+records the merge receipt and subsequent development-branch CI; those GitHub
+results are authoritative for the integration status after this record is committed.
 
 ## Initial repository evidence
 
@@ -158,7 +162,8 @@ Target branch: development. Do not publish a release or change the running insta
   snapshot: 216 tests, 1 skip, passed before PR #118.
 - Release suite: 788 tests, 11 skips, passed. Subsequent targeted checks after
   pagination and handoff review: 18 personal-trade, 9 cargo-selling and 3 group/
-  handoff tests passed. Final integrated CI remains the merge gate.
+  handoff tests passed. The integrated suite now contains 791 tests, passing on
+  both Python 3.10 and 3.13 on Linux and Windows in CI, with platform skips.
 - Browser runs passed: general dashboard/owner/crew, Materials, release
   workspaces/cargo/mining setup, PTN, Mining, Rare goods, History, Expedition,
   individual trade/Powerplay and sell targets. Screenshots
@@ -187,11 +192,19 @@ Target branch: development. Do not publish a release or change the running insta
   before checking that layout's responsive cards. The updated owner/crew browser
   suite passes locally. Cargo search also reports completion explicitly and
   retries a failed status request while the job is running.
+- [CI run 42502731174](https://github.com/MaverickArcane/EliteLab/actions/runs/42502731174)
+  passed all 13 jobs at implementation commit 617c9ef: all four Python matrix
+  entries, browser workflows (including Materials and the new release flows),
+  Expedition/security UI, JavaScript, Docker, Windows portable/installer/native
+  controls, Debian lifecycle, both macOS packages and macOS source setup.
+  The documentation closeout is checked again before integration. Automated
+  security-review findings and their inspected dispositions are recorded in the
+  [review record](RELEASE-REVIEW-2026-11-08.md).
 
 ### Remaining release acceptance
 
-- Require green integrated CI, including native Windows installer/tray/browser
-  choices, Debian lifecycle and both macOS architectures, before merging.
+- The candidate has passed cross-platform CI. Final-head and post-merge CI are
+  linked in PR #119; any later failure must be resolved before release publication.
 - Real commanders must validate group mining, carrier docking/order behavior,
   physical stock, join/leave/reconnect under game conditions and public unloading.
   No test paid credits or posted messages. Keep live mining/reward issue #3 open.
