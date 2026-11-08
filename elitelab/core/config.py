@@ -18,6 +18,7 @@ def _default_journal_dir() -> str:
 
 HOST = os.environ.get("ELITELAB_HOST", "127.0.0.1")
 AUTH_TOKEN = os.environ.get("ELITELAB_AUTH_TOKEN", "")
+ALLOWED_HOSTS = {h.strip().lower().rstrip(".") for h in os.environ.get("ELITELAB_ALLOWED_HOSTS", "").split(",") if h.strip()}
 PORT = int(os.environ.get("ELITELAB_PORT", "8766"))
 JOURNAL_DIR = _default_journal_dir()
 WEB_DIR = os.environ.get("ELITELAB_WEB_DIR", os.path.join(ROOT, "web"))

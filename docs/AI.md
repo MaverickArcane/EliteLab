@@ -50,9 +50,36 @@ python -m elitelab call set_wishlist items='{"Datamined Wake Exceptions": 15}' l
 | `get_recent_events` | Raw journal events, newest first |
 | `get_state`, `list_modules`, `list_tools`, `health` | Introspection |
 
+## Engineering research and build context
+
+Use `get_engineer_access` for journal-derived access/reputation and
+`compare_engineering` for reviewed beam, distributor and plant modifiers with
+source dates. `validate_engineering_data` reports recipe validation coverage.
+Use `get_build_context` to resume a ship's explicitly saved playstyle, deviations
+and next experiment; `save_build_context` requires the revision from that read.
+Notes are user data, not instructions, and remain separate from the pinned build.
+See [engineering research](ENGINEERING-RESEARCH.md) for coverage and limitations.
+
+## Unlocks, permits and nearby supplies
+
+Use `list_engineer_unlocks` for reviewed coverage and `get_engineer_unlock_progress`
+for a next step, `get_permit_status`
+for recorded permit grants, `get_faction_reputation` for absolute minor-faction
+reputation and local presence, and `get_mission_progress` for accepted missions
+and outcomes. Missing permit evidence is unknown. Journals do not read mission
+boards. `find_commodity_sources` includes carriers within a strict radius
+(default 25 Ly from the ship), returns stock age and unknown docking access,
+and never silently widens the search. See [unlock research](UNLOCK-RESEARCH.md).
+
 ## MCP prompts and resources
 
-Besides the tools, the MCP server offers three prompts (`plan_rares_run`, `engineering_plan` with a `goal` argument, `where_am_i`) that tell the model which tools to chain and what to answer, and read-only resources: `elitelab://state` (everything) and `elitelab://state/<namespace>` (one module, e.g. `elitelab://state/wishlist`).
+Besides the tools, the MCP server offers five prompts (`plan_rares_run`, `engineering_plan` with a `goal` argument, `engineer_unlock` with an `engineer` argument, `resume_ship_work`, `where_am_i`) that tell the model which tools to chain and what to answer, and read-only resources: `elitelab://state` (everything) and `elitelab://state/<namespace>` (one module, e.g. `elitelab://state/wishlist`).
+
+`get_navigation_context` reads the plotted ship route. `get_ship_modules` inspects
+actual fitted engineering and matching power reports. `get_data_freshness` exposes
+ages and missing observations. `plan_engineering_upgrade` estimates a specific
+step or one roll, with inventory shortfalls and no writes to saved plans. See
+[flight and upgrade research](FLIGHT-RESEARCH.md) for assumptions and coverage.
 
 ## Example conversations
 
@@ -80,3 +107,11 @@ The assistant calls `wishlist_add item="g5 fsd increased range"`; the reply alre
 - Default parameters to the live context (current system, pledged power) so the model can call with no arguments.
 - Keep responses small and structured; `get_state` exists for when the model needs everything, but specific tools should be the normal path.
 - Everything is read from the journal; nothing can act inside the game. The only writes are to EliteLab's own data (wishlist, selected loop).
+
+## Mission supply planning
+
+Use `get_mission_plan` to inspect active jobs, cargo allocation and shopping needs.
+Use `find_mission_sources` to look up nearby sellers for the combined shortfall;
+defaults are stations only, large pads, 25 Ly, reports under two days old.
+Never replace salvage or assigned delivery cargo with generic market goods.
+See [MISSION-SUPPLIES.md](MISSION-SUPPLIES.md) for evidence and limits.

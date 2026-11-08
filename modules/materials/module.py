@@ -9,6 +9,7 @@ this module's data.json only holds the where-to-find hints.
 import json
 import os
 import threading
+from datetime import datetime, timezone
 
 from elitelab.core.gamedata import MATERIAL_BY_KEY, MATERIAL_BY_NAME, MATERIAL_CAPS, norm, resolve_material
 
@@ -27,11 +28,15 @@ class Materials:
         self.by_name = dict(MATERIAL_BY_NAME)
         self.sources = data.get("sources", {})
         self.inv = {}      # key -> count
+        self.inventory_at = ""
+        self.session_at = ""
+        self.commander_name = None
+        self.commander_key = None
         self._version = 0  # bumped on every publish; the store key other modules watch
         self.names = {}    # key -> display name seen in journal
         self.cats = {}     # key -> category seen in journal
         self.wishlist = core.read_data("wishlist.json", default={}) or {}
-        for e in ("Materials", "MaterialCollected", "MaterialDiscarded", "MaterialTrade", "EngineerCraft", "Synthesis",
+        for e in ("Commander", "LoadGame", "Materials", "MaterialCollected", "MaterialDiscarded", "MaterialTrade", "EngineerCraft", "Synthesis",
                   "TechnologyBroker", "MissionCompleted", "ScientificResearch", "EngineerContribution"):
             core.bus.on("journal." + e, self.on_event)
         core.bus.on("journal.replay.done", lambda n, v: self.publish())
@@ -80,6 +85,29 @@ class Materials:
 
     def _on_event(self, name, ev):
         e = ev.get("event")
+        try:
+            dt = datetime.fromisoformat(ev.get("timestamp", "").replace("Z", "+00:00"))
+            at = dt.astimezone(timezone.utc).isoformat() if dt.tzinfo else None
+        except (ValueError, TypeError, AttributeError):
+            at = None
+        if e in ("Commander", "LoadGame"):
+            name = ev.get("Name") if e == "Commander" else ev.get("Commander")
+            owner = ("fid:" + str(ev["FID"])) if ev.get("FID") else self.commander_key if name and name == self.commander_name else "name:" + str(name)
+            if at and (at > self.session_at or (at == self.session_at and owner != self.commander_key)):
+                if e == "LoadGame" and name and owner == self.commander_key:
+                    return  # Startup Materials can precede LoadGame after Commander.
+                self.session_at = at
+                self.commander_name = name
+                self.commander_key = owner
+                self.inv, self.names, self.cats = {}, {}, {}
+                self.inventory_at = ""
+                self.publish()
+            return
+        replay_baseline = e == "Materials" and ev.get("_replay") and at and at >= self.session_at
+        if at and (at < self.session_at or (at < self.inventory_at and not replay_baseline)):
+            return
+        if at:
+            self.inventory_at = at
         if e == "Materials":
             self.inv = {}
             for cat in ("Raw", "Manufactured", "Encoded"):

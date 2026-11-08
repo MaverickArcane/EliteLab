@@ -1,0 +1,42 @@
+Carrier trade continuation - 2026-10-26
+
+User correction: the intended workflow is ONE paired buy/sell trade route.
+Find the lowest possible purchase price at a station reasonably close to a
+station paying a high market price. Evaluate the two stops together, including
+the distance between them. The current four-profile workflow missed this goal.
+
+Next session:
+- Replace the separate inventory-sale/order/profile emphasis with a single
+  buy -> sell route search and results inside EliteLab.
+- Rank paired opportunities using low acquisition cost, high selling price,
+  and a reasonable distance between stops. Do not independently choose distant
+  price extremes or imply a bounded shortlist finds the global best route.
+- Show both stations and systems, buy/sell prices, spread per ton, supply,
+  demand, report age, pad sizes, and distance between the stops together.
+- Use carrier inventory, free capacity, orders and ship capacity to size the
+  operation and calculate runs; these support the route rather than define
+  separate primary workflows. Keep stock, orders and personal cargo separate.
+- Community reports via Ardent/EDDN are approved. No PTN. No extra browser tabs.
+  Preserve the compact engineering-style interaction. No slogans/product copy.
+- Preserve optional personal Powerplay bonus accounting and LAN/tailnet party
+  reporting. Unknown costs/stock must remain unknown; historical inventory can
+  conflict with current carrier cargo and needs reconciliation.
+
+Current implementation: modules/trade/market.py, modules/trade/module.py,
+modules/trade/web/card.js; party code in modules/party/. Changes are uncommitted.
+Main app: http://localhost:8766, restarted with current backend and original
+data. Ports 8768 and 8769 are previews with separate copied data directories.
+92 tests and browser checks passed before the server restarts. Live route
+endpoint on 8766 was checked successfully; this does not validate the desired
+route-search design above.
+
+User explicitly wants to stop here to conserve usage. No implementation work
+on this correction has been started; resume from this note when requested.
+
+Continuation implemented:
+The primary card now searches paired buy/sell routes. Default 100 Ly between
+stops; cheapest eligible supplier per high-paying buyer; spread-per-ton ranking.
+Both stop prices, supply/demand, report times and route distance appear together.
+Search breadth is adjustable and individual commodity selection is available.
+Carrier data sizes the load without restricting route discovery. The earlier
+four workflows have been removed from the primary UI. See README for filters.

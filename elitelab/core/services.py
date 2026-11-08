@@ -19,6 +19,14 @@ from .gamedata import POWERS  # noqa: F401  (re-exported for modules that import
 STARPORT_TYPES = ["Coriolis Starport", "Orbis Starport", "Ocellus Starport", "Asteroid base", "Planetary Port"]
 MEDIUM_TYPES = STARPORT_TYPES + ["Outpost", "Planetary Outpost"]
 CACHE_MAX_ENTRIES = 400
+MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+
+
+def read_json(response):
+    raw = response.read(MAX_RESPONSE_BYTES + 1)
+    if len(raw) > MAX_RESPONSE_BYTES:
+        raise ValueError("Community API response exceeds the 8 MiB limit")
+    return json.loads(raw.decode("utf-8"))
 
 
 class Services:
@@ -44,7 +52,7 @@ class Services:
             headers["Content-Type"] = "application/json"
         req = urllib.request.Request(url, data=data, headers=headers, method=method or ("POST" if data else "GET"))
         with urllib.request.urlopen(req, timeout=40) as resp:
-            out = json.loads(resp.read().decode("utf-8"))
+            out = read_json(resp)
         with self._lock:
             self._cache[key] = (now, ttl, out)
             self._evict(now)
@@ -59,6 +67,15 @@ class Services:
                 del self._cache[k]
 
     # -- spansh ------------------------------------------------------------
+    def post_form(self, url, fields):
+        """Uncached form submission for asynchronous Spansh route jobs."""
+        if config.OFFLINE:
+            raise RuntimeError("ELITELAB_OFFLINE is set; refusing network call")
+        req = urllib.request.Request(url, data=urllib.parse.urlencode(fields).encode("utf-8"),
+            headers={"User-Agent": config.USER_AGENT, "Content-Type": "application/x-www-form-urlencoded"})
+        with urllib.request.urlopen(req, timeout=20) as response:
+            return read_json(response)
+
     @staticmethod
     def pad(station):
         if station.get("has_large_pad"):

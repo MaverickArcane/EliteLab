@@ -1,0 +1,5 @@
+{"timestamp":"2026-10-02T10:00:00Z","event":"Commander","FID":"FPROGRESS-A","Name":"Unlock Pilot"}
+{"timestamp":"2026-10-02T10:00:01Z","event":"Rank","Combat":3,"Explore":2,"Empire":1}
+{"timestamp":"2026-10-02T10:00:02Z","event":"Statistics","Exploration":{"Greatest_Distance_From_Start":3781,"Total_Hyperspace_Distance":61062},"Smuggling":{"Black_Markets_Traded_With":5},"Trading":{"Markets_Traded_With":50}}
+{"timestamp":"2026-10-02T10:00:03Z","event":"Loadout","Ship":"smallcombat01_nx","ShipID":50,"ShipName":"Test Kestrel","Modules":[{"Slot":"SmallHardpoint1","Item":"hpt_beamlaser_gimbal_small","On":true,"Priority":0,"Engineering":{"BlueprintName":"Weapon_LightWeight","Level":3,"Quality":1.0,"ExperimentalEffect":"special_thermal_vent","Modifiers":[{"Label":"PowerDraw","Value":0.3,"OriginalValue":0.4}]}},{"Slot":"PowerPlant","Item":"int_powerplant_size5_class5","On":true,"Priority":0}]}
+{"timestamp":"2026-10-02T10:00:04Z","event":"Location","StarSystem":"Origin","StarPos":[0,0,0]}

@@ -3,6 +3,8 @@ data/
 __pycache__/
 *.pyc
 .venv/
+dist/
+runtime/
 *.log
 .DS_Store
 Thumbs.db
