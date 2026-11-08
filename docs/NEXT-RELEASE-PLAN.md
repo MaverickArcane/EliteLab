@@ -131,8 +131,9 @@ Target branch: development. Do not publish a release or change the running insta
   reviewed installer and materials/PTN stacks are integrated in 3ddcd95/f0a26fd;
   partial engineering and PTN blockers are corrected in 81c2946.
 - [Exact PR review/dispositions](RELEASE-REVIEW-2026-11-08.md): #108/#109 and
-  #110/#112 integrated locally with blocker fixes. #102 remains a draft and is
-  excluded. Release integration PR and CI results will be recorded below.
+  #110/#112 integrated with blocker fixes. #102 remains a draft and is excluded.
+  [Release integration PR #119](https://github.com/MaverickArcane/EliteLab/pull/119)
+  contains the implementation and final check status.
 
 ### Product result
 
@@ -159,7 +160,8 @@ Target branch: development. Do not publish a release or change the running insta
   pagination and handoff review: 18 personal-trade, 9 cargo-selling and 3 group/
   handoff tests passed. Final integrated CI remains the merge gate.
 - Browser runs passed: general dashboard/owner/crew, Materials, release
-  workspaces/cargo/mining setup, PTN, Mining, History and Expedition. Screenshots
+  workspaces/cargo/mining setup, PTN, Mining, Rare goods, History, Expedition,
+  individual trade/Powerplay and sell targets. Screenshots
   inspected; no render exceptions or page-width overflow. Materials covers
   3440x1440, 1920x1080, 1366x768, 1280x720 and narrow screens.
 - All 30 application JavaScript files pass syntax checks. Changed Markdown local
@@ -171,6 +173,15 @@ Target branch: development. Do not publish a release or change the running insta
   future prices, permit access, sale execution or profits.
 - GIFs encode actual fixture-browser frames (recipes, exchanges, live stock/plan
   changes); regeneration uses an optional documentation-only Pillow environment.
+- First integrated CI run 42501419443 passed all native package, Python matrix,
+  Docker, syntax and Expedition checks. The PTN browser found a fast-completion
+  status race. The follow-up reconciles terminal jobs explicitly, polls without
+  relying on SSE, keeps the handoff form inside the rendered operation, and sends
+  cross-workspace actions to the matching workspace. Deterministic browser
+  regressions cover both the race and the actual handoff. PTN height now includes
+  the source footer and stays stable while scrolling between workspaces. Rare
+  goods coverage checks its retained layout alongside the leaner Trading tab.
+  These browser checks pass locally; CI is rerun for the fixes.
 
 ### Remaining release acceptance
 

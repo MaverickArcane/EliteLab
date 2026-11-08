@@ -3,6 +3,9 @@
 Discovery now returns a background `search_job` immediately. Poll
 `get_ptn_desk` (about every two seconds) for completion or failure; duplicate
 searches are rejected while a job runs. The browser follows the same contract.
+It reconciles jobs that finish before the start response and polls independently
+of SSE, including after reopening a page during a search. The Carrier ops handoff
+form lives in Scout & run; its checked stock survives journal redraws.
 Newer matching contradictory journal markets revoke the affected scout and
 posting confirmations, including missing items, invalid prices and lost
 producer/consumer evidence. Recapture valid evidence and reconfirm to recover.

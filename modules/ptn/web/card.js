@@ -81,6 +81,12 @@
     </section></div>`;
   }
 
+  function searchStatus(u,d){
+    const job=d.search_job;if(!job||job.id===u.finishedSearch)return;
+    if(job.status==='failed'){u.finishedSearch=job.id;u.error=true;u.status=job.error;}
+    else if(job.status==='complete'&&d.result){u.finishedSearch=job.id;u.error=false;u.status=`Search complete: ${d.result.scanned} commodities checked. ${d.result.rows.filter(r=>r.viable).length} profitable routes.`;}
+  }
+
   function operation(u,d){
     const p=d.plan,o=d.operation;
     if(!p)return `<div class="ptn-empty"><h3>Choose a route to start scouting.</h3><p>Save station prices and actual carrier order values before generating an advert.</p>${button('find','Find a trade','primary')}</div>`;
@@ -88,6 +94,7 @@
     const next={scouting:['loading','Open loading'],loading:['transit','Load finished: ready to move'],transit:['unloading','Open unloading'],unloading:['complete','Unload finished: complete']};
     const draft=u.draft;
     return `<div class="ptn-run"><div class="ptn-operation-title"><div><span class="k">${esc(p.carrier)} (${esc(p.callsign)})</span><h3>${esc(p.name)} <span class="muted">/ ${fmt(p.route.quantity)} t</span></h3></div><span class="tag">${esc(p.stage)}</span></div>
+      ${['scouting','loading'].includes(p.stage)?`<details class="ptn-more" data-ptn-detail="handoff"><summary>Coordinate this route with Carrier ops</summary><form data-ptn-handoff class="row"><label>Checked existing carrier stock (t)<input name="handoff_stock" type="number" min="0" max="1000000" value="${esc(u.handoffStock??'')}" required></label><button type="submit" ${u.busy||o.scout_blockers.length?'disabled':''}>Copy scouted route to Carrier ops</button><p class="note">Creates a separate crew plan from this checked revision. Confirm the phase and actual game orders in each desk.</p></form></details>`:''}
       <ol class="ptn-stages">${stages.map((stage,i)=>`<li class="${stage===p.stage?'is-current':stages.indexOf(p.stage)>i?'is-done':''}"><span>${i+1}</span>${stageNames[i]}</li>`).join('')}</ol>
       <div class="ptn-run-grid"><div><div class="ptn-stops">${['buy','sell'].map((side,i)=>`<div>${stop(o[side],i===0?'Load from':'Unload to',!!p.scouts[side])}<button type="button" class="ptn-capture" data-ptn-capture="${side}" ${u.busy?'disabled':''}>Capture this station's current market</button></div>`).join('')}</div>
         <p class="note">Dock at each station and open Commodities, then capture its journal snapshot. Station price, volume and carrier 100% reference are saved with their observation time. Rechecking a market clears affected order confirmations.</p>
@@ -141,6 +148,7 @@
         const scrolls=['.ptn-content','.ptn-search','.ptn-opportunities'].map(selector=>[selector,sameTab?el.querySelector(selector)?.scrollTop||0:0]);
         const openDetails=new Set(sameTab?[...el.querySelectorAll('details[open][data-ptn-detail]')].map(node=>node.dataset.ptnDetail):[]);
         const c=d.context||{},o=d.operation,p=d.plan,best=d.result?.rows.find(row=>row.viable);
+        if(u.handoffPlanId!==p?.id){u.handoffPlanId=p?.id;u.handoffStock='';}
         const draftId=p?p.id+':'+p.stage:'';
         if(draftId!==u.draftId||!u.draftDirty){if(draftId!==u.draftId)u.advert=null;u.draftId=draftId;u.draftDirty=false;u.draft={price:o?.order?.price??o?.pricing[o.phase==='unloading'?'carrier_sell':'carrier_buy']??'',remaining:o?.remaining??0,checks:{...o?.checks},sco:p?.sco!==false};}
         if(!tabs[u.tab])u.tab='find';
@@ -156,17 +164,30 @@
         for(const [selector,scroll] of scrolls){const node=el.querySelector(selector);if(node)node.scrollTop=scroll;}
         u.drawnTab=u.tab;
       };
-      const fit=()=>{const box=el.querySelector('.ptn-desk');if(box)box.style.setProperty('--ptn-height',Math.max(410,Math.min(1000,innerHeight-box.getBoundingClientRect().top-16))+'px');};
+      const fit=()=>{const box=el.querySelector('.ptn-desk');if(box)box.style.setProperty('--ptn-height',Math.max(410,Math.min(1000,innerHeight-box.getBoundingClientRect().top-scrollY-16-(el.parentElement.querySelector('.card-sources')?.getBoundingClientRect().height||0)))+'px');};
       u.draw=draw;
-      const handoff=document.createElement('details');handoff.className='trade-details';handoff.innerHTML='<summary>Coordinate this route with Carrier ops</summary><form data-ptn-handoff class="row"><label>Checked existing carrier stock (t)<input name="stock" type="number" min="0" max="1000000" required></label><button type="submit">Copy scouted route to Carrier ops</button><p class="note">Creates a separate crew plan. PTN stages and actual game orders remain yours to confirm.</p></form>';el.appendChild(handoff);
-      handoff.querySelector('form').onsubmit=async event=>{event.preventDefault();const b=event.currentTarget.querySelector('button');b.disabled=true;try{await Lab.post('/api/ptn/carrier',{revision:u.data.revision,starting_stock:Number(event.currentTarget.elements.stock.value)});Lab.focusCard('trade');}catch(error){Lab.toast(error.message,'bad');}finally{b.disabled=false;}};
       const request=async(fn,message='')=>{if(u.busy)return;u.busy=true;u.error=false;u.status=message;draw();try{await fn();}catch(error){u.error=true;u.status=error.message||String(error);if(u.status.includes('This plan changed')){try{u.data=await Lab.api('/api/ptn');u.advert=null;u.status='Plan refreshed after another update. Review the current values and retry.';}catch{}}}finally{u.busy=false;draw();}};
       const post=async(path,values)=>{const data=await Lab.post(path,{revision:u.data.revision,...values});u.data=data;return data;};
-      const search=()=>request(async()=>{await Lab.api('/api/ptn/search',u.prefs);u.data=await Lab.api('/api/ptn');u.near=false;u.targetOnly=false;u.status='Search started. Progress and results update here; you can switch tabs while it runs.';},'Checking nearby markets and public adverts...');
+      let searchTimer=null,searchEpoch=0,dead=false;
+      const pollSearch=async epoch=>{if(dead||epoch!==searchEpoch)return;searchTimer=null;u.pollingEpoch=epoch;try{
+        const d=await Lab.api('/api/ptn');if(dead||epoch!==searchEpoch)return;
+        if(d.revision>=u.data.revision){u.data=d;searchStatus(u,d);draw();}
+        if(d.search_job?.status==='running')searchTimer=setTimeout(()=>pollSearch(epoch),2000);
+      }catch(error){if(!dead&&epoch===searchEpoch){u.status=error.message+' Search status will retry.';draw();searchTimer=setTimeout(()=>pollSearch(epoch),4000);}}finally{if(u.pollingEpoch===epoch)u.pollingEpoch=null;}};
+      const search=()=>request(async()=>{
+        clearTimeout(searchTimer);const epoch=++searchEpoch;
+        await Lab.api('/api/ptn/search',u.prefs);u.near=false;u.targetOnly=false;
+        u.status='Search started. Progress and results update here; you can switch tabs while it runs.';
+        // The job may finish before its start response, without a visible running
+        // transition over SSE. Always reconcile the returned status explicitly.
+        u.finishedSearch=null;await pollSearch(epoch);
+      },'Checking nearby markets and public adverts...');
+      u.ensurePolling=()=>{if(!u.busy&&!searchTimer&&u.pollingEpoch==null&&u.data.search_job?.status==='running'){const epoch=++searchEpoch;searchTimer=setTimeout(()=>pollSearch(epoch),2000);}};
       const tab=name=>{u.tab=name;ls.set('ptn.tab.v1',name);draw();};
-      el.addEventListener('input',event=>{const t=event.target;if(t.closest('[data-ptn-search]')){u.prefs[t.name]=t.type==='checkbox'?t.checked:t.type==='number'?Number(t.value):t.value;ls.set(KEY,u.prefs);}else if(t.closest('[data-ptn-confirm]')){u.draftDirty=true;if(['near_station','docking_open','funds_checked','competition_checked'].includes(t.name))u.draft.checks[t.name]=t.checked;else if(t.name==='actual_price')u.draft.price=t.value;else if(t.name==='remaining')u.draft.remaining=t.value;else if(t.name==='sco')u.draft.sco=t.checked;}else if(t.name==='discord_link')u.postLink=t.value;});
+      el.addEventListener('input',event=>{const t=event.target;if(t.closest('[data-ptn-search]')){u.prefs[t.name]=t.type==='checkbox'?t.checked:t.type==='number'?Number(t.value):t.value;ls.set(KEY,u.prefs);}else if(t.closest('[data-ptn-confirm]')){u.draftDirty=true;if(['near_station','docking_open','funds_checked','competition_checked'].includes(t.name))u.draft.checks[t.name]=t.checked;else if(t.name==='actual_price')u.draft.price=t.value;else if(t.name==='remaining')u.draft.remaining=t.value;else if(t.name==='sco')u.draft.sco=t.checked;}else if(t.name==='handoff_stock')u.handoffStock=t.value;else if(t.name==='discord_link')u.postLink=t.value;});
       el.addEventListener('submit',event=>{event.preventDefault();const form=event.target;
         if(form.matches('[data-ptn-search]'))search();
+        if(form.matches('[data-ptn-handoff]')){const stock=Number(form.elements.handoff_stock.value);request(async()=>{await Lab.post('/api/ptn/carrier',{revision:u.data.revision,starting_stock:stock});u.status='Scouted route copied to Carrier ops.';Lab.focusCard('trade');});}
         if(form.matches('[data-ptn-confirm]'))request(async()=>{await post('/api/ptn/update',{action:'confirm',price:Number(u.draft.price),remaining:Number(u.draft.remaining),checks:{near_station:false,docking_open:false,funds_checked:false,competition_checked:false,...u.draft.checks},sco:u.draft.sco});u.draftDirty=false;u.advert=null;u.status='Checked game values saved.';});
       });
       el.addEventListener('click',event=>{
@@ -189,7 +210,7 @@
         if(action==='generate'||action==='copy-advert')request(async()=>{u.advert=await Lab.api('/api/ptn/advert',{revision:u.data.revision});if(action==='copy-advert'){if(!navigator.clipboard)throw Error('Clipboard unavailable. Copy the preview manually.');await navigator.clipboard.writeText(u.advert.copy_text);}u.status=action==='copy-advert'?'Exact advert copied. Review /aco trade and post it yourself.':'Advert generated from checked game prices.';});
         if(action==='posted')request(async()=>{await post('/api/ptn/update',{action:'posted',link:u.postLink});u.status='Posted time recorded. This does not send a Discord message.';});
       });
-      addEventListener('resize',fit);addEventListener('lab:relayout',fit);u.cleanup=()=>{removeEventListener('resize',fit);removeEventListener('lab:relayout',fit);};
+      addEventListener('resize',fit);addEventListener('lab:relayout',fit);u.cleanup=()=>{dead=true;++searchEpoch;clearTimeout(searchTimer);removeEventListener('resize',fit);removeEventListener('lab:relayout',fit);};
     },
     render(el,S){
       const u=el._ptn;if(!u)return;const d=S.ptn||{};
@@ -198,7 +219,7 @@
       if(d.revision<u.data.revision)return;
       if(d.plan&&(!d.operation||d.operation.revision!==d.revision||d.operation.plan_id!==d.plan.id||d.operation.stage!==d.plan.stage))return;
       if(!d.plan&&d.operation)return;
-      if(d.search_job?.status==='failed'){u.error=true;u.status=d.search_job.error;}else if(u.data.searching&&!d.searching&&d.result){u.error=false;u.status=`Search complete: ${d.result.scanned} commodities checked. ${d.result.rows.filter(r=>r.viable).length} profitable routes.`;}
+      searchStatus(u,d);
       u.data=d;if(!Object.keys(u.prefs).length&&d.defaults){
         const saved=ls.get(KEY,null),old=ls.get('ptn.preferences.v2',null);
         u.prefs={...d.defaults,...(saved||old||{})};
@@ -208,7 +229,7 @@
           u.status='Search updated: all commodities, three carrier jumps per leg, surplus kept by you. Review payouts before searching.';
         }
         ls.set(KEY,u.prefs);
-      }u.draw();
+      }u.draw();u.ensurePolling();
     },
     unmount(el){el._ptn?.cleanup();}
   });

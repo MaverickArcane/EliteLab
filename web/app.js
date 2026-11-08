@@ -111,7 +111,11 @@ import {StateFeed} from './state-feed.js';
   function setWorkspace(id){if(!WORKSPACES[id])return;workspace=id;ls.set('workspace.v1',id);workspaceView();}
   document.getElementById('workspace-nav').onclick=e=>{const b=e.target.closest('[data-workspace]');if(b)setWorkspace(b.dataset.workspace);};
   Lab.util.tabKeys(document.getElementById('workspace-nav'),'[data-workspace]');
-  Lab.focusCard=id=>{setWorkspace(id==='wishlist'?'materials':id==='ptn'?'ptn':'all');if(!mounted[id])showCard(id);const card=mounted[id]?.sec;card?.classList.remove('collapsed');card?.scrollIntoView({block:'start',behavior:'smooth'});};
+  const CARD_WORKSPACE={wishlist:'materials',build:'materials',ptn:'ptn',personal:'trade',selling:'trade',
+    trade:'carrier',haul:'carrier',party:'carrier',carrier:'carrier',history:'history',credits:'overview',
+    mining:'mining',ship:'ship',neutron:'flight',map:'flight',location:'flight',
+    powerplay:'powerplay',merits:'powerplay',targets:'powerplay',combat:'powerplay',loop:'powerplay'};
+  Lab.focusCard=id=>{setWorkspace(CARD_WORKSPACE[id]||'all');if(!mounted[id])showCard(id);const card=mounted[id]?.sec;card?.classList.remove('collapsed');card?.scrollIntoView({block:'start',behavior:'smooth'});};
 
   const isMobile = () => matchMedia('(max-width: 760px)').matches;
   const mounted = {};                // id -> { sec, off, def, body }

@@ -5,6 +5,9 @@ Release regressions: `test_release_security.py`, `test_build_quality.py`,
 uses two real private HTTP clients for equal tonnes, repeated/replayed sales,
 reconnect and unloading. `node tests/release-browser.mjs` checks cargo search,
 route selection, sale progress, reload, mining setup and thin workspaces.
+The PTN browser regression forces completion before the start response, forces
+a running status after completed SSE evidence to exercise polling, and submits
+the actual carrier handoff form after a journal redraw.
 
 When testing beside an installed app, set `ELITELAB_INSTANCE_DIR` to a private
 temporary directory. Browser harnesses also isolate settings/data/journals and

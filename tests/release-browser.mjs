@@ -53,6 +53,9 @@ try{
   await send('Page.reload');await wait("!!document.querySelector('[data-sale-clear]')");
   assert.equal(await evaluate("Lab.state.selling.plan.sold['1:gold']"),3);
   await click('[data-sale-roundtrips]');assert.equal(await evaluate("document.querySelector('#card-personal').classList.contains('collapsed')"),false);
+  assert.equal(await evaluate("document.querySelector('[data-workspace=trade]').getAttribute('aria-selected')"),'true');
+  await evaluate("Lab.focusCard('history');true");
+  assert.equal(await evaluate("document.querySelector('[data-workspace=history]').getAttribute('aria-selected')"),'true');
   await click('[data-workspace=carrier]');await wait("!!document.querySelector('[data-mining-plan]')");
   await evaluate("document.querySelector('[data-mining-plan]').closest('details').open=true;var form=document.querySelector('[data-mining-plan]');for(const [key,value] of Object.entries({commodity:'platinum',source:'Ring A / Sol',destination:'Buyer / Lave',quantity:101,starting_stock:20,miner_price:200000,destination_price:280000,destination_market_id:456})){form.elements.namedItem(key).value=value;}form.requestSubmit();true");
   await wait("Lab.state.trade.plan?.activity==='mining'");

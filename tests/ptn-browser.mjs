@@ -40,11 +40,20 @@ try{
   await wait("!!document.querySelector('[data-workspace=ptn]')");
   await click('[data-workspace=ptn]');await wait("!!document.querySelector('[data-ptn-search]')");
   await shot('ptn-empty-1920x1080',1920,1080);
+  // Force the job to finish before its start response reaches the card. This
+  // catches the terminal-status race even on slower Windows fixture servers.
+  await evaluate("window.realPtnApi=Lab.api;Lab.api=async function(p,q){const d=await window.realPtnApi.call(this,p,q);if(p==='/api/ptn/search'){for(let i=0;i<100;i++){const status=await window.realPtnApi.call(this,'/api/ptn');if(status.search_job?.status!=='running')break;await new Promise(r=>setTimeout(r,20));}}return d;};true");
   // A route unable to pay both legs stays rejected and is never the default result.
   await evaluate("for(const name of ['loading_floor','unloading_floor']){const input=document.querySelector('[name='+name+']');input.value='60000';input.dispatchEvent(new Event('input',{bubbles:true}));}document.querySelector('[data-ptn-search]').requestSubmit();true");
   await wait("document.querySelector('.ptn-status').textContent.includes('Search complete')&&!document.querySelector('.ptn-scan').disabled");
   assert.equal(await evaluate("document.querySelectorAll('.ptn-route').length"),0);
+  await evaluate("Lab.api=window.realPtnApi;true");
   assert.match(await evaluate("document.querySelector('.ptn-opportunities').textContent"),/No routes match these filters/);
+  // Force a running status after the completed SSE snapshot: the independent
+  // timer must poll again and reconcile the terminal job without another event.
+  await evaluate("window.ptnStatusReads=0;window.ptnPendingStatus=false;Lab.api=async function(p,q){const d=await window.realPtnApi.call(this,p,q);if(p==='/api/ptn/search'){window.ptnPendingStatus=true;await new Promise(r=>setTimeout(r,150));}else if(p==='/api/ptn'){window.ptnStatusReads++;if(window.ptnPendingStatus){window.ptnPendingStatus=false;return {...d,searching:true,result:null,search_job:{...d.search_job,status:'running'}};}}return d;};document.querySelector('[data-ptn-search]').requestSubmit();true");
+  await wait("window.ptnStatusReads>=2&&document.querySelector('.ptn-status').textContent.includes('Search complete')");
+  await evaluate("Lab.api=window.realPtnApi;true");
   await click('[data-ptn-action=near]');
   assert.match(await evaluate("document.querySelector('.ptn-route').textContent"),/50,000 Cr\/t shortfall/);
   assert.doesNotMatch(await evaluate("document.querySelector('.ptn-route').textContent"),/Carrier after reserve|Cr\/h|Hauler \/ loading/);
@@ -86,6 +95,19 @@ try{
   for(const name of ['near_station','docking_open','funds_checked','competition_checked'])await click(`[name=${name}]`);
   await evaluate("document.querySelector('[data-ptn-confirm]').requestSubmit();true");
   await wait("document.querySelector('.ptn-readiness').textContent.includes('Ready to prepare advert')&&!document.querySelector('[data-ptn-action=advert]').disabled");
+  // The handoff form survives real SSE redraws and copies checked prices.
+  await evaluate("document.querySelector('[data-ptn-detail=handoff]').open=true;var stock=document.querySelector('[name=handoff_stock]');stock.value='20';stock.dispatchEvent(new Event('input',{bubbles:true}));true");
+  await post('/audit/ptn/move',{system:'Source',free_space:24998});
+  await wait("document.querySelector('.ptn-overview').textContent.includes('24,998')");
+  assert.equal(await evaluate("document.querySelector('[name=handoff_stock]').value"),'20');
+  assert.equal(await evaluate("document.querySelector('[data-ptn-detail=handoff]').open"),true);
+  await evaluate("document.querySelector('[data-ptn-handoff]').requestSubmit();true");
+  await wait("document.querySelector('[data-workspace=carrier]').getAttribute('aria-pressed')==='true'");
+  assert.equal(await evaluate('Lab.state.trade.plan.source_market_id'),101);
+  assert.equal(await evaluate('Lab.state.trade.plan.target'),18020);
+  assert.equal(await evaluate('Lab.state.trade.plan.carrier_price'),await evaluate('Lab.state.ptn.plan.orders.loading.price'));
+  await click('[data-workspace=ptn]');
+  await evaluate("document.querySelector('[data-ptn-detail=handoff]').open=false;true");
   await shot('ptn-operation-1920x1080',1920,1080);
   await click('[data-ptn-action=advert]');await click('[data-ptn-action=generate]');
   await wait("document.querySelector('[data-ptn-advert-text]').textContent.includes('**N.A.C. Test (TST-001)**')");
