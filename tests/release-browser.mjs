@@ -63,6 +63,32 @@ try{
   await wait("Lab.state.trade.plan?.activity==='mining'");
   assert.equal(await evaluate('Lab.state.trade.plan.target'),121);
   await shot('carrier-mining');await shot('carrier-mining-mobile',390,844);
+  await click('[data-op-action=start]');await wait("Lab.state.trade.operation?.stage==='loading'");
+  await click('[data-op-action=depart]');await wait("Lab.state.trade.operation?.stage==='transit'");
+  await post('/audit/mining/buyer');
+  await click('[data-carrier-ptn]');await wait("!!document.querySelector('[data-ptn-mining]')");
+  await wait("Lab.state.ptn.mining_buyer?.docked&&Lab.state.ptn.mining_buyer.market_id===456");
+  await evaluate("var form=document.querySelector('[data-ptn-mining]');for(const [key,value] of Object.entries({mining_stock:120,mining_quantity:100,mining_floor:20000})){form.elements.namedItem(key).value=value;form.elements.namedItem(key).dispatchEvent(new Event('input',{bubbles:true}));}true");
+  // Another journal publication must preserve the owner's import entries.
+  await post('/audit/mining/buyer');await sleep(150);
+  assert.equal(await evaluate("document.querySelector('[name=mining_quantity]').value"),'100');
+  await evaluate("document.querySelector('[data-ptn-mining]').requestSubmit();true");
+  await wait("Lab.state.ptn.plan?.kind==='mining_unload'");
+  assert.equal(await evaluate('Lab.state.ptn.plan.route.buy'),null);
+  await click('[data-ptn-capture=sell]');await wait("!!Lab.state.ptn.plan.scouts.sell");
+  await click('[data-ptn-stage=unloading]');await wait("!!document.querySelector('[data-ptn-confirm]')");
+  await evaluate("var form=document.querySelector('[data-ptn-confirm]');for(const [key,value] of Object.entries({actual_price:250000,remaining:100,checked_stock:120})){form.elements.namedItem(key).value=value;form.elements.namedItem(key).dispatchEvent(new Event('input',{bubbles:true}));}true");
+  for(const name of ['near_station','docking_open','funds_checked','competition_checked'])await click(`[name=${name}]`);
+  await evaluate("document.querySelector('[data-ptn-confirm]').requestSubmit();true");
+  await wait("Lab.state.ptn.operation?.ready");
+  assert.equal(await evaluate('Lab.state.ptn.operation.pricing.owner_after_reserve'),null);
+  assert.equal(await evaluate('Lab.state.trade.operation.stage'),'transit');
+  await shot('mining-ptn-unloading');await shot('mining-ptn-unloading-mobile',390,844);
+  await click('[data-ptn-action=advert]');await click('[data-ptn-action=generate]');
+  await wait("document.querySelector('[data-ptn-advert-text]').textContent.includes('is unloading **Platinum**')");
+  assert.match(await evaluate("document.querySelector('[data-ptn-advert-text]').textContent"),/30k\/unit profit, 0.1k units/);
+  await send('Page.reload');await wait("typeof Lab!=='undefined'&&Lab.state.ptn.plan?.kind==='mining_unload'");
+  assert.equal(await evaluate('Lab.state.ptn.plan.source.operation_id'),await evaluate('Lab.state.trade.operation.id'));
   for(const name of ['mining','ship','powerplay','history','materials','ptn']){
     await click(`[data-workspace=${name}]`);assert.equal(await visible('map'),false);
     await shot('workspace-'+name+'-mobile',390,844);

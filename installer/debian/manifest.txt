@@ -109,6 +109,7 @@ modules/powerplay/module.py
 modules/powerplay/web/card.js
 modules/progression/module.json
 modules/progression/module.py
+modules/ptn/mining.py
 modules/ptn/module.json
 modules/ptn/module.py
 modules/ptn/planning.py

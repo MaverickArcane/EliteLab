@@ -23,7 +23,7 @@ This is the proposed order of work. Linked issues hold the detailed scope and pr
 ## Next 0.x release
 
 The 2026-11-08 cleanup adds cargo-first selling, separate Carrier ops, private
-group-mining setup, PTN handoff, Overview credit history, shield state, smaller
+group-mining setup through PTN unloading adverts, Overview credit history, shield state, smaller
 layout choices and the Materials GIF guide. It also resolves the session/MCP,
 partial-engineering and PTN blockers (#111, #113-#117). Hosted multiplayer and
 native bio sample tracking remain future work; current Expedition limitations

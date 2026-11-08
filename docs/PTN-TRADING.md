@@ -9,13 +9,43 @@ form lives in Scout & run; its checked stock survives journal redraws.
 Newer matching contradictory journal markets revoke the affected scout and
 posting confirmations, including missing items, invalid prices and lost
 producer/consumer evidence. Recapture valid evidence and reconfirm to recover.
-See [Carrier ops handoff and mining limits](GROUP-MINING.md#working-with-ptn).
+See [Carrier ops and mined-load handoffs](GROUP-MINING.md#working-with-ptn).
 
 The `ptn` module is a dedicated affiliate trade planner. It reads `journal` and
 `trade`, writes only `ptn`, and persists its independent operation in `ptn.json`.
 It never places game orders, moves a carrier, posts Discord messages, or implicitly changes the existing Carrier job. The explicit
 `handoff_ptn_to_carrier` action copies a freshly scouted loading route into a
 separate Carrier ops draft; it rejects stale revisions and active carrier jobs. Cancelling a local plan does not cancel those actions.
+
+## Unload a group-mined carrier load
+
+In Carrier ops, **Prepare PTN unloading** opens the handoff for an unpaused
+mining job that has departed. Dock at its intended large-pad orbital buyer and
+open the market, then enter checked carrier stock, the quantity to advertise and
+minimum hauler payout. The server checks the PTN revision, source job ID/version,
+owned carrier and buyer identity. It refuses to replace an active PTN plan.
+
+This creates an independent `mining_unload` plan with three stages: check buyer,
+unload and complete. Capture the real buyer market; there is no station-buy
+scout or fictional loading phase. The saved mining-job baseline is retained:
+advertised tonnes must fit both the job size and checked stock above that baseline.
+Before opening unloading, refresh stock if needed. Before advertising, confirm
+the actual carrier sell price, remaining order, physical stock and all four
+posting checks, with fresh carrier location in the buyer system.
+
+Buyer, stock, order and carrier confirmations expire after an hour. Newer stock
+or order evidence can block an advert; demand must cover the remaining order
+unless the captured buyer has explicit unlimited-demand evidence. Recheck and
+confirm changed evidence before preparing another advert. The same affiliate
+template and manual posting steps below apply to unloading. A confirmed zero
+remaining is required to complete the local plan.
+
+The price panel shows the hauler's spread and estimated carrier proceeds.
+Acquisition cost and owner net profit remain unknown. A suggested whole-percent
+price requires a known market mean; the actual in-game order still needs
+confirmation. The source mining job, quotas and delivery receipts remain intact.
+Carrier ops and PTN phases advance independently. See the
+[step-by-step group guide](GROUP-MINING.md#working-with-ptn).
 
 ## Offer and discovery
 
@@ -256,6 +286,13 @@ replace the flag, invalidate affected confirmations and still expire after an ho
 Unlimited demand does not guarantee that the price will remain unchanged.
 
 ## Validation
+
+`test_ptn_mining.py` covers the mined-load handoff, baseline stock, buyer/order
+contradictions, expired confirmations, owner/revision checks, persistence and
+unknown acquisition cost. `test_group_mining.py` takes two HTTP clients through
+paid loading, departure, PTN advert preparation and continued crew unloading.
+`node tests/release-browser.mjs` exercises the visible mined-load handoff,
+scouting, confirmation, exact advert, reload and desktop/mobile layouts.
 
 `python -m unittest discover -s tests -p 'test_ptn*.py' -v` exercises currency
 conservation, payout floors and rounding, commodity/market filters, board

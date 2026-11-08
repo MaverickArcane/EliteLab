@@ -5,8 +5,12 @@ quantity-limited sale stops; `module.py` owns background search, commander plans
 journal receipt deduplication and a serialized writer; `web/card.js` renders
 the cargo workflow. `trade.mining_plan` prepares an existing crew job;
 `ptn.carrier_handoff` calls the registered carrier tool without cross-module
-imports. `tests/test_release_security.py`, `test_build_quality.py`,
-`test_ptn_release.py`, `test_selling.py`, `test_group_mining.py` and
+imports. `modules/ptn/mining.py` validates the reverse mined-load handoff from an
+atomic `trade.job` snapshot and computes buyer-only unloading readiness, stock
+baseline, actual sell-order economics and unknown mining acquisition costs. It
+is a same-module helper; it never mutates the source carrier job or its receipts.
+`tests/test_release_security.py`, `test_build_quality.py`,
+`test_ptn_release.py`, `test_ptn_mining.py`, `test_selling.py`, `test_group_mining.py` and
 `release-browser.mjs` cover the release additions. See [execution record](NEXT-RELEASE-PLAN.md).
 
 `modules/mining/module.py`: `Mining` folds journal events into a bounded

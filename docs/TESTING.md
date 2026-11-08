@@ -1,10 +1,14 @@
 # Testing
 
 Release regressions: `test_release_security.py`, `test_build_quality.py`,
-`test_ptn_release.py`, `test_selling.py` and `test_group_mining.py`. The latter
+`test_ptn_release.py`, `test_ptn_mining.py`, `test_selling.py` and `test_group_mining.py`. The latter
 uses two real private HTTP clients for equal tonnes, repeated/replayed sales,
-reconnect and unloading. `node tests/release-browser.mjs` checks cargo search,
-route selection, sale progress, reload, mining setup and thin workspaces.
+reconnect, buyer scouting, a mined-load PTN advert and continued crew unloading.
+The mining PTN tests reject stale revisions/source jobs, insufficient or expired
+stock, mismatched owners/buyers, changed orders and contradictory markets. They
+check failed-write rollback, reload and unknown acquisition costs.
+`node tests/release-browser.mjs` checks cargo search, route selection, sale
+progress, mining setup, PTN handoff/scouting/order/advert/reload and thin workspaces.
 The PTN browser regression forces completion before the start response, forces
 a running status after completed SSE evidence to exercise polling, and submits
 the actual carrier handoff form after a journal redraw.

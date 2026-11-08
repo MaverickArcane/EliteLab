@@ -10,6 +10,7 @@ from statistics import median
 from urllib.parse import quote, urlencode
 
 from elitelab.core.gamedata import is_rare, norm
+from modules.ptn import mining
 from modules.ptn.planning import (COMMON, DEFAULTS, advert, finite, integer, key, line,
                                   now, paid_leg, owner_minimum, pricing, settings, stamp, station_kind, unlimited_demand)
 
@@ -38,7 +39,7 @@ class PTN:
         self.latest_market, self.docked_at = {}, 0
         core.bus.on('journal.file.Market', self.market_event)
         core.bus.on('journal.Docked', self.dock_event)
-        for event in ('state.journal.carrier','state.journal.location','state.journal.market','state.trade.orders','state.trade.inventory'):
+        for event in ('state.journal.carrier','state.journal.location','state.journal.market','state.journal.docked','state.journal.system','state.journal.cmdr','state.trade.orders','state.trade.inventory','state.trade.job'):
             core.bus.on(event,lambda n,v:self.publish())
         self.publish()
 
@@ -59,6 +60,8 @@ class PTN:
             return
         for side in ('buy', 'sell'):
             target = plan['route'][side]
+            if target is None:
+                continue
             if (event.get('MarketID') != target['market_id'] or j.get('system') != target['system']
                     or j.get('station') != target['station']
                     or station_kind(j.get('station_type')) != station_kind(target.get('station_type'))):
@@ -123,6 +126,15 @@ class PTN:
             data.update(context=self.context(), result=copy.deepcopy(self.results), board=copy.deepcopy(self.board),
                         defaults=copy.deepcopy(DEFAULTS), common=list(COMMON), searching=self.searching,
                         progress=copy.deepcopy(self.progress), search_job=copy.deepcopy(self.search_job))
+            job = self.core.store.get('trade', 'job') or {}
+            source_plan, source_op = job.get('plan') or {}, job.get('operation') or {}
+            data['mining_job'] = (dict(id=source_op['id'], updated_at=source_op['updated_at'],
+                stage=source_op['stage'], paused=source_op['paused'], quantity=source_op['quantity'],
+                commodity=source_plan['commodity'], ring=source_plan['source'], baseline_stock=source_op['baseline_stock'])
+                if source_plan.get('activity') == 'mining' and source_op else None)
+            journal = self.core.store.get('journal') or {}
+            data['mining_buyer'] = dict(station=journal.get('station'), system=journal.get('system'),
+                market_id=(journal.get('market') or {}).get('market_id'), docked=journal.get('docked'))
             if data['board'] and data['board']['available'] and datetime.now(timezone.utc).timestamp()-stamp(data['board']['updated_at'])>900:
                 data['board'].update(available=False,benchmarks={},missions=[],error='Public board snapshot expired. Refresh to compare payouts.')
             if data['plan']:
@@ -516,6 +528,8 @@ class PTN:
             return self.commit(data)
 
     def operation(self, plan):
+        if plan.get('kind') == 'mining_unload':
+            return mining.operation(self, plan)
         r,p = plan['route'],plan['route']['settings']
         buy,sell = (plan['scouts'].get(side) or r[side] for side in ('buy','sell'))
         refs = [s for s in (buy,sell) if type(s.get('mean_price')) is int and s['mean_price']>0]
@@ -628,6 +642,8 @@ class PTN:
             side = q.get('side')
             if side not in ('buy','sell'):
                 raise ValueError('Choose the loading or unloading station.')
+            if plan.get('kind') == 'mining_unload' and side != 'sell':
+                raise ValueError('Mined stock has no loading station. Capture only the buyer market.')
             j = self.core.store.get('journal') or {}
             market = j.get('market') or {}
             target = plan['route'][side]
@@ -717,10 +733,14 @@ class PTN:
                 stage = q.get('stage')
                 allowed = {'scouting':('loading','cancelled'),'loading':('transit','cancelled'),
                            'transit':('unloading','cancelled'),'unloading':('complete','cancelled')}
+                if p.get('kind') == 'mining_unload':
+                    allowed = {'scouting':('unloading','cancelled'),'unloading':('complete','cancelled')}
                 if stage not in allowed.get(p['stage'],()):
                     raise ValueError('Follow Scout, Load, Move, Unload, Complete in order.')
                 if stage=='loading' and self.operation(p)['scout_blockers']:
                     raise ValueError('Scout both markets and resolve the route economics before loading.')
+                if p.get('kind') == 'mining_unload' and stage == 'unloading' and self.operation(p)['scout_blockers']:
+                    raise ValueError('Scout the buyer and resolve the mined-stock checks before opening unloading.')
                 if stage=='transit' and p['remaining'].get('loading',p['route']['quantity'])!=0:
                     raise ValueError('Confirm zero tonnes remain to load before departure.')
                 if stage=='transit' and not p['orders'].get('loading'):
@@ -741,10 +761,18 @@ class PTN:
                 p['checks'][phase] = {k:checks[k] for k in CHECKS} if public_phase else {}
                 p['orders'][phase] = dict(price=integer(q.get('price'),'Actual carrier order price',1),checked_at=now())
                 p['remaining'][phase] = integer(q.get('remaining'),'Remaining tonnes',0,p['route']['quantity'])
+                if p.get('kind') == 'mining_unload':
+                    p['source']['checked_stock'] = integer(q.get('checked_stock'), 'Checked carrier stock', 0, 1000000)
+                    p['source']['checked_at'] = now()
                 p.setdefault('remaining_at',{})[phase] = now()
                 if type(q.get('sco',True)) is not bool:
                     raise ValueError('SCO recommendation must be true or false.')
                 p['sco'] = q.get('sco',True)
+            elif action=='stock':
+                if p.get('kind') != 'mining_unload' or p['stage'] not in ('scouting', 'unloading'):
+                    raise ValueError('Stock confirmation belongs to an active mined-load PTN plan.')
+                p['source']['checked_stock'] = integer(q.get('checked_stock'), 'Checked carrier stock', 0, 1000000)
+                p['source']['checked_at'] = now()
             elif action=='remaining':
                 if p['stage'] not in ('loading','unloading'):
                     raise ValueError('Open a loading or unloading phase first.')
@@ -766,6 +794,8 @@ class PTN:
         with self.lock:
             self.guard(q)
             plan = self.data.get('plan')
+            if plan and plan.get('kind') == 'mining_unload':
+                raise ValueError('This mined load already came from Carrier ops; its source job remains independent.')
             if not plan or plan['stage'] not in ('scouting', 'loading'):
                 raise ValueError('Hand off a scouted route before leaving the loading phase.')
             stock = integer(q.get('starting_stock'), 'Checked starting carrier stock', 0, 1000000)
@@ -786,6 +816,10 @@ class PTN:
         # The checked revision is an immutable snapshot. Do not hold the PTN
         # lock while publishing trade state: trade listeners also publish PTN.
         return tool.fn(candidate)
+
+    def mining_handoff(self, q):
+        with self.lock:
+            return mining.handoff(self, q)
 
     def make_advert(self, q):
         with self.lock:
@@ -837,14 +871,24 @@ def setup(core, module):
     core.http.route('/api/ptn/carrier',desk.carrier_handoff,tool='handoff_ptn_to_carrier',method='POST',module=module.name,
                     params={**revision,'starting_stock':dict(type='integer',required=True,description='Owner-checked existing tonnes of this commodity aboard the carrier.')},
                     description='Copy a freshly scouted PTN loading route and agreed prices into a local Carrier ops plan for crew coordination. Rejects an active carrier job. PTN stages remain independent; no order is placed and no game or Discord action occurs.')
+    core.http.route('/api/ptn/mining',desk.mining_handoff,tool='handoff_mining_to_ptn',method='POST',module=module.name,
+                    params={**revision,
+                        'operation_id':dict(type='string',required=True,description='Current mining job ID from trade.job.operation.'),
+                        'operation_updated_at':dict(type='string',required=True,description='Exact updated_at from that job; rejects changed stages.'),
+                        'buyer_market_id':dict(type='integer',required=True,description='Current docked large-pad orbital buyer market ID.'),
+                        'checked_stock':dict(type='integer',required=True,description='Physical carrier stock checked by the owner; never inferred from crew claims.'),
+                        'quantity':dict(type='integer',required=True,description='Tonnes to advertise, 1-25000, preserving the mining job baseline.'),
+                        'unloading_floor':dict(type='integer',description='Minimum public hauler payout in Cr/t; default 20000.')},
+                    description='Hand a departed group-mining job to an independent PTN unloading plan. Requires an owner-checked stock and current orbital buyer visit; refuses active PTN plans. Scout the buyer and confirm actual stock/sell order before preparing an advert. Never invents a purchase scout, assumes zero acquisition cost, changes crew progress, or performs game/Discord actions.')
     core.http.route('/api/ptn/capture',desk.capture,tool='capture_ptn_market',method='POST',module=module.name,
                     params={**revision,'side':dict(type='string',enum=['buy','sell'],required=True,description='buy = loading station; sell = unloading station.')},
                     description='Capture the current journal commodity price and volume at the selected station, respecting the saved surface-loading preference. Requires docking and a market snapshot from the current visit within 15 minutes. Unlimited demand requires explicit zero-demand buyer evidence in that journal. Invalidates order checks; never fabricates a scout visit.')
     core.http.route('/api/ptn/update',desk.update,tool='update_ptn_plan',method='POST',module=module.name,
-                    params={**revision,'action':dict(type='string',required=True,enum=['stage','confirm','remaining','posted']),
+                    params={**revision,'action':dict(type='string',required=True,enum=['stage','confirm','remaining','posted','stock']),
                         'stage':dict(type='string',enum=list(PHASES)),'checks':dict(type='object',description='Explicit booleans: near_station, docking_open, funds_checked, competition_checked.'),
                         'price':dict(type='integer',description='Actual carrier order price on public legs; actual average station purchase cost or sale proceeds per tonne on a self-hauled leg.'),
                         'remaining':dict(type='integer',description='Owner-checked outstanding order tonnes.'),'sco':dict(type='boolean'),
+                        'checked_stock':dict(type='integer',description='Required when confirming a mined-load sell order: physical carrier stock checked now, including its saved baseline.'),
                         'link':dict(type='string',description='Optional Discord message link; recording is not posting.')},
                     description='Owner updates PTN stages, four posting checks, actual order price, remaining tonnes or manually posted link. Stages require explicit zero remaining before departure/completion. This never executes in-game or Discord actions.')
     core.http.route('/api/ptn/advert',desk.make_advert,tool='prepare_ptn_advert',params=revision,module=module.name,

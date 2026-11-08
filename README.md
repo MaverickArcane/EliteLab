@@ -3,7 +3,9 @@
 Next-release navigation: [workspaces and layouts](docs/WORKSPACES.md),
 [sell the cargo aboard](docs/CARGO-SELLING.md), [group mining and carrier loading](docs/GROUP-MINING.md),
 and [PTN desk](docs/PTN-TRADING.md). Trading now starts with nearby cargo buyers;
-carrier operations have their own tab. Maps default to Overview and Flight.
+carrier operations have their own tab. Group-mined carrier loads can prepare
+PTN unloading adverts after buyer scouting and actual stock/order confirmation.
+Maps default to Overview and Flight.
 See [data sources](docs/SOURCES.md) and the [release execution record](docs/NEXT-RELEASE-PLAN.md).
 
 A small, self-hosted dashboard for Elite Dangerous that an AI assistant can also talk to. It reads the game's journal files on your PC, shows what is going on right now (location, ship, cargo, Powerplay, carrier, materials, a star map), and exposes the same data as tools that Claude Code, any MCP client, or a shell script can call.

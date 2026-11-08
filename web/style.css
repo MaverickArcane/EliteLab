@@ -12,6 +12,7 @@
 /* PTN: a bounded, tabbed desk with the hauler offer ahead of the owner total. */
 .workspace-focused[data-active-workspace=ptn],body[data-active-workspace=ptn] #workspace-heading{max-width:1920px;margin-inline:auto}
 .ptn-desk{height:var(--ptn-height,780px);min-height:410px;display:flex;flex-direction:column;overflow:hidden}
+.ptn-overview.ptn-mining-overview{grid-template-columns:repeat(2,minmax(0,1fr))}
 .ptn-hero{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:4px 6px 10px;flex:none}.ptn-hero>div:first-child{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
 .ptn-eyebrow{font:10px var(--mono);text-transform:uppercase;letter-spacing:1.6px;color:var(--accent-2)}
 .ptn-hero h3{font-size:20px;font-weight:600;letter-spacing:-.3px;margin:0;color:var(--fg)}

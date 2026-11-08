@@ -628,6 +628,19 @@ public official-board snapshot, readiness and scenario economics. It reads journ
 and trade evidence without mutating their namespaces. Browser preferences and
 selected tab use `ptn.preferences.v3` and `ptn.tab.v1`; no game or Discord action is
 performed. See [PTN-TRADING.md](PTN-TRADING.md).
+
+A mined-load plan has `kind: mining_unload`, `route.buy: null` and only a sell
+scout. `source` retains `operation_id`, `operation_updated_at`, ring,
+`baseline_stock`, owner `checked_stock`, `checked_at` and `acquisition_cost: null`.
+Its stages are scouting, unloading and complete/cancelled. The public `mining_job`
+summary exposes the current source job ID/version, stage, pause, quantity,
+commodity, ring and baseline; `mining_buyer` exposes the current station, system,
+market ID and docked flag. These are handoff context, not a captured buyer scout.
+`operation.stock` identifies the checked or newer ledger quantity and timestamp.
+Mined-load pricing keeps purchase cost, owner profit and reserve-adjusted profit
+null, while exposing the actual unloading spread and estimated carrier proceeds.
+No source trade state or crew receipt is rewritten by a PTN handoff/update.
+
 PTN route stops and scouts retain reported `volume`. An explicit zero-demand
 buyer with a positive price carries `demand_unlimited: true`; only that flag with
 zero volume bypasses the buyer volume limit. Missing demand remains invalid, zero
