@@ -30,7 +30,7 @@ class WishlistFollowTests(unittest.TestCase):
     def ship(self, grade, ship='sidewinder'):
         self.core.store.update('journal', {'ship_info': {'internal': ship, 'modules': [
             {'slot': 'FrameShiftDrive', 'item': 'int_hyperdrive_size2_class5',
-             'engineering': {'blueprint': 'FSD_LongRange', 'level': grade}}]}})
+             'engineering': {'blueprint': 'FSD_LongRange', 'level': grade, 'quality': 1.0}}]}})
 
     def entry(self):
         return self.wishlist.compute()['entries'][0]

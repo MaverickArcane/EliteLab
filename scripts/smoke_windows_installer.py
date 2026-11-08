@@ -119,7 +119,10 @@ def smoke(installer):
             assert initial_browser['browser'] in choices and initial_browser['profile'] == 'guest', initial_browser
             assert not (root / 'settings.json').exists(), 'Installer browser choice must not skip first-run journal setup'
             assert shortcut.is_file(), 'Installer did not create the Start Menu shortcut at ' + str(shortcut) + '\n' + setup_log.read_text(errors='replace')[-4000:]
-            smoke_shortcut(shortcut, app, env, root / 'shortcut-test')
+            # Keep installer guards on the ordinary profile lookup. Only child
+            # apps opt out of legacy production-port probes during this test.
+            app_env = {**env, 'ELITELAB_INSTANCE_DIR': str(instance)}
+            smoke_shortcut(shortcut, app, app_env, root / 'shortcut-test')
             assert startup.status() == 'disabled', 'Unique test startup value already exists'
             startup.set_enabled(True)
             assert startup.status() == 'enabled'
@@ -138,7 +141,7 @@ def smoke(installer):
             opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
             with (root / 'installed-server.log').open('w', encoding='utf-8') as log:
                 server = subprocess.Popen([str(app/'runtime'/'python.exe'), '-m', 'elitelab', 'serve',
-                                           '--no-browser', '--port', str(port)], cwd=app, env=env,
+                                           '--no-browser', '--port', str(port)], cwd=app, env=app_env,
                                           stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, creationflags=flags)
                 try:
                     deadline = time.monotonic() + 30

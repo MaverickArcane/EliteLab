@@ -137,8 +137,11 @@ class Wishlist:
             craftable = None
             if known and e["kind"] == "synthesis":
                 craftable = min(r["available"]//SYNTHESIS[e["key"]]["materials"][r["key"]] for r in ingredients)
+            build_progress = self.core.store.get('build', 'progress') if e['kind']=='build' and e.get('follow_ship',True) else None
             entries.append({**e, "materials":len(n), "units":sum(n.values()), "ingredients":ingredients,
                             "short":short, "complete":short==0 if known else None,
+                            "materials_covered":short==0 if known else None,
+                            "upgrade_complete":build_progress.get('upgrade_complete') if build_progress else None,
                             "craftable":craftable, "inventory_known":known})
         rows = [self.material_row(k,c,inv.get(k,0)) for k,c in need.items()]
         rows.sort(key=lambda r:(r["short"]==0,r["category"] or "",-(r["grade"] or 0),r["name"]))

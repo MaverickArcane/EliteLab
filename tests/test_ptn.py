@@ -106,7 +106,13 @@ class PTNTests(unittest.TestCase):
         raise RuntimeError('PTN fixture blocks unrelated provider requests')
 
     def call(self,name,**q):
-        return self.core.http.tools[name].fn(q)
+        result = self.core.http.tools[name].fn(q)
+        if name == 'find_ptn_routes':
+            self.assertTrue(self.desk.search_done.wait(10), 'PTN fixture search did not finish')
+            if self.desk.search_job['status'] == 'failed':
+                raise ValueError(self.desk.search_job['error'])
+            return self.desk.view()['result']
+        return result
 
     def scan(self,**q):
         return self.call('find_ptn_routes',**{**DEFAULTS,**q})

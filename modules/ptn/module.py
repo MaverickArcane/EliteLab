@@ -32,6 +32,9 @@ class PTN:
         self.data.setdefault('history', [])
         self.results, self.board, self.searching = None, None, False
         self.progress = None
+        self.search_job = None
+        self.search_done = threading.Event()
+        self.search_done.set()
         self.latest_market, self.docked_at = {}, 0
         core.bus.on('journal.file.Market', self.market_event)
         core.bus.on('journal.Docked', self.dock_event)
@@ -43,6 +46,44 @@ class PTN:
         with self.lock:
             if stamp(event.get('timestamp')) >= stamp(self.latest_market.get('timestamp')):
                 self.latest_market = event
+                self.invalidate_observation(event)
+
+    def invalidate_observation(self, event):
+        """A new local contradiction blocks adverts even before Capture is clicked."""
+        plan = self.data.get('plan')
+        if not plan or plan['stage'] in ('complete', 'cancelled'):
+            return
+        j = self.core.store.get('journal') or {}
+        age = datetime.now(timezone.utc).timestamp() - stamp(event.get('timestamp'))
+        if not j.get('docked') or not -300 <= age <= 900 or stamp(event.get('timestamp')) < self.docked_at:
+            return
+        for side in ('buy', 'sell'):
+            target = plan['route'][side]
+            if (event.get('MarketID') != target['market_id'] or j.get('system') != target['system']
+                    or j.get('station') != target['station']
+                    or station_kind(j.get('station_type')) != station_kind(target.get('station_type'))):
+                continue
+            raw = next((r for r in event.get('Items', []) if isinstance(r, dict)
+                        and key(norm(r.get('Name'))) == key(plan['commodity'])), None)
+            reason = None
+            if raw is None:
+                reason = 'The selected commodity is missing from the current market snapshot.'
+            elif raw.get('Producer' if side == 'buy' else 'Consumer') is False:
+                reason = 'This market does not offer this side of the trade. Recheck the commodity.'
+            else:
+                try:
+                    integer(raw.get('BuyPrice' if side == 'buy' else 'SellPrice'), 'Station price', 1)
+                    integer(raw.get('Stock' if side == 'buy' else 'Demand'), 'Station supply/demand', 0, 10**12)
+                except ValueError as error:
+                    reason = str(error)
+            if reason:
+                try:
+                    self.guard({'revision': self.data['revision']})
+                    self.reject_capture(side, dict(market_id=event['MarketID'], timestamp=event['timestamp']), reason)
+                except ValueError:
+                    pass
+                except OSError:
+                    self.core.log.exception('PTN market invalidation could not be saved; adverts remain blocked in memory')
 
     def dock_event(self, name, event):
         with self.lock:
@@ -81,7 +122,7 @@ class PTN:
             data = copy.deepcopy(self.data)
             data.update(context=self.context(), result=copy.deepcopy(self.results), board=copy.deepcopy(self.board),
                         defaults=copy.deepcopy(DEFAULTS), common=list(COMMON), searching=self.searching,
-                        progress=copy.deepcopy(self.progress))
+                        progress=copy.deepcopy(self.progress), search_job=copy.deepcopy(self.search_job))
             if data['board'] and data['board']['available'] and datetime.now(timezone.utc).timestamp()-stamp(data['board']['updated_at'])>900:
                 data['board'].update(available=False,benchmarks={},missions=[],error='Public board snapshot expired. Refresh to compare payouts.')
             if data['plan']:
@@ -227,14 +268,40 @@ class PTN:
             if self.searching:
                 raise ValueError('A PTN scan is already running. Wait for it to finish.')
             self.searching = True
+            self.search_done.clear()
+            self.search_job = dict(id=secrets.token_hex(10), status='running', started_at=now(),
+                                   finished_at=None, error=None, poll_after_seconds=2)
+            self.results = None
             self.progress = dict(done=0,total=0,message='Reading commodity catalog and public board')
             self.publish()
+            job = copy.deepcopy(self.search_job)
+        def run():
+            try:
+                self.scan(prefs)
+                with self.lock:
+                    self.search_job['status'] = 'complete'
+            except Exception as error:
+                self.core.log.exception('PTN search failed')
+                with self.lock:
+                    self.search_job.update(status='failed', error=str(error) if isinstance(error,ValueError)
+                                           else 'Market search failed. Check the local log and retry.')
+            finally:
+                with self.lock:
+                    self.searching = False
+                    self.search_job['finished_at'] = now()
+                    self.publish()
+                    self.search_done.set()
         try:
-            return self.scan(prefs)
-        finally:
+            threading.Thread(target=run, name='ptn-search', daemon=True).start()
+        except Exception:
             with self.lock:
                 self.searching = False
+                self.search_done.set()
+                self.search_job.update(status='failed',error='Could not start the search.',finished_at=now())
                 self.publish()
+            raise
+        return dict(search_job=job, searching=True, status_tool='get_ptn_desk',
+                    message='Search started. Poll get_ptn_desk every 2 seconds; result and errors remain available there.')
 
     def scan(self, prefs):
         context, warnings = self.context(), []
@@ -491,6 +558,9 @@ class PTN:
             blockers.append('The active commander or carrier does not match this plan.')
         for side in ('buy','sell'):
             scout = plan['scouts'].get(side)
+            invalid = plan.get('invalid_scouts', {}).get(side)
+            if invalid:
+                blockers.append(invalid['reason'] + ' Capture a valid market and confirm the order again.')
             historical = side=='buy' and plan['stage'] in ('transit','unloading','complete')
             needed = remaining if (side=='buy' and phase=='loading') or (side=='sell' and phase=='unloading') else r['quantity']
             if not scout:
@@ -573,23 +643,27 @@ class PTN:
                 raise ValueError('Dock at the selected station with the allowed station type and open its commodity market now, then capture again.')
             item = next((r for r in market.get('commodities',[]) if key(r.get('key'))==key(plan['commodity'])),None)
             if not item:
-                raise ValueError('The selected commodity is missing from the current market snapshot.')
+                return self.reject_capture(side, market, 'The selected commodity is missing from the current market snapshot.')
             price,volume = item.get(side),item.get('stock' if side=='buy' else 'demand')
-            price,volume = integer(price,'Station price',1),integer(volume,'Station supply/demand',0,10**12)
+            try:
+                price,volume = integer(price,'Station price',1),integer(volume,'Station supply/demand',0,10**12)
+            except ValueError as error:
+                return self.reject_capture(side, market, str(error))
             snapshot_matches = (self.latest_market.get('MarketID')==target['market_id']
                                 and self.latest_market.get('timestamp')==market.get('timestamp'))
             raw = next((r for r in self.latest_market.get('Items',[]) if isinstance(r,dict)
                         and key(norm(r.get('Name'))) == key(plan['commodity'])),{}) if snapshot_matches else {}
             if (raw.get('Producer') is False and side=='buy') or (raw.get('Consumer') is False and side=='sell'):
-                raise ValueError('This market does not offer this side of the trade. Recheck the commodity.')
+                return self.reject_capture(side, market, 'This market does not offer this side of the trade. Recheck the commodity.')
             unlimited = side=='sell' and volume==0
             if unlimited and not (type(raw.get('Demand')) is int and raw['Demand']==0
                                   and type(raw.get('SellPrice')) is int and raw['SellPrice']==price):
-                raise ValueError('Unlimited demand needs an explicit zero demand and positive sell price in the current market journal. Open Commodities again and recapture.')
+                return self.reject_capture(side, market, 'Unlimited demand needs an explicit zero demand and positive sell price in the current market journal. Open Commodities again and recapture.')
             mean = raw.get('MeanPrice')
             if type(mean) is not int or not 0<mean<=10**9:
                 mean = None
             data = copy.deepcopy(self.data)
+            data['plan'].setdefault('invalid_scouts', {}).pop(side, None)
             data['plan']['scouts'][side] = {**target,'station_type':j['station_type'],'surface':kind=='surface',
                                           'price':price,'volume':volume,'mean_price':mean,
                                           'demand_unlimited':unlimited,
@@ -604,6 +678,33 @@ class PTN:
             else:
                 data['plan']['checks'],data['plan']['orders'] = {},{}
             return self.commit(data)
+
+    def reject_capture(self, side, market, reason):
+        """Persist newer contradictory evidence before rejecting an active scout."""
+        plan = self.data['plan']
+        scout = plan['scouts'].get(side)
+        # The station/docking/freshness checks have already passed. Only matching
+        # raw local evidence newer than a saved scout may revoke its confirmation.
+        trusted = (self.latest_market.get('MarketID') == market.get('market_id')
+                   and self.latest_market.get('timestamp') == market.get('timestamp'))
+        historical = side == 'buy' and plan['stage'] in ('transit', 'unloading')
+        if trusted and scout and not historical and stamp(market.get('timestamp')) > stamp(scout.get('observed_at')):
+            data = copy.deepcopy(self.data)
+            p = data['plan']
+            p.setdefault('invalid_scouts', {})[side] = dict(reason=reason, observed_at=market['timestamp'])
+            p['scouts'].pop(side, None)
+            phase = 'loading' if side == 'buy' else 'unloading'
+            p['checks'].pop(phase, None)
+            p['orders'].pop(phase, None)
+            try:
+                self.commit(data)
+            except OSError:
+                # Never keep offering an advert after observing a contradiction,
+                # even when the disk cannot save the invalidation.
+                self.data = data
+                self.publish()
+                raise
+        raise ValueError(reason)
 
     def update(self, q):
         with self.lock:
@@ -704,7 +805,7 @@ def setup(core, module):
     core.http.route('/api/ptn/board',desk.refresh_board,tool='get_ptn_public_board',module=module.name,
                     description='Refresh public official PTN missions and median loading/unloading payouts. Affiliate adverts and unadvertised carriers are not covered. Failure is unknown competition, not zero.')
     core.http.route('/api/ptn/search',desk.search,tool='find_ptn_routes',params=search_params,module=module.name,
-                    description='Search every non-rare catalog commodity using nearby and global Ardent/EDDN reports, ranked by carrier return after reserve. Default: sources within 1500 Ly of carrier, buyers within 1500 Ly of source, orbital-only, 20k minimum per public leg, retain surplus, up to 18k tonnes with smaller orders allowed. Explicit zero-demand buyers have demand_unlimited=true; zero loading stock is empty. Market coverage is bounded and reported. No game or Discord actions; scout prices before posting.')
+                    description='Start a background scan and return immediately. Poll get_ptn_desk every 2 seconds for search_job status, errors and result; do not start duplicate scans. Search every non-rare catalog commodity using nearby and global Ardent/EDDN reports, ranked by carrier return after reserve. Default: sources within 1500 Ly of carrier, buyers within 1500 Ly of source, orbital-only, 20k minimum per public leg, retain surplus, up to 18k tonnes with smaller orders allowed. Explicit zero-demand buyers have demand_unlimited=true; zero loading stock is empty. Market coverage is bounded and reported. No game or Discord actions; scout prices before posting.')
     core.http.route('/api/ptn/select',desk.select,tool='select_ptn_route',method='POST',module=module.name,
                     params={**revision,'id':dict(type='string',required=True,description='Route id from the latest PTN scan.')},
                     description='Save an independent PTN scouting plan from a recent candidate. Replaces only the local PTN draft; never changes Carrier job, game orders or Discord messages.')

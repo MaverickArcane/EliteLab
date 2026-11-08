@@ -160,7 +160,7 @@
       u.draw=draw;
       const request=async(fn,message='')=>{if(u.busy)return;u.busy=true;u.error=false;u.status=message;draw();try{await fn();}catch(error){u.error=true;u.status=error.message||String(error);if(u.status.includes('This plan changed')){try{u.data=await Lab.api('/api/ptn');u.advert=null;u.status='Plan refreshed after another update. Review the current values and retry.';}catch{}}}finally{u.busy=false;draw();}};
       const post=async(path,values)=>{const data=await Lab.post(path,{revision:u.data.revision,...values});u.data=data;return data;};
-      const search=()=>request(async()=>{const result=await Lab.api('/api/ptn/search',u.prefs);u.data={...u.data,result,searching:false};u.near=false;u.targetOnly=false;u.status=`Search complete: ${result.scanned} commodities checked. ${result.rows.filter(r=>r.viable).length} profitable routes.`;},'Checking nearby markets and public adverts...');
+      const search=()=>request(async()=>{await Lab.api('/api/ptn/search',u.prefs);u.data=await Lab.api('/api/ptn');u.near=false;u.targetOnly=false;u.status='Search started. Progress and results update here; you can switch tabs while it runs.';},'Checking nearby markets and public adverts...');
       const tab=name=>{u.tab=name;ls.set('ptn.tab.v1',name);draw();};
       el.addEventListener('input',event=>{const t=event.target;if(t.closest('[data-ptn-search]')){u.prefs[t.name]=t.type==='checkbox'?t.checked:t.type==='number'?Number(t.value):t.value;ls.set(KEY,u.prefs);}else if(t.closest('[data-ptn-confirm]')){u.draftDirty=true;if(['near_station','docking_open','funds_checked','competition_checked'].includes(t.name))u.draft.checks[t.name]=t.checked;else if(t.name==='actual_price')u.draft.price=t.value;else if(t.name==='remaining')u.draft.remaining=t.value;else if(t.name==='sco')u.draft.sco=t.checked;}else if(t.name==='discord_link')u.postLink=t.value;});
       el.addEventListener('submit',event=>{event.preventDefault();const form=event.target;
@@ -196,6 +196,7 @@
       if(d.revision<u.data.revision)return;
       if(d.plan&&(!d.operation||d.operation.revision!==d.revision||d.operation.plan_id!==d.plan.id||d.operation.stage!==d.plan.stage))return;
       if(!d.plan&&d.operation)return;
+      if(d.search_job?.status==='failed'){u.error=true;u.status=d.search_job.error;}else if(u.data.searching&&!d.searching&&d.result){u.error=false;u.status=`Search complete: ${d.result.scanned} commodities checked. ${d.result.rows.filter(r=>r.viable).length} profitable routes.`;}
       u.data=d;if(!Object.keys(u.prefs).length&&d.defaults){
         const saved=ls.get(KEY,null),old=ls.get('ptn.preferences.v2',null);
         u.prefs={...d.defaults,...(saved||old||{})};
