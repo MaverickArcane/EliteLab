@@ -141,7 +141,8 @@ follow-up completes item 5 with the implemented and regression-tested workflow:
 4. Preserved source job progress and rejection of stale, mismatched,
    contradictory or unauthorized evidence; HTTP, persistence and browser coverage.
 5. Updated guides, API/state references and roadmap describing the implemented
-   workflow. Follow-up CI and development integration are recorded in its PR.
+   workflow. [PR #120](https://github.com/MaverickArcane/EliteLab/pull/120)
+   records follow-up CI and development integration.
 
 Completion validation on `release/complete-mining-handoff`: 797 Python tests
 passed with 11 platform skips, including six mined-load guard/persistence tests
@@ -150,6 +151,9 @@ browser workflows passed; mined-load desktop/mobile screenshots were inspected.
 All 31 JavaScript files pass syntax checks, changed Markdown local links resolve,
 and the Debian allowlist includes the new helper. Cross-platform CI, review and
 the merge receipt belong to the follow-up PR; no live game action is claimed.
+Its first Linux browser run exposed an early post-reload state read in the new
+test. The corrected wait requires a new document and initialized PTN/trade state
+before checking persistence; it keeps the complete advert assertions intact.
 
 ### Preservation and integration
 

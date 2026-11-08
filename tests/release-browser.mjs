@@ -87,7 +87,9 @@ try{
   await click('[data-ptn-action=advert]');await click('[data-ptn-action=generate]');
   await wait("document.querySelector('[data-ptn-advert-text]').textContent.includes('is unloading **Platinum**')");
   assert.match(await evaluate("document.querySelector('[data-ptn-advert-text]').textContent"),/30k\/unit profit, 0.1k units/);
-  await send('Page.reload');await wait("typeof Lab!=='undefined'&&Lab.state.ptn.plan?.kind==='mining_unload'");
+  await evaluate('window.__releaseReloadPending=true;true');
+  await send('Page.reload');
+  await wait("!window.__releaseReloadPending&&typeof Lab!=='undefined'&&Lab.state.ptn?.plan?.kind==='mining_unload'&&Lab.state.trade?.operation?.id&&document.querySelector('[data-workspace=mining]')");
   assert.equal(await evaluate('Lab.state.ptn.plan.source.operation_id'),await evaluate('Lab.state.trade.operation.id'));
   for(const name of ['mining','ship','powerplay','history','materials','ptn']){
     await click(`[data-workspace=${name}]`);assert.equal(await visible('map'),false);
