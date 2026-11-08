@@ -31,6 +31,13 @@ def paid_leg(prefs, phase):
     return prefs.get('haul_mode', 'both') != ('self_load' if phase == 'loading' else 'self_unload')
 
 
+def unlimited_demand(stop, side):
+    # Explicit evidence only: missing demand and exhausted loading stock are not unlimited.
+    return (side == 'sell' and stop.get('demand_unlimited') is True
+            and type(stop.get('volume')) is int and stop['volume'] == 0
+            and type(stop.get('price')) is int and 0 < stop['price'] <= 10**9)
+
+
 def owner_minimum(prefs, quantity):
     # Cover the reserve AND leave a positive return, even on a smaller order.
     return max(prefs['owner_floor'], prefs['cost_reserve'] // quantity + 1)

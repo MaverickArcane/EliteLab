@@ -149,12 +149,112 @@ class PTNTests(unittest.TestCase):
         self.assertEqual(self.core.store.get('ptn')['result']['scanned'],1)
         for changes in ({'stationType':'CraterOutpost'},{'maxLandingPadSize':2},{'stationType':'Unknown'},
                         {'isPlanetary':True},{'systemX':501},{'updatedAt':self.time(-7)},
-                        {'distanceToArrival':None},{'distanceToArrival':3000},{'demand':0}):
+                        {'distanceToArrival':None},{'distanceToArrival':3000},{'demand':None}):
             old = self.sell;self.sell = {**old,**changes}
             self.assertEqual(self.scan()['rows'],[],changes)
             self.sell = old
         self.sell['updatedAt']=self.time(1)
         self.assertEqual(self.scan()['rows'],[])
+
+    def test_zero_demand_buyers_support_full_and_supply_limited_orders(self):
+        self.sell['demand']=0
+        for partial in (False,True):
+            with self.subTest(partial=partial):
+                row=self.scan(allow_partial=partial,share_surplus=False)['rows'][0]
+                self.assertTrue(row['viable'])
+                self.assertTrue(row['sell']['demand_unlimited'])
+                self.assertEqual(row['sell']['volume'],0)
+                self.assertFalse(row['buy']['demand_unlimited'])
+                self.assertEqual(row['quantity'],18000)
+                self.assertEqual(row['pricing']['owner_after_reserve'],553000000)
+        self.buy['stock']=10000
+        self.board['missions']=[{**self.board['missions'][0],'commodity':'Liquor','system':'Source','station':'Buy Port'}]
+        row=self.scan(allow_partial=True,avoid_active=False,share_surplus=False)['rows'][0]
+        self.assertEqual(row['quantity'],5000)
+        self.assertEqual(row['pricing']['owner_after_reserve'],150000000)
+        self.assertEqual(self.scan(allow_partial=False,avoid_active=False)['rows'],[])
+
+    def test_unlimited_demand_never_accepts_unknown_volume_or_invalid_buyers(self):
+        original=copy.deepcopy(self.sell)
+        for changes in ({'demand':None},{'demand':False},{'demand':'0'},{'demand':-1},{'demand':0.0},
+                        {'demand':0,'sellPrice':0},{'demand':0,'updatedAt':self.time(-7)},
+                        {'demand':0,'stationType':'FleetCarrier'},{'demand':0,'maxLandingPadSize':2},
+                        {'demand':0,'stationType':'CraterPort'},{'demand':0,'isProhibited':True}):
+            with self.subTest(changes=changes):
+                self.sell={**original,**changes}
+                self.assertEqual(self.scan()['rows'],[])
+        self.sell=copy.deepcopy(original);self.sell.pop('demand')
+        self.assertEqual(self.scan()['rows'],[])
+        self.sell={**original,'demand':0};self.buy['stock']=0
+        self.assertEqual(self.scan()['rows'],[])
+
+    def test_unlimited_buyer_scout_persists_and_allows_both_adverts_with_real_quantity(self):
+        self.sell['demand']=0
+        state=self.confirmed()
+        self.assertTrue(state['operation']['ready'])
+        self.assertTrue(state['plan']['scouts']['sell']['demand_unlimited'])
+        reloaded=type(self.desk)(self.core)
+        self.assertTrue(reloaded.view()['operation']['ready'])
+        ad=self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
+        self.assertEqual(ad['remaining'],18000)
+        self.mutate('confirm',price=24000,remaining=0,checks=state['operation']['checks'])
+        self.mutate('stage',stage='transit');self.mutate('stage',stage='unloading');self.carrier(system='Buyer')
+        state=self.mutate('confirm',price=55000,remaining=5000,checks=state['operation']['checks'])
+        self.assertTrue(state['operation']['ready'])
+        ad=self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
+        self.assertIn('is unloading **Liquor**',ad['advert'])
+        self.assertIn('20k/unit profit, 5k units',ad['advert'])
+        self.mutate('remaining',remaining=0)
+        with self.assertRaisesRegex(ValueError,'no remaining'):
+            self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
+        self.assertEqual(self.mutate('stage',stage='complete')['plan']['stage'],'complete')
+
+    def test_unlimited_scout_recapture_and_expiry_do_not_bypass_checks(self):
+        self.sell['demand']=0
+        state=self.confirmed()
+        self.desk.data['plan']['scouts']['sell']['observed_at']=self.time(-2)
+        with self.assertRaisesRegex(ValueError,'expired'):
+            self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
+        self.sell['demand']=5000
+        state=self.capture('sell')
+        self.assertFalse(state['operation']['sell']['demand_unlimited'])
+        self.assertIn('Demand no longer covers the planned order.',state['operation']['blockers'])
+        self.assertFalse(state['operation']['ready'])
+        self.sell['demand']=0
+        state=self.capture('sell')
+        self.assertTrue(state['operation']['sell']['demand_unlimited'])
+        self.assertFalse(state['operation']['ready'])  # Recapture still clears confirmation.
+        state=self.mutate('confirm',price=24000,remaining=18000,checks={k:True for k in
+                         ('near_station','docking_open','funds_checked','competition_checked')})
+        self.assertTrue(state['operation']['ready'])
+        self.desk.data['plan']['scouts']['buy']['volume']=0
+        self.desk.data['plan']['scouts']['buy']['demand_unlimited']=True
+        self.assertIn('Supply no longer covers the planned order.',self.desk.view()['operation']['blockers'])
+
+    def test_zero_demand_capture_requires_matching_raw_evidence_and_trade_side(self):
+        self.sell['demand']=0
+        self.scout()
+        original=copy.deepcopy(self.desk.latest_market)
+        before=copy.deepcopy(self.desk.data)
+        for changes in ({'Consumer':False},{'Demand':None},{'Demand':False},{'Demand':1},
+                        {'SellPrice':0},{'SellPrice':74000}):
+            with self.subTest(changes=changes):
+                self.desk.latest_market=copy.deepcopy(original)
+                self.desk.latest_market['Items'][0].update(changes)
+                with self.assertRaises(ValueError):
+                    self.call('capture_ptn_market',revision=self.desk.data['revision'],side='sell')
+                self.assertEqual(self.desk.data,before)
+        for changes in ({'MarketID':999},{'timestamp':self.time(-1)},{'Items':[]}):
+            self.desk.latest_market={**copy.deepcopy(original),**changes}
+            with self.assertRaisesRegex(ValueError,'explicit zero'):
+                self.call('capture_ptn_market',revision=self.desk.data['revision'],side='sell')
+        self.desk.latest_market=copy.deepcopy(original)
+        self.desk.latest_market['Items'][0].pop('Demand')
+        with self.assertRaisesRegex(ValueError,'explicit zero'):
+            self.call('capture_ptn_market',revision=self.desk.data['revision'],side='sell')
+        # Old saved zero scouts without explicit evidence must be recaptured.
+        self.desk.data['plan']['scouts']['sell'].pop('demand_unlimited')
+        self.assertIn('Demand no longer covers the planned order.',self.desk.view()['operation']['blockers'])
 
     def test_no_floor_relaxation_near_misses_and_missing_reference(self):
         self.sell['sellPrice']=30000

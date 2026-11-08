@@ -11,7 +11,7 @@ from urllib.parse import quote, urlencode
 
 from elitelab.core.gamedata import is_rare, norm
 from modules.ptn.planning import (COMMON, DEFAULTS, advert, finite, integer, key, line,
-                                  now, paid_leg, owner_minimum, pricing, settings, stamp, station_kind)
+                                  now, paid_leg, owner_minimum, pricing, settings, stamp, station_kind, unlimited_demand)
 
 BOARD = 'https://pilotstradenetwork.com/wp-json/ptn/v1/missions'
 MARKETS = 'https://api.ardent-insight.com/v2'
@@ -188,8 +188,12 @@ class PTN:
             age = clock-stamp(r.get('updatedAt'))
             price = r.get('buyPrice' if side=='buy' else 'sellPrice')
             volume = r.get('stock' if side=='buy' else 'demand')
+            # Ardent imports explicitly define a reported zero as unlimited demand.
+            # Keep the reported value and its meaning separate; never synthesize stock.
+            unlimited = side=='sell' and type(volume) is int and volume==0
             arrival, pos = r.get('distanceToArrival'), [r.get('system'+a) for a in 'XYZ']
-            if not (type(price) is int and 0 < price <= 10**9 and type(volume) is int and minimum<=volume<=10**12
+            if not (type(price) is int and 0 < price <= 10**9 and type(volume) is int
+                    and (unlimited or minimum<=volume<=10**12)
                     and finite(arrival) and 0<=arrival<=10**10 and (not prefs['arrival'] or arrival<=prefs['arrival'])
                     and all(finite(n) for n in pos)
                     and -300<=age<=prefs['hours']*3600 and math.dist(origin,pos)<=radius):
@@ -203,6 +207,7 @@ class PTN:
                 continue
             out.append(dict(market_id=r['marketId'], station=station_name, system=system_name,
                 station_type=r['stationType'], surface=kind=='surface', price=price, volume=volume, arrival_ls=arrival, pos=pos,
+                demand_unlimited=unlimited,
                 distance=round(math.dist(origin,pos),1), body=body,
                 body_id=r.get('bodyId') if type(r.get('bodyId')) is int else None,
                 mean_price=r.get('meanPrice') if type(r.get('meanPrice')) is int and 0<r['meanPrice']<=10**9 else None,
@@ -325,7 +330,9 @@ class PTN:
                                             and key(m['station'])==key(buy['station']) for m in active)
                     quantity = prefs['quantity']
                     if prefs['allow_partial']:
-                        quantity = min(quantity,buy['volume']//(1+loading_at_source),sell['volume'])
+                        quantity = min(quantity,buy['volume']//(1+loading_at_source))
+                        if not unlimited_demand(sell,'sell'):
+                            quantity = min(quantity,sell['volume'])
                         if quantity<prefs['min_quantity']:
                             continue
                     price_key = (buy['price'],sell['price'],quantity,ref.get('mean_price'))
@@ -490,7 +497,7 @@ class PTN:
                 blockers.append(('Loading' if side=='buy' else 'Unloading')+' station has not been scouted.')
             elif not historical and not -300<=clock-stamp(scout['observed_at'])<=min(p['hours']*3600,3600):
                 blockers.append(('Loading' if side=='buy' else 'Unloading')+' scout price has expired. Recheck the market.')
-            elif not historical and scout['volume']<needed:
+            elif not historical and not unlimited_demand(scout,side) and scout['volume']<needed:
                 blockers.append(('Supply' if side=='buy' else 'Demand')+' no longer covers the planned order.')
         if not costs['settings_valid']:
             blockers.append('The scouted spread cannot support the public payout minimums and carrier margin at whole-percent prices.')
@@ -575,12 +582,17 @@ class PTN:
                         and key(norm(r.get('Name'))) == key(plan['commodity'])),{}) if snapshot_matches else {}
             if (raw.get('Producer') is False and side=='buy') or (raw.get('Consumer') is False and side=='sell'):
                 raise ValueError('This market does not offer this side of the trade. Recheck the commodity.')
+            unlimited = side=='sell' and volume==0
+            if unlimited and not (type(raw.get('Demand')) is int and raw['Demand']==0
+                                  and type(raw.get('SellPrice')) is int and raw['SellPrice']==price):
+                raise ValueError('Unlimited demand needs an explicit zero demand and positive sell price in the current market journal. Open Commodities again and recapture.')
             mean = raw.get('MeanPrice')
             if type(mean) is not int or not 0<mean<=10**9:
                 mean = None
             data = copy.deepcopy(self.data)
             data['plan']['scouts'][side] = {**target,'station_type':j['station_type'],'surface':kind=='surface',
                                           'price':price,'volume':volume,'mean_price':mean,
+                                          'demand_unlimited':unlimited,
                                           'observed_at':market['timestamp'],'source':'Local market journal'}
             if item.get('name'):
                 data['plan']['name'] = line(item['name'],'Commodity')
@@ -692,13 +704,13 @@ def setup(core, module):
     core.http.route('/api/ptn/board',desk.refresh_board,tool='get_ptn_public_board',module=module.name,
                     description='Refresh public official PTN missions and median loading/unloading payouts. Affiliate adverts and unadvertised carriers are not covered. Failure is unknown competition, not zero.')
     core.http.route('/api/ptn/search',desk.search,tool='find_ptn_routes',params=search_params,module=module.name,
-                    description='Search every non-rare catalog commodity using nearby and global Ardent/EDDN reports, ranked by carrier return after reserve. Default: sources within 1500 Ly of carrier, buyers within 1500 Ly of source, orbital-only, 20k minimum per public leg, retain surplus, up to 18k tonnes with smaller orders allowed. Market coverage is bounded and reported. No game or Discord actions; scout prices before posting.')
+                    description='Search every non-rare catalog commodity using nearby and global Ardent/EDDN reports, ranked by carrier return after reserve. Default: sources within 1500 Ly of carrier, buyers within 1500 Ly of source, orbital-only, 20k minimum per public leg, retain surplus, up to 18k tonnes with smaller orders allowed. Explicit zero-demand buyers have demand_unlimited=true; zero loading stock is empty. Market coverage is bounded and reported. No game or Discord actions; scout prices before posting.')
     core.http.route('/api/ptn/select',desk.select,tool='select_ptn_route',method='POST',module=module.name,
                     params={**revision,'id':dict(type='string',required=True,description='Route id from the latest PTN scan.')},
                     description='Save an independent PTN scouting plan from a recent candidate. Replaces only the local PTN draft; never changes Carrier job, game orders or Discord messages.')
     core.http.route('/api/ptn/capture',desk.capture,tool='capture_ptn_market',method='POST',module=module.name,
                     params={**revision,'side':dict(type='string',enum=['buy','sell'],required=True,description='buy = loading station; sell = unloading station.')},
-                    description='Capture the current journal commodity price and volume at the selected station, respecting the saved surface-loading preference. Requires docking and a market snapshot from the current visit within 15 minutes. Invalidates order checks; never fabricates a scout visit.')
+                    description='Capture the current journal commodity price and volume at the selected station, respecting the saved surface-loading preference. Requires docking and a market snapshot from the current visit within 15 minutes. Unlimited demand requires explicit zero-demand buyer evidence in that journal. Invalidates order checks; never fabricates a scout visit.')
     core.http.route('/api/ptn/update',desk.update,tool='update_ptn_plan',method='POST',module=module.name,
                     params={**revision,'action':dict(type='string',required=True,enum=['stage','confirm','remaining','posted']),
                         'stage':dict(type='string',enum=list(PHASES)),'checks':dict(type='object',description='Explicit booleans: near_station, docking_open, funds_checked, competition_checked.'),

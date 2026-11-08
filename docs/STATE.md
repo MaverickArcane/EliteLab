@@ -613,6 +613,10 @@ public official-board snapshot, readiness and scenario economics. It reads journ
 and trade evidence without mutating their namespaces. Browser preferences and
 selected tab use `ptn.preferences.v3` and `ptn.tab.v1`; no game or Discord action is
 performed. See [PTN-TRADING.md](PTN-TRADING.md).
+PTN route stops and scouts retain reported `volume`. An explicit zero-demand
+buyer with a positive price carries `demand_unlimited: true`; only that flag with
+zero volume bypasses the buyer volume limit. Missing demand remains invalid, zero
+loading supply remains empty, and saved scouts without evidence require recapture.
 `history.selected_commander` is browser-only state shared with the map.
 
 Wishlist entries also expose ingredient allocations (`reserved_before`, `available`,

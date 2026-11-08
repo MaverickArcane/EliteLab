@@ -18,6 +18,8 @@ Report age is at most 24 hours. The optional station approach limit defaults to
 even when that station is far from the main star. Arrival distance remains visible.
 Loading and unloading are orbital by default. Surface loading is an explicit
 option; unloading remains orbital. Large pads are required in both cases.
+Valid zero-demand buyers are included as unlimited demand. Their reported price
+still needs scouting; missing demand and zero loading stock do not qualify.
 
 All non-rare catalog commodities are searched by default (`breadth=0`, safety
 cap 500), after explicit exclusions. Stale catalog prices and stock only prioritize
@@ -228,8 +230,18 @@ without a token trusts clients that can reach its permitted HTTP address. Market
 feeds and local game journals are reports, not authoritative transaction receipts.
 The owner still verifies the in-game price and order. There are no Discord tokens,
 shell execution, user-selected network destinations, or automated game actions in
-this module. Unknown/zero demand remains unqualified; this can omit legitimate
-buyers and is not interpreted as unlimited demand without additional evidence.
+this module. A valid Ardent buyer report with an explicit integer demand of zero
+and positive sell price is treated as unlimited demand, following Ardent's import
+query and PTN's trading guide. Stops retain `volume: 0` and set
+`demand_unlimited: true`; the UI labels this "Unlimited demand (reported 0)".
+Missing, invalid or negative demand is rejected; zero loading supply remains empty.
+Unlimited demand does not cap the order quantity, but requested quantity, loading
+supply and competition still do. Finite demand continues to limit partial orders.
+Local zero-demand capture requires matching raw journal evidence with explicit
+zero `Demand` and a positive `SellPrice`; an explicit `Consumer: false` is rejected.
+Old saved zero-demand scouts without that evidence require recapture. Rechecks
+replace the flag, invalidate affected confirmations and still expire after an hour.
+Unlimited demand does not guarantee that the price will remain unchanged.
 
 ## Validation
 
@@ -245,6 +257,9 @@ Wider-search tests cover more than 48 commodities, stale catalog totals, separat
 source/buyer bounds, multi-jump distances, retained-profit ranking, deduplication,
 missing global feeds, current-system markets, distant station approaches,
 alternate loading sources and honest partial coverage.
+Zero-demand tests cover full and partial orders, source competition, invalid and
+missing reports, matching journal evidence, persistence, recapture, expiry and
+both adverts without bypassing remaining-order or loading-supply checks.
 
 `node tests/ptn-browser.mjs` uses real HTTP/SSE and offline provider/journal
 fixtures for discovery, scout rejection/retry, both trading phases, posting

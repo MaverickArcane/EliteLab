@@ -49,13 +49,15 @@ try{
   assert.match(await evaluate("document.querySelector('.ptn-route').textContent"),/50,000 Cr\/t shortfall/);
   assert.doesNotMatch(await evaluate("document.querySelector('.ptn-route').textContent"),/Carrier after reserve|Cr\/h|Hauler \/ loading/);
   await shot('ptn-rejected-1920x1080',1920,1080);
+  // Exercise unlimited-demand discovery, scouting, persistence and both adverts.
+  await post('/audit/ptn/scenario',{name:'unlimited'});
   await click('[data-ptn-action=normal-search]');
   await evaluate("document.querySelector('[data-ptn-search]').requestSubmit();true");
   await wait("document.querySelectorAll('.ptn-route').length===1&&!document.querySelector('[data-ptn-select]').disabled");
   assert.match(await evaluate("document.querySelector('.ptn-route').textContent"),/553m Cr/);
   assert.equal(await evaluate("document.querySelector('[name=skip_common]').checked"),false);
   assert.match(await evaluate("document.querySelector('.ptn-route').textContent"),/20,000 Cr/);
-  assert.match(await evaluate("document.querySelector('.ptn-route-summary').textContent"),/500,000 t supply.*200,000 t demand/s);
+  assert.match(await evaluate("document.querySelector('.ptn-route-summary').textContent"),/500,000 t supply.*Unlimited demand \(reported 0\)/s);
   assert.match(await evaluate("document.querySelector('.ptn-route-foot').textContent"),/To load: 1 jump minimum.*To sell: 1 jump minimum/s);
   assert.equal(await evaluate("document.querySelector('[name=radius]').value"),'1500');
   assert.equal(await evaluate("document.querySelector('[name=max_hop]').value"),'1500');
@@ -77,6 +79,7 @@ try{
   await click('[data-ptn-capture=buy]');await wait("document.querySelector('.ptn-status').textContent.includes('Dock')");
   await post('/audit/ptn/visit',{side:'buy'});await post('/audit/ptn/visit',{side:'sell'});
   await wait("document.querySelectorAll('.ptn-stop-label .tag.ok').length===2");
+  assert.match(await evaluate("document.querySelector('.ptn-stops').textContent"),/Unlimited demand \(reported 0\)/);
   await post('/audit/ptn/move',{system:'Source'});
   await wait("!!document.querySelector('[data-ptn-stage=loading]')&&!document.querySelector('[data-ptn-stage=loading]').disabled");
   await click('[data-ptn-stage=loading]');await wait("!!document.querySelector('[data-ptn-confirm]')&&!document.querySelector('[data-ptn-confirm] button').disabled");
@@ -101,6 +104,7 @@ try{
   await wait("!document.querySelector('[data-ptn-action=advert]').disabled");
   await click('[data-ptn-action=advert]');await click('[data-ptn-action=generate]');
   await wait("document.querySelector('[data-ptn-advert-text]').textContent.includes('is unloading **Liquor** to **Sell Port**')");
+  assert.match(await evaluate("document.querySelector('[data-ptn-advert-text]').textContent"),/20k\/unit profit, 18k units/);
   await click('[data-ptn-tab=board]');await click('[data-ptn-action=board-refresh]');await wait("!!document.querySelector('.ptn-board-table')&&!document.querySelector('[data-ptn-action=board-refresh]').disabled");
   await shot('ptn-public-board-1920x1080',1920,1080);
   await click('[data-ptn-action=beat-board]');assert.equal(await evaluate("document.querySelector('[name=payout_target]').value"),'31000');
