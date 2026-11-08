@@ -19,15 +19,17 @@ unassociated gains and bounded recent evidence. Association is not confirmed cau
 
 ## `find_mining_spots` - `GET /api/mining/spots` - module: mining
 
-`ref` defaults to current system; `radius` defaults to the laden/current ship range cap (max 200),
-`ring_type` to Metallic (also Metal Rich, Icy, Rocky, Any). Optional `hotspot`,
+`ref` defaults to current system; `radius` accepts greater than 0 up to 2,500 Ly,
+independent of ship jump range. Omitted radius defaults to the positive laden/current
+ship range, or 100 Ly if unavailable. Unknown ship range leaves jump counts null.
+`ring_type` defaults to Metallic (also Metal Rich, Icy, Rocky, Any). Optional `hotspot`,
 `pristine` and `power` filter reported hotspots, pristine reserves and a power's
 reported controlled systems; presence alone is not ownership. Returns at most 30 rings from 100 bodies.
 
 ## `find_mining_buyers` - `GET /api/mining/buyers` - module: mining
 
 Required `commodity`; optional `ref`, `quantity` (default 1), `radius` (100 Ly,
-max 200), `hours` (24, max 72), and `pad` (L; also M/S). Returns at most 20 fresh
+max 2,500), `hours` (24, max 72), and `pad` (L; also M/S). Returns at most 20 fresh
 orbital buyer quotes with enough demand, sorted by estimated sale value, among
 100 nearby matching stations. Both searches use cached Spansh reports and expose
 coverage/estimate limits. See [MINING.md](MINING.md).
@@ -913,11 +915,21 @@ disable it. A changed token is rejected. `eligibility` stays `unknown` and
 `expected_merits` stays null. It neither fetches markets nor changes the route.
 See [TRADE-POWERPLAY.md](TRADE-POWERPLAY.md) for the full response and workflow.
 
+## PTN affiliate trade planning
+
+The separate PTN module exposes route discovery, journal scouting, owner-reviewed
+order checks and exact affiliate adverts. All mutations use a current revision.
+See [PTN-TRADING.md](PTN-TRADING.md) for its seven tools and evidence requirements.
+
 ## Unified materials and recipe planning
 
 `preview_material_plan` (POST `/api/wishlist/preview`) accepts wishlist_add inputs
 and returns an unsaved additional entry with ingredients and combined requirements.
 `wishlist_update` (POST `/api/wishlist/update`) accepts entry `id` and replacement
-`qty` (1-10000). Existing wishlist routes now include synthesis and legacy targets
+`qty` (1-10000), or boolean `follow_ship` for a pinned build entry. Turning following
+off saves the current requirements across ship switches and restarts, while stock
+and shortfalls stay live. Turning it on resumes current ship comparison.
+`wishlist_add` and `build_to_wishlist` also accept `follow_ship` for build entries.
+Existing wishlist routes now include synthesis and legacy targets
 with ordered stock allocation. `get_material_inventory` also returns atomic
 `inventory_known` and `observed_at` evidence. See [MATERIAL-PLAN.md](MATERIAL-PLAN.md).

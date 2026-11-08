@@ -222,7 +222,8 @@ class Build:
         old = [e["id"] for e in existing if e.get("label") == label and e.get("kind") != "build"]
         if old:
             tools["wishlist_remove"].fn({"id": ",".join(old)})
-        r = tools["wishlist_add"].fn({"item": "build", "kind": "build"})
+        r = tools["wishlist_add"].fn({"item": "build", "kind": "build",
+                                    **({"follow_ship": q["follow_ship"]} if "follow_ship" in q else {})})
         return {"entry": r.get("entry"), "replaced": len(old), "needs": len(r.get("needs") or []), "summary": r.get("summary")}
 
 
@@ -241,4 +242,6 @@ def setup(core, module):
     core.http.route("/api/build/unpin", b.unpin, tool="unpin_build", method="POST", module=module.name, description="Remove the pinned build.")
     core.http.route("/api/build/wishlist", b.to_wishlist, tool="build_to_wishlist", method="POST", module=module.name,
                     description="Track the pinned build on the engineering wishlist as a single entry whose material needs follow the "
-                                "build's progress. Then the wishlist card, trade plan and farm sites all work from the build.")
+                                "build's progress. Set follow_ship=false to save fixed requirements across ship changes. "
+                                "Then the wishlist card, trade plan and farm sites all work from the build.",
+                    params={"follow_ship": {"type": "boolean", "description": "Follow current ship progress, or save fixed requirements. Omit to preserve an existing choice."}})

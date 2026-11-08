@@ -592,13 +592,13 @@ try {
   const pooledPlan = await (await fetch(`http://127.0.0.1:${port}/api/wishlist/trades`)).json();
   assert.equal(pooledPlan.covered,1);
   assert.deepEqual(pooledPlan.trades.map(t=>t.get.key),['chemicalmanipulators','chemicalmanipulators','pharmaceuticalisolators']);
-  for(let i=0;i<50;i++){if(await evaluate("document.querySelectorAll('.wl-trades tbody tr').length===3"))break;await sleep(100);}
-  const tradeRows = await evaluate("[...document.querySelectorAll('.wl-trades tbody tr')].map(r=>[...r.cells].map(c=>c.textContent))");
-  assert.deepEqual(tradeRows.map(r=>r[0]),['1. Manufactured','2. Manufactured','3. Manufactured']);
-  assert.match(tradeRows[2][1],/give 6 Chemical Manipulators/);
-  assert.match(tradeRows[2][2],/for 1 Pharmaceutical Isolators/);
-  assert.match(await evaluate("document.querySelector('.wl-trades').textContent"),/Still short after this plan: 4 Pharmaceutical Isolators/);
-  assert.match(await evaluate("document.querySelector('.wl-trades .note').textContent"),/Follow exchanges in the listed order/);
+  for(let i=0;i<50;i++){if(await evaluate("document.querySelectorAll('[data-plan-exchange]').length===3"))break;await sleep(100);}
+  const tradeRows = await evaluate("[...document.querySelectorAll('[data-plan-exchange]')].map(r=>({step:r.querySelector('.plan-exchange-heading').textContent,give:r.querySelector('.plan-exchange-pair>div:first-child').textContent,get:r.querySelector('.plan-exchange-pair>div:last-child').textContent}))");
+  for(let index=0;index<3;index++){assert.match(tradeRows[index].step,new RegExp('Step '+(index+1)));assert.match(tradeRows[index].step,/Manufactured/);}
+  assert.match(tradeRows[2].give,/6 Chemical Manipulators/);
+  assert.match(tradeRows[2].get,/1 Pharmaceutical Isolators/);
+  assert.match(await evaluate("document.querySelector('.plan-unresolved').textContent"),/4 Pharmaceutical Isolators/);
+  assert.match(await evaluate("document.querySelector('.wl-trades .note').textContent"),/Follow the numbered steps in order/);
   await evaluate("document.querySelector('[data-preset=Default]').click();true");
   await sleep(200);
   const meritAudit=await (await fetch(`http://127.0.0.1:${port}/audit/merit-context`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();

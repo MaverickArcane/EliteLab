@@ -157,7 +157,7 @@ def setup(core, module):
     core.http.route("/api/mining/spots", discovery.spots, tool="find_mining_spots", module=module.name,
                     description="Nearby Spansh-reported rings with type, reserves, hotspots, distance, lower-bound jumps and observation dates. "
                                 "Searches at most 100 bodies, returns at most 30 rings. Hotspots do not prove overlaps or yields. "
-                                "Radius is capped server-side by unboosted laden/current ship range; missing range fails closed. "
+                                "Search radius is independent of ship range, up to 2500 Ly. Missing ship range gives unknown jump counts, not a blocked search. "
                                 "Manual ref is a planning origin, not reachability from the ship. Optional power selects owned mining systems. "
                                 "sort=merits requires hotspot and known power (blank resolves pledge); pairs rings with fresh orbital markets. "
                                 "Reinforcement pairs same-system sales; acquisition needs a fortified/stronghold source within 20/30 Ly of the target. "
@@ -165,7 +165,7 @@ def setup(core, module):
                                 "Unknown yields use candidate/price/distance fallback, not a merit ranking. Check ranking_note, merit_note and buyer. "
                                 "At most 100 bodies, nearest 30 rings and 100 markets; local activities and cargo provenance still need in-game checks.",
                     params={"ref": {"type": "string", "description": "Reference system; defaults to journal location"},
-                            "radius": {"type": "number", "description": "Defaults to ship laden/current range cap; requested radius up to 200 is clamped to that cap"},
+                            "radius": {"type": "number", "description": "Search radius in Ly, greater than 0 and up to 2500. Defaults to unboosted laden/current ship range when known, otherwise 100. Explicit values are never clamped to ship range."},
                             "ring_type": {"type": "string", "default": "Metallic", "enum": [*RINGS, "Any"]},
                             "hotspot": {"type": "string", "description": "Optional exact reported hotspot commodity name"},
                             "pristine": {"type": "boolean", "default": False},
@@ -189,7 +189,7 @@ def setup(core, module):
                             "commodity": {"type": "string", "required": True, "description": "Market display name, e.g. Platinum"},
                             "mined_in": {"type": "string", "description": "Actual mining source, up to 160 characters; user supplied, not proof of provenance. Never infer from current ref."},
                             "quantity": {"type": "integer", "default": 1, "description": "Tons to sell, up to 1000000"},
-                            "radius": {"type": "number", "default": 100, "description": "Search radius in Ly, up to 200"},
+                            "radius": {"type": "number", "default": 100, "description": "Search radius in Ly, up to 2500; independent of ship jump range"},
                             "hours": {"type": "number", "default": 24, "description": "Maximum market age in hours, up to 72"},
                             "pad": {"type": "string", "default": "L", "enum": ["S", "M", "L"]},
                             "powerplay_mode": {"type": "string", "default": "none", "enum": ["none", "acquisition", "reinforcement"],

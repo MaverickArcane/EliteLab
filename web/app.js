@@ -12,6 +12,13 @@ import {StateFeed} from './state-feed.js';
     state: {}, cards: {}, coords: {}, _subs: [], _pending: new Set(),
     util: {
       esc, fmt, ls,
+      tabKeys: (list, selector) => list.addEventListener('keydown', event => {
+        const tabs=[...list.querySelectorAll(selector)].filter(tab=>!tab.disabled),index=tabs.indexOf(event.target);
+        if(index<0)return;
+        const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:event.key==='ArrowRight'?(index+1)%tabs.length:event.key==='ArrowLeft'?(index+tabs.length-1)%tabs.length:-1;
+        if(next<0)return;event.preventDefault();tabs[next].focus();tabs[next].click();
+        list.querySelector('[aria-selected=true]')?.focus({preventScroll:true});
+      }),
       inaraSys: n => `https://inara.cz/elite/starsystem/?search=${encodeURIComponent(n)}`,
       inaraSt: n => `https://inara.cz/elite/station/?search=${encodeURIComponent(n)}`,
       inaraMarket: (station, system) => {
@@ -43,7 +50,7 @@ import {StateFeed} from './state-feed.js';
   document.body.addEventListener('click', e => { const b = e.target.closest('[data-copy]'); if (b) { Lab.util.copy(b.dataset.copy); const t = b.textContent; b.textContent = 'copied'; setTimeout(() => b.textContent = t, 900); } });
 
   // header
-  Lab.on('journal', S => { const j = S.journal || {}; document.getElementById('h-cmdr').textContent = j.cmdr || '—'; document.getElementById('h-ship').textContent = [j.ship, j.ship_name, j.ship_ident].filter(Boolean).join(' · ') || '—'; document.getElementById('h-credits').textContent = fmt(j.credits); document.getElementById('h-ver').textContent = j.game_version || '—'; const live = document.getElementById('h-live'); if (j.last_event_time) live.textContent = 'live · ' + j.last_event_time.replace('T', ' ').replace('Z', ' UTC'); });
+  const stopHeader=Lab.on('journal', S => { const j = S.journal || {}; document.getElementById('h-cmdr').textContent = j.cmdr || '—'; document.getElementById('h-ship').textContent = [j.ship, j.ship_name, j.ship_ident].filter(Boolean).join(' · ') || '—'; document.getElementById('h-credits').textContent = fmt(j.credits); document.getElementById('h-ver').textContent = j.game_version || '—'; const live = document.getElementById('h-live'); if (j.last_event_time) live.textContent = 'live · ' + j.last_event_time.replace('T', ' ').replace('Z', ' UTC'); });
 
   // carrier coords for the map
   let coordsAsked = '';
@@ -66,23 +73,33 @@ import {StateFeed} from './state-feed.js';
     return l;
   }
   layout=migrateLayout(layout);
-  const saveLayout = () => ls.set(LAYOUT_KEY, layout);
+  const LAYOUT_TABS_KEY='layout.tabs.v1';
+  let activeLayout=ls.get('layout.active.v1',{kind:'custom',name:''});
+  if(!activeLayout||!['custom','preset','saved'].includes(activeLayout.kind))activeLayout={kind:'custom',name:''};
+  const layoutToken=(kind,name='')=>kind==='custom'?'custom':kind+':'+name;
+  const saveLayout = () => {ls.set(LAYOUT_KEY, layout);const tabs=ls.get(LAYOUT_TABS_KEY,{});tabs[layoutToken(activeLayout.kind,activeLayout.name)]=layout;ls.set(LAYOUT_TABS_KEY,tabs);};
   const WORKSPACES = {
     overview:{label:'Overview',description:'Ship, location and recent activity',cards:['location','ship','cargo','feed','map']},
     materials:{label:'Materials / Recipes',description:'Saved recipes, shared materials and recorded synthesis',cards:['wishlist','build']},
     flight:{label:'Flight',description:'Route planning and ship status',cards:['neutron','ship','location','map','feed']},
     trade:{label:'Trading',description:'Commodity routes, cargo and carrier operations',cards:['personal','loop','cargo','market','targets','haul','party','trade','carrier']},
+    ptn:{label:'PTN desk',description:'Carrier routes, station checks and affiliate trade adverts',cards:['ptn']},
     mining:{label:'Mining',description:'Mining sessions, locations and buyers',cards:['mining','cargo','map']},
     powerplay:{label:'Powerplay',description:'Pledge, merits, sell targets and combat',cards:['powerplay','merits','targets','loop','combat']},
     history:{label:'History',description:'Recorded balances, merit cycles and collection locations',cards:['history']},
-    all:{label:'Custom layout',description:'All panels enabled in your saved layout',cards:null}
+    all:{label:'Layouts',description:'Choose a layout tab or arrange your own panels',cards:null}
   };
   let workspace=ls.get('workspace.v1',localStorage.getItem(LAYOUT_KEY)?'all':'overview');
   if(!WORKSPACES[workspace])workspace='overview';
   function workspaceView(){
     const chosen=WORKSPACES[workspace];
-    document.getElementById('workspace-nav').innerHTML=Object.entries(WORKSPACES).map(([k,v])=>`<button data-workspace="${k}" aria-pressed="${k===workspace}">${esc(v.label)}</button>`).join('');
-    document.getElementById('workspace-heading').innerHTML=`<div><h2>${esc(chosen.label)}</h2><p>${esc(chosen.description)}</p></div><span>${chosen.cards?'Workspace view; your custom layout is preserved.':'Use Layout to choose, move or resize panels.'}</span>`;
+    const nav=document.getElementById('workspace-nav'),focused=nav.querySelector(':focus')?.dataset.workspace;
+    nav.innerHTML=Object.entries(WORKSPACES).map(([k,v])=>`<button id="workspace-tab-${k}" role="tab" aria-controls="grid" tabindex="${k===workspace?0:-1}" data-workspace="${k}" aria-selected="${k===workspace}" aria-pressed="${k===workspace}">${esc(v.label)}</button>`).join('');
+    if(focused)[...nav.querySelectorAll('button')].find(button=>button.dataset.workspace===workspace)?.focus({preventScroll:true});
+    const heading=workspace==='all'?(activeLayout.kind==='custom'?'Custom layout':activeLayout.name):chosen.label;
+    document.getElementById('workspace-heading').innerHTML=`<div><h2>${esc(heading)}</h2><p>${esc(chosen.description)}</p></div><span>${chosen.cards?'Workspace view; your custom layout is preserved.':'Layout tabs remember your panel arrangements.'}</span>`;
+    grid.dataset.activeWorkspace=workspace;document.body.dataset.activeWorkspace=workspace;grid.setAttribute('role','tabpanel');grid.setAttribute('aria-labelledby','workspace-tab-'+workspace);
+    renderLayoutTabs();
     // Workspace visibility is separate from saved custom layout preferences.
     orderedCards().filter(c=>(chosen.cards?chosen.cards.includes(c.id):!layout.hidden.includes(c.id))&&!mounted[c.id]).forEach(c=>grid.appendChild(buildCard(c)));
     Object.values(mounted).forEach(r=>{r.sec.classList.toggle('workspace-off',chosen.cards?!chosen.cards.includes(r.c.id):layout.hidden.includes(r.c.id));r.sec.style.order=chosen.cards?String(chosen.cards.indexOf(r.c.id)):'';});
@@ -91,7 +108,8 @@ import {StateFeed} from './state-feed.js';
   }
   function setWorkspace(id){if(!WORKSPACES[id])return;workspace=id;ls.set('workspace.v1',id);workspaceView();}
   document.getElementById('workspace-nav').onclick=e=>{const b=e.target.closest('[data-workspace]');if(b)setWorkspace(b.dataset.workspace);};
-  Lab.focusCard=id=>{setWorkspace(id==='wishlist'?'materials':'all');if(!mounted[id])showCard(id);const card=mounted[id]?.sec;card?.classList.remove('collapsed');card?.scrollIntoView({block:'start',behavior:'smooth'});};
+  Lab.util.tabKeys(document.getElementById('workspace-nav'),'[data-workspace]');
+  Lab.focusCard=id=>{setWorkspace(id==='wishlist'?'materials':id==='ptn'?'ptn':'all');if(!mounted[id])showCard(id);const card=mounted[id]?.sec;card?.classList.remove('collapsed');card?.scrollIntoView({block:'start',behavior:'smooth'});};
 
   const isMobile = () => matchMedia('(max-width: 760px)').matches;
   const mounted = {};                // id -> { sec, off, def, body }
@@ -322,7 +340,24 @@ import {StateFeed} from './state-feed.js';
   };
   const SAVED_KEY = 'layouts.v1';
   const savedLayouts = () => ls.get(SAVED_KEY, {});
-  function applyLayout(l, name) { l=migrateLayout(l);workspace='all';ls.set('workspace.v1','all');layout = { order: l.order || [], spans: l.spans || {}, heights: l.heights || {}, hidden: l.hidden || [], collapsed: l.collapsed || [], locked: !!l.locked, pack: l.pack !== false }; saveLayout(); mountCards(); if (name) Lab.toast(`Layout: ${name}`); }
+  function applyLayout(l, name, selection={kind:'custom',name:''}) {saveLayout();activeLayout=selection;ls.set('layout.active.v1',activeLayout);l=migrateLayout(l);workspace='all';ls.set('workspace.v1','all');layout = { order: l.order || [], spans: l.spans || {}, heights: l.heights || {}, hidden: l.hidden || [], collapsed: l.collapsed || [], locked: !!l.locked, pack: l.pack !== false }; saveLayout(); mountCards(); if (name) Lab.toast(`Layout: ${name}`); }
+  function selectLayout(kind,name=''){
+    const token=layoutToken(kind,name),tabs=ls.get(LAYOUT_TABS_KEY,{});
+    const candidate=tabs[token]||(kind==='preset'?PRESETS[name]?.():kind==='saved'?savedLayouts()[name]:layout);
+    if(candidate)applyLayout(candidate,kind==='custom'?'Custom':name,{kind,name});
+  }
+  function renderLayoutTabs(){
+    const nav=document.getElementById('layout-tabs');nav.hidden=workspace!=='all';
+    const saved=savedLayouts();
+    if((activeLayout.kind==='preset'&&!Object.hasOwn(PRESETS,activeLayout.name))||(activeLayout.kind==='saved'&&!Object.hasOwn(saved,activeLayout.name))){activeLayout={kind:'custom',name:''};ls.set('layout.active.v1',activeLayout);}
+    const choices=[{kind:'custom',name:'',label:'Custom'},...Object.keys(PRESETS).map(name=>({kind:'preset',name,label:name})),...Object.keys(saved).map(name=>({kind:'saved',name,label:name}))];
+    const focused=nav.querySelector(':focus'),hadFocus=!!focused;
+    nav.innerHTML=choices.map((choice,index)=>{const selected=choice.kind===activeLayout.kind&&choice.name===activeLayout.name;return `<button id="layout-tab-${index}" role="tab" aria-controls="grid" aria-selected="${selected}" tabindex="${selected?0:-1}" data-layout-kind="${choice.kind}" data-layout-name="${esc(choice.name)}">${esc(choice.label)}${choice.kind==='saved'?'<span class="layout-saved-mark">saved</span>':''}</button>`;}).join('');
+    if(hadFocus)nav.querySelector('[aria-selected=true]')?.focus({preventScroll:true});
+    if(workspace==='all')grid.setAttribute('aria-labelledby',nav.querySelector('[aria-selected=true]')?.id||'workspace-tab-all');
+  }
+  document.getElementById('layout-tabs').onclick=event=>{const button=event.target.closest('[data-layout-kind]');if(button)selectLayout(button.dataset.layoutKind,button.dataset.layoutName);};
+  Lab.util.tabKeys(document.getElementById('layout-tabs'),'[data-layout-kind]');
 
   // layout menu
   const menu = document.getElementById('layout-menu');
@@ -330,7 +365,7 @@ import {StateFeed} from './state-feed.js';
     const saved = savedLayouts();
     menu.innerHTML = `
       <div class="menu-row"><label><input type="checkbox" id="lm-lock" ${layout.locked ? 'checked' : ''}> lock</label><label title="let smaller cards move up to fill gaps left by wide ones"><input type="checkbox" id="lm-pack" ${layout.pack !== false ? 'checked' : ''}> fill gaps</label><label title="beep with alerts (merits, low fuel, interdiction, carrier jump)"><input type="checkbox" id="lm-sound" ${Lab.notifySound && Lab.notifySound() ? 'checked' : ''}> sound</label><button class="mini" id="lm-export">export</button><button class="mini" id="lm-import">import</button></div>
-      <div class="menu-sec">Presets</div>
+      <div class="menu-sec">Reset to preset</div>
       <div class="menu-chips">${Object.keys(PRESETS).map(n => `<button class="mini" data-preset="${esc(n)}">${esc(n)}</button>`).join('')}</div>
       <div class="menu-sec">Saved layouts</div>
       <div class="menu-row"><input id="lm-name" placeholder="name this layout" size="16"><button class="mini primary" id="lm-save">save current</button></div>
@@ -343,11 +378,12 @@ import {StateFeed} from './state-feed.js';
     menu.querySelector('#lm-sound').onchange = e => { if (Lab.notifySoundToggle) Lab.notifySoundToggle(e.target.checked); };
     menu.querySelector('#lm-export').onclick = () => { Lab.util.copy(JSON.stringify(layout)); Lab.toast('Layout JSON copied to clipboard'); };
     menu.querySelector('#lm-import').onclick = () => { const s = prompt('Paste layout JSON'); if (!s) return; try { applyLayout(JSON.parse(s), 'imported'); } catch (e) { Lab.toast('Invalid layout JSON', 'bad'); } };
-    menu.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => applyLayout(PRESETS[b.dataset.preset](), b.dataset.preset));
-    menu.querySelector('#lm-save').onclick = () => { const n = menu.querySelector('#lm-name').value.trim(); if (!n) return Lab.toast('Give the layout a name', 'bad'); const all = savedLayouts(); all[n] = { ...layout, order: [...grid.querySelectorAll(':scope > .card')].map(s => s.dataset.id) }; ls.set(SAVED_KEY, all); renderMenu(); Lab.toast(`Saved layout "${n}"`); };
-    menu.querySelectorAll('[data-load]').forEach(b => b.onclick = () => applyLayout(savedLayouts()[b.dataset.load], b.dataset.load));
-    menu.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { const all = savedLayouts(); delete all[b.dataset.del]; ls.set(SAVED_KEY, all); renderMenu(); });
+    menu.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => applyLayout(PRESETS[b.dataset.preset](),b.dataset.preset,{kind:'preset',name:b.dataset.preset}));
+    menu.querySelector('#lm-save').onclick = () => { const n = menu.querySelector('#lm-name').value.trim(); if (!n) return Lab.toast('Give the layout a name', 'bad'); const snapshot={ ...layout, order: [...grid.querySelectorAll(':scope > .card')].map(s => s.dataset.id) }; ls.set(SAVED_KEY,{...savedLayouts(),[n]:snapshot});const tabs=ls.get(LAYOUT_TABS_KEY,{});tabs[layoutToken('saved',n)]=snapshot;ls.set(LAYOUT_TABS_KEY,tabs);renderMenu();Lab.toast(`Saved layout "${n}"`); };
+    menu.querySelectorAll('[data-load]').forEach(b => b.onclick = () => applyLayout(savedLayouts()[b.dataset.load],b.dataset.load,{kind:'saved',name:b.dataset.load}));
+    menu.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { const name=b.dataset.del,all=savedLayouts();delete all[name];ls.set(SAVED_KEY,all);if(activeLayout.kind==='saved'&&activeLayout.name===name)selectLayout('custom');const tabs=ls.get(LAYOUT_TABS_KEY,{});delete tabs[layoutToken('saved',name)];ls.set(LAYOUT_TABS_KEY,tabs);renderMenu(); });
     menu.querySelectorAll('input[data-id]').forEach(cb => cb.onchange = () => { cb.checked ? showCard(cb.dataset.id) : hideCard(cb.dataset.id); });
+    renderLayoutTabs();
   }
   document.getElementById('layout-btn').onclick = e => { e.stopPropagation(); menu.classList.toggle('open'); };
 
@@ -473,7 +509,7 @@ import {StateFeed} from './state-feed.js';
     const button=e.currentTarget;button.disabled=true;
     try {
       await Lab.post('/api/shutdown');
-      Lab.events?.close();feed.stop();clearInterval(healthTimer);Object.keys(mounted).forEach(unmountCard);
+      stopHeader();Lab.events?.close();feed.stop();clearInterval(healthTimer);Object.keys(mounted).forEach(unmountCard);
       document.getElementById('h-live').textContent='stopped';
       document.getElementById('h-live').classList.remove('live');
       grid.innerHTML='<section class="card" style="grid-column:1/-1"><h2>EliteLab stopped</h2><p>The party is closing. You can close this tab and use Start EliteLab to launch again.</p></section>';

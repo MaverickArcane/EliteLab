@@ -6,7 +6,7 @@ Powerplay conditions, empirical limitations and the strict observation match.
 import math
 import time
 
-from .discovery import POWER_MODES, age, parameter, token
+from .discovery import MAX_RADIUS, POWER_MODES, age, parameter, token
 from .ledger import number
 
 
@@ -45,7 +45,7 @@ def rank(discovery, rings, q, ref, radius, power, mode, commodity):
     quantity = parameter(q, "quantity", 1, 1000000, True)
     # One shared station search, not a request per ring. At most 4 body pages,
     # one catalogue and 4 station pages; never widen the mining radius.
-    markets = discovery.buyers({"ref": ref, "radius": min(200, radius + (30 if mode == "acquisition" else 0)),
+    markets = discovery.buyers({"ref": ref, "radius": min(MAX_RADIUS, radius + (30 if mode == "acquisition" else 0)),
                                 "commodity": commodity, "quantity": quantity, "pad": q.get("pad", "L"),
                                 "hours": q.get("hours", 24)}, _limit=100)
     now = time.time()

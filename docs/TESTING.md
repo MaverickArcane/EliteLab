@@ -1,5 +1,28 @@
 # Testing
 
+PTN carrier planning has isolated economic/evidence tests in `test_ptn.py`, real
+HTTP authentication/CSRF/input boundary tests in `test_ptn_security.py`, and a
+real HTTP/SSE browser run, `node tests/ptn-browser.mjs`, with fixture market visits,
+both public phases, self-loading, smaller orders, provider-text injection,
+exact affiliate Markdown and responsive captures. No messages are
+sent to Discord. See [PTN-TRADING.md](PTN-TRADING.md#validation).
+
+Tabbed layouts and material workspace: the material plan browser test checks
+3440x1440, 1920x1080, 1366x768 and 1280x720 sizing, internal list scrolling,
+requirements filters, recipe preselection, keyboard navigation and tab roles.
+It also checks independent preset/saved layouts, reload persistence, deleting an
+active saved layout and restoring the original custom arrangement.
+
+Material trading detail: `test_material_trader_details.py` checks unknown vs
+zero distances, precise jump estimates, station detail and provider failures.
+The material plan browser test covers grade/family/ratio details, category/pad
+selection, arrival sorting, unknown approaches, escaping, stale results and retry.
+
+`test_wishlist_follow.py` checks live vs fixed build requirements, engineering
+progress, switching ships, restart persistence, live stock changes, completed
+builds, legacy entries and failed saves. `material-plan-browser.mjs` also checks
+the checkbox, a ship change, reload persistence and toggle failure recovery.
+
 Trade-to-Powerplay handoff: `test_trade_powerplay.py` checks journal evidence,
 context invalidation and authenticated HTTP/MCP parity; `trade-powerplay-browser.mjs`
 runs the real CLI/Chrome workflow with synthetic journals/provider results and

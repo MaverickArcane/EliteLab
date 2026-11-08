@@ -25,25 +25,62 @@ class MiningOptionsTests(unittest.TestCase):
             result = self.call("find_mining_spots", **(q or {}))
         return result, mocked
 
-    def test_laden_cap_default_override_boundary_and_manual_origin(self):
+    def test_ship_range_default_and_independent_radius_with_manual_origin(self):
         self.core.store.update("journal", {"jump_range_laden":10.16, "jump_range_now":30})
-        result, mocked = self.run_search({"radius":200, "ref":"Sol"})
-        self.assertEqual(result["radius"], 10.16)
+        self.assertEqual(self.run_search()[0]["radius"], 10.16)
+        result, mocked = self.run_search({"radius":500, "ref":"Sol"})
+        self.assertEqual(result["radius"], 500)
+        self.assertEqual(result["ship_range"], 10.16)
         self.assertTrue(result["manual_origin"])
-        self.assertEqual(mocked.call_args.args[1]["filters"]["distance"]["max"], 10.16)
-        self.assertEqual(len(result["results"]), 2)
+        self.assertEqual(mocked.call_args.args[1]["filters"]["distance"]["max"], 500)
+        self.assertEqual(len(result["results"]), 3)
         self.core.store.update("journal", {"jump_range_laden":10.159})
         self.assertEqual(len(self.run_search()[0]["results"]), 1)
         self.core.store.update("journal", {"jump_range_now":3.25})
         self.assertEqual(self.run_search()[0]["radius"], 3.25)
         self.assertEqual(self.run_search({"radius":1.5})[0]["radius"], 1.5)
+        self.assertEqual(self.run_search({"radius":500})[0]["radius"], 500)
 
-    def test_unknown_range_never_falls_back_to_unladen_or_boost(self):
+    def test_unknown_range_allows_planning_without_inventing_jumps(self):
         for value in (None, 0, True, float("nan"), float("inf"), -1):
             self.core.store.update("journal", {"jump_range_laden":value, "jump_range_now":300, "jump_range":300})
-            with patch.object(self.core.services, "fetch_json") as fetch, self.assertRaises(ValueError):
-                self.call("find_mining_spots", ref="Sol", radius=200)
-            fetch.assert_not_called()
+            result, _ = self.run_search({"ref":"Sol", "radius":500})
+            self.assertEqual(result["radius"],500)
+            self.assertIsNone(result["ship_range"])
+            self.assertTrue(result["results"])
+            self.assertTrue(all(r["jumps"] is None for r in result["results"]))
+            self.assertEqual(self.run_search()[0]["radius"],100)
+        self.core.store.update("journal", {"jump_range_laden":30, "jump_range_now":0})
+        self.assertIsNone(self.run_search({"radius":500})[0]["ship_range"])
+
+    def test_custom_radius_boundary_and_jumps_use_ship_range(self):
+        self.core.store.update("journal", {"jump_range_laden":10, "jump_range_now":15})
+        data=copy.deepcopy(DATA)
+        data["bodies"]["results"][1]["distance"]=500
+        data["bodies"]["results"][2]["distance"]=500.01
+        result, _=self.run_search({"radius":500},data)
+        self.assertEqual([r["distance"] for r in result["results"]],[0,500])
+        self.assertEqual(result["results"][1]["jumps"],50)
+        self.core.store.update("journal", {"jump_range_laden":450, "jump_range_now":450})
+        self.assertEqual(self.run_search()[0]["radius"],450)
+        self.assertEqual(self.run_search({"radius":2500})[0]["radius"],2500)
+        for radius in (0,-1,True,None,"",float("nan"),float("inf"),2500.01):
+            with self.subTest(radius=radius), patch.object(self.core.services,"fetch_json") as fetch:
+                with self.assertRaisesRegex(ValueError,"radius"):
+                    self.call("find_mining_spots",radius=radius)
+                fetch.assert_not_called()
+
+    def test_merit_market_search_uses_the_wider_selected_radius(self):
+        data=copy.deepcopy(DATA)
+        data["bodies"]["results"][0].update(distance=500,system_x=500,system_y=0,system_z=0)
+        data["stations"]["results"][0].update(distance=500,system_x=500,system_y=0,system_z=0)
+        for mode,market_radius in (("reinforcement",500),("acquisition",530)):
+            out, mocked=self.run_search(self.merit_query(radius=500,powerplay_mode=mode),data)
+            station_calls=[call for call in mocked.call_args_list if "/stations/search" in call.args[0]]
+            self.assertEqual(station_calls[0].args[1]["filters"]["distance"]["max"],market_radius)
+            if mode=="reinforcement":
+                source=next(r for r in out["results"] if r["system"]=="Delkar")
+                self.assertIsNotNone(source["buyer"])
 
     def test_live_ship_swap_and_loadgame_invalidate_range(self):
         for event in ("ShipyardSwap", "ShipyardNew", "ShipyardBuy", "LoadGame"):
