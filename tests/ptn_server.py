@@ -20,6 +20,14 @@ def move(q):
     return fixture.desk.view()
 
 
+def order(q):
+    quantity, price = q.get('quantity', 19898), q.get('price', 24000)
+    core.store.set('trade', 'orders', {'liquor': dict(side='buy', price=price,
+        quantity=quantity, updated_at=fixture.time())})
+    fixture.carrier(system='Source', free_space=0, reserved_space=quantity)
+    return fixture.desk.view()
+
+
 def scenario(q):
     fixture.buy, fixture.sell = copy.deepcopy(original_buy), copy.deepcopy(original_sell)
     if q.get('name')=='ordinary':
@@ -38,6 +46,7 @@ def scenario(q):
 
 core.http.route('/audit/ptn/visit',visit,method='POST')
 core.http.route('/audit/ptn/move',move,method='POST')
+core.http.route('/audit/ptn/order',order,method='POST')
 core.http.route('/audit/ptn/scenario',scenario,method='POST')
 server = ThreadingHTTPServer(('127.0.0.1',0),make_handler(core))
 print(server.server_port,flush=True)

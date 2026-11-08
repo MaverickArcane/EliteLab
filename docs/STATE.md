@@ -629,6 +629,13 @@ and trade evidence without mutating their namespaces. Browser preferences and
 selected tab use `ptn.preferences.v3` and `ptn.tab.v1`; no game or Discord action is
 performed. See [PTN-TRADING.md](PTN-TRADING.md).
 
+Owner resizing during station-trade scouting/loading updates `route.quantity`
+and `route.settings.quantity`; loading remaining is recalculated while retaining
+recorded loaded tonnes. Loading checks are cleared, actual orders/scouts and
+posting history retained. `posted[phase]` is a past-action declaration with time
+and optional link, not current advert readiness or a verified Discord status.
+The UI restores its visible acknowledgement and message link after reload.
+
 A mined-load plan has `kind: mining_unload`, `route.buy: null` and only a sell
 scout. `source` retains `operation_id`, `operation_updated_at`, ring,
 `baseline_stock`, owner `checked_stock`, `checked_at` and `acquisition_cost: null`.

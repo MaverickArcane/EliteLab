@@ -53,11 +53,21 @@ try {
     ['--headless=new','--no-sandbox','--disable-gpu','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],
     {windowsHide:true,stdio:'ignore'});
   const debugFile=path.join(profile,'DevToolsActivePort');
-  for(let i=0;i<150&&!fs.existsSync(debugFile);i++)await sleep(100);
-  assert.ok(fs.existsSync(debugFile),'Chrome did not start');
-  const debugPort=Number(fs.readFileSync(debugFile,'utf8').split('\n')[0]);
-  const tabs=await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
-  ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);
+  // Chrome can create this file before writing the port or accepting requests.
+  const debugDeadline=Date.now()+15000;let page,debugError='No debugger page yet';
+  while(Date.now()<debugDeadline&&!page){
+    assert.equal(chrome.exitCode,null,'Chrome exited before its debugger was ready');
+    try{
+      const debugPort=Number(fs.readFileSync(debugFile,'utf8').split('\n')[0]);
+      if(Number.isInteger(debugPort)&&debugPort>0&&debugPort<=65535){
+        const response=await fetch(`http://127.0.0.1:${debugPort}/json`,{signal:AbortSignal.timeout(500)});
+        const tabs=await response.json();page=tabs.find(t=>t.type==='page'&&t.webSocketDebuggerUrl);
+      }
+    }catch(error){debugError=error.message;}
+    if(!page)await sleep(100);
+  }
+  assert.ok(page,'Chrome debugger did not become ready: '+debugError);
+  ws=new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((r,j)=>{ws.onopen=r;ws.onerror=j;});
   let sequence=0;const pending=new Map();
   ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);pending.delete(m.id);m.error?p.reject(m.error):p.resolve(m.result);}};

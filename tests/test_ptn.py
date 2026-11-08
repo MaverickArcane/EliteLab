@@ -52,7 +52,7 @@ class PricingTests(unittest.TestCase):
 
     def test_exact_affiliate_markdown_no_rounding_up_and_no_mentions(self):
         text = advert('N.A.C. TEST','K9T-GVT','Liquor','Port','System','loading',20047,18001)
-        self.assertEqual(text,'**N.A.C. TEST (K9T-GVT)** is loading **Liquor** from **Port** (L pads) in **System**. 20.047k/unit profit, 18.001k units')
+        self.assertEqual(text,'**N.A.C. TEST (K9T-GVT)** is loading **Liquor** from **Port** (L pads) in **System**. **20k**/unit profit, 18.001k units')
         self.assertIn('is unloading **Liquor** to **Port**',advert('Test','K9T-GVT','Liquor','Port','System','unloading',20000,18000))
         with self.assertRaises(ValueError):
             advert('@everyone','K9T-GVT','Liquor','Port','System','loading',20000,18000)
@@ -209,7 +209,7 @@ class PTNTests(unittest.TestCase):
         self.assertTrue(state['operation']['ready'])
         ad=self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
         self.assertIn('is unloading **Liquor**',ad['advert'])
-        self.assertIn('20k/unit profit, 5k units',ad['advert'])
+        self.assertIn('**20k**/unit profit, 5k units',ad['advert'])
         self.mutate('remaining',remaining=0)
         with self.assertRaisesRegex(ValueError,'no remaining'):
             self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
@@ -317,7 +317,7 @@ class PTNTests(unittest.TestCase):
         self.mutate('confirm',price=34000,remaining=18000,
                     checks={k:True for k in ('near_station','docking_open','funds_checked','competition_checked')})
         result = self.call('prepare_ptn_advert',revision=self.desk.data['revision'])
-        self.assertIn('30k/unit profit, 18k units',result['advert'])
+        self.assertIn('**30k**/unit profit, 18k units',result['advert'])
         self.assertEqual(result['notes'],'Odyssey surface port. SCO FSD recommended.')
         self.assertEqual(result['copy_text'].count('\n'),1)
 

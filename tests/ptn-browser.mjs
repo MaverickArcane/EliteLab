@@ -112,11 +112,40 @@ try{
   await click('[data-ptn-action=advert]');await click('[data-ptn-action=generate]');
   await wait("document.querySelector('[data-ptn-advert-text]').textContent.includes('**N.A.C. Test (TST-001)**')");
   const advert=await evaluate("document.querySelector('[data-ptn-advert-text]').textContent");
-  assert.equal(advert,'**N.A.C. Test (TST-001)** is loading **Liquor** from **Buy Port** (L pads) in **Source**. 20k/unit profit, 18k units\nSCO FSD recommended.');
+  assert.equal(advert,'**N.A.C. Test (TST-001)** is loading **Liquor** from **Buy Port** (L pads) in **Source**. **20k**/unit profit, 18k units\nSCO FSD recommended.');
   await shot('ptn-advert-1920x1080',1920,1080);
   await shot('ptn-advert-390x844',390,844);
   await send('Emulation.setDeviceMetricsOverride',{width:1920,height:1080,deviceScaleFactor:1,mobile:false});
-  await click('[data-ptn-action=posted]');await wait("document.querySelector('.ptn-posted').textContent.includes('48-hour timeout tracked')");
+  // A real 19,898 t carrier order exceeds the original 18k search plan.
+  await post('/audit/ptn/order',{quantity:19898,price:24000});
+  await wait("document.querySelector('[data-ptn-action=generate]').disabled");
+  assert.equal(await evaluate("document.querySelector('[data-ptn-action=posted]').disabled"),false);
+  await evaluate("var input=document.querySelector('[name=discord_link]');input.value='https://discord.com/channels/1/2/3';input.dispatchEvent(new Event('input',{bubbles:true}));true");
+  await click('[data-ptn-action=posted]');
+  await wait("document.querySelector('[data-ptn-posted-status]')?.textContent.includes('48-hour timeout tracked')&&document.querySelector('[data-ptn-tab=run]').getAttribute('aria-selected')==='true'");
+  assert.equal(await evaluate('Lab.state.ptn.plan.stage'),'loading');
+  assert.equal(await evaluate('Lab.state.ptn.operation.ready'),false);
+  await evaluate("var input=document.querySelector('[name=plan_quantity]');input.value='19898';input.dispatchEvent(new Event('input',{bubbles:true}));true");
+  await post('/audit/ptn/order',{quantity:19898,price:24000});await sleep(150);
+  assert.equal(await evaluate("document.querySelector('[name=plan_quantity]').value"),'19898');
+  await evaluate("document.querySelector('[data-ptn-quantity]').requestSubmit();true");
+  await wait("Lab.state.ptn.plan.route.quantity===19898&&!document.querySelector('[data-ptn-confirm] button').disabled");
+  assert.equal(await evaluate("document.querySelector('[name=remaining]').max"),'19898');
+  assert.equal(await evaluate("document.querySelector('[name=remaining]').value"),'19898');
+  assert.equal(await evaluate("document.querySelector('[name=near_station]').checked"),false);
+  await evaluate("var input=document.querySelector('[name=actual_price]');input.value='24308';input.dispatchEvent(new Event('input',{bubbles:true}));true");
+  for(const name of ['near_station','docking_open','funds_checked','competition_checked'])await click(`[name=${name}]`);
+  await evaluate("document.querySelector('[data-ptn-confirm]').requestSubmit();true");
+  await wait("Lab.state.ptn.plan.orders.loading.price===24308");
+  await post('/audit/ptn/order',{quantity:19898,price:24308});
+  await wait("document.querySelector('[data-ptn-action=advert]')?.disabled===false");
+  await click('[data-ptn-action=advert]');await click('[data-ptn-action=generate]');
+  await wait("document.querySelector('[data-ptn-advert-text]').textContent.includes('**20k**/unit profit, 19.898k units')");
+  assert.equal(await evaluate('Lab.state.ptn.operation.pricing.loading_per_ton'),20308);
+  await click('[data-ptn-action=posted]');await wait("!!document.querySelector('[data-ptn-quantity]')");
+  await shot('ptn-posted-19898',1920,1080);await shot('ptn-posted-19898-mobile',390,844);
+  await evaluate('window.__ptnReloadPending=true;true');await send('Page.reload');
+  await wait("!window.__ptnReloadPending&&document.querySelector('[data-ptn-posted-status] a')?.href==='https://discord.com/channels/1/2/3'&&document.querySelector('[name=plan_quantity]')?.value==='19898'");
   await click('[data-ptn-tab=run]');await click('[data-ptn-action=zero]');await wait("!document.querySelector('[data-ptn-stage=transit]').disabled");
   await click('[data-ptn-stage=transit]');await wait("!!document.querySelector('[data-ptn-stage=unloading]')&&!document.querySelector('[data-ptn-stage=unloading]').disabled");
   await post('/audit/ptn/move',{system:'Buyer'});
@@ -126,7 +155,7 @@ try{
   await wait("!document.querySelector('[data-ptn-action=advert]').disabled");
   await click('[data-ptn-action=advert]');await click('[data-ptn-action=generate]');
   await wait("document.querySelector('[data-ptn-advert-text]').textContent.includes('is unloading **Liquor** to **Sell Port**')");
-  assert.match(await evaluate("document.querySelector('[data-ptn-advert-text]').textContent"),/20k\/unit profit, 18k units/);
+  assert.match(await evaluate("document.querySelector('[data-ptn-advert-text]').textContent"),/\*\*20k\*\*\/unit profit, 19\.898k units/);
   await click('[data-ptn-tab=board]');await click('[data-ptn-action=board-refresh]');await wait("!!document.querySelector('.ptn-board-table')&&!document.querySelector('[data-ptn-action=board-refresh]').disabled");
   await shot('ptn-public-board-1920x1080',1920,1080);
   await click('[data-ptn-action=beat-board]');assert.equal(await evaluate("document.querySelector('[name=payout_target]').value"),'31000');
@@ -167,7 +196,7 @@ try{
   await evaluate("document.querySelector('[data-ptn-confirm]').requestSubmit();true");
   await wait("!document.querySelector('[data-ptn-action=advert]').disabled");
   await click('[data-ptn-action=advert]');await click('[data-ptn-action=generate]');
-  await wait("document.querySelector('[data-ptn-advert-text]').textContent.includes('24.9k/unit profit, 5k units')");
+  await wait("document.querySelector('[data-ptn-advert-text]').textContent.includes('**24k**/unit profit, 5k units')");
   // Surface sources stay excluded until enabled; independent public payouts keep surplus.
   await post('/audit/ptn/scenario',{name:'surface'});await click('[data-ptn-tab=find]');
   await click('[data-ptn-action=normal-search]');await click('[data-ptn-action=payout-20-20]');
@@ -197,7 +226,7 @@ try{
   await wait("!document.querySelector('[data-ptn-action=advert]').disabled");
   await click('[data-ptn-action=advert]');await click('[data-ptn-action=generate]');
   await wait("document.querySelector('[data-ptn-advert-text]').textContent.includes('Odyssey surface port. SCO FSD recommended.')");
-  assert.match(await evaluate("document.querySelector('[data-ptn-advert-text]').textContent"),/30k\/unit profit, 18k units\nOdyssey surface port\. SCO FSD recommended\./);
+  assert.match(await evaluate("document.querySelector('[data-ptn-advert-text]').textContent"),/\*\*30k\*\*\/unit profit, 18k units\nOdyssey surface port\. SCO FSD recommended\./);
   // Provider HTML is text, including inside copy buttons and public-board rows.
   await post('/audit/ptn/scenario',{name:'injection'});await click('[data-ptn-tab=find]');
   await evaluate("document.querySelector('[data-ptn-search]').requestSubmit();true");
