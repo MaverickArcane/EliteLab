@@ -1,5 +1,11 @@
 # Mining desk
 
+Mining now omits the map by default and includes the cargo panel. Select a ring,
+then use [Carrier ops group-mining setup](GROUP-MINING.md) for equal-tonne shared
+loading and explicit miner payouts. Refinery production and delivered cargo are
+separate evidence. Credit quotes remain separate from mining merit eligibility;
+the real-game validation in issue #3 is still required.
+
 The Mining card connects finding a ring, tracking production and selling the
 haul. Use the Mining & trade layout for the full-width desk, or enable Mining
 in the Layout menu. Journal tracking works offline; community searches require
@@ -127,16 +133,23 @@ cargo, attributed sales, and quote estimates. Conditional planning forecasts nev
 
 ## Ship range and merit opportunities
 
-Mining searches default to `min(jump_range_laden, jump_range_now, 200)` Ly.
+Mining searches accept an independent radius greater than 0 and up to 2,500 Ly.
+Without an explicit radius, the API defaults to
+`min(jump_range_laden, jump_range_now)` when both are positive, otherwise 100 Ly.
 The laden calculation uses a full hold and tank; the current calculation can
 reduce it for low fuel or current mass. No neutron/synthesis boost is assumed.
-A supplied smaller radius is honored; a larger valid radius is clamped by the
-same backend used by HTTP and MCP. Missing reliable loadout data or zero range
-blocks the search. Ship swaps and LoadGame clear old range data until Loadout.
+A supplied radius is honored even beyond one ship jump. Missing reliable loadout
+data or zero range leaves jump counts unknown and still permits planning.
+The UI initializes an empty unsaved radius once and preserves manual or saved
+values across ship/fuel/cargo changes and reloads. "Use ship range" copies the
+current estimate once; "500 Ly" provides a carrier-distance preset. Neither
+automatically changes the search origin or plots a carrier route.
+`ship_range` reports the jump-count basis; legacy `range_limit` is an informational
+alias, no longer a cap. Ship swaps and LoadGame clear old range data until Loadout.
 The journal publishes current fuel/cargo range updates; the UI clears stale
 results and pending responses when ship, cargo, fuel, pledge or location changes.
 A search whose context changes during provider I/O fails with a retry message.
-A manual reference system still uses this cap but explicitly represents a
+A manual reference system explicitly represents a
 planning origin, not a destination reachable from the current ship location.
 
 For a candidate comparison within EliteLab, choose **Merit opportunities**, your
@@ -156,7 +169,7 @@ hotspot commodity, power or current pledge, goal, planned load, pad and market a
 The planner makes one shared bounded market search, not a request for each
 ring: at most nine provider calls including the catalogue. The market radius
 can include acquisition destinations up to 30 Ly beyond the mining search,
-within the provider's existing 200 Ly cap. It never widens the mining radius.
+within the module's 2,500 Ly search limit. It never widens the mining radius.
 `buyer.from_ring_ly` is source-to-sale distance; `buyer.distance` is from the
 search origin. Partial market coverage is disclosed with the data limits.
 
@@ -303,7 +316,8 @@ bounded history, replay and provider power/state validation. Its authenticated
 MCP subprocess test exercises tool schemas/calls, native boolean query encoding,
 state resources, the planning prompt, validation errors and wrong-token denial.
 
-`test_mining_options.py` covers range caps and boundaries, live loadout/status changes,
+`test_mining_options.py` covers independent radii and boundaries, unknown jump
+counts, wider merit-market searches, live loadout/status changes,
 missing range, source/destination eligibility, unknown yields, matching sale evidence
 and changed price/state/pledge/freshness. The browser flow also tests map selection,
 conditional versus recorded merits, ship-swap invalidation and stale responses.

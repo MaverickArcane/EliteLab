@@ -2,10 +2,26 @@
   "name": "farming",
   "version": "1.0.0",
   "description": "Where to farm engineering materials: community-known sites (crystal shards, brain trees, Dav's Hope, Jameson, Guardian structures) and methods (HGE by system state, wakes, ship scans), nearest first, matched to the wishlist shortfalls.",
-  "requires": ["journal"],
-  "provides": ["farming"],
+  "requires": [
+    "journal"
+  ],
+  "provides": [
+    "farming"
+  ],
   "order": 66,
   "cards": [
-    { "id": "farming", "title": "Material farm sites", "span": 6, "script": "card.js", "order": 24 }
+    {
+      "id": "farming",
+      "title": "Material farm sites",
+      "span": 6,
+      "script": "card.js",
+      "order": 24,
+      "sources": [
+        {
+          "label": "Community site catalogue and sources",
+          "url": "https://github.com/MaverickArcane/EliteLab/blob/development/docs/SOURCES.md"
+        }
+      ]
+    }
   ]
 }

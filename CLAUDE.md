@@ -1,6 +1,6 @@
 # Agent guide to this repository
 
-Read this first. It is written for an AI assistant (or a human) landing in this repo cold. Everything here is current as of 0.5.0.
+Read this first. It is written for an AI assistant (or a human) landing in this repo cold. Updated for the 0.6.0 release candidate; see docs/NEXT-RELEASE-PLAN.md for validation status.
 
 ## What this is
 
@@ -34,7 +34,7 @@ Reference docs, most specific first:
 ## How to run and verify
 
 ```
-python -m unittest discover -s tests -v     # 65 tests, offline, a few seconds (the transport tests start a server)
+python -m unittest discover -s tests -v     # offline; transport/browser tests start isolated servers
 python -m elitelab modules                   # dependency order and cards
 python -m elitelab serve -v                  # http://localhost:8766, logs to stderr
 python -m elitelab call get_commander_state  # any tool against a running lab
@@ -42,7 +42,10 @@ python -m elitelab call get_commander_state  # any tool against a running lab
 
 Never run the package with `python -I`: isolated mode drops the current directory from `sys.path` and the package is not found.
 
-To restart the server on Windows from a script, kill the existing `python -m elitelab` process first (the port is 8766). The front end is static and is re-read on every request, so JS/CSS/HTML changes need only a browser refresh. Python changes need a server restart.
+For development tests, use separate settings, data, journal and
+`ELITELAB_INSTANCE_DIR` paths plus an ephemeral port. Stop only the test server
+you started. Never kill a player's running server to free a test port. Changes
+to the installed/running app require an explicit install/restart task. The front end is static and is re-read on every request, so JS/CSS/HTML changes need only a browser refresh. Python changes need a server restart.
 
 ## The contract, in one paragraph
 

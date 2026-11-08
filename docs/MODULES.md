@@ -1,5 +1,11 @@
 # Writing a module
 
+The new `selling` module reads journal state, writes its own `selling`
+namespace and provides Sell cargo. Its four tools are listed in [API](API.md).
+Existing `history` also provides the compact Overview credit card. `trade`
+adds mining activity to the existing private crew operation, and `ptn` exposes
+an explicit carrier-plan handoff. Hosted multiplayer is not included.
+
 A module is one folder under `modules/`:
 
 ```

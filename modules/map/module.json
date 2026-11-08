@@ -2,10 +2,27 @@
   "name": "map",
   "version": "1.0.0",
   "description": "Star map: starfield, visited systems by star class, route trail, and layers other modules register (loop, targets).",
-  "requires": ["journal", "history"],
-  "provides": ["map"],
+  "requires": [
+    "journal",
+    "history"
+  ],
+  "provides": [
+    "map"
+  ],
   "order": 70,
   "cards": [
-    { "id": "map", "title": "Star map", "span": 8, "script": "card.js", "order": 60 }
+    {
+      "id": "map",
+      "title": "Star map",
+      "span": 8,
+      "script": "card.js",
+      "order": 60,
+      "sources": [
+        {
+          "label": "EDSM coordinates",
+          "url": "https://www.edsm.net/en/api-v1"
+        }
+      ]
+    }
   ]
 }

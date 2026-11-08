@@ -1,5 +1,9 @@
 # Journal history
 
+Overview now ends with a compact 30-day credit chart using this same history
+index and current/only-commander selection. It links to History for full filters.
+Recorded balances do not imply a complete transaction ledger or net profit.
+
 Open **Journal history** in Layout. Select a commander and time range, optionally
 filter material names, then Refresh history. Filters persist in this browser.
 The map uses the selected commander. All history comes from the configured local

@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- Keep cargo and personal market responses bounded with 25-station pages after
+  live reports exceeded the shared 8 MiB response limit at 100 per page.
+
+- Make Trading cargo-first: nearby eligible buyers, highest-price/nearby/one-stop
+  allocations, demand caps, explicit unsold cargo, saved routes and deduplicated
+  journal sale progress. Proceeds stay separate from unknown acquisition profit.
+- Separate Carrier ops; add group-mining loading setup and a revision-checked
+  PTN route handoff using the existing private crew transport and equal tonne quotas.
+- Thin default layouts; keep maps in Overview/Flight, add Overview credit history,
+  a Ship workspace, truthful shield state and subtle module status colors, and
+  redesign Second screen. Preserve custom and previously used layouts.
+- Add a complete Materials / Recipes guide with three real UI GIFs, contextual
+  help and explicit provider links beside third-party results.
+- Fix partial/unknown engineering quality and distinguish materials covered from
+  upgrade completion (#111). Keep frozen build requirements stable.
+- Close cookie-authenticated event streams at expiry (#113); reject MCP HTTP
+  redirects without forwarding bearer credentials (#114).
+- Revoke stale PTN advert readiness on newer contradictory market evidence (#115),
+  make searches recoverable through start/status calls (#117), and isolate spawned
+  installer-smoke apps while retaining ordinary installer profile guards (#116).
+
+- Windows installer: choose the installed browser powering the standalone app window, with Guest or persistent profile mode. Remember choices on upgrade and report a missing selected browser instead of falling back to a tab.
+
+- Windows installer: fix the unknown `userprofile` constant on ordinary install/uninstall. Resolve the profile like the bundled runtime and test the lifecycle without an instance-directory override.
+
 - Mining: recommend MeritMiner for mining merit routes, with a direct link from the Mining card and guidance in the mining assistant prompt.
 
 - macOS: build Apple Silicon and Intel installers with bundled Python, native menu-bar controls, opt-in login startup and Chromium app windows. CI checks installation, native actions, restart, upgrades and removal while preserving user data (#55).

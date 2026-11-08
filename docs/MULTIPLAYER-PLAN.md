@@ -1,5 +1,11 @@
 # Shared server and group objectives: proposed first slice
 
+Release update: existing LAN/tailnet parties now support an explicit
+[group-mining setup](GROUP-MINING.md) with equal whole-tonne loading shares.
+This is separate from the proposed hosted service below. Draft PR #102 remains
+excluded from the release because enrollment, HTTP/session boundaries and the
+full threat-model validation are incomplete.
+
 Status: design proposal for #42, not an implemented service or a release date.
 The existing local dashboard remains the supported experience. Validate this
 proposal with two real players before treating it as a deployment promise.

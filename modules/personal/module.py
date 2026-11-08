@@ -10,6 +10,7 @@ from modules.personal import powerplay as handoff
 NS = 'personal'
 PLAN_FILE = 'personal.json'
 STATIONS = 'https://www.spansh.co.uk/api/stations/search'
+PAGE_SIZE = 25  # Full station records can exceed the response limit at size=100.
 ORBITAL = ['Coriolis Starport', 'Orbis Starport', 'Ocellus Starport', 'Dodec Starport', 'Asteroid base', 'Outpost']
 SURFACE = ['Planetary Port', 'Planetary Outpost', 'Settlement', 'Surface Settlement', 'Dockable Planet Station']
 
@@ -60,9 +61,9 @@ class Personal:
         if settings['arrival']:
             filters['distance_to_arrival'] = {'min': 0, 'max': settings['arrival']}
         records, total, warnings = [], 0, []
-        for page in range(math.ceil(limit / 100)):
+        for page in range(math.ceil(limit / PAGE_SIZE)):
             body = {'filters': filters, 'sort': [{'distance': {'direction': 'asc'}}],
-                    'size': min(100, limit), 'page': page, 'reference_system': reference}
+                    'size': min(PAGE_SIZE, limit), 'page': page, 'reference_system': reference}
             try:
                 result = self.core.services.fetch_json(STATIONS, body, ttl=300)
                 if not isinstance(result, dict) or result.get('error') or not isinstance(result.get('results'), list):

@@ -1,5 +1,14 @@
 # Using EliteLab from an AI
 
+For an existing hold, start `find_cargo_buyers`, then poll
+`get_cargo_sale_plan`; explain reported proceeds, demand, age, unsold cargo and
+travel tradeoffs before selecting a returned ID. Never call proceeds net profit
+when acquisition costs are unknown. `find_ptn_routes` also starts background work;
+poll `get_ptn_desk`. `plan_mining_loading` needs the actual carrier buy price and
+checked starting stock; `handoff_ptn_to_carrier` needs the current PTN revision.
+Neither executes game orders or posts messages. [Guides](WORKSPACES.md) describe
+the current UI; material coverage and engineering completion are separate.
+
 EliteLab is built so an assistant can look at your live game and act on it. There are three ways in, all backed by the same self-describing API.
 
 ## 1. MCP (Claude Code, Claude Desktop, Cursor, any MCP client)

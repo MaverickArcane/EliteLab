@@ -1,5 +1,12 @@
 # Decisions and lessons
 
+2026-11 release decisions: cargo-first Trading and separate Carrier ops;
+maps default only to Overview/Flight; preserve custom layouts and secondary rare
+workflows. Report sale proceeds without inventing cost basis, shield state
+without a percentage, and partial engineering as estimated finishing work.
+Use existing authenticated party jobs for mining. Hosted group-server work and
+native bio sample tracking remain future scope. See [execution plan](NEXT-RELEASE-PLAN.md).
+
 A log of why things are the way they are. Add to it when you change direction or get bitten.
 
 ## Architecture

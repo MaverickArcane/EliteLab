@@ -102,6 +102,26 @@ jobs:
           node-version: "22"
       - name: Headless Chrome session
         run: node tests/browser.mjs
+      - name: Cargo selling, group-mining setup and release workspaces
+        env:
+          ELITELAB_SCREENSHOT_DIR: release-screenshots
+        run: node tests/release-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-workspace-screenshots
+          path: release-screenshots/
+          if-no-files-found: ignore
+      - name: PTN discovery, scouting and affiliate adverts
+        env:
+          ELITELAB_SCREENSHOT_DIR: ptn-screenshots
+        run: node tests/ptn-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ptn-browser-screenshots
+          path: ptn-screenshots/
+          if-no-files-found: ignore
       - name: Changed-port setup restart under CSP
         run: node tests/restart-browser.mjs
       - name: Mining journal session and responsive card

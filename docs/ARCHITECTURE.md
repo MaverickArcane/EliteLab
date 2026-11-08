@@ -1,5 +1,12 @@
 # Architecture
 
+The release adds an independent cargo-selling module and reuses the existing
+party transport for group mining. Long PTN/cargo searches return jobs and publish
+status through the store/SSE; tools poll through the same bounded HTTP contract.
+Card manifests can name their external sources. See [State](STATE.md) and
+[API](API.md) for additions; no hosted service, dependency or frontend build step
+is introduced.
+
 Source setup uses `Setup EliteLab.cmd` or `setup.sh`, then the existing instance
 guard and serve/restart loop. `serve --setup --open-browser` chooses `/setup/`;
 `--no-browser` keeps setup automation headless. `Core.start` accepts an optional

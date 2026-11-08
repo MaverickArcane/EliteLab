@@ -1,5 +1,22 @@
 # API / AI tools
 
+Release additions (all inherit normal authorization/Origin/Host checks):
+
+| Tool | Route | Contract |
+| --- | --- | --- |
+| `find_cargo_buyers` | POST `/api/selling/search` | Bounded background search; returns job and polling instruction |
+| `get_cargo_sale_plan` | GET `/api/selling` | Search status/results, cargo and saved sale progress |
+| `select_cargo_sale_plan` | POST `/api/selling/select` | Current search ID; rejects changed cargo/location and old search |
+| `clear_cargo_sale_plan` | POST `/api/selling/clear` | Clears only current commander's route |
+| `plan_mining_loading` | POST `/api/trade/mining` | Ring, buyer, quantity, checked stock and actual miner buy price |
+| `handoff_ptn_to_carrier` | POST `/api/ptn/carrier` | PTN revision plus checked stock; explicit independent draft |
+
+`find_ptn_routes` now starts a background search; poll `get_ptn_desk.search_job`.
+Both search tools return promptly instead of requiring one long MCP request.
+MCP's HTTP adapter rejects all redirects, including same-origin redirects;
+it never forwards its bearer token to a redirect target. Cookie SSE sessions
+close on expiry and must authenticate again to reconnect.
+
 ## `get_mining_status` - `GET /api/mining` - module: mining
 
 No parameters. Latest prospector composition and refinery output by commodity
@@ -19,15 +36,17 @@ unassociated gains and bounded recent evidence. Association is not confirmed cau
 
 ## `find_mining_spots` - `GET /api/mining/spots` - module: mining
 
-`ref` defaults to current system; `radius` defaults to the laden/current ship range cap (max 200),
-`ring_type` to Metallic (also Metal Rich, Icy, Rocky, Any). Optional `hotspot`,
+`ref` defaults to current system; `radius` accepts greater than 0 up to 2,500 Ly,
+independent of ship jump range. Omitted radius defaults to the positive laden/current
+ship range, or 100 Ly if unavailable. Unknown ship range leaves jump counts null.
+`ring_type` defaults to Metallic (also Metal Rich, Icy, Rocky, Any). Optional `hotspot`,
 `pristine` and `power` filter reported hotspots, pristine reserves and a power's
 reported controlled systems; presence alone is not ownership. Returns at most 30 rings from 100 bodies.
 
 ## `find_mining_buyers` - `GET /api/mining/buyers` - module: mining
 
 Required `commodity`; optional `ref`, `quantity` (default 1), `radius` (100 Ly,
-max 200), `hours` (24, max 72), and `pad` (L; also M/S). Returns at most 20 fresh
+max 2,500), `hours` (24, max 72), and `pad` (L; also M/S). Returns at most 20 fresh
 orbital buyer quotes with enough demand, sorted by estimated sale value, among
 100 nearby matching stations. Both searches use cached Spansh reports and expose
 coverage/estimate limits. See [MINING.md](MINING.md).
@@ -913,11 +932,21 @@ disable it. A changed token is rejected. `eligibility` stays `unknown` and
 `expected_merits` stays null. It neither fetches markets nor changes the route.
 See [TRADE-POWERPLAY.md](TRADE-POWERPLAY.md) for the full response and workflow.
 
+## PTN affiliate trade planning
+
+The separate PTN module exposes route discovery, journal scouting, owner-reviewed
+order checks and exact affiliate adverts. All mutations use a current revision.
+See [PTN-TRADING.md](PTN-TRADING.md) for its seven tools and evidence requirements.
+
 ## Unified materials and recipe planning
 
 `preview_material_plan` (POST `/api/wishlist/preview`) accepts wishlist_add inputs
 and returns an unsaved additional entry with ingredients and combined requirements.
 `wishlist_update` (POST `/api/wishlist/update`) accepts entry `id` and replacement
-`qty` (1-10000). Existing wishlist routes now include synthesis and legacy targets
+`qty` (1-10000), or boolean `follow_ship` for a pinned build entry. Turning following
+off saves the current requirements across ship switches and restarts, while stock
+and shortfalls stay live. Turning it on resumes current ship comparison.
+`wishlist_add` and `build_to_wishlist` also accept `follow_ship` for build entries.
+Existing wishlist routes now include synthesis and legacy targets
 with ordered stock allocation. `get_material_inventory` also returns atomic
 `inventory_known` and `observed_at` evidence. See [MATERIAL-PLAN.md](MATERIAL-PLAN.md).

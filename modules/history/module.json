@@ -5,5 +5,6 @@
   "requires": ["journal"],
   "provides": ["history"],
   "order": 20,
-  "cards": [{"id":"history", "title":"Journal history", "span":12, "script":"card.js", "order":48}]
+  "cards": [{"id":"history", "title":"Journal history", "span":12, "script":"card.js", "order":48},
+            {"id":"credits", "title":"Credit history", "span":12, "script":"card.js", "order":99}]
 }

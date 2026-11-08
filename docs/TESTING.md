@@ -1,5 +1,50 @@
 # Testing
 
+Release regressions: `test_release_security.py`, `test_build_quality.py`,
+`test_ptn_release.py`, `test_selling.py` and `test_group_mining.py`. The latter
+uses two real private HTTP clients for equal tonnes, repeated/replayed sales,
+reconnect and unloading. `node tests/release-browser.mjs` checks cargo search,
+route selection, sale progress, reload, mining setup and thin workspaces.
+The PTN browser regression forces completion before the start response, forces
+a running status after completed SSE evidence to exercise polling, and submits
+the actual carrier handoff form after a journal redraw.
+
+When testing beside an installed app, set `ELITELAB_INSTANCE_DIR` to a private
+temporary directory. Browser harnesses also isolate settings/data/journals and
+use an ephemeral port. Do not stop or restart the player's app.
+
+To regenerate documentation GIFs, set `ELITELAB_GIF_FRAMES` to an empty temporary
+directory and run `node tests/material-plan-browser.mjs`. In a documentation-only
+virtual environment with Pillow installed, run
+`python scripts/render_material_gifs.py <frames-directory>`.
+This encodes the real UI frames into `docs/gifs`; it adds no runtime dependency.
+Inspect the images before committing. All examples use synthetic journal and
+provider data. A passing fixture test is not a live-market or in-game acceptance
+result. Current evidence and remaining checks are in [the execution record](NEXT-RELEASE-PLAN.md).
+
+PTN carrier planning has isolated economic/evidence tests in `test_ptn.py`, real
+HTTP authentication/CSRF/input boundary tests in `test_ptn_security.py`, and a
+real HTTP/SSE browser run, `node tests/ptn-browser.mjs`, with fixture market visits,
+both public phases, self-loading, smaller orders, provider-text injection,
+exact affiliate Markdown and responsive captures. No messages are
+sent to Discord. See [PTN-TRADING.md](PTN-TRADING.md#validation).
+
+Tabbed layouts and material workspace: the material plan browser test checks
+3440x1440, 1920x1080, 1366x768 and 1280x720 sizing, internal list scrolling,
+requirements filters, recipe preselection, keyboard navigation and tab roles.
+It also checks independent preset/saved layouts, reload persistence, deleting an
+active saved layout and restoring the original custom arrangement.
+
+Material trading detail: `test_material_trader_details.py` checks unknown vs
+zero distances, precise jump estimates, station detail and provider failures.
+The material plan browser test covers grade/family/ratio details, category/pad
+selection, arrival sorting, unknown approaches, escaping, stale results and retry.
+
+`test_wishlist_follow.py` checks live vs fixed build requirements, engineering
+progress, switching ships, restart persistence, live stock changes, completed
+builds, legacy entries and failed saves. `material-plan-browser.mjs` also checks
+the checkbox, a ship change, reload persistence and toggle failure recovery.
+
 Trade-to-Powerplay handoff: `test_trade_powerplay.py` checks journal evidence,
 context invalidation and authenticated HTTP/MCP parity; `trade-powerplay-browser.mjs`
 runs the real CLI/Chrome workflow with synthetic journals/provider results and

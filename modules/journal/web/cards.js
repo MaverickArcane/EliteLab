@@ -38,9 +38,9 @@
       const CORE_SHORT = { PowerPlant: 'PP', MainEngines: 'THR', FrameShiftDrive: 'FSD', LifeSupport: 'LS', PowerDistributor: 'PD', Radar: 'SNS', FuelTank: 'FT', Armour: 'HULL' };
       const CORE_ORDER = Object.keys(CORE_SHORT);
       const engText = e => e ? `${esc(e.blueprint_name || e.blueprint)} G${e.level}${e.experimental ? ' + ' + esc(e.experimental_name || e.experimental) : ''}` : '';
-      const chip = (m, label) => `<span class="chip${m.engineering ? ' eng' : ''}${m.on === false ? ' off' : ''}" title="${esc(m.slot)}${m.engineering && m.engineering.engineer ? ' - ' + esc(m.engineering.engineer) : ''}${m.on === false ? ' - powered off' : ''}">
+      const chip = (m, label) => `<span class="chip${m.engineering ? ' eng' : ''}${m.on === false ? ' off' : ''}${m.health!=null&&m.health<.8?' damaged':''}" title="${esc(m.slot)}${m.engineering && m.engineering.engineer ? ' - ' + esc(m.engineering.engineer) : ''}${m.on === false ? ' - powered off' : ''}">
           ${label ? `<span class="lbl">${esc(label)}</span>` : ''}<b>${m.class != null ? m.class : ''}${esc(m.rating || '')}</b> ${esc(m.name)}${m.mount ? ` <span class="muted">${{ F: 'fixed', G: 'gimballed', T: 'turreted' }[m.mount] || m.mount}</span>` : ''}
-          ${m.engineering ? `<span class="sub">${engText(m.engineering)}</span>` : ''}</span>`;
+          ${m.engineering ? `<span class="sub">${engText(m.engineering)}</span>` : ''}${m.on===false?'<span class="sub">Powered off</span>':''}${m.health!=null&&m.health<.8?`<span class="sub">Integrity ${Math.round(m.health*100)}%</span>`:''}</span>`;
       // every component slot the server classified, in cockpit order; unknown core slots still show, after the known ones
       const core = mods.filter(m => m.group === 'component').sort((a, b) => (CORE_ORDER.indexOf(a.slot) + 99) % 99 - (CORE_ORDER.indexOf(b.slot) + 99) % 99);
       const hard = mods.filter(m => m.group === 'hardpoint'), util = mods.filter(m => m.group === 'utility'), inner = mods.filter(m => m.group === 'internal' || m.group === 'military');
@@ -51,6 +51,7 @@
           <div class="ship-range"><div class="k">Jump range</div><div class="v">${j.jump_range_now != null ? j.jump_range_now.toFixed(1) : '-'} <span class="muted">Ly now</span></div><div class="muted">${j.jump_range_laden != null ? j.jump_range_laden.toFixed(1) + ' laden' : ''}${s.max_jump_range != null ? ` / ${s.max_jump_range.toFixed(1)} max` : ''}</div></div></div>
         ${fuelPct != null ? bar('Fuel', fuelPct, `${st.fuel.toFixed(1)} of ${fmt(s.fuel_main)} t (${fuelPct}%)`, fuelPct < 25 ? 'var(--bad)' : 'var(--accent-2)') : ''}
         ${hullPct != null ? bar('Hull', hullPct, `${hullPct}%`, hullPct < 50 ? 'var(--bad)' : hullPct < 80 ? 'var(--warn)' : 'var(--ok)') : ''}
+        <div class="shield-state" data-shield-state><div class="k">Shields <span class="muted">${st.shields_up===true?'Up':st.shields_up===false?'Down':'Unknown'} - strength percentage unavailable</span></div><div class="shield-indicator ${st.shields_up===true?'up':st.shields_up===false?'down':'unknown'}" role="img" aria-label="Shield status ${st.shields_up===true?'up':st.shields_up===false?'down':'unknown'}; no strength percentage in player telemetry"></div></div>
         <div class="grid3">
           <div><div class="k">Cargo</div><div class="v">${fmt((j.cargo || {}).count)} / ${fmt(s.cargo_capacity)} t</div></div>
           <div><div class="k">Unladen mass</div><div class="v">${s.unladen_mass != null ? fmt(Math.round(s.unladen_mass)) + ' t' : '-'}</div></div>
@@ -93,7 +94,7 @@
   });
 
   Lab.card({
-    id: 'cargo', requires: ['journal','loop','personal'],
+    id: 'cargo', requires: ['journal','loop','personal','selling'],
     render(el,S) {
       const j=S.journal||{}, c=j.cargo||{}, items=Array.isArray(c.items)?c.items.slice(0,256):[], w=S.loop?.workflow||{
         cargo_known:Number.isInteger(c.count)&&c.count>=0&&Array.isArray(c.items)&&c.items.every(i=>i&&Number.isInteger(i.count)&&i.count>=0)&&c.items.reduce((n,i)=>n+i.count,0)===c.count,
@@ -103,8 +104,8 @@
       const aboard=trade?.reading?.aboard;
       const tradeLine=trade ? `<div class="trade-local-context" data-trade-cargo><b>Selected trade: ${esc(trade.leg.commodity)}</b><div>${known && Number.isFinite(aboard) ? `${fmt(aboard)} / ${fmt(trade.leg.quantity)} t aboard${trade.stop.role==='buy' ? `; ${fmt(Math.max(0,trade.leg.quantity-aboard))} t to buy` : ''}` : 'Cargo amount unknown'}</div><small>Next ${esc(trade.stop.role)} stop: ${esc(trade.stop.station)}, ${esc(trade.stop.system)}. Cargo is an observation, not a purchase receipt.</small></div>` : '';
       el.innerHTML=`<div class="big">${w.cargo_known?fmt(c.count)+' t aboard':'Cargo unknown'}</div><p class="note">Capacity: ${j.cargo_capacity==null?'unknown':fmt(j.cargo_capacity)+' t'} | Free: ${w.free_capacity==null?'unknown':fmt(w.free_capacity)+' t'}</p>
-        ${tradeLine}<table><thead><tr><th>Commodity</th><th class="num">Tons</th></tr></thead><tbody>${(w.cargo_known?items:[]).filter(i=>i&&typeof i==='object').map(i=>`<tr><td>${esc(i.name||i.key||'Unknown commodity')} ${trade && goodsKey(i.key||i.name)===goodsKey(trade.leg.commodity)?'<span class="tag">planned</span>':''} ${i.rare?'<span class="tag rare">rare</span>':''} ${i.stolen?'<span class="tag bad">stolen</span>':''}</td><td class="num">${Number.isFinite(i.count)?fmt(i.count):'Unknown'}</td></tr>`).join('')||`<tr><td colspan="2">${w.cargo_known?'Empty hold':'Waiting for a cargo snapshot from the game.'}</td></tr>`}</tbody></table>
-        <p class="note">Cargo aboard is separate from purchase history. Powerplay rewards require eligible origin and local activity; carrier transfers can remove mining provenance.</p>`;
+        ${tradeLine}<table><thead><tr><th>Commodity</th><th class="num">Tons</th><th class="num">Best found / t</th><th class="num">Last paid / t</th></tr></thead><tbody>${(w.cargo_known?items:[]).filter(i=>i&&typeof i==='object').map(i=>`<tr><td>${esc(i.name||i.key||'Unknown commodity')} ${trade && goodsKey(i.key||i.name)===goodsKey(trade.leg.commodity)?'<span class="tag">planned</span>':''} ${i.rare?'<span class="tag rare">rare</span>':''} ${i.stolen?'<span class="tag bad">stolen</span>':''}</td><td class="num">${Number.isFinite(i.count)?fmt(i.count):'Unknown'}</td><td class="num">${S.selling?.result?.buyers?.find(g=>goodsKey(g.key)===goodsKey(i.key))?.best_found!=null?fmt(S.selling.result.buyers.find(g=>goodsKey(g.key)===goodsKey(i.key)).best_found)+' Cr':'--'}</td><td class="num">${S.selling?.purchases?.[goodsKey(i.key)]?.price!=null?fmt(Math.round(S.selling.purchases[goodsKey(i.key)].price))+' Cr':'--'}</td></tr>`).join('')||`<tr><td colspan="4">${w.cargo_known?'Empty hold':'Waiting for a cargo snapshot from the game.'}</td></tr>`}</tbody></table>
+        <p class="note">Best found comes from the last Sell cargo search; last paid is an observed purchase, not the cost basis of the whole hold. Cargo aboard is separate from purchase history. Powerplay rewards require eligible origin and local activity; carrier transfers can remove mining provenance.</p>`;
     }
   });
   Lab.card({

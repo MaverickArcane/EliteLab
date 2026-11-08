@@ -345,20 +345,28 @@ def make_handler(core):
             # If the queue overflows (slow or background tab) the client sees a gap in 'v' and refetches /api/state.
             off = store.subscribe(lambda ns, key, value, ver: _put(qu, {"ns": ns, "key": key, "value": value, "v": ver}))
             try:
+                if not self._authorized():
+                    return
                 self._write_event("snapshot", store.snapshot())
                 last = time.time()
-                while True:
+                while self._authorized():
                     try:
                         msg = qu.get(timeout=1.0)
+                        # A cookie can expire while waiting, including with a busy queue.
+                        if not self._authorized():
+                            break
                         self._write_event("state", msg)
                     except queue.Empty:
                         pass
+                    if not self._authorized():
+                        break
                     if time.time() - last > 15:
                         self.wfile.write(b": ping\n\n"); self.wfile.flush(); last = time.time()
             except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
                 pass
             finally:
                 off()
+                self.close_connection = True
 
         def _write_event(self, event, data):
             self.wfile.write(f"event: {event}\ndata: {json.dumps(data)}\n\n".encode("utf-8"))

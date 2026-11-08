@@ -1,5 +1,13 @@
 # Package release procedure
 
+Release cleanup: include the `selling` module in every artifact (the Debian
+manifest is explicit). Windows now offers browser/profile choices and resolves
+the normal user profile without an unsupported Inno constant. Native installer
+smoke preserves ordinary installer/uninstaller profile checks while passing a
+separate `ELITELAB_INSTANCE_DIR` only to spawned test applications, avoiding a
+probe of the player's running app. Do not run a production-AppId installer as
+a smoke test. See [release validation](NEXT-RELEASE-PLAN.md).
+
 The release workflow builds a draft release from a version tag after the full CI
 workflow passes. It attaches the Windows installer, Debian package, macOS installers, source
 archive and SHA-256 files. It does not publish the draft automatically.
@@ -84,6 +92,10 @@ restart followed by Quit. Tests use fixture journals, temporary settings/data,
 a browser recorder, and unique test registry values. They do not manipulate an
 existing EliteLab installation or its sign-in entry. Manual checks still cover
 a real browser, pointer interaction with the notification-area menu and a real
-Windows sign-in. Do not close #9 based on the existence of CI alone.
+Windows sign-in. The installer also checks browser selection, rejects invalid
+browser/profile options and preserves choices on upgrade. Manually verify the
+App window browser and profile pages, the chosen browser's standalone frame,
+Guest mode and its browser-preference reset, and persistent-mode behavior.
+Do not close #9 based on the existence of CI alone.
 Mining #3 additionally requires the outstanding real-game
 checks listed on that issue; fixture tests cannot establish current game rules.

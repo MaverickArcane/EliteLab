@@ -2,10 +2,28 @@
   "name": "targets",
   "version": "1.0.0",
   "description": "Powerplay sell targets: stations with a market in unoccupied systems your power can acquire; power comparison.",
-  "requires": ["journal", "powerplay"],
-  "provides": ["targets"],
+  "requires": [
+    "journal",
+    "powerplay"
+  ],
+  "provides": [
+    "targets"
+  ],
   "order": 40,
   "cards": [
-    { "id": "targets", "title": "Powerplay sell targets", "span": 12, "script": "handoff.js", "script_type": "module", "order": 30 }
+    {
+      "id": "targets",
+      "title": "Powerplay sell targets",
+      "span": 12,
+      "script": "handoff.js",
+      "script_type": "module",
+      "order": 30,
+      "sources": [
+        {
+          "label": "Spansh station reports",
+          "url": "https://spansh.co.uk/stations"
+        }
+      ]
+    }
   ]
 }

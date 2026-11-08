@@ -12,6 +12,7 @@ Persisted in data/build.json.
 """
 import time
 import threading
+import math
 
 from elitelab.core import builds
 from elitelab.core import gamedata as gd
@@ -27,6 +28,10 @@ def bp_key(name):
 
 def exp_key(name):
     return gd.EXPERIMENTAL_BY_LOWER.get((name or "").lower())
+
+
+def quality(value):
+    return value if type(value) in (int, float) and math.isfinite(value) and 0 <= value <= 1 else None
 
 
 class Build:
@@ -100,6 +105,9 @@ class Build:
             want_bp = bp_key((s["blueprint"] or {}).get("fdname")) if s["blueprint"] else None
             want_bp_name = (s["blueprint"] or {}).get("name")
             want_grade = s["grade"] if s["blueprint"] else 0
+            want_quality = quality(s.get("roll"))
+            if want_quality is None:
+                want_quality = 1.0
             want_exp = exp_key((s["experimental"] or {}).get("fdname")) if s["experimental"] else None
             want_exp_name = (s["experimental"] or {}).get("name")
             # find the current module
@@ -112,19 +120,20 @@ class Build:
                 def score(m):
                     e = m.get("engineering") or {}
                     return ((bp_key(e.get("blueprint")) == want_bp) * 4 + (e.get("level") == want_grade and want_bp is not None) * 2
-                            + (exp_key(e.get("experimental")) == want_exp and want_exp is not None))
+                            + (exp_key(e.get("experimental")) == want_exp and want_exp is not None), quality(e.get("quality")) or 0)
                 if cands:
                     cur = max(cands, key=score)
                     used.add(id(cur))
             size = "" if s["module"]["class"] is None else str(s["module"]["class"])
             row = {"group": s["group"], "slot": s["slot"], "item": item, "target": f"{size}{s['module']['rating'] or ''} {s['module']['name']}".strip(),
                    "blueprint": want_bp_name, "grade": want_grade, "experimental": want_exp_name, "status": "ok", "todo": [], "materials": {},
-                   "current": None, "credits": 0}
+                   "current": None, "credits": 0, "target_quality": want_quality if want_bp else None,
+                   "completion_known": True, "finishing_rolls_estimate": 0, "materials_estimated": bool(want_bp)}
             have_item = bool(cur) and cur["item"] == item
             if cur:
                 ce = cur.get("engineering") or {}
                 row["current"] = {"slot": cur["slot"], "item": cur["item"], "blueprint": ce.get("blueprint"), "level": ce.get("level"),
-                                  "experimental": ce.get("experimental")}
+                                  "experimental": ce.get("experimental"), "quality": quality(ce.get("quality"))}
             if not have_item:
                 row["status"] = "buy"
                 row["credits"] = s["module"]["cost"] or 0
@@ -136,13 +145,30 @@ class Build:
                 if bp_key(ce.get("blueprint")) == want_bp:
                     from_grade = int(ce.get("level") or 0)
                     need_bp = from_grade < want_grade
+                    current_quality = quality(ce.get("quality"))
+                    threshold = want_quality if from_grade == want_grade else 1.0
+                    unfinished = 0 < from_grade <= want_grade and (current_quality is None or current_quality < threshold)
+                    if unfinished:
+                        # Quality is progress, not a measured number of rolls.
+                        # Reserve the grade's whole planning allowance rather than
+                        # pretending the remaining fraction gives an exact cost.
+                        row["finishing_rolls_estimate"] = gd.ROLLS_PER_GRADE.get(from_grade, 1)
+                        row["completion_known"] = current_quality is not None
+                        row["todo"].append((f"check {want_bp_name} G{from_grade} progress (quality unknown)" if current_quality is None
+                                            else f"finish {want_bp_name} G{from_grade} ({current_quality:.0%} of grade recorded)")
+                                           + f"; budget {row['finishing_rolls_estimate']} rolls as a planning estimate")
+                        if current_quality is None and from_grade == want_grade and row["status"] == "ok":
+                            row["status"] = "check"
+                        from_grade -= 1
+                        need_bp = True
                     need_exp = bool(want_exp) and exp_key(ce.get("experimental")) != want_exp
                 else:
                     need_bp, need_exp = True, bool(want_exp)
                 if need_bp:
                     if row["status"] == "ok":
                         row["status"] = "engineer"
-                    row["todo"].append(f"{want_bp_name} G{from_grade} to G{want_grade}" if from_grade else f"{want_bp_name} to G{want_grade}")
+                    if not row["finishing_rolls_estimate"] or (row["current"] or {}).get("level", 0) < want_grade:
+                        row["todo"].append(f"{want_bp_name} G{from_grade} to G{want_grade}" if from_grade else f"{want_bp_name} to G{want_grade}")
                     if want_bp in gd.BLUEPRINT_BY_KEY:
                         for k, c in gd.recipe_cost(want_bp, want_grade, from_grade).items():
                             row["materials"][k] = row["materials"].get(k, 0) + c
@@ -181,14 +207,19 @@ class Build:
         progress = {
             "same_ship": same_ship, "current_ship": j.get("type") or cur_ship or None, "target_ship": t["ship"]["name"],
             "slots": rows, "totals": {"slots": total, "ok": ok, "fitted": fitted, "to_buy": total - fitted, "to_engineer": sum(1 for r in rows if r["status"] == "engineer"),
-                                      "engineering_total": eng_total, "engineering_done": eng_done, "credits": credits},
+                                      "engineering_total": eng_total, "engineering_done": eng_done, "credits": credits,
+                                      "to_check": sum(1 for r in rows if r["status"] == "check")},
             "percent": {"fitted": round(100 * fitted / total) if total else 100, "engineered": round(100 * eng_done / eng_total) if eng_total else 100,
                         "materials": round(100 * (units - short) / units) if units else 100, "overall": round(100 * ok / total) if total else 100},
             "materials": mats, "materials_short": sum(1 for r in mats if r["short"]),
+            "materials_covered": short == 0, "upgrade_complete": ok == total,
+            "completion_known": all(r["completion_known"] for r in rows),
             "wishlist_items": [{"item": k[0], "grade": k[1], "from_grade": k[2], "qty": n} for k, n in wish.items()],
             "not_in_build": [{"slot": m["slot"], "item": m["item"]} for m in extra],
             "note": "Hardpoints, utilities and internals are matched by item within their group, so slot order is ignored. "
-                    "Blueprint rolls assume the rolls-per-grade hint. Credits are EDSY list prices without discounts.",
+                    "Blueprint rolls are planning estimates. An unfinished or unknown current grade reserves its full rolls-per-grade allowance; "
+                    "quality is not an exact remaining roll count. Partial targets are compared with their requested quality, with conservative material budgets. "
+                    "Material coverage does not mean upgrades are installed. Credits are EDSY list prices without discounts.",
         }
         return {"pinned": self.pinned, "progress": progress}
 
@@ -222,7 +253,8 @@ class Build:
         old = [e["id"] for e in existing if e.get("label") == label and e.get("kind") != "build"]
         if old:
             tools["wishlist_remove"].fn({"id": ",".join(old)})
-        r = tools["wishlist_add"].fn({"item": "build", "kind": "build"})
+        r = tools["wishlist_add"].fn({"item": "build", "kind": "build",
+                                    **({"follow_ship": q["follow_ship"]} if "follow_ship" in q else {})})
         return {"entry": r.get("entry"), "replaced": len(old), "needs": len(r.get("needs") or []), "summary": r.get("summary")}
 
 
@@ -241,4 +273,6 @@ def setup(core, module):
     core.http.route("/api/build/unpin", b.unpin, tool="unpin_build", method="POST", module=module.name, description="Remove the pinned build.")
     core.http.route("/api/build/wishlist", b.to_wishlist, tool="build_to_wishlist", method="POST", module=module.name,
                     description="Track the pinned build on the engineering wishlist as a single entry whose material needs follow the "
-                                "build's progress. Then the wishlist card, trade plan and farm sites all work from the build.")
+                                "build's progress. Set follow_ship=false to save fixed requirements across ship changes. "
+                                "Then the wishlist card, trade plan and farm sites all work from the build.",
+                    params={"follow_ship": {"type": "boolean", "description": "Follow current ship progress, or save fixed requirements. Omit to preserve an existing choice."}})

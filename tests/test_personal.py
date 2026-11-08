@@ -33,6 +33,18 @@ class PersonalTests(unittest.TestCase):
             return {'count': len(self.locals), 'results': self.locals}
         return {'count': len(self.nearby), 'results': self.nearby}
 
+    def test_station_pages_stay_small_and_preserve_requested_coverage(self):
+        calls=[]
+        def fetch(url,body,**kwargs):
+            calls.append((body['page'],body['size']))
+            offset=body['page']*body['size']
+            return dict(count=80,results=[dict(self.other,market_id=n+1) for n in range(offset,offset+body['size'])])
+        self.core.services.fetch_json=fetch
+        rows,total,notes=self.desk.stations(dict(hours=24,surface=False,pad='L',arrival=10000),'Sol',80,30,datetime.now(timezone.utc).timestamp())
+        self.assertEqual(calls,[(0,25),(1,25)])
+        self.assertEqual(len(rows),30);self.assertEqual(len({r['market_id'] for r in rows}),30)
+        self.assertEqual(total,80);self.assertTrue(notes)
+
     def test_exact_loop_not_two_hops_and_independent_return_commodity(self):
         result = self.desk.search({})
         self.assertEqual(len(result['rows']), 1)  # Alpha has no profitable return.

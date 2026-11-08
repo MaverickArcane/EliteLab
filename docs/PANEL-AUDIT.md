@@ -1,5 +1,8 @@
 # Default panel workflow audit
 
+Historical panel audit. Current release decisions and completed work are in
+[Workspaces](WORKSPACES.md) and [the execution record](NEXT-RELEASE-PLAN.md).
+
 This is the remaining default-panel audit for #41. It was checked against the
 development dashboard after the trading route, rare sell-target and Powerplay
 handoff changes (#73, #69, #75). The trading flow and its evidence limits are

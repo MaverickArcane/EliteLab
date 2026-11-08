@@ -66,9 +66,11 @@ try {
   assert.match(await evaluate("document.querySelector('#card-cargo').textContent"),/Cargo unknown/);
   assert.match(await evaluate("document.querySelector('#card-market').textContent"),/No market recorded/);
   await evaluate("document.querySelector('[data-workspace=trade]').click();true");
-  assert.equal(await evaluate("['loop','cargo','market','targets'].every(id=>!document.querySelector('#card-'+id).classList.contains('workspace-off'))"),true);
+  assert.equal(await evaluate("['selling','cargo','personal'].every(id=>!document.querySelector('#card-'+id).classList.contains('workspace-off'))"),true);
+  assert.equal(await evaluate("document.querySelector('#card-loop').classList.contains('workspace-off')"),true);
   // Use the supported preset and layout controls for an uncluttered screenshot.
   await evaluate("[...document.querySelectorAll('[data-preset]')].find(b=>b.dataset.preset==='Rare goods').click();true");
+  assert.equal(await evaluate("['loop','cargo','market','targets'].every(id=>!document.querySelector('#card-'+id).classList.contains('workspace-off'))"),true);
   const saveFile=(name,data)=>fs.writeFileSync(path.join(journals,name+'.json'),JSON.stringify(data));
   const cargo=(count,stamp='2026-10-22T10:01:00Z')=>saveFile('Cargo',{event:'Cargo',timestamp:stamp,Vessel:'Ship',Count:count,
     Inventory:count?[{Name:'alieneggs',Name_Localised:'Leathery Eggs',Count:count,Stolen:0}]:[]});

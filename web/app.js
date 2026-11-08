@@ -12,6 +12,13 @@ import {StateFeed} from './state-feed.js';
     state: {}, cards: {}, coords: {}, _subs: [], _pending: new Set(),
     util: {
       esc, fmt, ls,
+      tabKeys: (list, selector) => list.addEventListener('keydown', event => {
+        const tabs=[...list.querySelectorAll(selector)].filter(tab=>!tab.disabled),index=tabs.indexOf(event.target);
+        if(index<0)return;
+        const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:event.key==='ArrowRight'?(index+1)%tabs.length:event.key==='ArrowLeft'?(index+tabs.length-1)%tabs.length:-1;
+        if(next<0)return;event.preventDefault();tabs[next].focus();tabs[next].click();
+        list.querySelector('[aria-selected=true]')?.focus({preventScroll:true});
+      }),
       inaraSys: n => `https://inara.cz/elite/starsystem/?search=${encodeURIComponent(n)}`,
       inaraSt: n => `https://inara.cz/elite/station/?search=${encodeURIComponent(n)}`,
       inaraMarket: (station, system) => {
@@ -43,7 +50,7 @@ import {StateFeed} from './state-feed.js';
   document.body.addEventListener('click', e => { const b = e.target.closest('[data-copy]'); if (b) { Lab.util.copy(b.dataset.copy); const t = b.textContent; b.textContent = 'copied'; setTimeout(() => b.textContent = t, 900); } });
 
   // header
-  Lab.on('journal', S => { const j = S.journal || {}; document.getElementById('h-cmdr').textContent = j.cmdr || '—'; document.getElementById('h-ship').textContent = [j.ship, j.ship_name, j.ship_ident].filter(Boolean).join(' · ') || '—'; document.getElementById('h-credits').textContent = fmt(j.credits); document.getElementById('h-ver').textContent = j.game_version || '—'; const live = document.getElementById('h-live'); if (j.last_event_time) live.textContent = 'live · ' + j.last_event_time.replace('T', ' ').replace('Z', ' UTC'); });
+  const stopHeader=Lab.on('journal', S => { const j = S.journal || {}; document.getElementById('h-cmdr').textContent = j.cmdr || '—'; document.getElementById('h-ship').textContent = [j.ship, j.ship_name, j.ship_ident].filter(Boolean).join(' · ') || '—'; document.getElementById('h-credits').textContent = fmt(j.credits); document.getElementById('h-ver').textContent = j.game_version || '—'; const live = document.getElementById('h-live'); if (j.last_event_time) live.textContent = 'live · ' + j.last_event_time.replace('T', ' ').replace('Z', ' UTC'); });
 
   // carrier coords for the map
   let coordsAsked = '';
@@ -66,23 +73,35 @@ import {StateFeed} from './state-feed.js';
     return l;
   }
   layout=migrateLayout(layout);
-  const saveLayout = () => ls.set(LAYOUT_KEY, layout);
+  const LAYOUT_TABS_KEY='layout.tabs.v1';
+  let activeLayout=ls.get('layout.active.v1',{kind:'custom',name:''});
+  if(!activeLayout||!['custom','preset','saved'].includes(activeLayout.kind))activeLayout={kind:'custom',name:''};
+  const layoutToken=(kind,name='')=>kind==='custom'?'custom':kind+':'+name;
+  const saveLayout = () => {ls.set(LAYOUT_KEY, layout);const tabs=ls.get(LAYOUT_TABS_KEY,{});tabs[layoutToken(activeLayout.kind,activeLayout.name)]=layout;ls.set(LAYOUT_TABS_KEY,tabs);};
   const WORKSPACES = {
-    overview:{label:'Overview',description:'Ship, location and recent activity',cards:['location','ship','cargo','feed','map']},
+    overview:{label:'Overview',description:'Ship, location and recent activity',cards:['location','ship','cargo','feed','map','credits']},
     materials:{label:'Materials / Recipes',description:'Saved recipes, shared materials and recorded synthesis',cards:['wishlist','build']},
     flight:{label:'Flight',description:'Route planning and ship status',cards:['neutron','ship','location','map','feed']},
-    trade:{label:'Trading',description:'Commodity routes, cargo and carrier operations',cards:['personal','loop','cargo','market','targets','haul','party','trade','carrier']},
-    mining:{label:'Mining',description:'Mining sessions, locations and buyers',cards:['mining','cargo','map']},
+    ship:{label:'Ship',description:'Loadout, integrity and engineering status',cards:['ship']},
+    trade:{label:'Trading',description:'Sell cargo nearby or plan a round trip',cards:['selling','cargo','personal']},
+    carrier:{label:'Carrier ops',description:'Plan loading, mining and crew operations',cards:['trade','haul','party','carrier']},
+    ptn:{label:'PTN desk',description:'Carrier routes, station checks and affiliate trade adverts',cards:['ptn']},
+    mining:{label:'Mining',description:'Mining sessions, locations and buyers',cards:['mining','cargo']},
     powerplay:{label:'Powerplay',description:'Pledge, merits, sell targets and combat',cards:['powerplay','merits','targets','loop','combat']},
     history:{label:'History',description:'Recorded balances, merit cycles and collection locations',cards:['history']},
-    all:{label:'Custom layout',description:'All panels enabled in your saved layout',cards:null}
+    all:{label:'Layouts',description:'Choose a layout tab or arrange your own panels',cards:null}
   };
   let workspace=ls.get('workspace.v1',localStorage.getItem(LAYOUT_KEY)?'all':'overview');
   if(!WORKSPACES[workspace])workspace='overview';
   function workspaceView(){
     const chosen=WORKSPACES[workspace];
-    document.getElementById('workspace-nav').innerHTML=Object.entries(WORKSPACES).map(([k,v])=>`<button data-workspace="${k}" aria-pressed="${k===workspace}">${esc(v.label)}</button>`).join('');
-    document.getElementById('workspace-heading').innerHTML=`<div><h2>${esc(chosen.label)}</h2><p>${esc(chosen.description)}</p></div><span>${chosen.cards?'Workspace view; your custom layout is preserved.':'Use Layout to choose, move or resize panels.'}</span>`;
+    const nav=document.getElementById('workspace-nav'),focused=nav.querySelector(':focus')?.dataset.workspace;
+    nav.innerHTML=Object.entries(WORKSPACES).map(([k,v])=>`<button id="workspace-tab-${k}" role="tab" aria-controls="grid" tabindex="${k===workspace?0:-1}" data-workspace="${k}" aria-selected="${k===workspace}" aria-pressed="${k===workspace}">${esc(v.label)}</button>`).join('');
+    if(focused)[...nav.querySelectorAll('button')].find(button=>button.dataset.workspace===workspace)?.focus({preventScroll:true});
+    const heading=workspace==='all'?(activeLayout.kind==='custom'?'Custom layout':activeLayout.name):chosen.label;
+    document.getElementById('workspace-heading').innerHTML=`<div><h2>${esc(heading)}</h2><p>${esc(chosen.description)}</p></div><span>${chosen.cards?'Workspace view; your custom layout is preserved.':'Layout tabs remember your panel arrangements.'}</span>`;
+    grid.dataset.activeWorkspace=workspace;document.body.dataset.activeWorkspace=workspace;grid.setAttribute('role','tabpanel');grid.setAttribute('aria-labelledby','workspace-tab-'+workspace);
+    renderLayoutTabs();
     // Workspace visibility is separate from saved custom layout preferences.
     orderedCards().filter(c=>(chosen.cards?chosen.cards.includes(c.id):!layout.hidden.includes(c.id))&&!mounted[c.id]).forEach(c=>grid.appendChild(buildCard(c)));
     Object.values(mounted).forEach(r=>{r.sec.classList.toggle('workspace-off',chosen.cards?!chosen.cards.includes(r.c.id):layout.hidden.includes(r.c.id));r.sec.style.order=chosen.cards?String(chosen.cards.indexOf(r.c.id)):'';});
@@ -91,7 +110,12 @@ import {StateFeed} from './state-feed.js';
   }
   function setWorkspace(id){if(!WORKSPACES[id])return;workspace=id;ls.set('workspace.v1',id);workspaceView();}
   document.getElementById('workspace-nav').onclick=e=>{const b=e.target.closest('[data-workspace]');if(b)setWorkspace(b.dataset.workspace);};
-  Lab.focusCard=id=>{setWorkspace(id==='wishlist'?'materials':'all');if(!mounted[id])showCard(id);const card=mounted[id]?.sec;card?.classList.remove('collapsed');card?.scrollIntoView({block:'start',behavior:'smooth'});};
+  Lab.util.tabKeys(document.getElementById('workspace-nav'),'[data-workspace]');
+  const CARD_WORKSPACE={wishlist:'materials',build:'materials',ptn:'ptn',personal:'trade',selling:'trade',
+    trade:'carrier',haul:'carrier',party:'carrier',carrier:'carrier',history:'history',credits:'overview',
+    mining:'mining',ship:'ship',neutron:'flight',map:'flight',location:'flight',
+    powerplay:'powerplay',merits:'powerplay',targets:'powerplay',combat:'powerplay',loop:'powerplay'};
+  Lab.focusCard=id=>{setWorkspace(CARD_WORKSPACE[id]||'all');if(!mounted[id])showCard(id);const card=mounted[id]?.sec;card?.classList.remove('collapsed');card?.scrollIntoView({block:'start',behavior:'smooth'});};
 
   const isMobile = () => matchMedia('(max-width: 760px)').matches;
   const mounted = {};                // id -> { sec, off, def, body }
@@ -130,8 +154,9 @@ import {StateFeed} from './state-feed.js';
   function buildCard(c) {
     const def = Lab.cards[c.id];
     const sec = document.createElement('section'); sec.className = 'card'; sec.id = 'card-' + c.id; sec.dataset.id = c.id;
-    if (layout.collapsed.includes(c.id)) sec.classList.add('collapsed');
+    if (layout.collapsed.includes(c.id) || (workspace==='trade'&&c.id==='personal')) sec.classList.add('collapsed');
     sec.innerHTML = `<h2><span class="grip" title="drag to move">⋮⋮</span><span class="title">${esc(c.title)}</span><span class="mod">${esc(c.module)}</span><span class="right"></span><span class="tools"><button class="icon" data-act="collapse" title="collapse">–</button><button class="icon" data-act="hide" title="hide">×</button></span></h2><div class="body"></div><div class="resize" title="drag to resize"></div>`;
+    if(c.sources?.length){const footer=document.createElement('div');footer.className='card-sources note';footer.innerHTML='Sources: '+c.sources.filter(s=>/^https:\/\//.test(s.url)).map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.label)}</a>`).join(' | ');sec.querySelector('.body').after(footer);}
     applySpan(sec, spanOf(c));
     if ((layout.heights || {})[c.id]) applyHeight(sec, layout.heights[c.id]);
     const body = sec.querySelector('.body'), head = sec.querySelector('.right');
@@ -291,38 +316,57 @@ import {StateFeed} from './state-feed.js';
   const ALL = () => allCards.map(c => c.id);
   const ENG = ['recipes', 'wishlist', 'farming', 'build'];       // engineering cards, hidden by the non-engineering presets
   const PRESETS = {
-    'Expedition': () => ({ order: ['neutron', 'ship', 'wishlist', 'location', 'map', 'feed'],
+    'Expedition': () => ({ order: ['neutron', 'ship', 'wishlist', 'location', 'feed'],
       spans: { neutron: 8, ship: 4, wishlist: 12, location: 4, map: 8, feed: 4 },
-      hidden: ALL().filter(id => !['neutron', 'ship', 'wishlist', 'location', 'map', 'feed'].includes(id)) }),
+      hidden: ALL().filter(id => !['neutron', 'ship', 'wishlist', 'location', 'feed'].includes(id)) }),
 
-    'Rare goods': () => ({ order: ['loop', 'cargo', 'market', 'targets', 'map', 'location'],
+    'Rare goods': () => ({ order: ['loop', 'cargo', 'market', 'targets', 'location'],
         spans: { loop: 12, cargo: 6, market: 6, targets: 12, map: 8, location: 4 },
-        hidden: ALL().filter(id => !['loop', 'cargo', 'market', 'targets', 'map', 'location'].includes(id)) }),
-    'Trading': () => ({ order: ['personal', 'cargo', 'ship', 'location', 'market', 'map', 'feed'],
+        hidden: ALL().filter(id => !['loop', 'cargo', 'market', 'targets', 'location'].includes(id)) }),
+    'Trading': () => ({ order: ['personal', 'cargo', 'ship', 'location', 'market', 'feed'],
       spans: { personal: 12, cargo: 4, ship: 4, location: 4, market: 4, map: 8, feed: 4 },
-      hidden: ALL().filter(id => !['personal', 'cargo', 'ship', 'location', 'market', 'map', 'feed'].includes(id)) }),
-    'Carrier ops': () => ({ order: ['haul', 'party', 'trade', 'carrier', 'cargo', 'location', 'ship', 'map', 'feed'],
+      hidden: ALL().filter(id => !['personal', 'cargo', 'ship', 'location', 'market', 'feed'].includes(id)) }),
+    'Carrier ops': () => ({ order: ['haul', 'party', 'trade', 'carrier', 'cargo', 'location', 'ship', 'feed'],
       spans: { haul: 5, party: 7, trade: 12, carrier: 4, cargo: 4, location: 4, ship: 4, map: 8, feed: 4 },
-      hidden: ALL().filter(id => !['haul', 'trade', 'party', 'carrier', 'cargo', 'location', 'ship', 'map', 'feed'].includes(id)) }),
-    'Default': () => ({ order: ['location', 'ship', 'build', 'wishlist', 'farming', 'recipes', 'materials', 'powerplay', 'merits', 'targets', 'combat', 'feed', 'cargo', 'market', 'carrier', 'loop', 'map'],
+      hidden: ALL().filter(id => !['haul', 'trade', 'party', 'carrier', 'cargo', 'location', 'ship', 'feed'].includes(id)) }),
+    'Default': () => ({ order: ['location', 'ship', 'build', 'wishlist', 'farming', 'recipes', 'materials', 'powerplay', 'merits', 'targets', 'combat', 'feed', 'cargo', 'market', 'carrier', 'loop'],
       spans: { location: 4, ship: 4, build: 4, wishlist: 6, farming: 6, recipes: 4, materials: 4, powerplay: 4, merits: 4, targets: 12, combat: 12, feed: 4, cargo: 4, market: 4, carrier: 4, loop: 4, map: 12 }, hidden: [] }),
-    'Powerplay': () => ({ order: ['map', 'powerplay', 'merits', 'targets', 'combat', 'location', 'loop', 'cargo', 'ship', 'feed'],
+    'Powerplay': () => ({ order: ['powerplay', 'merits', 'targets', 'combat', 'location', 'loop', 'cargo', 'ship', 'feed'],
       spans: { map: 8, powerplay: 4, merits: 4, targets: 12, combat: 12, location: 4, loop: 4, cargo: 4, ship: 4, feed: 4 }, hidden: ['materials', 'market', 'carrier', ...ENG] }),
-    'Rares run': () => ({ order: ['loop', 'cargo', 'market', 'map', 'location', 'targets', 'merits', 'ship', 'feed'],
+    'Rares run': () => ({ order: ['loop', 'cargo', 'market', 'location', 'targets', 'merits', 'ship', 'feed'],
       spans: { loop: 4, cargo: 4, market: 4, map: 8, location: 4, targets: 12, merits: 4, ship: 4, feed: 4 }, hidden: ['combat', 'materials', 'carrier', 'powerplay', ...ENG] }),
-    'Combat': () => ({ order: ['merits', 'ship', 'location', 'combat', 'map', 'feed', 'powerplay'],
+    'Combat': () => ({ order: ['merits', 'ship', 'location', 'combat', 'feed', 'powerplay'],
       spans: { merits: 4, ship: 4, location: 4, combat: 12, map: 8, feed: 4, powerplay: 4 }, hidden: ['loop', 'targets', 'materials', 'market', 'cargo', 'carrier', ...ENG] }),
-    'Mining & trade': () => ({ order: ['mining', 'cargo', 'ship', 'trade', 'party', 'carrier', 'market', 'targets', 'map', 'location', 'merits', 'feed'],
+    'Mining & trade': () => ({ order: ['mining', 'cargo', 'ship', 'trade', 'party', 'carrier', 'market', 'targets', 'location', 'merits', 'feed'],
       spans: { mining: 12, trade: 8, party: 4, cargo: 4, carrier: 4, market: 4, ship: 4, targets: 12, map: 8, location: 4, merits: 4, feed: 4 }, hidden: ['loop', 'combat', 'materials', 'powerplay', ...ENG] }),
-    'Engineering': () => ({ order: ['materials', 'wishlist', 'build', 'farming', 'recipes', 'ship', 'location', 'map', 'feed'],
+    'Engineering': () => ({ order: ['materials', 'wishlist', 'build', 'farming', 'recipes', 'ship', 'location', 'feed'],
       spans: { build: 6, wishlist: 6, farming: 6, recipes: 6, materials: 6, ship: 4, location: 4, map: 12, feed: 4 },
       hidden: ['loop', 'targets', 'combat', 'market', 'powerplay', 'merits', 'carrier', 'cargo'] }),
-    'Second screen': () => ({ order: ['map', 'location', 'feed', 'merits'], spans: { map: 12, location: 4, feed: 4, merits: 4 },
-      hidden: ALL().filter(id => !['map', 'location', 'feed', 'merits'].includes(id)) }),
+    'Second screen': () => ({ order: ['ship', 'location', 'cargo', 'merits', 'feed'], spans: { ship: 6, location: 6, cargo: 4, merits: 4, feed: 4 }, heights: {ship:340,feed:240,cargo:240},
+      hidden: ALL().filter(id => !['ship', 'location', 'cargo', 'merits', 'feed'].includes(id)) }),
   };
+  const PRIMARY_PRESETS = ['Expedition','Rare goods','Second screen'];
+  const visiblePresets=()=>Object.keys(PRESETS).filter(name=>PRIMARY_PRESETS.includes(name)||(activeLayout.kind==='preset'&&activeLayout.name===name)||Object.hasOwn(ls.get(LAYOUT_TABS_KEY,{}),layoutToken('preset',name)));
   const SAVED_KEY = 'layouts.v1';
   const savedLayouts = () => ls.get(SAVED_KEY, {});
-  function applyLayout(l, name) { l=migrateLayout(l);workspace='all';ls.set('workspace.v1','all');layout = { order: l.order || [], spans: l.spans || {}, heights: l.heights || {}, hidden: l.hidden || [], collapsed: l.collapsed || [], locked: !!l.locked, pack: l.pack !== false }; saveLayout(); mountCards(); if (name) Lab.toast(`Layout: ${name}`); }
+  function applyLayout(l, name, selection={kind:'custom',name:''}) {saveLayout();activeLayout=selection;ls.set('layout.active.v1',activeLayout);l=migrateLayout(l);workspace='all';ls.set('workspace.v1','all');layout = { order: l.order || [], spans: l.spans || {}, heights: l.heights || {}, hidden: l.hidden || [], collapsed: l.collapsed || [], locked: !!l.locked, pack: l.pack !== false }; saveLayout(); mountCards(); if (name) Lab.toast(`Layout: ${name}`); }
+  function selectLayout(kind,name=''){
+    const token=layoutToken(kind,name),tabs=ls.get(LAYOUT_TABS_KEY,{});
+    const candidate=tabs[token]||(kind==='preset'?PRESETS[name]?.():kind==='saved'?savedLayouts()[name]:layout);
+    if(candidate)applyLayout(candidate,kind==='custom'?'Custom':name,{kind,name});
+  }
+  function renderLayoutTabs(){
+    const nav=document.getElementById('layout-tabs');nav.hidden=workspace!=='all';
+    const saved=savedLayouts();
+    if((activeLayout.kind==='preset'&&!Object.hasOwn(PRESETS,activeLayout.name))||(activeLayout.kind==='saved'&&!Object.hasOwn(saved,activeLayout.name))){activeLayout={kind:'custom',name:''};ls.set('layout.active.v1',activeLayout);}
+    const choices=[{kind:'custom',name:'',label:'Custom'},...visiblePresets().map(name=>({kind:'preset',name,label:name})),...Object.keys(saved).map(name=>({kind:'saved',name,label:name}))];
+    const focused=nav.querySelector(':focus'),hadFocus=!!focused;
+    nav.innerHTML=choices.map((choice,index)=>{const selected=choice.kind===activeLayout.kind&&choice.name===activeLayout.name;return `<button id="layout-tab-${index}" role="tab" aria-controls="grid" aria-selected="${selected}" tabindex="${selected?0:-1}" data-layout-kind="${choice.kind}" data-layout-name="${esc(choice.name)}">${esc(choice.label)}${choice.kind==='saved'?'<span class="layout-saved-mark">saved</span>':''}</button>`;}).join('');
+    if(hadFocus)nav.querySelector('[aria-selected=true]')?.focus({preventScroll:true});
+    if(workspace==='all')grid.setAttribute('aria-labelledby',nav.querySelector('[aria-selected=true]')?.id||'workspace-tab-all');
+  }
+  document.getElementById('layout-tabs').onclick=event=>{const button=event.target.closest('[data-layout-kind]');if(button)selectLayout(button.dataset.layoutKind,button.dataset.layoutName);};
+  Lab.util.tabKeys(document.getElementById('layout-tabs'),'[data-layout-kind]');
 
   // layout menu
   const menu = document.getElementById('layout-menu');
@@ -330,9 +374,10 @@ import {StateFeed} from './state-feed.js';
     const saved = savedLayouts();
     menu.innerHTML = `
       <div class="menu-row"><label><input type="checkbox" id="lm-lock" ${layout.locked ? 'checked' : ''}> lock</label><label title="let smaller cards move up to fill gaps left by wide ones"><input type="checkbox" id="lm-pack" ${layout.pack !== false ? 'checked' : ''}> fill gaps</label><label title="beep with alerts (merits, low fuel, interdiction, carrier jump)"><input type="checkbox" id="lm-sound" ${Lab.notifySound && Lab.notifySound() ? 'checked' : ''}> sound</label><button class="mini" id="lm-export">export</button><button class="mini" id="lm-import">import</button></div>
-      <div class="menu-sec">Presets</div>
-      <div class="menu-chips">${Object.keys(PRESETS).map(n => `<button class="mini" data-preset="${esc(n)}">${esc(n)}</button>`).join('')}</div>
-      <div class="menu-sec">Saved layouts</div>
+      <div class="menu-sec">Reset to preset</div>
+      <div class="menu-chips">${PRIMARY_PRESETS.map(n => `<button class="mini" data-preset="${esc(n)}">${esc(n)}</button>`).join('')}</div>
+      <details><summary>Additional presets</summary><div class="menu-chips">${Object.keys(PRESETS).filter(n=>!PRIMARY_PRESETS.includes(n)).map(n=>`<button class="mini" data-preset="${esc(n)}">${esc(n)}</button>`).join('')}</div></details>
+        <div class="menu-sec">Saved layouts</div>
       <div class="menu-row"><input id="lm-name" placeholder="name this layout" size="16"><button class="mini primary" id="lm-save">save current</button></div>
       <div class="menu-chips">${Object.keys(saved).length ? Object.keys(saved).map(n => `<span class="chip"><button class="mini" data-load="${esc(n)}">${esc(n)}</button><button class="mini icon" data-del="${esc(n)}" title="delete">×</button></span>`).join('') : '<span class="muted" style="font-size:12px">none yet</span>'}</div>
       <div class="menu-sec">Cards</div>
@@ -343,11 +388,12 @@ import {StateFeed} from './state-feed.js';
     menu.querySelector('#lm-sound').onchange = e => { if (Lab.notifySoundToggle) Lab.notifySoundToggle(e.target.checked); };
     menu.querySelector('#lm-export').onclick = () => { Lab.util.copy(JSON.stringify(layout)); Lab.toast('Layout JSON copied to clipboard'); };
     menu.querySelector('#lm-import').onclick = () => { const s = prompt('Paste layout JSON'); if (!s) return; try { applyLayout(JSON.parse(s), 'imported'); } catch (e) { Lab.toast('Invalid layout JSON', 'bad'); } };
-    menu.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => applyLayout(PRESETS[b.dataset.preset](), b.dataset.preset));
-    menu.querySelector('#lm-save').onclick = () => { const n = menu.querySelector('#lm-name').value.trim(); if (!n) return Lab.toast('Give the layout a name', 'bad'); const all = savedLayouts(); all[n] = { ...layout, order: [...grid.querySelectorAll(':scope > .card')].map(s => s.dataset.id) }; ls.set(SAVED_KEY, all); renderMenu(); Lab.toast(`Saved layout "${n}"`); };
-    menu.querySelectorAll('[data-load]').forEach(b => b.onclick = () => applyLayout(savedLayouts()[b.dataset.load], b.dataset.load));
-    menu.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { const all = savedLayouts(); delete all[b.dataset.del]; ls.set(SAVED_KEY, all); renderMenu(); });
+    menu.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => applyLayout(PRESETS[b.dataset.preset](),b.dataset.preset,{kind:'preset',name:b.dataset.preset}));
+    menu.querySelector('#lm-save').onclick = () => { const n = menu.querySelector('#lm-name').value.trim(); if (!n) return Lab.toast('Give the layout a name', 'bad'); const snapshot={ ...layout, order: [...grid.querySelectorAll(':scope > .card')].map(s => s.dataset.id) }; ls.set(SAVED_KEY,{...savedLayouts(),[n]:snapshot});const tabs=ls.get(LAYOUT_TABS_KEY,{});tabs[layoutToken('saved',n)]=snapshot;ls.set(LAYOUT_TABS_KEY,tabs);renderMenu();Lab.toast(`Saved layout "${n}"`); };
+    menu.querySelectorAll('[data-load]').forEach(b => b.onclick = () => applyLayout(savedLayouts()[b.dataset.load],b.dataset.load,{kind:'saved',name:b.dataset.load}));
+    menu.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { const name=b.dataset.del,all=savedLayouts();delete all[name];ls.set(SAVED_KEY,all);if(activeLayout.kind==='saved'&&activeLayout.name===name)selectLayout('custom');const tabs=ls.get(LAYOUT_TABS_KEY,{});delete tabs[layoutToken('saved',name)];ls.set(LAYOUT_TABS_KEY,tabs);renderMenu(); });
     menu.querySelectorAll('input[data-id]').forEach(cb => cb.onchange = () => { cb.checked ? showCard(cb.dataset.id) : hideCard(cb.dataset.id); });
+    renderLayoutTabs();
   }
   document.getElementById('layout-btn').onclick = e => { e.stopPropagation(); menu.classList.toggle('open'); };
 
@@ -473,7 +519,7 @@ import {StateFeed} from './state-feed.js';
     const button=e.currentTarget;button.disabled=true;
     try {
       await Lab.post('/api/shutdown');
-      Lab.events?.close();feed.stop();clearInterval(healthTimer);Object.keys(mounted).forEach(unmountCard);
+      stopHeader();Lab.events?.close();feed.stop();clearInterval(healthTimer);Object.keys(mounted).forEach(unmountCard);
       document.getElementById('h-live').textContent='stopped';
       document.getElementById('h-live').classList.remove('live');
       grid.innerHTML='<section class="card" style="grid-column:1/-1"><h2>EliteLab stopped</h2><p>The party is closing. You can close this tab and use Start EliteLab to launch again.</p></section>';

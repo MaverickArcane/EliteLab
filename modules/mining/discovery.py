@@ -16,6 +16,7 @@ RINGS = ("Metallic", "Metal Rich", "Icy", "Rocky")
 ORBITAL = ("Coriolis Starport", "Orbis Starport", "Ocellus Starport", "Dodec Starport", "Asteroid base", "Outpost")
 CATALOG = "https://www.spansh.co.uk/api/stations/field_values/market"
 POWER_MODES = {"acquisition": ["Unoccupied"], "reinforcement": ["Exploited", "Fortified", "Stronghold"]}
+MAX_RADIUS = 2500
 
 
 def text(value):
@@ -73,11 +74,9 @@ class Discovery:
     def range_limit(self, journal):
         laden = number(journal.get("jump_range_laden"), 1000)
         current = number(journal.get("jump_range_now"), 1000)
-        if not laden or current is None:
-            raise ValueError("Laden jump range unavailable. Load the current ship in game before searching for mining spots.")
-        if not current:
-            raise ValueError("Current jump range is zero. Refuel before searching for mining spots.")
-        return min(laden, current, 200)
+        # A conservative ship jump estimate, not a limit on planning distance.
+        # Missing or zero range must not invent reachability or prevent planning.
+        return min(laden, current) if laden and current else None
 
     def context(self, journal=None):
         journal = journal if journal is not None else (self.core.store.get("journal") or {})
@@ -116,7 +115,7 @@ class Discovery:
         limit, context = self.range_limit(journal), self.context(journal)
         origin = journal.get("system")
         ref = name_param(q.get("ref") or origin, "a reference system")
-        radius = min(parameter(q, "radius", limit, 200), limit)
+        radius = parameter(q, "radius", limit or 100, MAX_RADIUS)
         sort = q.get("sort", "distance")
         if not isinstance(sort, str) or sort not in ("distance", "merits"):
             raise ValueError("Sort must be distance or merits.")
@@ -202,20 +201,21 @@ class Discovery:
         # Reject a response calculated for a ship/location that changed during I/O.
         if self.context() != context:
             raise ValueError("Ship range or location changed during the search. Search again.")
-        return {"ref": ref, "radius": radius, "range_limit": limit, "manual_origin": ref.casefold() != text(origin).casefold(),
-                "range_basis": "Unboosted full-hold/full-tank range, capped by current fuel/cargo range and 200 Ly.",
+        return {"ref": ref, "radius": radius, "ship_range": limit, "range_limit": limit,
+                "manual_origin": ref.casefold() != text(origin).casefold(),
+                "range_basis": "Ship jumps use unboosted full-hold/full-tank range limited by current fuel/cargo. Unknown range gives unknown jumps. Search radius is independent.",
                 "sort": sort, "power": power, "results": rows, "matched_rings": matched, **planning,
                 "bodies_checked": min(len(data["results"]), 100), "bodies_available": number(data.get("count")),
                 "source": "Spansh", "fetched_at": dt.datetime.now(dt.timezone.utc).isoformat(),
                 "note": "Nearest matching rings among up to 100 reported bodies; at most 30 shown. Community data can be incomplete. "
                         "Hotspot counts do not establish overlaps, yield or mining method. DSS-scan and prospect on arrival. "
-                        "The radius is capped by the current ship's laden range; manual origins are planning locations, not reachability from your ship. "
+                        "The selected radius can span multiple ship or carrier jumps; manual origins are planning locations, not reachability from your ship. "
                         "Jump counts are straight-line lower bounds; check permits and fuel in game. "
                         + ("A provider page failed; results are partial." if data["partial"] else "")}
 
     def buyers(self, q, *, _limit=20):
         context = self.context()
-        ref, radius = self.reference(q), parameter(q, "radius", 100, 200)
+        ref, radius = self.reference(q), parameter(q, "radius", 100, MAX_RADIUS)
         mined_in = q.get("mined_in", "")
         if not isinstance(mined_in, str) or len(mined_in) > 160:
             raise ValueError("Mined in must be a system name up to 160 characters.")

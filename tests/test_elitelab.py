@@ -315,8 +315,8 @@ class EngineeringTests(unittest.TestCase):
         self.assertTrue(r["progress"]["same_ship"])                               # the fixture ends in a Kestrel with no modules
         self.assertEqual(r["progress"]["totals"]["to_buy"], 25)
         self.core.bus.emit("journal.Loadout", {"event": "Loadout", "Ship": "smallcombat01_nx", "ShipID": 50, "Modules": [
-            {"Slot": "FrameShiftDrive", "Item": "Int_Hyperdrive_Overcharge_Size4_Class5", "On": True, "Engineering": {"BlueprintName": "FSD_LongRange", "Level": 3}},
-            {"Slot": "TinyHardpoint1", "Item": "hpt_shieldbooster_size0_class5", "On": True, "Engineering": {"BlueprintName": "ShieldBooster_HeavyDuty", "Level": 5, "ExperimentalEffect": "special_shieldbooster_chunky"}}]})
+            {"Slot": "FrameShiftDrive", "Item": "Int_Hyperdrive_Overcharge_Size4_Class5", "On": True, "Engineering": {"BlueprintName": "FSD_LongRange", "Level": 3, "Quality": 1.0}},
+            {"Slot": "TinyHardpoint1", "Item": "hpt_shieldbooster_size0_class5", "On": True, "Engineering": {"BlueprintName": "ShieldBooster_HeavyDuty", "Level": 5, "Quality": 1.0, "ExperimentalEffect": "special_shieldbooster_chunky"}}]})
         P = self.core.store.get("build", "progress")
         rows = {x["slot"]: x for x in P["slots"]}
         self.assertEqual(rows["FrameShiftDrive"]["status"], "engineer")
@@ -331,8 +331,8 @@ class EngineeringTests(unittest.TestCase):
         self.assertEqual(sum(1 for e in self.core.store.get("wishlist", "entries") if e["kind"] == "build"), 1)
         need_before = next(e for e in self.core.store.get("wishlist", "entries") if e["kind"] == "build")["units"]
         self.core.bus.emit("journal.Loadout", {"event": "Loadout", "Ship": "smallcombat01_nx", "ShipID": 50, "Modules": [
-            {"Slot": "FrameShiftDrive", "Item": "Int_Hyperdrive_Overcharge_Size4_Class5", "On": True, "Engineering": {"BlueprintName": "FSD_LongRange", "Level": 5, "ExperimentalEffect": "special_fsd_heavy"}},
-            {"Slot": "TinyHardpoint1", "Item": "hpt_shieldbooster_size0_class5", "On": True, "Engineering": {"BlueprintName": "ShieldBooster_HeavyDuty", "Level": 5, "ExperimentalEffect": "special_shieldbooster_chunky"}}]})
+            {"Slot": "FrameShiftDrive", "Item": "Int_Hyperdrive_Overcharge_Size4_Class5", "On": True, "Engineering": {"BlueprintName": "FSD_LongRange", "Level": 5, "Quality": 1.0, "ExperimentalEffect": "special_fsd_heavy"}},
+            {"Slot": "TinyHardpoint1", "Item": "hpt_shieldbooster_size0_class5", "On": True, "Engineering": {"BlueprintName": "ShieldBooster_HeavyDuty", "Level": 5, "Quality": 1.0, "ExperimentalEffect": "special_shieldbooster_chunky"}}]})
         need_after = next(e for e in self.core.store.get("wishlist", "entries") if e["kind"] == "build")["units"]
         self.assertLess(need_after, need_before)                                  # the entry follows the build's progress
         self.assertEqual(self.call("wishlist_remove", all=True)["removed"], 1)

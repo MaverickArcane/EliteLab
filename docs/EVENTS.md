@@ -1,5 +1,13 @@
 # Journal events consumed
 
+Release consumers: Cargo/Cargo.json retains MissionID; `selling` excludes
+mission/stolen cargo from legal-market plans. MarketBuy records last observed
+unit cost; MarketSell advances only matched saved market/commodity quantities
+after selection, with persistent receipt deduplication. Its disk writer runs
+outside the bus handler. LoadGame clears transient purchase hints. Group mining
+uses existing carrier sale/transfer delivery evidence; MiningRefined does not
+add a second delivery. New matching PTN market contradictions revoke scouts.
+
 Mining consumes `ProspectedAsteroid` (`Materials[].Name`, `Name_Localised`,
 `Proportion`, `Content`, `Content_Localised`, `Remaining`, `MotherlodeMaterial`
 and its localized name) and `MiningRefined` (`Type`, `Type_Localised`; one ton

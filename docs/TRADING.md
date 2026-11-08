@@ -1,5 +1,10 @@
 # Trading workflows
 
+**Trading** now starts with [cargo buyers and multi-stop selling](CARGO-SELLING.md).
+Personal round trips remain secondary. The carrier and crew features described
+below live in **Carrier ops**; see [group mining](GROUP-MINING.md) for ring-to-carrier
+loading and [PTN desk](PTN-TRADING.md) for scouted public-hauling routes.
+
 This is the target workflow for EliteLab's trading panels (#41). It names the
 workflows the dashboard supports, the order they matter in, the panels each one
 uses, and what the player should be able to do without reading a table twice.

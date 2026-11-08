@@ -1,5 +1,12 @@
 # Shared-server security gate: private prototype
 
+Release boundary fixes: cookie-authenticated SSE rechecks expiry while idle
+and before queued events, closes the connection and unsubscribes when expired.
+Local and bearer streams retain their intended behavior. The MCP proxy rejects
+redirects for schema, tools and state reads; tests assert no authenticated request
+reaches same-origin or cross-origin redirect targets. These are covered by
+`tests/test_release_security.py`.
+
 Status: proposed design for #90 and #42. This is not implemented, not an
 independent security approval, and not a claim of compliance with a standard.
 Its scope is an isolated two-player prototype with synthetic data. A public

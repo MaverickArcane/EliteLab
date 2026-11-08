@@ -1,6 +1,31 @@
 {
-  "name": "personal", "version": "1.2.0",
+  "name": "personal",
+  "version": "1.2.0",
   "description": "Ship-sized one-way trades and round trips from Spansh markets, with one selected route followed from the journal.",
-  "requires": ["journal"], "provides": ["personal"], "order": 28,
-  "cards": [{"id": "personal", "title": "Trading", "span": 12, "script": "card.js", "order": 46}]
+  "requires": [
+    "journal"
+  ],
+  "provides": [
+    "personal"
+  ],
+  "order": 28,
+  "cards": [
+    {
+      "id": "personal",
+      "title": "Trading",
+      "span": 12,
+      "script": "card.js",
+      "order": 46,
+      "sources": [
+        {
+          "label": "Spansh markets / EDDN",
+          "url": "https://spansh.co.uk/stations"
+        },
+        {
+          "label": "Inara route search",
+          "url": "https://inara.cz/elite/market-traderoutes-search/"
+        }
+      ]
+    }
+  ]
 }

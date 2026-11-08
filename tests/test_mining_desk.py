@@ -65,6 +65,14 @@ class MiningDeskTests(unittest.TestCase):
         out, _ = self.search("find_mining_buyers", DATA["stations"], commodity="Platinum", quantity=1, pad="M")
         self.assertEqual(out["results"][0]["station"], "Test Small Depot")
 
+    def test_buyers_honor_wider_radius_and_still_enforce_its_boundary(self):
+        raw=copy.deepcopy(DATA["stations"])
+        raw["results"][0]["distance"]=500
+        raw["results"][1]["distance"]=500.01
+        out, query=self.search("find_mining_buyers",raw,commodity="Platinum",quantity=50,pad="L",radius=500)
+        self.assertEqual(query["filters"]["distance"]["max"],500)
+        self.assertEqual([r["station"] for r in out["results"]],["Test Prospect Exchange"])
+
     def test_buyers_reject_stale_future_prohibited_carrier_and_bad_quotes(self):
         for updates in [{"market_updated_at":"2026-10-01T00:00:00Z"}, {"market_updated_at":"2099-01-01T00:00:00Z"}, {"has_market":False}, {"carrier_name":"Test"}, {"is_planetary":True}, {"distance":201}, {"market":None}, {"market":[{"commodity":"Platinum","sell_price":float("nan"),"demand":100}]}, {"market":[{"commodity":"Platinum","sell_price":100,"demand":100,"is_prohibited":True}]}]:
             with self.subTest(updates=updates):

@@ -89,8 +89,22 @@ try {
     {event:'BuyAmmo',timestamp:'2026-10-22T15:03:00Z',Cost:1200},{event:'Shutdown',timestamp:'2026-10-22T15:05:00Z'});
   append(demo);
   await waitFor("Lab.state.mining?.summary?.profit?.net_profit===2194600 && Lab.state.mining.summary.ended");
+  // Radius is an editable planning distance, independent of the ship's jump range.
+  await evaluate("document.querySelector('[data-radius=ship]').click();true");
+  assert.equal(await evaluate("Number(document.querySelector('[data-form=spots] [name=radius]').value)"),
+    await evaluate("Math.min(Lab.state.journal.jump_range_laden,Lab.state.journal.jump_range_now)"));
+  await evaluate("document.querySelector('[data-radius=\"500\"]').click();true");
+  assert.equal(await evaluate("document.querySelector('[data-form=spots] [name=radius]').value"),'500');
+  await evaluate("var r=document.querySelector('[data-form=spots] [name=radius]');r.value='';r.dispatchEvent(new Event('input',{bubbles:true}));true");
+  assert.equal(await evaluate("document.querySelector('[data-form=spots] [name=radius]').value"),'');
+  await evaluate("var r=document.querySelector('[data-form=spots] [name=radius]');r.value='1500';r.dispatchEvent(new Event('input',{bubbles:true}));true");
+  append([{...demo[1],timestamp:new Date().toISOString(),ShipID:13,CargoCapacity:256}]);
+  await waitFor("Lab.state.journal.ship_info?.id===13");
+  assert.equal(await evaluate("document.querySelector('[data-form=spots] [name=radius]').value"),'1500');
+  assert.equal(await evaluate("document.querySelector('[data-form=spots] [name=radius]').max"),'2500');
   await evaluate("document.querySelector('[data-form=spots] [name=ref]').value='Delkar';document.querySelector('[data-form=spots]').requestSubmit();true");
   await waitFor("document.querySelectorAll('[data-results=spots] [data-pin]').length>0");
+  assert.match(await evaluate("document.querySelector('[data-search-status=spots]').textContent"),/1,500 Ly/);
   assert.match(await evaluate("document.querySelector('[data-results=spots]').textContent"),/Delkar 7 A Ring/);
   await evaluate("document.querySelector('[data-pin]').click();true");
   assert.equal(await evaluate("Lab.state.mining.selected.ring"),'Delkar 7 A Ring');
@@ -182,15 +196,19 @@ try {
   assert.equal(await evaluate("document.querySelectorAll('[data-results=spots] img,[data-results=spots] svg').length"),0);
   assert.equal(await evaluate('!!window.providerInjected'),false);
   await evaluate("Lab.api=window.miningApi;document.querySelector('[data-form=spots] [name=hotspot]').value='Keep this filter';document.querySelector('[data-form=spots] [name=hotspot]').dispatchEvent(new Event('input',{bubbles:true}));true");
-  // A real journal ship swap disables search and invalidates an in-flight response.
+  // A real ship swap invalidates an in-flight response but still allows planning.
   await evaluate("window.pendingRangeResolve=null;Lab.api=(p,q)=>p==='/api/mining/spots'?new Promise(r=>window.pendingRangeResolve=r):window.miningApi(p,q);document.querySelector('[data-form=spots]').requestSubmit();true");
   append([{event:'ShipyardSwap',timestamp:new Date().toISOString(),ShipType:'SideWinder',ShipID:99}]);
-  await waitFor("document.querySelector('[data-form=spots] [type=submit]').disabled");
+  await waitFor("document.querySelector('[data-radius=ship]').disabled");
+  assert.equal(await evaluate("document.querySelector('[data-form=spots] [type=submit]').disabled"),false);
+  assert.equal(await evaluate("document.querySelector('[data-form=spots] [name=radius]').value"),'1500');
   await evaluate("window.pendingRangeResolve({results:[],note:'Stale ship result',bodies_checked:0,ref:'Delkar'});Lab.api=window.miningApi;true");await sleep(100);
   assert.equal(await evaluate("document.querySelector('[data-results=spots]').textContent.includes('Stale ship result')"),false);
-  const unavailable=await fetch(base+'/api/mining/spots?ref=Delkar&radius=200');
-  assert.equal(unavailable.status,400);
-  assert.match((await unavailable.json()).error,/Laden jump range unavailable/);
+  const planning=await fetch(base+'/api/mining/spots?ref=Delkar&radius=500');
+  assert.equal(planning.status,200);
+  const plannedSpots=await planning.json();
+  assert.equal(plannedSpots.radius,500);assert.equal(plannedSpots.ship_range,null);
+  assert.ok(plannedSpots.results.every(r=>r.jumps===null));
   const hostile='<img src=x onerror="window.miningInjected=true">';
   append([{event:'LoadGame',timestamp:'2026-10-22T14:00:00Z',Commander:'Test Miner',FID:'F2'},
     {event:'ProspectedAsteroid',timestamp:'2026-10-22T14:01:00Z',Content_Localised:hostile,MotherlodeMaterial:hostile,Remaining:100,Materials:[{Name:hostile,Proportion:25}]},
@@ -204,6 +222,7 @@ try {
   assert.equal(await evaluate("document.querySelector('[data-form=spots] [name=hotspot]').value"),'Keep this filter');
   await send('Page.reload');
   await waitFor("document.querySelector('#card-mining [data-mining-total]')?.textContent==='1 t'");
+  assert.equal(await evaluate("document.querySelector('[data-form=spots] [name=radius]').value"),'1500');
   assert.equal(await evaluate("!!document.querySelector('#card-cargo') && !document.querySelector('#card-ship')"),true);
   assert.equal(await evaluate("document.querySelector('[data-form=spots] [name=hotspot]').value"),'Keep this filter');
   assert.equal(await evaluate("document.querySelector('[data-form=buyers] [name=powerplay_mode]').value"),'acquisition');

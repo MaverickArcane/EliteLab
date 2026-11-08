@@ -109,9 +109,17 @@ modules/powerplay/module.py
 modules/powerplay/web/card.js
 modules/progression/module.json
 modules/progression/module.py
+modules/ptn/module.json
+modules/ptn/module.py
+modules/ptn/planning.py
+modules/ptn/web/card.js
 modules/recipes/module.json
 modules/recipes/module.py
 modules/recipes/web/card.js
+modules/selling/module.json
+modules/selling/module.py
+modules/selling/planning.py
+modules/selling/web/card.js
 modules/setup/module.json
 modules/setup/module.py
 modules/setup/web/page/index.html
@@ -141,6 +149,7 @@ modules/wishlist/module.json
 modules/wishlist/module.py
 modules/wishlist/trading.py
 modules/wishlist/web/card.js
+modules/wishlist/web/trading.js
 web/app.js
 web/index.html
 web/state-feed.js
