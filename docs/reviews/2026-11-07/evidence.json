@@ -1,0 +1,54 @@
+{
+  "date_local": "2026-11-07",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.14.4",
+  "heads": {
+    "development": "8cc41163ced942440f78df65b55d1dc64c70573b",
+    "pr102": "03533b7895d4c622bcdeb01b1127ed3e159eb4ab",
+    "pr108": "b3e6dd065318603197fa47174a08cfe70bb14f50",
+    "pr109": "1e0be9011b5f5fbfe0bbce65908dd53f7512c1a0",
+    "pr110": "75a5689a3460128b6cecb8a3c4f7b9df84cf6fbd",
+    "pr112_reproductions": "42266e39f84c74f7f3322aa671c8a78da7d40d0f",
+    "pr112_full_suite_functional_tree": "73890ad7fa7a35bec22dda3c82576aee4585a73e",
+    "pr112_final": "adbc07f95306d169a6664efe8a2775d9de4f27df"
+  },
+  "methods": [
+    "Read security-sensitive HTTP/auth/static-file, setup, persistence, LAN party and build parser paths on development.",
+    "Read the code changes in open PRs 102, 108, 109, 110 and 112 at the recorded revisions.",
+    "Run the full offline suites on development and the PTN/Mining functional tree; run focused tests on isolated PR heads.",
+    "Exercise materials, PTN and Mining browser workflows with fixture journals; earlier live Mining radius/market checks are described in PR 112.",
+    "Compile installers from exact PR 108 and 109 heads with checksum-verified embedded Python 3.13.17 and unique test application IDs.",
+    "Run both original native installer smoke tests and diagnostic reruns that isolate only launched test apps.",
+    "Reproduce defects with synthetic data and local HTTP servers; no live market orders, Discord messages or real credentials used."
+  ],
+  "results": {
+    "development_unittest": "689 tests; 11 skipped; pass",
+    "pr112_unittest": "764 tests; 11 skipped; pass; screenshots do not alter this functional tree",
+    "pr102_domain": "8 tests pass",
+    "pr108_installer_unit": "7 tests pass",
+    "pr109_window_installer_unit": "14 tests pass",
+    "pr110_material_unit": "27 tests pass",
+    "pr110_follow_ship": "6 tests pass",
+    "pr110_browser": "pass; screenshots remain in local artifact directory named in log",
+    "final_mining_mcp_prompt": "10 mining/MCP tests pass after the prompt-only correction",
+    "native_installers": "Both original scripts fail to launch the private app while an existing app occupies port 8766. Both diagnostic app-isolated reruns pass all remaining lifecycle checks."
+  },
+  "reproductions": {
+    "sse_expiry": "python repro_review.py PATH_TO_DEVELOPMENT sse_expiry",
+    "mcp_redirect": "python repro_review.py PATH_TO_DEVELOPMENT mcp_redirect",
+    "ptn_failed_capture": "python repro_review.py PATH_TO_PR112 ptn_failed_capture",
+    "mcp_ptn_timeout": "python repro_review.py PATH_TO_PR112 mcp_ptn_timeout",
+    "partial_quality_existing_111": "python repro_review.py PATH_TO_DEVELOPMENT partial_quality",
+    "installer_isolated_diagnostic": "python native_isolated.py PATH_TO_PR_HEAD PATH_TO_UNIQUE_TEST_INSTALLER"
+  },
+  "caveats": [
+    "These are historical reproductions that assert the observed defects, not permanent passing regression tests.",
+    "SSE probe uses a valid two-second signed fixture cookie to exercise the same expiry validation as the normal twelve-hour cookie.",
+    "Redirect probe requires a redirect from the configured backend or its proxy; it is not an unauthenticated localhost exploit.",
+    "PTN timeout uses a 91-second provider delay with the actual client timeout and real HTTP/route handling; it does not measure live provider latency.",
+    "Native diagnostic reruns alter test-app environment only. They do not establish that the unmodified smoke suite passes.",
+    "Skipped platform tests were not claimed as executed. No native Linux/macOS rerun, full multiplayer deployment or in-game reward audit was performed.",
+    "The existing partial-engineering issue 111 is reconfirmed; no duplicate issue should be created.",
+    "The Mining MCP prompt still described the removed ship-range cap; fixed in adbc07f and verified through the existing MCP integration tests."
+  ]
+}
