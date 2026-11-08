@@ -13,6 +13,12 @@ is a same-module helper; it never mutates the source carrier job or its receipts
 `test_ptn_release.py`, `test_ptn_mining.py`, `test_selling.py`, `test_group_mining.py` and
 `release-browser.mjs` cover the release additions. See [execution record](NEXT-RELEASE-PLAN.md).
 
+`PTN.update(action='resize')` adjusts station-trade totals before departure while
+retaining loaded tonnes and prices and invalidating loading checks. Posting
+acknowledgements require owner/public-phase/order evidence, independently of
+current advert readiness. `planning.advertised_profit` rounds only advert display
+down to whole thousands; exact economics and quantities remain unchanged.
+
 `modules/mining/module.py`: `Mining` folds journal events into a bounded
 `mining.summary` store snapshot; `timestamp`, `percentage` and `text` normalize
 journal fields. `setup` exposes read-only `get_mining_status`.

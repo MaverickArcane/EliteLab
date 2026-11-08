@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- PTN: resize a selected station-trade plan up to 25,000 t before departure,
+  including 19,898 t orders that exceeded the default 18,000 t plan. Preserve
+  recorded loading progress and prices, then recheck the actual order.
+- PTN adverts show bold profit rounded down to whole thousands while retaining
+  exact quantity and underlying economics. Recording a completed Discord posting
+  now gives persistent feedback and works when current readiness needs rechecking.
+
 - Complete group mining through PTN unloading: hand off a departed mining job,
   scout the real buyer, preserve starting stock and confirm the actual sell order
   before preparing an advert. Keep crew progress intact and mining acquisition

@@ -176,6 +176,12 @@ def compact(number):
     return (str(number//1000) if number % 1000 == 0 else f'{number/1000:.3f}'.rstrip('0')) + 'k'
 
 
+def advertised_profit(profit):
+    """Whole thousands for readable adverts, never above the checked payout."""
+    profit = integer(profit, 'Hauler profit', 1)
+    return profit // 1000 * 1000 if profit >= 1000 else profit
+
+
 def advert(carrier, callsign, commodity, station, system, phase, profit, quantity):
     if phase not in ('loading','unloading'):
         raise ValueError('Choose a public loading or unloading phase.')
@@ -188,4 +194,4 @@ def advert(carrier, callsign, commodity, station, system, phase, profit, quantit
     verb, direction = ('loading', 'from') if phase == 'loading' else ('unloading', 'to')
     return (f'**{markdown(carrier)} ({callsign})** is {verb} **{markdown(commodity)}** {direction} '
             f'**{markdown(station)}** (L pads) in **{markdown(system)}**. '
-            f'{compact(profit)}/unit profit, {compact(quantity)} units')
+            f'**{compact(advertised_profit(profit))}**/unit profit, {compact(quantity)} units')

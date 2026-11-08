@@ -947,7 +947,15 @@ See [TRADE-POWERPLAY.md](TRADE-POWERPLAY.md) for the full response and workflow.
 ## PTN affiliate trade planning
 
 The separate PTN module exposes route discovery, journal scouting, owner-reviewed
-order checks and exact affiliate adverts. All mutations use a current revision.
+order checks and affiliate adverts. All mutations use a current revision.
+`update_ptn_plan action=resize quantity=19898` changes a station-trade plan's
+total while scouting/loading, up to 25,000 t. It preserves recorded loaded tonnes,
+scouts, actual prices and posting history; order checks must be confirmed again.
+`action=posted` records an owner-declared past posting for a confirmed public
+order, even when current readiness is blocked. It does not verify Discord or
+advance the phase. `prepare_ptn_advert` retains exact `profit_per_ton` and returns
+`advertised_profit_per_ton`, rounded down to whole thousands (sub-1,000 payouts
+stay exact). Markdown bolds that advertised value and keeps exact quantities.
 See [PTN-TRADING.md](PTN-TRADING.md) for its tools and evidence requirements.
 
 ## Unified materials and recipe planning

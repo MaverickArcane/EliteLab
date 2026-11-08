@@ -83,6 +83,7 @@ class MinedUnloadingTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.import_load()
         with self.assertRaises(ValueError):self.f.call('capture_ptn_market',revision=self.desk.data['revision'],side='buy')
         with self.assertRaises(ValueError):self.f.mutate('stage',stage='loading')
+        with self.assertRaises(ValueError):self.f.mutate('resize',quantity=101)
         with self.assertRaises(ValueError):self.f.call('handoff_ptn_to_carrier',revision=self.desk.data['revision'],starting_stock=0)
 
     def test_expired_stock_can_be_rechecked_and_newer_short_inventory_blocks_advert(self):

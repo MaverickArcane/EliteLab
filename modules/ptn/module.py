@@ -11,7 +11,7 @@ from urllib.parse import quote, urlencode
 
 from elitelab.core.gamedata import is_rare, norm
 from modules.ptn import mining
-from modules.ptn.planning import (COMMON, DEFAULTS, advert, finite, integer, key, line,
+from modules.ptn.planning import (COMMON, DEFAULTS, advert, advertised_profit, finite, integer, key, line,
                                   now, paid_leg, owner_minimum, pricing, settings, stamp, station_kind, unlimited_demand)
 
 BOARD = 'https://pilotstradenetwork.com/wp-json/ptn/v1/missions'
@@ -567,7 +567,7 @@ class PTN:
                 remaining = journal_order['quantity']
                 remaining_source = 'Newer carrier order journal'
             else:
-                blockers.append('A newer carrier order exceeds this plan size. Recheck the remaining tonnes.')
+                blockers.append('A newer carrier order exceeds this plan size. Update the planned quantity in Scout & run, then confirm the actual order.')
         if c['commander']!=plan.get('commander') or c['callsign']!=plan.get('callsign'):
             blockers.append('The active commander or carrier does not match this plan.')
         for side in ('buy','sell'):
@@ -750,6 +750,21 @@ class PTN:
                 if stage=='complete' and not p['orders'].get('unloading'):
                     raise ValueError('Confirm the actual unloading order price before completing.')
                 p['stage'] = stage
+            elif action=='resize':
+                if p.get('kind') == 'mining_unload' or p['stage'] not in ('scouting', 'loading'):
+                    raise ValueError('Resize a station-trade plan before leaving its loading phase. Mined loads retain their checked source quantity.')
+                quantity = integer(q.get('quantity'), 'Planned quantity', 1, 25000)
+                loaded = p['route']['quantity'] - self.operation(p)['remaining'] if p['stage'] == 'loading' else 0
+                if quantity < loaded:
+                    raise ValueError('The planned quantity cannot be less than tonnes already recorded as loaded.')
+                p['route']['quantity'] = quantity
+                p['route']['settings']['quantity'] = quantity
+                if p['stage'] == 'loading':
+                    p['remaining']['loading'] = quantity - loaded
+                    p.setdefault('remaining_at', {})['loading'] = now()
+                # Keep actual prices and posting history; the resized order needs
+                # fresh owner checks before another advert can be prepared.
+                p['checks'].pop('loading', None)
             elif action=='confirm':
                 phase = p['stage']
                 if phase not in ('loading','unloading'):
@@ -779,8 +794,10 @@ class PTN:
                 p['remaining'][p['stage']] = integer(q.get('remaining'),'Remaining tonnes',0,p['route']['quantity'])
                 p.setdefault('remaining_at',{})[p['stage']] = now()
             elif action=='posted':
-                if not self.operation(p)['ready']:
-                    raise ValueError('Resolve advert checks before recording a posted advert.')
+                if (p['stage'] not in ('loading', 'unloading')
+                        or not paid_leg(p['route']['settings'], p['stage'])
+                        or not p['orders'].get(p['stage'])):
+                    raise ValueError('Confirm an actual public loading or unloading order before recording its posting.')
                 link = q.get('link','')
                 if (not isinstance(link,str) or len(link)>250
                         or (link and not re.fullmatch(r'https://discord\.com/channels/[0-9]{1,25}/[0-9]{1,25}/[0-9]{1,25}',link))):
@@ -840,6 +857,7 @@ class PTN:
                 notes.append('SCO FSD recommended.')
             notes = ' '.join(notes)
             return dict(advert=text,notes=notes,copy_text=text+('\n'+notes if notes else ''),profit_per_ton=profit,
+                        advertised_profit_per_ton=advertised_profit(profit),
                         remaining=op['remaining'],instructions='Use /aco trade and review its generated string, then paste in affiliate-trade-alerts without role pings. Review and confirm Roomba; close it with the appropriate completion reaction. This desk does not post or close Discord adverts.')
 
 
@@ -884,12 +902,13 @@ def setup(core, module):
                     params={**revision,'side':dict(type='string',enum=['buy','sell'],required=True,description='buy = loading station; sell = unloading station.')},
                     description='Capture the current journal commodity price and volume at the selected station, respecting the saved surface-loading preference. Requires docking and a market snapshot from the current visit within 15 minutes. Unlimited demand requires explicit zero-demand buyer evidence in that journal. Invalidates order checks; never fabricates a scout visit.')
     core.http.route('/api/ptn/update',desk.update,tool='update_ptn_plan',method='POST',module=module.name,
-                    params={**revision,'action':dict(type='string',required=True,enum=['stage','confirm','remaining','posted','stock']),
+                    params={**revision,'action':dict(type='string',required=True,enum=['stage','confirm','remaining','posted','stock','resize']),
                         'stage':dict(type='string',enum=list(PHASES)),'checks':dict(type='object',description='Explicit booleans: near_station, docking_open, funds_checked, competition_checked.'),
                         'price':dict(type='integer',description='Actual carrier order price on public legs; actual average station purchase cost or sale proceeds per tonne on a self-hauled leg.'),
                         'remaining':dict(type='integer',description='Owner-checked outstanding order tonnes.'),'sco':dict(type='boolean'),
+                        'quantity':dict(type='integer',description='For resize: planned total tonnes, 1-25000, during station-trade scouting/loading. Preserves recorded loaded tonnes and prices; requires fresh order checks.'),
                         'checked_stock':dict(type='integer',description='Required when confirming a mined-load sell order: physical carrier stock checked now, including its saved baseline.'),
                         'link':dict(type='string',description='Optional Discord message link; recording is not posting.')},
-                    description='Owner updates PTN stages, four posting checks, actual order price, remaining tonnes or manually posted link. Stages require explicit zero remaining before departure/completion. This never executes in-game or Discord actions.')
+                    description='Owner updates PTN quantity, stages, four posting checks, actual order price, remaining tonnes or manually posted link. Posting records an owner-declared past action even if current advert checks need refreshing; it never verifies Roomba or advances the phase. Stages require explicit zero remaining before departure/completion. This never executes in-game or Discord actions.')
     core.http.route('/api/ptn/advert',desk.make_advert,tool='prepare_ptn_advert',params=revision,module=module.name,
-                    description='Generate exact affiliate Markdown only after fresh scouts, actual carrier price and owner checks pass. Includes optional SCO note; preserves exact profit and quantity without rounding up. User must use /aco trade, post and confirm Roomba themselves.')
+                    description='Generate affiliate Markdown only after fresh scouts, actual carrier price and owner checks pass. Bolds hauler profit rounded down to whole thousands (sub-1000 payouts stay exact); keeps exact quantity and returns exact profit separately. User must use /aco trade, post and confirm Roomba themselves.')

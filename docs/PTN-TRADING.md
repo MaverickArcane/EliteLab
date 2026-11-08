@@ -158,6 +158,16 @@ measure or guarantee actual traffic, completion times or a competitive offer.
 
 ## Scout, operate, advertise
 
+The search default of 18,000 t is not an order limit. In **Scout & run**, edit
+**Planned total quantity (t)** and click **Update plan quantity** to match a
+larger order, such as 19,898 t (maximum 25,000 t). Resizing is available while
+scouting or loading a station-trade route. It retains the route, scouts, prices,
+posting history and recorded loaded tonnes, then requires fresh order checks.
+For example, increasing an 18,000 t plan with 1,000 t loaded to 19,898 t leaves
+18,898 t to load. Confirm the actual remaining order below; supply, demand,
+capacity and payout checks still apply. Once departed, its purchase basis stays
+fixed. Mined-load plans retain their separately checked source quantity.
+
 1. Select a candidate; this saves a scouting plan with a revision and immutable
    carrier/commander identity. Choosing a new plan replaces only the PTN draft.
 2. Dock at each selected station and open its market. Capture the current
@@ -179,13 +189,21 @@ measure or guarantee actual traffic, completion times or a competitive offer.
    belonging to this confirmed order can cover its own remaining tonnes.
 5. Use `/aco trade`, review its generated message, paste into
    `affiliate-trade-alerts` without role pings, and review/confirm Roomba. The
-   optional separate note is `SCO FSD recommended.` Exact profits and quantities
-   use up to three decimal places in `k` notation, never rounded up.
+   optional separate note is `SCO FSD recommended.` Advert profit is bold and
+   rounded down to whole thousands: 20,308 Cr/t becomes `**20k**/unit profit`.
+   Sub-1,000 payouts stay exact. Quantities stay exact in `k` notation, so
+   19,898 t becomes `19.898k units`. The desk retains exact economics separately.
    Surface loading adds a brief surface-port note; Odyssey is named only for a
    known Odyssey station type. The journal determines the captured station type.
-6. Record posting locally only after posting and confirming in Discord. The
-   optional message link and 48-hour timeout are local reminders. Update the
-   original message using `/aco stock_update`; Roomba reactions close it.
+6. Click **I posted and confirmed it with Roomba** after doing so in Discord.
+   EliteLab saves the confirmation and optional link, returns to **Scout & run**,
+   and shows **Advert posting recorded** with its 48-hour reminder. This records
+   a past action even if a quote expired or the carrier order changed meanwhile;
+   those checks still block generating another advert. An actual confirmed public
+   order is required. The status survives reload. Loading/unloading remains open
+   while haulers work; this button neither monitors Roomba nor completes a phase.
+   Update the original message using `/aco stock_update`; Roomba reactions close it.
+   **Record a new posting confirmation** explicitly restarts the local reminder.
 7. Confirm zero remaining before departure; move the carrier, open unloading,
    confirm the sell order and generate the unloading advert. The actual price
    paid during loading remains the purchase-cost basis after departure.
@@ -223,8 +241,8 @@ conflict refreshes the plan without replaying the rejected mutation.
 | `find_ptn_routes` | GET `/api/ptn/search` | Bounded route scan with explicit filters |
 | `select_ptn_route` | POST `/api/ptn/select` | Save a recent route by id and revision |
 | `capture_ptn_market` | POST `/api/ptn/capture` | Capture current journal market, side buy/sell |
-| `update_ptn_plan` | POST `/api/ptn/update` | Stage, confirm, remaining or posted actions |
-| `prepare_ptn_advert` | GET `/api/ptn/advert` | Recheck and generate exact affiliate Markdown |
+| `update_ptn_plan` | POST `/api/ptn/update` | Stage, resize, confirm, stock, remaining or posted actions |
+| `prepare_ptn_advert` | GET `/api/ptn/advert` | Recheck and generate bold, conservatively rounded profit with exact quantity |
 
 See PTN's [carrier trading guide](https://pilotstradenetwork.com/guides/fleet-carrier-trading/)
 and [hauler guide](https://pilotstradenetwork.com/guides/ptn-trade-alerts/).
@@ -286,6 +304,13 @@ replace the flag, invalidate affected confirmations and still expire after an ho
 Unlimited demand does not guarantee that the price will remain unchanged.
 
 ## Validation
+
+`test_ptn_order_feedback.py` covers a fully reserved 19,898 t buy order against
+an original 18,000 t plan, preserved partial loading, resize bounds/ownership/
+revision/failed-save checks, persistent past-posting acknowledgements despite
+changed evidence, and exact versus advertised profit. The PTN browser performs
+that workflow through the visible forms, checks draft preservation under SSE,
+bold 20k profit, exact 19.898k tonnes and posting feedback after reload.
 
 `test_ptn_mining.py` covers the mined-load handoff, baseline stock, buyer/order
 contradictions, expired confirmations, owner/revision checks, persistence and

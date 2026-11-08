@@ -86,7 +86,7 @@ try{
   await shot('mining-ptn-unloading');await shot('mining-ptn-unloading-mobile',390,844);
   await click('[data-ptn-action=advert]');await click('[data-ptn-action=generate]');
   await wait("document.querySelector('[data-ptn-advert-text]').textContent.includes('is unloading **Platinum**')");
-  assert.match(await evaluate("document.querySelector('[data-ptn-advert-text]').textContent"),/30k\/unit profit, 0.1k units/);
+  assert.match(await evaluate("document.querySelector('[data-ptn-advert-text]').textContent"),/\*\*30k\*\*\/unit profit, 0.1k units/);
   await evaluate('window.__releaseReloadPending=true;true');
   await send('Page.reload');
   await wait("!window.__releaseReloadPending&&typeof Lab!=='undefined'&&Lab.state.ptn?.plan?.kind==='mining_unload'&&Lab.state.trade?.operation?.id&&document.querySelector('[data-workspace=mining]')");
