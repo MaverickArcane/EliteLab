@@ -4,7 +4,7 @@ Compile with a unique --app-id reserved for the test; never run this against a
 release installer because setup and uninstall modify that ID's user registry.
 """
 import argparse
-import ctypes
+import configparser
 import hashlib
 import json
 import msvcrt
@@ -21,6 +21,7 @@ import winreg
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from elitelab.autostart import Autostart, RUN_KEY
+from elitelab.window import installed_windows_browsers
 from smoke_windows_desktop import smoke_shortcut
 
 
@@ -40,8 +41,9 @@ def smoke(installer):
         root = Path(tmp).resolve()
         app = root / 'Installed EliteLab'
         assert app.resolve().parent == root
-        instance = root / 'instance'
-        instance.mkdir()
+        profile = root / 'Test user profile'
+        instance = profile / '.elitelab'
+        instance.mkdir(parents=True)
         lock_path = instance / 'instance.lock'
         lock_path.write_bytes(b' ')
         data = root / 'user-data'
@@ -55,28 +57,44 @@ def smoke(installer):
         env['ELITELAB_HOST'] = '127.0.0.1'
         env['ELITELAB_OFFLINE'] = '1'
         env['ELITELAB_JOURNAL_DIR'] = str(Path(__file__).resolve().parents[1] / 'tests' / 'fixtures' / 'journals')
-        env['ELITELAB_INSTANCE_DIR'] = str(instance)
+        # Exercise the ordinary launch path: no test-only instance override.
+        # A private profile still keeps the guard away from the current user.
+        env['USERPROFILE'] = str(profile)
         env['ELITELAB_DATA_DIR'] = str(data)
         env['ELITELAB_SETTINGS'] = str(root / 'settings.json')
+        fallback_env = {k: v for k, v in env.items() if k.upper() != 'USERPROFILE'}
+        fallback_env.update(HOMEDRIVE=profile.drive, HOMEPATH=str(profile)[len(profile.drive):])
         flags = subprocess.CREATE_NO_WINDOW
         startup = Autostart(app, value_name=app_id)
-        programs = ctypes.create_unicode_buffer(32768)
-        if ctypes.windll.shell32.SHGetFolderPathW(None, 2, None, 0, programs):
-            raise OSError('Cannot locate the current-user Start Menu Programs folder')
-        shortcut = Path(programs.value) / group / 'EliteLab.lnk'
+        # Resolve shell folders in the installer's private profile environment,
+        # not the parent process's real user profile.
+        programs = subprocess.check_output([sys.executable, '-c',
+            'import ctypes; p = ctypes.create_unicode_buffer(32768); '
+            'result = ctypes.windll.shell32.SHGetFolderPathW(None, 0x4002, None, 0, p); '
+            'assert result == 0, result; print(p.value)'],
+            env={**env, 'PYTHONIOENCODING': 'utf-8'}, encoding='utf-8',
+            creationflags=flags, timeout=15).strip()
+        shortcut = Path(programs) / group / 'EliteLab.lnk'
         assert not shortcut.parent.exists(), 'Unique test shortcut folder already exists'
         # Inno ignores /GROUP when DisableProgramGroupPage=yes; the builder
         # embeds the unique group so even failed tests cannot touch a user's link.
         args = [str(installer), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
                 '/TASKS=', '/DIR=' + str(app)]
         try:
+            for invalid in ('/APPBROWSER=calc.exe', '/BROWSERPROFILE=unexpected'):
+                refused = subprocess.run(args + [invalid], env=env, creationflags=flags, timeout=90)
+                assert refused.returncode != 0 and not app.exists(), 'Invalid browser choices must fail before installing'
             relative_env = {**env, 'ELITELAB_INSTANCE_DIR':'relative-instance'}
             refused = subprocess.run(args, env=relative_env, creationflags=flags, timeout=90)
             assert refused.returncode != 0 and not app.exists(), 'Relative guard paths must fail closed'
+            missing_profile = {k: v for k, v in env.items() if k.upper() not in ('USERPROFILE', 'HOMEDRIVE', 'HOMEPATH')}
+            refused = subprocess.run(args, env=missing_profile, creationflags=flags, timeout=90)
+            assert refused.returncode != 0 and not app.exists(), 'Missing home must fail before installing'
             with lock_path.open('r+b', buffering=0) as guard:
                 msvcrt.locking(guard.fileno(), msvcrt.LK_NBLCK, 1)
-                blocked = subprocess.run(args, env=env, creationflags=flags, timeout=90)
-                assert blocked.returncode != 0 and not app.exists(), 'Installer must refuse a live instance'
+                for guard_env in (env, fallback_env, {**env, 'ELITELAB_INSTANCE_DIR': str(instance)}):
+                    blocked = subprocess.run(args, env=guard_env, creationflags=flags, timeout=90)
+                    assert blocked.returncode != 0 and not app.exists(), 'Installer must refuse a live instance'
                 guard.seek(0); msvcrt.locking(guard.fileno(), msvcrt.LK_UNLCK, 1)
             unrelated = root / 'Unrelated folder'
             unrelated.mkdir()
@@ -86,17 +104,33 @@ def smoke(installer):
             refused = subprocess.run(unsafe_args, env=env, creationflags=flags, timeout=90)
             assert refused.returncode != 0 and unrelated_file.read_text(encoding='ascii') == 'leave alone'
             assert not (unrelated / 'runtime').exists(), 'Installer must not overwrite an unrelated folder'
-            subprocess.run(args, env=env, creationflags=flags, timeout=120, check=True)
+            setup_log = root / 'setup.log'
+            installed = subprocess.run(args + ['/LOG=' + str(setup_log)], env=env, creationflags=flags, timeout=120)
+            if installed.returncode:
+                raise RuntimeError('Default-profile install failed: ' + setup_log.read_text(errors='replace')[-4000:])
             for name in ('runtime/pythonw.exe', '.windows-bundle', 'Launch EliteLab.vbs', 'elitelab/windows_tray.py'):
                 assert (app / name).is_file(), name
-            assert shortcut.is_file(), 'Installer did not create the Start Menu shortcut'
+            def browser_settings():
+                saved = configparser.ConfigParser()
+                saved.read(app / 'desktop-browser.ini', encoding='utf-8-sig')
+                return dict(saved['Desktop'])
+            choices = installed_windows_browsers()
+            initial_browser = browser_settings()
+            assert initial_browser['browser'] in choices and initial_browser['profile'] == 'guest', initial_browser
+            assert not (root / 'settings.json').exists(), 'Installer browser choice must not skip first-run journal setup'
+            assert shortcut.is_file(), 'Installer did not create the Start Menu shortcut at ' + str(shortcut) + '\n' + setup_log.read_text(errors='replace')[-4000:]
             smoke_shortcut(shortcut, app, env, root / 'shortcut-test')
             assert startup.status() == 'disabled', 'Unique test startup value already exists'
             startup.set_enabled(True)
             assert startup.status() == 'enabled'
             local_data = app / 'data'; local_data.mkdir()
             legacy = local_data / 'legacy-user-data.json'; legacy.write_text('keep', encoding='ascii')
+            selected = next((name for name in choices if name != initial_browser['browser']), initial_browser['browser'])
+            subprocess.run(args + ['/APPBROWSER=' + selected, '/BROWSERPROFILE=persistent'], env=fallback_env,
+                           creationflags=flags, timeout=120, check=True)
+            assert browser_settings() == {'browser': selected, 'profile': 'persistent'}
             subprocess.run(args, env=env, creationflags=flags, timeout=120, check=True)
+            assert browser_settings() == {'browser': selected, 'profile': 'persistent'}
             # Start the installed embedded Python with a synthetic journal and no user data.
             with socket.socket() as probe:
                 probe.bind(('127.0.0.1', 0)); port = probe.getsockname()[1]
@@ -198,7 +232,7 @@ def smoke(installer):
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_QUERY_VALUE | winreg.KEY_SET_VALUE) as key:
                 assert winreg.QueryValueEx(key, app_id)[0] == foreign, 'Uninstall removed a foreign startup entry'
                 winreg.DeleteValue(key, app_id)
-            print('Installer passed: running guard, install, upgrade, uninstall, user-data and startup-entry preservation.')
+            print('Installer passed: browser selection and upgrade persistence, default user profile, home fallback, explicit guard override, running guard, install, upgrade, uninstall, user-data and startup-entry preservation.')
         finally:
             # This installer was built with a unique test ID and its target is
             # inside the temporary test directory. Remove its registry entry if
