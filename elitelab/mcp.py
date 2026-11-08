@@ -22,6 +22,15 @@ SUPPORTED_PROTOCOLS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")
 PROTOCOL = SUPPORTED_PROTOCOLS[-1]
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Backend calls must never resend credentials to a redirect destination."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_opener = urllib.request.build_opener(_NoRedirect)
+
+
 def _http(method, path, params=None, body=None):
     url = BASE + path
     if params and method == "GET":
@@ -32,7 +41,7 @@ def _http(method, path, params=None, body=None):
     if os.environ.get("ELITELAB_AUTH_TOKEN"):
         req.add_header("Authorization", "Bearer " + os.environ["ELITELAB_AUTH_TOKEN"])
     try:
-        with urllib.request.urlopen(req, timeout=90) as resp:
+        with _opener.open(req, timeout=90) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as ex:
         # surface the lab's own message ({"error": "..."}) instead of "HTTP Error 400: Bad Request"
@@ -40,6 +49,8 @@ def _http(method, path, params=None, body=None):
             detail = json.loads(ex.read().decode("utf-8")).get("error")
         except Exception:
             detail = None
+        finally:
+            ex.close()
         raise RuntimeError(detail or f"HTTP {ex.code} from {path}") from None
 
 
