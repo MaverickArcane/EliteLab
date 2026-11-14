@@ -429,7 +429,14 @@ try {
   assert.equal(await evaluate('getSelection().toString()'),'Lave');
   assert.equal(await evaluate("window.__pickupNode===document.querySelector('[data-value=pickup-system]')"),true);
   assert.equal(await evaluate("document.querySelector('[data-value=quantity]').textContent"),'120 t');
-  await evaluate("getSelection().removeAllRanges();document.querySelector('[data-manual-details]').open=true;const input=document.querySelector('[data-delivery] [name=tonnes]');input.value='80';input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();true");
+  // Joining can still be recovering journal receipts. Establish focus only once
+  // manual input is enabled, then check that the subsequent live update keeps it.
+  let deliveryFocused=false;
+  for(let i=0;i<100&&!deliveryFocused;i++){
+    deliveryFocused=await evaluate("(()=>{const input=document.querySelector('[data-delivery] [name=tonnes]');if(input.disabled||Lab.state.party?.recovery?.running)return false;getSelection().removeAllRanges();document.querySelector('[data-manual-details]').open=true;input.value='80';input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();return document.activeElement===input;})()");
+    if(!deliveryFocused)await sleep(100);
+  }
+  assert.ok(deliveryFocused,'Delivery input never became ready for focus preservation check');
   await postMember('/audit/ship',{cmdr:'CMDR Crew',capacity:180,count:80});await sleep(300);
   assert.equal(await evaluate("document.querySelector('[data-delivery] [name=tonnes]').value"),'80');
   assert.equal(await evaluate("document.activeElement===document.querySelector('[data-delivery] [name=tonnes]')"),true);
