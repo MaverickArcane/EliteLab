@@ -58,8 +58,10 @@ class TradePlanTests(unittest.TestCase):
     def test_local_market_commodity_evidence_is_bounded_and_scoped(self):
         selected = self.select()
         buy = selected['plan']['legs'][0]['buy']
-        self.dock(buy['system'], buy['station'])
-        self.core.bus.emit('journal.file.Market', {'event':'Market','timestamp':iso(), 'MarketID':buy['market_id'],
+        # datetime.now and time.time can have different precision on Windows
+        # Python 3.10. Use ordered past observations, not a barely future quote.
+        self.dock(buy['system'], buy['station'], iso(-2))
+        self.core.bus.emit('journal.file.Market', {'event':'Market','timestamp':iso(-1), 'MarketID':buy['market_id'],
             'StarSystem':buy['system'],'StationName':buy['station'],'Items':[
                 {'Name':'$gold_name;','Name_Localised':'Gold','BuyPrice':125,'SellPrice':0,'Stock':0,'Demand':None},
                 {'Name':'$silver_name;','Name_Localised':'<script>','BuyPrice':float('nan'),'SellPrice':250,'Stock':None,'Demand':7}]})
