@@ -1,13 +1,13 @@
 # EliteLab
 
 [![Staging checks](https://github.com/MaverickArcane/EliteLab/actions/workflows/ci.yml/badge.svg?branch=staging)](https://github.com/MaverickArcane/EliteLab/actions/workflows/ci.yml?query=branch%3Astaging)
-[![Beta 1](https://img.shields.io/badge/beta-0.6.0--beta.1-orange)](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.1)
+[![Beta 2](https://img.shields.io/badge/beta-0.6.0--beta.2-orange)](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.2)
 [![Stable 0.5.0](https://img.shields.io/badge/stable-0.5.0-blue)](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.5.0)
 
 **Your cockpit, your cargo, your crew.** A local Elite Dangerous companion for
 trading, engineering, exploration and private group operations.
 
-**[Download 0.6.0 Beta 1](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.1)**
+**[Download 0.6.0 Beta 2](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.2)**
 | [Playtest setup](docs/STAGING.md)
 | [Report a beta issue](https://github.com/MaverickArcane/EliteLab/issues/new?title=%5BBeta%5D%20)
 | [Stable release](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.5.0)
@@ -33,7 +33,7 @@ interface, with no frontend build step.
 
 ## Desktop downloads
 
-**[0.6.0 Beta 1](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.1)**
+**[0.6.0 Beta 2](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.2)**
 provides versioned downloads, release notes and SHA-256 checksums. For group
 testing on Windows, download the portable ZIP, extract it and run **Start
 staging.cmd**. Use **Collect staging logs.cmd** to prepare a support ZIP.

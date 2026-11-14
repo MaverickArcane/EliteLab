@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 0.6.0-beta.2
+
+- Security: recheck party invitations immediately before state changes. Reports
+  admitted by an old invitation cannot enter a newly hosted party.
+- Security: retire accepted sockets when a listener closes; bound HTTP workers
+  and event streams per listener and peer, with cleanup and recovery coverage.
+- Security: reject duplicate, conflicting, incomplete and malformed HTTP body
+  framing. Treat stalled bodies and decoder nesting failures as client errors.
+- Diagnostics: record bounded, credential-free rejection events in staging logs;
+  handle expected disconnects without hiding unrelated application failures.
+- Browser policy: disallow inline style attributes, preserve dashboard gauges
+  and layouts through stylesheet classes and constrained DOM updates, and omit
+  Python runtime versions from response headers.
+- Packaging: include the security evidence helper in the shared Debian/macOS
+  application manifest. Add real-wire, lifecycle and rehost regressions, plus
+  the source-assisted security assessment and pre-merge review (PR #133).
+
 ## 0.6.0-beta.1
 
 - Cargo search keeps newer live results when an older status request finishes.
