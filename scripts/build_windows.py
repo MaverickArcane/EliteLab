@@ -45,6 +45,9 @@ def build(output, runtime_zip=None):
                             ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.log"))
         for name in ("Start EliteLab.cmd", "Setup EliteLab.cmd", "README.md", "LICENSE"):
             shutil.copyfile(ROOT / name, app / name)
+        for name in ("Start staging.cmd", "Collect staging logs.cmd"):
+            shutil.copyfile(ROOT / name, app / name)
+        shutil.copyfile(ROOT / 'docs' / 'STAGING.md', app / 'STAGING.txt')
         (app / ".windows-bundle").write_text("Windows portable bundle\n", encoding="ascii")
         shutil.copyfile(ROOT / "scripts" / "launch_desktop.vbs", app / "Launch EliteLab.vbs")
         (app / "scripts").mkdir()

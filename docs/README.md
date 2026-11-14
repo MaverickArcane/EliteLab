@@ -9,6 +9,7 @@ with product direction in [ROADMAP](../ROADMAP.md) and changes in [CHANGELOG](..
 [Release notes](releases/0.6.0.md) describe the candidate; publication remains separate.
 
 For contributors: [Testing](TESTING.md), [Architecture](ARCHITECTURE.md),
+[Private staging and support ZIPs](STAGING.md),
 [Modules](MODULES.md), [API](API.md), [AI tools](AI.md), [State](STATE.md),
 [Events](EVENTS.md), [Frontend](FRONTEND.md), [Code](CODE.md), and [Decisions](DECISIONS.md).
 The live `/api/schema` is authoritative for exact tool parameters.

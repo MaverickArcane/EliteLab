@@ -12,6 +12,7 @@ from http.server import BaseHTTPRequestHandler
 from elitelab.core.http import ExclusiveHTTPServer
 import ipaddress
 import json
+import logging
 import math
 import secrets
 import socket
@@ -26,6 +27,7 @@ from modules.party.recovery import deliveries, phase_at, seconds
 from elitelab.core.hauling import view as workload_view
 
 NS = "party"
+log = logging.getLogger(__name__)
 STALE_SECONDS = 30
 REPORT_SECONDS = 1
 MAX_MEMBERS = 32
@@ -537,6 +539,7 @@ class Party:
                 except OSError:
                     raise ValueError("Could not listen on that address and port. Check the address or choose another port.") from None
                 self.server, self.mode, self.token = server, "leader", secrets.token_urlsafe(24)
+                log.info("Party hosting started on port %s", port)
                 self.stop = threading.Event()
                 self.error = None
                 self.generation += 1
@@ -565,10 +568,12 @@ class Party:
             try:
                 shared = self.check(exchange(url, token, {"id": self.member_id, "secret": self.secret, "report": self.local()}))
             except (OSError, http.client.HTTPException):
+                log.warning("Party join failed: leader unreachable")
                 raise ValueError("Could not reach the leader. Check Tailscale, the address, port and firewall.") from None
             with self.lock:
                 self.mode, self.url, self.token = "member", url, token
                 self.remote, self.error, self.last_success = shared, None, time.time()
+                log.info("Party joined successfully")
                 self.rejections = 0
                 self.stop = threading.Event()
                 self.generation += 1
@@ -835,6 +840,9 @@ class Party:
                 shared, error = None, failure_message
             with self.lock:
                 if generation == self.generation:
+                    if error != self.error:
+                        log.info("Party connection changed: error=%s rejected=%s terminal=%s",
+                                 bool(error), rejected, terminal)
                     self.rejections = self.rejections + 1 if rejected else 0
                     if terminal:
                         self.stop.set()

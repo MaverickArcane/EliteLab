@@ -1,5 +1,9 @@
 # Testing
 
+For real multi-machine sessions, use [private staging](STAGING.md). The isolated
+launcher captures bounded redacted logs; the collector exports an allowlisted
+support ZIP without journals, settings or saved state.
+
 Release regressions: `test_release_security.py`, `test_build_quality.py`,
 `test_ptn_release.py`, `test_ptn_mining.py`, `test_selling.py` and `test_group_mining.py`. The latter
 uses two real private HTTP clients for equal tonnes, repeated/replayed sales,

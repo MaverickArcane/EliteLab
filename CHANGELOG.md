@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Private staging launcher keeps playtest settings/data separate and supervises
+  restarts. Windows portable builds include staging launch and support-ZIP actions;
+  bounded redacted logs and build fingerprints help diagnose Tailscale sessions.
+
 - PTN: resize a selected station-trade plan up to 25,000 t before departure,
   including 19,898 t orders that exceeded the default 18,000 t plan. Preserve
   recorded loading progress and prices, then recheck the actual order.
