@@ -23,6 +23,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from socketserver import TCPServer
 
 from . import config
+from .security import SecurityEvents
 
 LOOPBACK_NAMES = ("127.0.0.1", "localhost", "::1")
 
@@ -123,6 +124,7 @@ class Router:
 
 def make_handler(core):
     router, store = core.http, core.store
+    security = SecurityEvents(core.log, "dashboard")
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "EliteLab"
@@ -145,6 +147,7 @@ def make_handler(core):
 
         # -- helpers -------------------------------------------------------
         def _send(self, code, body, ctype="application/json; charset=utf-8", headers=None):
+            security.rejected(code)
             if isinstance(body, (dict, list)) or body is None:
                 body = json.dumps(body).encode("utf-8")
             elif isinstance(body, str):

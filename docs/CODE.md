@@ -119,6 +119,16 @@ Event names in use: `journal.<Event>` (any journal event), `journal.file.<Name>`
 
 Thread safety: a single RLock around the data. Subscriber callbacks run outside the lock. The SSE subscriber puts into a bounded queue (`http._put`, drops on full).
 
+## elitelab/core/security.py
+
+`elitelab/core/security.py` provides `SecurityEvents(logger, source)` for the
+dashboard and party handlers. `rejected(status)` records fixed status/reason
+labels, rate-limited independently per status to one warning per minute per
+listener. Repeated events are counted in the next warning. It never accepts
+request data and keeps at most four counters; it is diagnostic evidence rather
+than a complete access log. Party transport also rejects duplicate lengths,
+transfer encodings and incomplete bodies before calling `Party.receive`.
+
 ## elitelab/core/services.py
 
 `Services`: one shared cache for all modules.

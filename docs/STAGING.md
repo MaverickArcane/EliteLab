@@ -83,6 +83,14 @@ export. Settings, raw journals, saved plans, party state, credentials and instan
 locks are excluded by an exact file allowlist. The ZIP is a copy; it does not
 clear logs, stop the app, or send anything automatically.
 
+Dashboard and party request rejections produce `security` warnings containing
+the listener name, a fixed reason, HTTP status and suppressed repeat count.
+Each listener logs at most one warning per rejection status per minute; the
+next warning includes repeats suppressed since the previous warning. These
+events contain no request paths, addresses, headers, credentials or bodies.
+Collect soon after a failed join or suspicious request to preserve this evidence.
+This is diagnostic evidence, not a complete access log or an intrusion detector.
+
 Review the ZIP before sharing: redaction is best effort and logs/notes can still
 contain commander, system or station names and non-home file paths. Browser
 console errors and screenshots are not captured automatically. For a UI-only
