@@ -1,5 +1,18 @@
 # Private staging with friends
 
+## GitHub staging branch
+
+`staging` is the shared playtest branch. Promote reviewed changes from
+`development` into `staging`, then use the artifacts from a successful CI run
+on that exact staging commit. Pushes to staging run the full CI/package workflow.
+Keep the tested commit fixed for a group session so everyone uses the same build.
+
+Download the Windows portable ZIP from the `EliteLab-windows-x64` artifact in
+[staging CI runs](https://github.com/MaverickArcane/EliteLab/actions/workflows/ci.yml?query=branch%3Astaging).
+GitHub artifact downloads may contain the application ZIP inside an outer ZIP;
+extract the application ZIP completely before launching. Share that same package
+with the group. Staging pushes do not create a public release or version tag.
+
 Use one candidate build on every machine. Each player runs their own dashboard
 and reads their own local game journals. The carrier owner hosts the existing
 party listener over Tailscale; there is no central account server to deploy.
@@ -7,7 +20,8 @@ This guide does not claim that a real group session has already passed.
 
 ## Start and join
 
-1. The organizer builds a portable candidate with `python scripts/build_windows.py`
+1. The organizer downloads the portable candidate from staging CI (or builds
+   the same commit with `python scripts/build_windows.py`)
    and distributes that same ZIP to every Windows tester. Extract it into a new
    folder. Use **Start staging.cmd**, including on the owner's machine. This uses
    bundled Python and does not install, upgrade or restart the regular app.

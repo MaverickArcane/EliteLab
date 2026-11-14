@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, master, development, feat/hauling-desk-v2 ]
+    branches: [ main, master, development, staging, feat/hauling-desk-v2 ]
   pull_request:
   workflow_dispatch:
   workflow_call:
