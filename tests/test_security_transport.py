@@ -2,6 +2,7 @@
 import json
 import socket
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
 import unittest
@@ -24,13 +25,14 @@ class PartyFramingTests(unittest.TestCase):
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
 
-    def post(self, lengths=(), extra="", body=b"{}", auth="fixture-party-code"):
+    def post(self, lengths=(), extra="", body=b"{}", auth="fixture-party-code", half_close=True):
         headers = "".join(f"Content-Length: {length}\r\n" for length in lengths)
         request = (f"POST /report HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {auth}\r\n"
                    f"Content-Type: application/json\r\n{headers}{extra}Connection: close\r\n\r\n").encode() + body
         with socket.create_connection(self.server.server_address, timeout=3) as connection:
             connection.sendall(request)
-            connection.shutdown(socket.SHUT_WR)
+            if half_close:
+                connection.shutdown(socket.SHUT_WR)
             response = b""
             while chunk := connection.recv(4096):
                 response += chunk
@@ -60,6 +62,20 @@ class PartyFramingTests(unittest.TestCase):
         self.assertNotIn("ATTACKER", rendered)
         self.assertNotIn("fixture-party-code", rendered)
 
+    def test_stalled_body_times_out_before_touching_party_state(self):
+        original = self.server.RequestHandlerClass.setup
+
+        def short_timeout(handler):
+            original(handler)
+            handler.connection.settimeout(0.1)
+
+        with patch.object(self.server.RequestHandlerClass, "setup", short_timeout):
+            status, body = self.post((3,), body=b"{", half_close=False)
+        self.assertEqual(status, 400)
+        self.assertIn("timed out", body["error"])
+        self.party.receive.assert_not_called()
+        self.assertEqual(self.post((2,))[0], 200)
+
     def test_peer_resets_close_without_server_thread_tracebacks(self):
         handler_class = Party.handler(self.party)
         handler = object.__new__(handler_class)
@@ -69,8 +85,25 @@ class PartyFramingTests(unittest.TestCase):
                 handler.handle_one_request()
             self.assertTrue(handler.close_connection)
 
+    def test_application_errors_are_not_silenced_as_disconnects(self):
+        handler = object.__new__(Party.handler(self.party))
+        with patch.object(BaseHTTPRequestHandler, "handle_one_request", side_effect=RuntimeError("fixture defect")):
+            with self.assertRaisesRegex(RuntimeError, "fixture defect"):
+                handler.handle_one_request()
+
 
 class SecurityEvidenceTests(unittest.TestCase):
+    def test_concurrent_rejections_share_one_bounded_counter(self):
+        logger = Mock()
+        events = SecurityEvents(logger, "party")
+        with patch("elitelab.core.security.time.monotonic", return_value=10):
+            with ThreadPoolExecutor(max_workers=16) as workers:
+                list(workers.map(events.rejected, [403] * 1000))
+        logger.warning.assert_called_once()
+        with patch("elitelab.core.security.time.monotonic", return_value=70):
+            events.rejected(403)
+        self.assertEqual(logger.warning.call_args.args[-1], 999)
+
     def test_repeated_denials_are_counted_without_unbounded_log_growth(self):
         logger = Mock()
         events = SecurityEvents(logger, "dashboard")
