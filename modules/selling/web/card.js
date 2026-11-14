@@ -5,12 +5,12 @@
   const stopHtml=(stop,tracked=false)=>`<article class="sale-stop"><div><b>${esc(stop.station)}</b> <span class="muted">${esc(stop.system)}</span> <button class="mini" data-copy="${esc(stop.system)}">Copy system</button> <a href="${esc(stop.source_url)}" target="_blank" rel="noopener">Spansh market</a></div><small>${fmt(stop.leg_distance)} Ly from previous stop | ${esc(stop.pad)} pad | ${stop.arrival_ls==null?'Arrival unknown':fmt(stop.arrival_ls)+' Ls'} | Reported ${esc(stop.observed_at)}</small><ul>${stop.sales.map(s=>`<li>${fmt(tracked?s.remaining:s.quantity)} t ${esc(s.name)} at ${money(s.price)}/t${tracked&&s.remaining===0?' - sold':''}</li>`).join('')}</ul></article>`;
   Lab.card({id:'selling',requires:['selling','journal'],
     mount(el){
-      const u=el._selling={data:{},busy:false,choice:'highest',dead:false,timer:null,prefs:ls.get('selling.filters.v1',{})};
+      const u=el._selling={data:{},revision:0,busy:false,choice:'highest',dead:false,timer:null,prefs:ls.get('selling.filters.v1',{})};
       el.innerHTML=`<div class="selling-intro"><p>Find buyers for the cargo aboard, then compare price and travel. Track a route to follow each sale.</p><button class="mini" data-sale-roundtrips>Plan a round trip</button></div><form class="sale-filters"><label>Radius (Ly)<input name="radius" type="number" min="1" max="500" value="80" required></label><label>Pad<select name="pad"><option>L</option><option>M</option><option>S</option></select></label><label>Report age (hours)<input name="hours" type="number" min="1" max="72" value="24" required></label><details><summary>More filters</summary><label>Stations to check<input name="breadth" type="number" min="1" max="300" value="100" required></label><label>Arrival limit (Ls; 0 = any)<input name="arrival" type="number" min="0" max="1000000" value="10000" required></label><label><input name="surface" type="checkbox"> Surface stations</label></details><button class="primary" type="submit">Find buyers for my cargo</button></form><p data-sale-message role="status"></p><div data-sale-tracked></div><div data-sale-results></div><p class="note">Quotes: <a href="https://spansh.co.uk/stations" target="_blank" rel="noopener">Spansh / EDDN</a>. Cross-check in-game prices and demand before selling. Purchase costs and travel costs are not inferred.</p>`;
       const form=el.querySelector('form');
       for(const [k,v] of Object.entries(u.prefs)){const input=form.elements.namedItem(k);if(input){if(input.type==='checkbox')input.checked=!!v;else input.value=v;}}
       const message=text=>{el.querySelector('[data-sale-message]').textContent=text;};
-      const refresh=async()=>{clearTimeout(u.timer);try{const d=await Lab.api('/api/selling');if(u.dead)return;u.data=d;u.draw();if(d.job?.status==='running')u.timer=setTimeout(refresh,2000);}catch(e){if(!u.dead){if(u.data.job?.status==='running'){message(e.message+' Search status will retry.');u.timer=setTimeout(refresh,4000);}else message(e.message+' Retry the search or refresh the page.');}}};
+      const refresh=async()=>{clearTimeout(u.timer);const revision=++u.revision;try{const d=await Lab.api('/api/selling');if(u.dead||revision!==u.revision)return;u.data=d;u.draw();if(d.job?.status==='running')u.timer=setTimeout(refresh,2000);}catch(e){if(!u.dead&&revision===u.revision){if(u.data.job?.status==='running'){message(e.message+' Search status will retry.');u.timer=setTimeout(refresh,4000);}else message(e.message+' Retry the search or refresh the page.');}}};
       u.draw=()=>{
         if(u.dead)return;
         const d=u.data,r=d.result,plan=d.plan;
@@ -34,7 +34,7 @@
       });
       refresh();
     },
-    render(el,S){const u=el._selling;if(!u)return;u.data=S.selling||{};u.draw();},
+    render(el,S){const u=el._selling;if(!u)return;++u.revision;u.data=S.selling||{};u.draw();},
     unmount(el){el._selling.dead=true;clearTimeout(el._selling.timer);}
   });
 })();

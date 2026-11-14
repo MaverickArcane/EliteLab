@@ -4,6 +4,8 @@
 
 ## 0.6.0-beta.1
 
+- Cargo search keeps newer live results when an older status request finishes.
+
 - First versioned staging prerelease, with verified native/portable downloads,
   source archive, consolidated checksums and beta feedback guidance.
 

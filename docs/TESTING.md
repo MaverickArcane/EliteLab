@@ -7,6 +7,8 @@ Chrome is ready to accept a CDP connection.
 The release browser regression also holds the buyer-search start response until
 results arrive over SSE, then verifies the submit button recovers after the
 request completes. A completion message alone does not mean the form is idle.
+It also delays the initial cargo-panel status response until newer live results
+arrive, checking that an older response cannot replace current search state.
 
 For real multi-machine sessions, use [private staging](STAGING.md). The isolated
 launcher captures bounded redacted logs; the collector exports an allowlisted

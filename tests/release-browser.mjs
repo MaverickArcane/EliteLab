@@ -36,9 +36,23 @@ try{
   const shot=async(name,width=1440,height=1000)=>{await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});await evaluate('scrollTo(0,0);true');await sleep(250);assert.ok(await evaluate('document.body.scrollWidth')<=width,'Horizontal overflow: '+name);const r=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(screenshots,name+'.png'),Buffer.from(r.data,'base64'));};
   const visible=id=>evaluate(`!!document.querySelector('#card-${id}:not(.workspace-off)')`);
   await send('Runtime.enable');await send('Page.enable');await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  // Hold the initial cargo-panel GET response, then release it after newer SSE
+  // results. It must not overwrite the completed search with its stale snapshot.
+  await send('Page.addScriptToEvaluateOnNewDocument',{source:`{
+    const originalFetch=window.fetch;
+    window.fetch=async function(...args){
+      const response=await originalFetch.apply(this,args);
+      if(new URL(response.url).pathname==='/api/selling'&&!window.__sellingReadHeld){
+        window.__sellingReadHeld=true;
+        await new Promise(resolve=>window.__releaseSellingRead=resolve);
+      }
+      return response;
+    };
+  }`});
   await send('Page.navigate',{url:base});await wait("!!document.querySelector('[data-workspace=trade]')");
   assert.ok(await visible('credits'));assert.ok(await visible('map'));
   await click('[data-workspace=trade]');await wait("!!document.querySelector('.sale-filters')");
+  await wait("typeof window.__releaseSellingRead==='function'&&Lab.events?.readyState===1");
   assert.equal(await visible('trade'),false);assert.equal(await visible('map'),false);
   // Hold the start response so SSE completion deterministically precedes the
   // submit handler's finally block. Completed results do not imply it is idle.
@@ -46,6 +60,7 @@ try{
   await evaluate("document.querySelector('.sale-filters').requestSubmit();true");
   await wait("document.querySelectorAll('[data-sale-strategy]').length===3");
   await wait("document.querySelector('[data-sale-message]').textContent.includes('Buyer search complete')");
+  await evaluate("window.__releaseSellingRead();true");
   await wait("typeof window.__releaseSearchResponse==='function'");
   assert.equal(await evaluate("document.querySelector('.sale-filters button[type=submit]').disabled"),true);
   await evaluate("Lab.post=window.__releaseOriginalPost;window.__releaseSearchResponse();true");

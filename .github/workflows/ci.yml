@@ -89,6 +89,8 @@ jobs:
         run: node tests/state-feed.mjs
       - name: Chrome debugger startup regression
         run: node --test tests/chrome-ready.test.mjs
+      - name: Cargo panel response ordering
+        run: node tests/selling-state.mjs
 
   browser:
     name: Owner and crew browser regression
