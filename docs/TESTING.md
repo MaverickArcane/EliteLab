@@ -1,5 +1,10 @@
 # Testing
 
+`node --test tests/chrome-ready.test.mjs` covers the release browser harness's
+debugger startup wait: a missing/empty port file, refused connections, a missing
+page target, timeout and browser exit. File creation alone does not imply that
+Chrome is ready to accept a CDP connection.
+
 For real multi-machine sessions, use [private staging](STAGING.md). The isolated
 launcher captures bounded redacted logs; the collector exports an allowlisted
 support ZIP without journals, settings or saved state.
