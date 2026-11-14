@@ -2,6 +2,7 @@
 Server-Sent Events for live state, and static files for the shell and modules.
 """
 import functools
+import errno
 import json
 import copy
 import logging
@@ -141,6 +142,11 @@ def make_handler(core):
                 # Reloading/closing a browser can abandon a keep-alive socket,
                 # including before the next request line arrives on Windows.
                 self.close_connection = True
+            except OSError as ex:
+                if (getattr(self.server, "_closing", False) is not True or
+                        ex.errno not in (errno.EBADF, errno.ENOTSOCK, errno.ESHUTDOWN)):
+                    raise
+                self.close_connection = True
 
         def setup(self):
             super().setup()
@@ -199,11 +205,14 @@ def make_handler(core):
         def _body(self):
             """Read the request body (always, so keep-alive connections stay in sync) and parse JSON if possible."""
             lengths = self.headers.get_all("Content-Length", [])
-            if self.headers.get("Transfer-Encoding") or len(lengths) > 1:
+            if self.headers.get_all("Transfer-Encoding") or len(lengths) > 1:
                 self.close_connection = True
                 raise ValueError("Ambiguous request framing is not supported")
             try:
-                n = int(self.headers.get("Content-Length") or 0)
+                value = lengths[0].strip(" \t") if lengths else "0"
+                if not re.fullmatch(r"[0-9]+", value):
+                    raise ValueError()
+                n = int(value)
             except ValueError:
                 self.close_connection = True
                 raise ValueError("Invalid Content-Length") from None
@@ -212,13 +221,22 @@ def make_handler(core):
                 raise ValueError(f"request body too large ({n} bytes, max {MAX_BODY})")
             if not n:
                 return None
-            raw = self.rfile.read(n)
+            try:
+                raw = self.rfile.read(n)
+            except TimeoutError:
+                self.close_connection = True
+                raise ValueError("Request body timed out") from None
+            except OSError:
+                if getattr(self.server, "_closing", False) is not True:
+                    raise
+                self.close_connection = True
+                raise ValueError("Connection closed") from None
             if len(raw) != n:
                 self.close_connection = True
                 raise ValueError("Incomplete request body")
             try:
                 return json.loads(raw.decode("utf-8"))
-            except (ValueError, UnicodeError):
+            except (ValueError, UnicodeError, RecursionError):
                 raise ValueError("request body must be valid JSON") from None
 
         def _check_mutation(self):
@@ -330,6 +348,9 @@ def make_handler(core):
                         return self._static(directory, path[len(prefix):])
                 return self._static(config.WEB_DIR, path)
             except ValueError as ex:
+                if getattr(self.server, "_closing", False) is True:
+                    self.close_connection = True
+                    return
                 return self._send(400, {"error": str(ex)})
             except Exception as ex:
                 core.log.exception("request failed: %s %s", method, path)
@@ -368,7 +389,7 @@ def make_handler(core):
                     return
                 self._write_event("snapshot", store.snapshot())
                 last = time.time()
-                while self._authorized():
+                while getattr(self.server, "_closing", False) is not True and self._authorized():
                     # Release stream admission promptly when an idle tab closes,
                     # rather than waiting for the next 15-second heartbeat.
                     readable, _, _ = select.select([self.connection], [], [], 0)
@@ -421,13 +442,14 @@ class ExclusiveHTTPServer(ThreadingHTTPServer):
         self._peer_connections = {}
         self._streams = {}
         self._stream_count = 0
+        self._closing = False
         self._security = SecurityEvents(logging.getLogger(__name__), "listener")
         super().__init__(*args, **kwargs)
 
     def process_request(self, request, client_address):
         peer = client_address[0]
         with self._capacity_lock:
-            admitted = (len(self._connections) < self.max_connections and
+            admitted = (not self._closing and len(self._connections) < self.max_connections and
                         self._peer_connections.get(peer, 0) < self.max_connections_per_peer)
             if admitted:
                 self._connections[request] = peer
@@ -470,7 +492,7 @@ class ExclusiveHTTPServer(ThreadingHTTPServer):
     def acquire_stream(self, peer):
         with self._capacity_lock:
             count = self._streams.get(peer, 0)
-            if self._stream_count >= self.max_streams or count >= self.max_streams_per_peer:
+            if self._closing or self._stream_count >= self.max_streams or count >= self.max_streams_per_peer:
                 return False
             self._streams[peer] = count + 1
             self._stream_count += 1
@@ -484,6 +506,30 @@ class ExclusiveHTTPServer(ThreadingHTTPServer):
                 self._streams[peer] = count
             else:
                 del self._streams[peer]
+
+    def server_close(self):
+        # ThreadingHTTPServer does not close accepted sockets for daemon workers.
+        # Retiring a listener must wake blocked readers/streams as well as close
+        # the listening socket; otherwise rehosting leaves old workers alive.
+        with self._capacity_lock:
+            self._closing = True
+            connections = list(self._connections)
+        for connection in connections:
+            try:
+                connection.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            # makefile() retains socket references. Detach and close the handle
+            # so Windows readers also wake without waiting for their timeout.
+            # The socket object is invalidated first, avoiding a later double
+            # close when the handler disposes its file wrappers.
+            try:
+                descriptor = connection.detach()
+                if descriptor != -1:
+                    socket.close(descriptor)
+            except OSError:
+                pass
+        super().server_close()
 
     def server_bind(self):
         if os.name == "nt":

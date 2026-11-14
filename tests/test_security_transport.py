@@ -14,7 +14,7 @@ from modules.party.module import Party
 
 class PartyFramingTests(unittest.TestCase):
     def setUp(self):
-        self.party = SimpleNamespace(token="fixture-party-code", receive=Mock(return_value={"ok": True}))
+        self.party = SimpleNamespace(token="fixture-party-code", lock=threading.RLock(), receive=Mock(return_value={"ok": True}))
         self.logger = Mock()
         replacement = patch("modules.party.module.log", self.logger)
         replacement.start()

@@ -92,7 +92,9 @@ Collect soon after a failed join or suspicious request to preserve this evidence
 This is diagnostic evidence, not a complete access log or an intrusion detector.
 
 Capacity rejections use status 503. Each dashboard/party listener allows up to
-64 connections, with at most 16 from one direct peer IP. Dashboard event streams
+64 connections, with at most 16 from one direct peer IP. Closing a listener
+terminates its accepted sockets; reports waiting on an old invitation cannot
+carry over into a newly hosted party. Dashboard event streams
 are capped at 16 total and 4 per peer, leaving room for normal API calls. Close
 unused tabs and retry after transient 503 errors. A peer limit applies to the
 direct connection address; a proxy that combines many users behind one address

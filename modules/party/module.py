@@ -4,6 +4,7 @@ Only telemetry and the leader's trade plan cross this listener. Party codes and
 connections live in memory; restart or Leave stops sharing. No journal uploads.
 """
 import copy
+import errno
 from datetime import datetime, timezone
 import hmac
 import hashlib
@@ -15,6 +16,7 @@ import ipaddress
 import json
 import logging
 import math
+import re
 import secrets
 import socket
 import threading
@@ -452,6 +454,11 @@ class Party:
                     # A disconnected peer must not flood the diagnostic log
                     # with one server-thread traceback per reset connection.
                     self.close_connection = True
+                except OSError as ex:
+                    if (getattr(self.server, "_closing", False) is not True or
+                            ex.errno not in (errno.EBADF, errno.ENOTSOCK, errno.ESHUTDOWN)):
+                        raise
+                    self.close_connection = True
 
             def setup(self):
                 super().setup()
@@ -480,16 +487,29 @@ class Party:
                     lengths = self.headers.get_all("Content-Length", [])
                     if self.headers.get_all("Transfer-Encoding") or len(lengths) != 1:
                         raise ValueError("Report requires one Content-Length and no Transfer-Encoding.")
-                    size = int(self.headers.get("Content-Length", "0"))
+                    value = lengths[0].strip(" \t")
+                    if not re.fullmatch(r"[0-9]+", value):
+                        raise ValueError("Invalid Content-Length.")
+                    size = int(value)
                     if not 0 < size <= MAX_BODY or self.headers.get_content_type() != "application/json":
                         raise ValueError("Invalid report size or content type.")
                     raw = self.rfile.read(size)
                     if len(raw) != size:
                         raise ValueError("Incomplete report body.")
-                    return self.reply(200, party.receive(json.loads(raw)))
+                    body = json.loads(raw)
+                    # Authentication before a blocking read is not enough: the
+                    # host may close this party and start another in the meantime.
+                    # Recheck atomically with receive's state mutation. Do not
+                    # hold the party lock while reading or writing the socket.
+                    with party.lock:
+                        authorized = party.token and hmac.compare_digest(auth.encode(), ("Bearer " + party.token).encode())
+                        response = party.receive(body) if authorized else None
+                    if not authorized:
+                        return self.reply(403, {"error": "invalid party code"})
+                    return self.reply(200, response)
                 except TimeoutError:
                     return self.reply(400, {"error": "Report body timed out."})
-                except (ValueError, TypeError, UnicodeError) as ex:
+                except (ValueError, TypeError, UnicodeError, RecursionError) as ex:
                     return self.reply(400, {"error": str(ex)})
 
         return Handler

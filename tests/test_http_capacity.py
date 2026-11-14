@@ -57,11 +57,20 @@ class HttpCapacityTests(unittest.TestCase):
         finally:
             connection.close()
 
+    def assert_overloaded(self, peer='127.0.0.1'):
+        # Admission rejection cannot wait for clients to read a full response.
+        # Windows can surface close/reset instead of the best-effort 503.
+        try:
+            self.assertEqual(self.request(peer)[0], 503)
+        except (http.client.RemoteDisconnected, ConnectionResetError,
+                ConnectionAbortedError, BrokenPipeError):
+            pass
+
     def test_one_peer_is_capped_before_threads_and_other_peers_still_work(self):
         held = [self.hold('127.0.0.1') for _ in range(2)]
         self.wait_for(lambda: len(self.server._connections) == 2)
         for _ in range(6):
-            self.assertEqual(self.request()[0], 503)
+            self.assert_overloaded()
             self.assertEqual(len(self.server._connections), 2)
         self.assertEqual(self.request('127.0.0.2')[0], 200)
         for connection in held: connection.close()
@@ -72,7 +81,7 @@ class HttpCapacityTests(unittest.TestCase):
         for peer in ('127.0.0.1', '127.0.0.2'):
             for _ in range(2): self.hold(peer)
         self.wait_for(lambda: len(self.server._connections) == 4)
-        self.assertEqual(self.request('127.0.0.3')[0], 503)
+        self.assert_overloaded('127.0.0.3')
         self.assertEqual(len(self.server._connections), 4)
         for connection in self.sockets: connection.close()
         self.wait_for(lambda: not self.server._connections)

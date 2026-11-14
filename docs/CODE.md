@@ -129,6 +129,19 @@ request data and keeps at most five counters; it is diagnostic evidence rather
 than a complete access log. Party transport also rejects duplicate lengths,
 transfer encodings and incomplete bodies before calling `Party.receive`.
 
+`ExclusiveHTTPServer.server_close()` retires admission and terminates accepted
+sockets, including sockets retained by handler file wrappers, before closing
+the listener. Worker finalizers release connection/stream accounting; stream
+subscriptions are removed. This prevents old workers surviving a party rehost.
+Expected closed-socket errors are quiet only during shutdown; unrelated route
+I/O failures still log. Party reports revalidate their invitation under the
+party lock after body parsing and immediately before state mutation.
+
+Both HTTP body parsers require ASCII decimal Content-Length and reject any
+Transfer-Encoding header, including an empty one. Dashboard body read timeouts
+return a client error and close keep-alive; decoder nesting failures are input
+errors rather than unhandled application exceptions.
+
 `ExclusiveHTTPServer` admits at most 64 connections per listener and 16 per
 direct peer address before allocating workers. Event streams have a separate
 16-total / 4-per-peer quota, leaving worker capacity for ordinary API requests.
