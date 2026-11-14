@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.6.0-beta.1
+
+- First versioned staging prerelease, with verified native/portable downloads,
+  source archive, consolidated checksums and beta feedback guidance.
+
 - Private staging launcher keeps playtest settings/data separate and supervises
   restarts. Windows portable builds include staging launch and support-ZIP actions;
   bounded redacted logs and build fingerprints help diagnose Tailscale sessions.

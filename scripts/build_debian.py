@@ -9,7 +9,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from elitelab import __version__
+from elitelab import __version__, __debian_version__
 
 # The package contains only executable source and UI assets, never local data,
 # settings, journals, logs, credentials, bytecode or arbitrary checkout files.
@@ -57,7 +57,7 @@ def stage(source, target):
     shutil.copyfile(source/'LICENSE', copyright_file)
     size=sum(p.stat().st_size for p in (target/'usr').rglob('*') if p.is_file())
     control=target/'DEBIAN'/'control'; control.parent.mkdir(parents=True, exist_ok=True)
-    control.write_text('Package: elitelab\nVersion: '+__version__+'\nArchitecture: all\nMaintainer: EliteLab contributors <noreply@github.com>\nDepends: python3 (>= 3.10), zenity, python3-gi, gir1.2-gtk-3.0, gir1.2-ayatanaappindicator3-0.1\nInstalled-Size: '+str((size+1023)//1024)+'\nSection: games\nPriority: optional\nDescription: Local Elite Dangerous dashboard\n A local dashboard and API for game journal data.\n', encoding='ascii', newline='\n')
+    control.write_text('Package: elitelab\nVersion: '+__debian_version__+'\nArchitecture: all\nMaintainer: EliteLab contributors <noreply@github.com>\nDepends: python3 (>= 3.10), zenity, python3-gi, gir1.2-gtk-3.0, gir1.2-ayatanaappindicator3-0.1\nInstalled-Size: '+str((size+1023)//1024)+'\nSection: games\nPriority: optional\nDescription: Local Elite Dangerous dashboard\n A local dashboard and API for game journal data.\n', encoding='ascii', newline='\n')
     for path in target.rglob('*'):
         if path.is_dir():
             path.chmod(0o755)

@@ -7,6 +7,7 @@ Start with [workspaces](WORKSPACES.md), [Materials / Recipes with GIFs](MATERIAL
 The current release scope and evidence are in [NEXT-RELEASE-PLAN.md](NEXT-RELEASE-PLAN.md),
 with product direction in [ROADMAP](../ROADMAP.md) and changes in [CHANGELOG](../CHANGELOG.md).
 [Release notes](releases/0.6.0.md) describe the candidate; publication remains separate.
+The [beta release procedure](BETA-RELEASES.md) covers numbered staging prereleases.
 
 For contributors: [Testing](TESTING.md), [Architecture](ARCHITECTURE.md),
 [Private staging and support ZIPs](STAGING.md),

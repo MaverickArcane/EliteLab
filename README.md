@@ -1,5 +1,17 @@
 # EliteLab
 
+[![Staging checks](https://github.com/MaverickArcane/EliteLab/actions/workflows/ci.yml/badge.svg?branch=staging)](https://github.com/MaverickArcane/EliteLab/actions/workflows/ci.yml?query=branch%3Astaging)
+[![Beta 1](https://img.shields.io/badge/beta-0.6.0--beta.1-orange)](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.1)
+[![Stable 0.5.0](https://img.shields.io/badge/stable-0.5.0-blue)](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.5.0)
+
+**Your cockpit, your cargo, your crew.** A local Elite Dangerous companion for
+trading, engineering, exploration and private group operations.
+
+**[Download 0.6.0 Beta 1](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.1)**
+| [Playtest setup](docs/STAGING.md)
+| [Report a beta issue](https://github.com/MaverickArcane/EliteLab/issues/new?title=%5BBeta%5D%20)
+| [Stable release](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.5.0)
+
 Next-release navigation: [workspaces and layouts](docs/WORKSPACES.md),
 [sell the cargo aboard](docs/CARGO-SELLING.md), [group mining and carrier loading](docs/GROUP-MINING.md),
 and [PTN desk](docs/PTN-TRADING.md). Trading now starts with nearby cargo buyers;
@@ -10,17 +22,27 @@ See [data sources](docs/SOURCES.md) and the [release execution record](docs/NEXT
 
 A small, self-hosted dashboard for Elite Dangerous that an AI assistant can also talk to. It reads the game's journal files on your PC, shows what is going on right now (location, ship, cargo, Powerplay, carrier, materials, a star map), and exposes the same data as tools that Claude Code, any MCP client, or a shell script can call.
 
-This project is vibe coded. I built it with an AI assistant while playing, to test things out in Elite and to have a dashboard I can interact with and call on with AI help. It is not polished software and does not try to be. Anyone is welcome to fork it, mess around with it, rip modules out, add their own, or take it somewhere else entirely. If you find a bug, open an issue with the journal lines around it. If you build a module, open a PR. Nothing fancy.
+Built by a player with AI-assisted development, EliteLab is open to contributions,
+new modules and community feedback. The 0.6.0 beta is undergoing real-session
+validation. Report reproducible bugs with reviewed diagnostics, or open a pull
+request to contribute.
 
-No accounts, no uploads, no dependencies: Python standard library, one web page, no build step.
+No account is required. Journals stay on your machine; private party sharing is
+opt-in. The application uses Python's standard library and a vanilla JavaScript
+interface, with no frontend build step.
 
 ## Desktop downloads
 
-The next packaged release is **0.6.0**. Until it is published on
-[Releases](https://github.com/MaverickArcane/EliteLab/releases), preview installers
-are available from successful runs under [Actions > CI](https://github.com/MaverickArcane/EliteLab/actions/workflows/ci.yml).
-Open a successful run, scroll to **Artifacts**, download the matching ZIP and
-extract it completely. GitHub requires sign-in to download workflow artifacts.
+**[0.6.0 Beta 1](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.1)**
+provides versioned downloads, release notes and SHA-256 checksums. For group
+testing on Windows, download the portable ZIP, extract it and run **Start
+staging.cmd**. Use **Collect staging logs.cmd** to prepare a support ZIP.
+Standard installers use the regular application data paths; the portable staging
+launcher keeps a separate test profile. The stable release remains **0.5.0**.
+
+Newer untagged candidates are available from successful
+[staging CI runs](https://github.com/MaverickArcane/EliteLab/actions/workflows/ci.yml?query=branch%3Astaging).
+Their artifact names are listed below. Use one exact build for the whole group.
 
 | Platform | Artifact | Start the app |
 | --- | --- | --- |

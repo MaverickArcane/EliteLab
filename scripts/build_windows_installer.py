@@ -13,7 +13,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from elitelab import __version__
+from elitelab import __version__, __native_version__
 MAX_FILES = 50000
 MAX_TOTAL = 1024 * 1024 * 1024
 
@@ -90,6 +90,7 @@ def build(bundle, compiler, output, app_id='MaverickArcane.EliteLab'):
         stage = Path(temporary) / 'EliteLab'
         stage_bundle(bundle, stage)
         subprocess.run([str(compiler), '/Qp', '/DStagingDir=' + str(stage), '/DAppVersion=' + __version__,
+                        '/DNativeVersion=' + __native_version__,
                         '/DAppIdValue=' + app_id, '/DAppGroupName=' + group, '/O' + str(output.parent), '/F' + output.stem,
                         str(ROOT / 'installer' / 'windows' / 'EliteLab.iss')], check=True)
     if not output.is_file():

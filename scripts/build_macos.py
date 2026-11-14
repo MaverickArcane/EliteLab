@@ -11,7 +11,7 @@ import tempfile
 import urllib.request
 
 from build_debian import ROOT, copy_application
-from elitelab import __version__
+from elitelab import __version__, __native_version__
 
 RELEASE = '20261026'
 PYTHON = '3.13.18'
@@ -66,8 +66,8 @@ def build(output, runtime_archive=None):
                         '-framework', 'AppKit', '-o', str(binary)], check=True)
         info = {'CFBundleIdentifier': IDENTIFIER, 'CFBundleName': 'EliteLab',
                 'CFBundleDisplayName': 'EliteLab', 'CFBundleExecutable': 'EliteLab',
-                'CFBundlePackageType': 'APPL', 'CFBundleShortVersionString': __version__,
-                'CFBundleVersion': __version__, 'LSMinimumSystemVersion': '12.0',
+                'CFBundlePackageType': 'APPL', 'CFBundleShortVersionString': __native_version__,
+                'CFBundleVersion': __native_version__, 'LSMinimumSystemVersion': '12.0',
                 'LSUIElement': True, 'NSHighResolutionCapable': True}
         (contents / 'Info.plist').write_bytes(plistlib.dumps(info))
         # Ad-hoc signing satisfies local code integrity, not Gatekeeper trust.
@@ -77,7 +77,7 @@ def build(output, runtime_archive=None):
             'BundleIsRelocatable': False, 'BundleIsVersionChecked': True,
             'BundleOverwriteAction': 'upgrade', 'BundleHasStrictIdentifier': True}]))
         subprocess.run(['/usr/bin/pkgbuild', '--root', str(work / 'payload'), '--identifier', IDENTIFIER,
-                        '--version', __version__, '--install-location', '/Applications',
+                        '--version', __native_version__, '--install-location', '/Applications',
                         '--component-plist', str(component), str(package)], check=True)
     digest = hashlib.sha256(package.read_bytes()).hexdigest()
     package.with_suffix('.pkg.sha256').write_text(digest + '  ' + package.name + '\n', encoding='ascii')

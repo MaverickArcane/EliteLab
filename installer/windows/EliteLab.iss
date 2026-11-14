@@ -15,6 +15,9 @@
 AppId={#AppIdValue}
 AppName=EliteLab
 AppVersion={#AppVersion}
+#ifdef NativeVersion
+VersionInfoVersion={#NativeVersion}
+#endif
 AppPublisher=MaverickArcane
 DefaultDirName={localappdata}\Programs\EliteLab
 DefaultGroupName={#AppGroupName}
