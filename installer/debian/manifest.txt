@@ -22,6 +22,7 @@ elitelab/core/journals.py
 elitelab/core/live_hauling.py
 elitelab/core/loader.py
 elitelab/core/neutron.py
+elitelab/core/security.py
 elitelab/core/services.py
 elitelab/core/store.py
 elitelab/core/synthesis.json

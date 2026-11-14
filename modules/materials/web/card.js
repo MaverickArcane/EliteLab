@@ -8,10 +8,10 @@
       el._materials = { rows: null, revision: 0, loaded: -1, pending: false };
       el.innerHTML = `<div class="mat-summary"></div>
         <div class="mat-session"></div>
-        <div class="row" style="margin-top:8px"><input id="mat-q" placeholder="filter: tellurium, G5, encoded" size="22"><select id="mat-cat"><option value="">all categories</option><option>Raw</option><option>Manufactured</option><option>Encoded</option></select>
+        <div class="row space-top-8"><input id="mat-q" placeholder="filter: tellurium, G5, encoded" size="22"><select id="mat-cat"><option value="">all categories</option><option>Raw</option><option>Manufactured</option><option>Encoded</option></select>
           <select id="mat-view"><option value="all">current inventory</option><option value="gained">gained this session</option></select><button id="mat-refresh" class="mini">refresh</button></div>
         <div class="mat-status muted" role="status"></div>
-        <div class="mat-list" style="max-height:320px;overflow:auto"></div>
+        <div class="mat-list material-scroll"></div>
         <div class="note">Have is your current inventory. Gained counts pickups, mission rewards and trader receipts this game session; spending reduces Have, not Gained. A new game login starts a new session. Track requirements in the Materials / Recipe Wishlist.</div>`;
       const filter = () => draw(el);
       el.querySelector('#mat-q').oninput = filter; el.querySelector('#mat-cat').onchange = filter;
@@ -20,7 +20,7 @@
     },
     render(el, S) {
       const M = S.materials || {}; const t = M.totals || {};
-      el.querySelector('.mat-summary').innerHTML = `<div class="grid2" style="margin-top:0">
+      el.querySelector('.mat-summary').innerHTML = `<div class="grid2 space-top-0">
           <div><div class="k">Raw</div><div class="v">${fmt(t.Raw)}</div></div>
           <div><div class="k">Manufactured</div><div class="v">${fmt(t.Manufactured)}</div></div>
           <div><div class="k">Encoded</div><div class="v">${fmt(t.Encoded)}</div></div>
@@ -33,11 +33,11 @@
     const known = value?.started_at && value.gained != null;
     const last = value?.last_gain;
     el.querySelector('.mat-session').innerHTML = known
-      ? `<div style="margin-top:8px"><b>Gained this session: +${fmt(value.gained)}</b>
+      ? `<div class="space-top-8"><b>Gained this session: +${fmt(value.gained)}</b>
           <span class="muted">since ${esc(new Date(value.started_at).toLocaleTimeString())}</span></div>
          <div class="muted">Raw +${fmt(value.totals?.Raw || 0)} / Manufactured +${fmt(value.totals?.Manufactured || 0)} / Encoded +${fmt(value.totals?.Encoded || 0)}</div>` +
         (last ? `<div>Latest gain: +${fmt(last.count)} ${esc(last.name)}${last.at ? ` <span class="muted">${esc(new Date(last.at).toLocaleTimeString())}</span>` : ''}</div>` : '')
-      : '<div class="muted" style="margin-top:8px">Session gains unavailable until a game login is read.</div>';
+      : '<div class="muted space-top-8">Session gains unavailable until a game login is read.</div>';
   }
   async function draw(el) {
     const state = el._materials;

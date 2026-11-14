@@ -15,7 +15,7 @@
     render(el, S) {
       const j = S.journal || {}, st = j.status || {};
       el.innerHTML = `
-        <div class="big">${esc(j.system || '—')} <span class="right" style="font-size:12px;font-weight:400">${j.system ? `<button class="mini" data-copy="${esc(j.system)}">copy</button> <a href="${inaraSys(j.system)}" target="_blank">Inara</a> <a href="${spanshSys(j.system)}" target="_blank">Spansh</a>` : ''}</span></div>
+        <div class="big">${esc(j.system || '—')} <span class="right text-small-regular">${j.system ? `<button class="mini" data-copy="${esc(j.system)}">copy</button> <a href="${inaraSys(j.system)}" target="_blank">Inara</a> <a href="${spanshSys(j.system)}" target="_blank">Spansh</a>` : ''}</span></div>
         <div class="muted">${j.docked ? `Docked at ${esc(j.station)} (${esc(j.station_type || '')})` : (st.supercruise ? 'In supercruise' : 'In normal space')}</div>
         <div class="grid2">
           <div><div class="k">Controlling power</div><div class="v">${esc(j.system_power || 'none')}</div></div>

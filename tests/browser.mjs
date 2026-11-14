@@ -749,6 +749,19 @@ try {
   await evaluate("document.querySelector('#card-powerplay').scrollIntoView({block:'start'});true"); await sleep(150);
   const combinedPower=await send('Page.captureScreenshot',{format:'png'});
   if(process.env.ELITELAB_SCREENSHOT_DIR)fs.writeFileSync(path.join(process.env.ELITELAB_SCREENSHOT_DIR,'combined-powerplay.png'),Buffer.from(combinedPower.data,'base64'));
+  // Assume hostile HTML has reached the DOM solely to test defense in depth;
+  // this does not claim a remotely reachable injection sink.
+  await evaluate(`window.cspProbeEvents=[];document.addEventListener('securitypolicyviolation',e=>cspProbeEvents.push(e.effectiveDirective));
+    document.body.insertAdjacentHTML('beforeend','<div id="csp-probe" style="position:fixed;inset:0;background:red">test</div>');
+    document.querySelector('#grid').insertAdjacentHTML('beforeend','<section id="gauge-probe">'+Lab.util.bar('Gauge',37,'37%','var(--ok)')+'<div data-background-color="red;position:fixed" id="color-probe">test</div></section>');true`);
+  await sleep(100);
+  assert.equal(await evaluate("getComputedStyle(document.querySelector('#csp-probe')).position"),'static');
+  assert.ok(await evaluate("cspProbeEvents.includes('style-src-attr')"));
+  assert.equal(await evaluate("document.querySelector('#gauge-probe .bar i').style.width"),'37%');
+  assert.equal(await evaluate("document.querySelector('#color-probe').style.backgroundColor"),'');
+  assert.equal(await evaluate("getComputedStyle(document.querySelector('#color-probe')).position"),'static');
+  await evaluate("document.querySelector('#csp-probe').remove();document.querySelector('#gauge-probe').remove();true");
+  console.log('Strict style CSP blocks assumed injected attributes; bounded gauge/color updates remain functional.');
   assert.deepEqual(errors,[]);
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await send('Page.navigate',{url:`http://127.0.0.1:${port}`});

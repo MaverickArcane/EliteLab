@@ -7,8 +7,8 @@
   Lab.card({
     id: 'missions', requires: ['missions'],
     mount(el) {
-      el.innerHTML = `<form data-mission-search class="toolbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <label>Radius <input name="radius" type="number" min="1" max="500" value="25" style="width:65px"> Ly</label>
+      el.innerHTML = `<form data-mission-search class="toolbar form-row">
+        <label>Radius <input name="radius" type="number" min="1" max="500" value="25" class="input-quantity"> Ly</label>
         <label>Pad <select name="pad"><option>L</option><option>M</option><option>S</option></select></label>
         <label><input name="carriers" type="checkbox"> Include carriers (access unknown)</label>
         <button type="submit">Find supplies</button></form>
@@ -30,9 +30,9 @@
             return;
           }
           output.innerHTML = `<div class="note">Search from ${esc(d.search.reference || 'unknown')}, within ${esc(d.search.max_distance_ly)} Ly. Reports up to ${esc(d.search.max_days)} days old.</div>` +
-            (d.supplies.length ? d.supplies.map(r => `<div style="margin-top:12px"><strong>${qty(r.quantity)} t ${esc(r.commodity)}</strong>
+            (d.supplies.length ? d.supplies.map(r => `<div class="space-top-12"><strong>${qty(r.quantity)} t ${esc(r.commodity)}</strong>
               ${r.error ? `<div class="bad">Search failed: ${esc(r.error)}</div>` : !r.sources.length ? '<div class="muted">No matching stock reports in this radius.</div>' :
-                r.sources.map(s => `<div style="margin:6px 0">${esc(s.station)}, <button class="mini" data-copy="${esc(s.system)}">${esc(s.system)}</button>
+                r.sources.map(s => `<div class="space-y-6">${esc(s.station)}, <button class="mini" data-copy="${esc(s.system)}">${esc(s.system)}</button>
                   <div class="muted">${qty(s.distance_ly)} Ly / ${qty(s.distance_to_arrival_ls)} Ls arrival / ${qty(s.stock)} t stock / ${qty(s.cost_for_quantity)} Cr total / reported ${esc(stamp(s.updated_at))}</div>
                   ${s.carrier_location_verified_live === false ? '<div class="bad">Carrier location and docking access unverified.</div>' : ''}</div>`).join('')}</div>`).join('') :
               '<div class="note">No confirmed market shortages. Check the checklist for salvage, depot pickups or missing cargo data.</div>') +
@@ -50,7 +50,7 @@
       el.querySelector('[data-mission-list]').innerHTML =
         `<div class="note">${p.missions.length} active missions / ${qty(p.shopping_tonnes)} t to buy / ${qty(p.free_space)} t free. Cargo observed ${esc(stamp(p.cargo_observed_at))}.</div>` +
         (p.fits_current_hold === false ? '<div class="bad">The shopping list needs more space than your current free hold. Split the purchases into trips.</div>' : '') +
-        p.missions.map(m => `<details style="margin:10px 0"><summary><strong>${esc(m.title || m.name || `Mission ${m.mission_id}`)}</strong>${m.expired ? ' - deadline passed' : ''}</summary>
+        p.missions.map(m => `<details class="space-y-10"><summary><strong>${esc(m.title || m.name || `Mission ${m.mission_id}`)}</strong>${m.expired ? ' - deadline passed' : ''}</summary>
           <div class="muted">${esc(m.kind.replaceAll('_',' '))} / ${esc(m.faction || 'Issuer unknown')} / deadline ${esc(stamp(m.expiry))}</div>
           ${m.commodity_key ? `<div>${esc(m.commodity_name || m.commodity_key)}: ${qty(m.required)} required / ${qty(m.delivered)} delivered / ${qty(m.aboard_allocated)} aboard / ${qty(m.shortfall)} still needed</div>` : ''}
           <div>${esc(m.next_action)}</div>

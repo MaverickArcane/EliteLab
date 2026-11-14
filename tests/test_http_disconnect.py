@@ -25,13 +25,13 @@ class DisconnectTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"application error"):
             self.handler(ValueError("application error")).handle_one_request()
 
-    def health_request(self, writes=None, route_error=None):
+    def health_request(self, writes=None, route_error=None, closing=False):
         core = Mock()
         core.http = Router()
         route = Mock(return_value={"ok": True}, side_effect=route_error)
         core.http.route('/api/health', route)
         handler = object.__new__(make_handler(core))
-        handler.server = Mock(server_address=('127.0.0.1', 8766))
+        handler.server = Mock(server_address=('127.0.0.1', 8766), _closing=closing)
         handler.rfile = BytesIO(b'GET /api/health HTTP/1.1\r\nHost: localhost\r\n\r\n')
         handler.wfile = Mock()
         handler.wfile.write.side_effect = writes + [None, None] if writes is not None else None
@@ -62,3 +62,7 @@ class DisconnectTests(unittest.TestCase):
                 core, handler = self.health_request(route_error=error)
                 core.log.exception.assert_called_once_with('request failed: %s %s', 'GET', '/api/health')
                 self.assertIn(b'500 Internal Server Error', handler.wfile.write.call_args_list[0].args[0])
+
+    def test_shutdown_does_not_hide_unrelated_route_io_failures(self):
+        core, _ = self.health_request(route_error=OSError('disk failure'), closing=True)
+        core.log.exception.assert_called_once_with('request failed: %s %s', 'GET', '/api/health')

@@ -119,6 +119,43 @@ Event names in use: `journal.<Event>` (any journal event), `journal.file.<Name>`
 
 Thread safety: a single RLock around the data. Subscriber callbacks run outside the lock. The SSE subscriber puts into a bounded queue (`http._put`, drops on full).
 
+## elitelab/core/security.py
+
+`elitelab/core/security.py` provides `SecurityEvents(logger, source)` for the
+dashboard and party handlers. `rejected(status)` records fixed status/reason
+labels, rate-limited independently per status to one warning per minute per
+listener. Repeated events are counted in the next warning. It never accepts
+request data and keeps at most five counters; it is diagnostic evidence rather
+than a complete access log. Party transport also rejects duplicate lengths,
+transfer encodings and incomplete bodies before calling `Party.receive`.
+
+`ExclusiveHTTPServer.server_close()` retires admission and terminates accepted
+sockets, including sockets retained by handler file wrappers, before closing
+the listener. Worker finalizers release connection/stream accounting; stream
+subscriptions are removed. This prevents old workers surviving a party rehost.
+Expected closed-socket errors are quiet only during shutdown; unrelated route
+I/O failures still log. Party reports revalidate their invitation under the
+party lock after body parsing and immediately before state mutation.
+
+Both HTTP body parsers require ASCII decimal Content-Length and reject any
+Transfer-Encoding header, including an empty one. Dashboard body read timeouts
+return a client error and close keep-alive; decoder nesting failures are input
+errors rather than unhandled application exceptions.
+
+`ExclusiveHTTPServer` admits at most 64 connections per listener and 16 per
+direct peer address before allocating workers. Event streams have a separate
+16-total / 4-per-peer quota, leaving worker capacity for ordinary API requests.
+Over-capacity sockets get a best-effort nonblocking 503 response and close;
+admission counters are released even on worker startup failure. Disconnected
+SSE peers are noticed on the next queue wait instead of waiting for a heartbeat.
+These are process-resource bounds, not protection against a saturated network.
+
+Both handlers identify themselves as `EliteLab` without runtime versions.
+The dashboard CSP permits same-origin stylesheets and rejects inline style
+attributes. Static styling lives in `web/style.css`. The app's narrow visual
+updater sets individual DOM properties for bounded gauge percentages and a
+restricted color syntax; it never evaluates general CSS, URLs or positioning.
+
 ## elitelab/core/services.py
 
 `Services`: one shared cache for all modules.

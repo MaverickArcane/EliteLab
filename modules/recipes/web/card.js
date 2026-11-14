@@ -7,7 +7,7 @@
     id: 'recipes', requires: ['recipes'],
     mount(el) {
       el.innerHTML = `<div class="row"><input id="rc-q" placeholder="search: fsd range, dirty drives, mass manager, guardian" size="32"></div>
-        <div class="row" style="margin-top:6px"><select id="rc-module"><option value="">any module</option></select>
+        <div class="row space-top-6"><select id="rc-module"><option value="">any module</option></select>
           <select id="rc-kind"><option value="">blueprints, effects, unlocks</option><option value="blueprint">blueprints only</option><option value="experimental">experimental effects only</option><option value="unlock">tech broker unlocks only</option></select>
           <select id="rc-eng"><option value="">any engineer</option></select><button class="mini" id="rc-reset">reset</button></div>
         <div class="rc-results"></div>
@@ -21,7 +21,7 @@
           const r = await Lab.api('/api/recipes', params);
           res.innerHTML = r.count ? `<table><tbody>` + r.results.map(h => `<tr><td><a href="#" class="rc-open" data-key="${esc(h.key)}">${esc(h.module)}: ${esc(h.name)}</a>
             <span class="muted">${h.kind === 'blueprint' ? (h.engineer_grade ? `G1-${h.engineer_grade} here, G${h.max_grade} max` : `G1-${h.max_grade}`) : h.kind === 'unlock' ? `${esc(h.broker || '')} tech broker` : 'experimental'}</span></td>
-            <td class="num"><button class="mini rc-add" data-key="${esc(h.key)}" data-kind="${esc(h.kind)}" data-module="${esc(h.module)}" title="${h.kind === 'blueprint' ? 'selects it in the wishlist card, where you pick from/to grade and quantity' : 'adds one to the engineering wishlist now'}">${h.kind === 'blueprint' ? 'pick grades in wishlist' : 'add to wishlist'}</button></td></tr><tr class="rc-detail" data-for="${esc(h.key)}" style="display:none"><td colspan="2"></td></tr>`).join('') + `</tbody></table>` +
+            <td class="num"><button class="mini rc-add" data-key="${esc(h.key)}" data-kind="${esc(h.kind)}" data-module="${esc(h.module)}" title="${h.kind === 'blueprint' ? 'selects it in the wishlist card, where you pick from/to grade and quantity' : 'adds one to the engineering wishlist now'}">${h.kind === 'blueprint' ? 'pick grades in wishlist' : 'add to wishlist'}</button></td></tr><tr class="rc-detail" data-for="${esc(h.key)}" hidden><td colspan="2"></td></tr>`).join('') + `</tbody></table>` +
             (r.count > 60 ? `<div class="muted">${r.count} matches, showing 60; narrow it down</div>` : `<div class="muted">${r.count} match${r.count === 1 ? '' : 'es'}</div>`) : `<div class="muted">no match</div>`;
         } catch (e) { res.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
       };
@@ -33,8 +33,8 @@
         if (open) {
           ev.preventDefault();
           const row = res.querySelector(`.rc-detail[data-for="${CSS.escape(open.dataset.key)}"]`), cell = row.firstElementChild;
-          if (row.style.display !== 'none') { row.style.display = 'none'; return; }
-          row.style.display = '';
+          if (!row.hidden) { row.hidden = true; return; }
+          row.hidden = false;
           cell.innerHTML = '<span class="muted">loading</span>';
           try {
             const d = await Lab.api('/api/recipes/get', { key: open.dataset.key });

@@ -4,16 +4,19 @@ Only telemetry and the leader's trade plan cross this listener. Party codes and
 connections live in memory; restart or Leave stops sharing. No journal uploads.
 """
 import copy
+import errno
 from datetime import datetime, timezone
 import hmac
 import hashlib
 import http.client
 from http.server import BaseHTTPRequestHandler
 from elitelab.core.http import ExclusiveHTTPServer
+from elitelab.core.security import SecurityEvents
 import ipaddress
 import json
 import logging
 import math
+import re
 import secrets
 import socket
 import threading
@@ -438,8 +441,25 @@ class Party:
 
     def handler(self):
         party = self
+        security = SecurityEvents(log, "party")
 
         class Handler(BaseHTTPRequestHandler):
+            def version_string(self):
+                return "EliteLab"
+
+            def handle_one_request(self):
+                try:
+                    super().handle_one_request()
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                    # A disconnected peer must not flood the diagnostic log
+                    # with one server-thread traceback per reset connection.
+                    self.close_connection = True
+                except OSError as ex:
+                    if (getattr(self.server, "_closing", False) is not True or
+                            ex.errno not in (errno.EBADF, errno.ENOTSOCK, errno.ESHUTDOWN)):
+                        raise
+                    self.close_connection = True
+
             def setup(self):
                 super().setup()
                 self.connection.settimeout(5)
@@ -448,6 +468,7 @@ class Party:
                 pass
 
             def reply(self, status, body):
+                security.rejected(status)
                 data = json.dumps(body).encode()
                 self.send_response(status)
                 self.send_header("Content-Type", "application/json")
@@ -463,11 +484,32 @@ class Party:
                 if self.headers.get("Origin") or not party.token or not hmac.compare_digest(auth.encode(), ("Bearer " + party.token).encode()):
                     return self.reply(403, {"error": "invalid party code"})
                 try:
-                    size = int(self.headers.get("Content-Length", "0"))
+                    lengths = self.headers.get_all("Content-Length", [])
+                    if self.headers.get_all("Transfer-Encoding") or len(lengths) != 1:
+                        raise ValueError("Report requires one Content-Length and no Transfer-Encoding.")
+                    value = lengths[0].strip(" \t")
+                    if not re.fullmatch(r"[0-9]+", value):
+                        raise ValueError("Invalid Content-Length.")
+                    size = int(value)
                     if not 0 < size <= MAX_BODY or self.headers.get_content_type() != "application/json":
                         raise ValueError("Invalid report size or content type.")
-                    return self.reply(200, party.receive(json.loads(self.rfile.read(size))))
-                except (ValueError, TypeError, UnicodeError) as ex:
+                    raw = self.rfile.read(size)
+                    if len(raw) != size:
+                        raise ValueError("Incomplete report body.")
+                    body = json.loads(raw)
+                    # Authentication before a blocking read is not enough: the
+                    # host may close this party and start another in the meantime.
+                    # Recheck atomically with receive's state mutation. Do not
+                    # hold the party lock while reading or writing the socket.
+                    with party.lock:
+                        authorized = party.token and hmac.compare_digest(auth.encode(), ("Bearer " + party.token).encode())
+                        response = party.receive(body) if authorized else None
+                    if not authorized:
+                        return self.reply(403, {"error": "invalid party code"})
+                    return self.reply(200, response)
+                except TimeoutError:
+                    return self.reply(400, {"error": "Report body timed out."})
+                except (ValueError, TypeError, UnicodeError, RecursionError) as ex:
                     return self.reply(400, {"error": str(ex)})
 
         return Handler
