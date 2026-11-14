@@ -4,6 +4,9 @@
 debugger startup wait: a missing/empty port file, refused connections, a missing
 page target, timeout and browser exit. File creation alone does not imply that
 Chrome is ready to accept a CDP connection.
+The release browser regression also holds the buyer-search start response until
+results arrive over SSE, then verifies the submit button recovers after the
+request completes. A completion message alone does not mean the form is idle.
 
 For real multi-machine sessions, use [private staging](STAGING.md). The isolated
 launcher captures bounded redacted logs; the collector exports an allowlisted

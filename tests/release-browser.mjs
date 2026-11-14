@@ -40,9 +40,16 @@ try{
   assert.ok(await visible('credits'));assert.ok(await visible('map'));
   await click('[data-workspace=trade]');await wait("!!document.querySelector('.sale-filters')");
   assert.equal(await visible('trade'),false);assert.equal(await visible('map'),false);
+  // Hold the start response so SSE completion deterministically precedes the
+  // submit handler's finally block. Completed results do not imply it is idle.
+  await evaluate("window.__releaseSearchResponse=null;window.__releaseOriginalPost=Lab.post;Lab.post=async function(p,q){const d=await window.__releaseOriginalPost.call(Lab,p,q);if(p==='/api/selling/search')await new Promise(resolve=>window.__releaseSearchResponse=resolve);return d;};true");
   await evaluate("document.querySelector('.sale-filters').requestSubmit();true");
   await wait("document.querySelectorAll('[data-sale-strategy]').length===3");
   await wait("document.querySelector('[data-sale-message]').textContent.includes('Buyer search complete')");
+  await wait("typeof window.__releaseSearchResponse==='function'");
+  assert.equal(await evaluate("document.querySelector('.sale-filters button[type=submit]').disabled"),true);
+  await evaluate("Lab.post=window.__releaseOriginalPost;window.__releaseSearchResponse();true");
+  await wait("!document.querySelector('.sale-filters button[type=submit]').disabled");
   assert.equal(await evaluate("document.querySelector('.sale-filters button[type=submit]').disabled"),false);
   assert.match(await evaluate("document.querySelector('[data-sale-results]').textContent"),/2,550 Cr/);
   await click('[data-sale-select]');await wait("!!document.querySelector('[data-sale-clear]')");
