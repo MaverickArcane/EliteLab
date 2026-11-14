@@ -1,5 +1,9 @@
 # EliteLab Beta 1 security assessment
 
+Follow-up: [formal pentest report and fresh retest](2026-11-14-pentest-retest.md)
+records issues #122-#125, state-integrity checks, the packaging correction found
+after the new helper became tracked, and the final 818-test validation.
+
 Date: 2026-11-14. Authorized local red/purple team exercise.
 Baseline: `v0.6.0-beta.1`, commit
 `669a2cbfe5e9f645acdba2c8671d9a5cfe674ae7`.
