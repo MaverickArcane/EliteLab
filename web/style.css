@@ -645,3 +645,35 @@ body[data-active-workspace=ship] #card-ship{grid-column:1/-1!important}
 
 .card-sources { padding: 8px 16px; border-top: 1px solid var(--line); font-size: 11px; }
 .card.collapsed .card-sources { display:none; }
+
+/* Shared presentation classes; inline style attributes are disallowed by CSP. */
+.space-top-8{margin-top:8px}
+.space-top-6{margin-top:6px}
+.space-top-10{margin-top:10px}
+.space-top-12{margin-top:12px}
+.space-top-0{margin-top:0}
+.no-wrap{white-space:nowrap}
+.text-small{font-size:12px}
+.text-small-regular{font-size:12px;font-weight:400}
+.layout-help{font-size:11px;margin-top:6px}
+.span-full{grid-column: 1 / -1}
+.form-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.input-system{width:190px}
+.input-range{width:75px}
+.input-quantity{width:65px}
+.space-y-6{margin:6px 0}
+.space-y-10{margin:10px 0}
+.space-y-4{margin:4px 0}
+.label-normal{text-transform:none;letter-spacing:0}
+.bar-segments{display:flex;overflow:hidden}
+.merit-feed{margin-top:6px;max-height:140px}
+.material-scroll{max-height:320px;overflow:auto}
+.map-key-ship{background:#ff8c2a}
+.map-key-carrier{background:#2fd4ff}
+.map-key-history{background:#ffd27a;box-shadow:0 0 6px #ffd27a}
+.farm-site{padding:6px 0;border-top:1px solid var(--line)}
+.clickable{cursor:pointer}
+.combat-summary{font-size:16px;margin-bottom:8px}
+.combat-empty{font-size:12px;margin-bottom:8px}
+[hidden]{display:none!important}
+.merit-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}

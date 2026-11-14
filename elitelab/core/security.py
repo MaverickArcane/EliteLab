@@ -11,7 +11,7 @@ class SecurityEvents:
     are counted in the next warning instead of filling the staging log.
     """
     REASONS = {400: "invalid_request", 401: "authentication",
-               403: "forbidden", 415: "content_type"}
+               403: "forbidden", 415: "content_type", 503: "capacity"}
 
     def __init__(self, logger, source):
         self.logger, self.source = logger, source

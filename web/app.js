@@ -30,7 +30,7 @@ import {StateFeed} from './state-feed.js';
       copy: t => navigator.clipboard && navigator.clipboard.writeText(t),
       dist3: (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z),
       // a labelled gauge: label + muted text above a segmented bar; colour is optional (background-color keeps the segments)
-      bar: (label, pct, text, colour) => { const e = Lab.util.esc; return `<div class="gauge"><div class="k">${e(label)} <span class="muted">${e(text || '')}</span></div><div class="bar"><i style="width:${Math.max(0, Math.min(100, +pct || 0))}%${colour ? `;background-color:${e(colour)}` : ''}"></i></div></div>`; },
+      bar: (label, pct, text, colour) => { const e = Lab.util.esc; return `<div class="gauge"><div class="k">${e(label)} <span class="muted">${e(text || '')}</span></div><div class="bar"><i data-percent="${Math.max(0, Math.min(100, +pct || 0))}" data-background-color="${e(colour || '')}"></i></div></div>`; },
     },
     on(ns, fn) { const nss = Array.isArray(ns) ? ns : [ns]; const sub = { nss, fn }; this._subs.push(sub); return () => { this._subs = this._subs.filter(s => s !== sub); }; },
     emit(ns) { this._pending.add(ns); if (!this._raf) this._raf = requestAnimationFrame(() => { const p = new Set(this._pending); this._pending.clear(); this._raf = null; this._subs.slice().forEach(s => { if (s.nss.some(n => p.has(n))) { try { s.fn(this.state); } catch (e) { console.error(e); } } }); }); },
@@ -46,6 +46,26 @@ import {StateFeed} from './state-feed.js';
     // cards call this to be told when their card is resized/moved (cheaper than a window resize)
     relayout() { if (this._relayoutRaf) return; this._relayoutRaf = requestAnimationFrame(() => { this._relayoutRaf = null; dispatchEvent(new Event('lab:relayout')); }); },
   };
+
+  // Trusted code may set individual CSS properties under a strict style CSP.
+  // This is deliberately limited to gauge widths and our finite color syntax;
+  // it never interprets arbitrary CSS declarations, URLs, positioning or HTML.
+  function applyVisuals(root) {
+    if (!(root instanceof Element)) return;
+    const selector='[data-percent],[data-background-color],[data-text-color],[data-border-color]';
+    const color=value=>/^(?:#[0-9a-f]{3,8}|var\(--(?:bad|warn|ok|accent-2)\))$/i.test(value||'')?value:'';
+    for (const node of [root,...root.querySelectorAll(selector)]) {
+      if (node.hasAttribute('data-percent')) {
+        const value=Number(node.dataset.percent);
+        node.style.width=(Number.isFinite(value)?Math.max(0,Math.min(100,value)):0)+'%';
+      }
+      if (node.hasAttribute('data-background-color')) node.style.backgroundColor=color(node.dataset.backgroundColor);
+      if (node.hasAttribute('data-text-color')) node.style.color=color(node.dataset.textColor);
+      if (node.hasAttribute('data-border-color')) node.style.borderColor=color(node.dataset.borderColor);
+    }
+  }
+  new MutationObserver(records=>records.forEach(r=>r.addedNodes.forEach(applyVisuals)))
+    .observe(document.getElementById('grid'),{childList:true,subtree:true});
 
   document.body.addEventListener('click', e => { const b = e.target.closest('[data-copy]'); if (b) { Lab.util.copy(b.dataset.copy); const t = b.textContent; b.textContent = 'copied'; setTimeout(() => b.textContent = t, 900); } });
 
@@ -379,10 +399,10 @@ import {StateFeed} from './state-feed.js';
       <details><summary>Additional presets</summary><div class="menu-chips">${Object.keys(PRESETS).filter(n=>!PRIMARY_PRESETS.includes(n)).map(n=>`<button class="mini" data-preset="${esc(n)}">${esc(n)}</button>`).join('')}</div></details>
         <div class="menu-sec">Saved layouts</div>
       <div class="menu-row"><input id="lm-name" placeholder="name this layout" size="16"><button class="mini primary" id="lm-save">save current</button></div>
-      <div class="menu-chips">${Object.keys(saved).length ? Object.keys(saved).map(n => `<span class="chip"><button class="mini" data-load="${esc(n)}">${esc(n)}</button><button class="mini icon" data-del="${esc(n)}" title="delete">×</button></span>`).join('') : '<span class="muted" style="font-size:12px">none yet</span>'}</div>
+      <div class="menu-chips">${Object.keys(saved).length ? Object.keys(saved).map(n => `<span class="chip"><button class="mini" data-load="${esc(n)}">${esc(n)}</button><button class="mini icon" data-del="${esc(n)}" title="delete">×</button></span>`).join('') : '<span class="muted text-small">none yet</span>'}</div>
       <div class="menu-sec">Cards</div>
       <div class="menu-list">${orderedCards().map(c => `<label><input type="checkbox" data-id="${esc(c.id)}" ${layout.hidden.includes(c.id) ? '' : 'checked'}> ${esc(c.title)} <span class="muted">${esc(c.module)}</span></label>`).join('')}</div>
-      <div class="muted" style="font-size:11px;margin-top:6px">Drag a title bar to move. Drag the corner sideways for width, downwards to cap a card's height (it scrolls inside); double-click the corner to reset or go full width. The grid fills the window (${cols} columns now). Everything here is saved in this browser.</div>`;
+      <div class="muted layout-help">Drag a title bar to move. Drag the corner sideways for width, downwards to cap a card's height (it scrolls inside); double-click the corner to reset or go full width. The grid fills the window (${cols} columns now). Everything here is saved in this browser.</div>`;
     menu.querySelector('#lm-lock').onchange = e => { layout.locked = e.target.checked; saveLayout(); grid.classList.toggle('locked', layout.locked); };
     menu.querySelector('#lm-pack').onchange = e => { layout.pack = e.target.checked; saveLayout(); grid.classList.toggle('dense', layout.pack); Lab.relayout(); };
     menu.querySelector('#lm-sound').onchange = e => { if (Lab.notifySoundToggle) Lab.notifySoundToggle(e.target.checked); };
@@ -485,7 +505,7 @@ import {StateFeed} from './state-feed.js';
     } catch (e) {
       if (e.status === 401) {
         live.textContent = 'sign in required';
-        grid.innerHTML = '<section class="card" style="grid-column: 1 / -1"><h2>Sign in to EliteLab</h2><form id="login-form"><label>Access token <input type="password" name="token" required autocomplete="current-password"></label> <button type="submit">Sign in</button><p id="login-error" role="alert"></p></form></section>';
+        grid.innerHTML = '<section class="card span-full"><h2>Sign in to EliteLab</h2><form id="login-form"><label>Access token <input type="password" name="token" required autocomplete="current-password"></label> <button type="submit">Sign in</button><p id="login-error" role="alert"></p></form></section>';
         document.getElementById('login-form').onsubmit = async event => {
           event.preventDefault();
           try { await Lab.post('/api/login', { token: event.target.elements.token.value }); event.target.reset(); boot(); }
@@ -495,7 +515,7 @@ import {StateFeed} from './state-feed.js';
       }
       console.error('boot failed', e);
       live.classList.remove('live'); live.textContent = 'server unreachable, retrying';
-      document.getElementById('grid').innerHTML = `<section class="card" style="grid-column: 1 / -1"><h2><span class="title">Cannot reach EliteLab</span></h2><div class="body"><div class="muted">${esc(e.message)}. Is the server running on this address? Retrying in 3 s.</div></div></section>`;
+      document.getElementById('grid').innerHTML = `<section class="card span-full"><h2><span class="title">Cannot reach EliteLab</span></h2><div class="body"><div class="muted">${esc(e.message)}. Is the server running on this address? Retrying in 3 s.</div></div></section>`;
       setTimeout(boot, 3000);
     }
   }
@@ -522,7 +542,7 @@ import {StateFeed} from './state-feed.js';
       stopHeader();Lab.events?.close();feed.stop();clearInterval(healthTimer);Object.keys(mounted).forEach(unmountCard);
       document.getElementById('h-live').textContent='stopped';
       document.getElementById('h-live').classList.remove('live');
-      grid.innerHTML='<section class="card" style="grid-column:1/-1"><h2>EliteLab stopped</h2><p>The party is closing. You can close this tab and use Start EliteLab to launch again.</p></section>';
+      grid.innerHTML='<section class="card span-full"><h2>EliteLab stopped</h2><p>The party is closing. You can close this tab and use Start EliteLab to launch again.</p></section>';
     } catch(error){Lab.toast(error.message,'bad');button.disabled=false;}
   };
   boot();

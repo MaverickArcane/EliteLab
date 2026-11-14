@@ -91,6 +91,14 @@ events contain no request paths, addresses, headers, credentials or bodies.
 Collect soon after a failed join or suspicious request to preserve this evidence.
 This is diagnostic evidence, not a complete access log or an intrusion detector.
 
+Capacity rejections use status 503. Each dashboard/party listener allows up to
+64 connections, with at most 16 from one direct peer IP. Dashboard event streams
+are capped at 16 total and 4 per peer, leaving room for normal API calls. Close
+unused tabs and retry after transient 503 errors. A peer limit applies to the
+direct connection address; a proxy that combines many users behind one address
+will share that limit. These limits bound application resources, not network
+traffic. Keep remote access restricted to the intended Tailscale peers.
+
 Review the ZIP before sharing: redaction is best effort and logs/notes can still
 contain commander, system or station names and non-home file paths. Browser
 console errors and screenshots are not captured automatically. For a UI-only

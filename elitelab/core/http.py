@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import ipaddress
 import secrets
+import select
 import socket
 from http.cookies import SimpleCookie
 import mimetypes
@@ -130,6 +131,9 @@ def make_handler(core):
         server_version = "EliteLab"
         protocol_version = "HTTP/1.1"
 
+        def version_string(self):
+            return "EliteLab"
+
         def handle_one_request(self):
             try:
                 super().handle_one_request()
@@ -167,7 +171,7 @@ def make_handler(core):
             if urllib.parse.urlsplit(self.path).path in ("/setup/", "/setup/index.html") and hostname and self._trusted_host():
                 if re.fullmatch(r"[a-z0-9.-]+", hostname):
                     connections += f" http://{hostname}:* https://{hostname}:*"
-            self.send_header("Content-Security-Policy", f"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src {connections}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'")
+            self.send_header("Content-Security-Policy", f"default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'none'; img-src 'self' data:; connect-src {connections}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'")
             for key, value in (headers or {}).items():
                 self.send_header(key, value)
             # No CORS headers: cross-origin reads are disabled. POSTs also
@@ -339,6 +343,18 @@ def make_handler(core):
 
         # -- server-sent events ----------------------------------------------
         def _sse(self):
+            acquire = getattr(self.server, "acquire_stream", None)
+            if acquire and not acquire(self.client_address[0]):
+                self.close_connection = True
+                return self._send(503, {"error": "Too many event streams; retry shortly."},
+                                  headers={"Retry-After": "1"})
+            try:
+                self._stream()
+            finally:
+                if acquire:
+                    self.server.release_stream(self.client_address[0])
+
+        def _stream(self):
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
@@ -353,6 +369,11 @@ def make_handler(core):
                 self._write_event("snapshot", store.snapshot())
                 last = time.time()
                 while self._authorized():
+                    # Release stream admission promptly when an idle tab closes,
+                    # rather than waiting for the next 15-second heartbeat.
+                    readable, _, _ = select.select([self.connection], [], [], 0)
+                    if readable and not self.connection.recv(1, socket.MSG_PEEK):
+                        break
                     try:
                         msg = qu.get(timeout=1.0)
                         # A cookie can expire while waiting, including with a busy queue.
@@ -386,9 +407,83 @@ def _put(qu, msg):
 
 
 class ExclusiveHTTPServer(ThreadingHTTPServer):
-    """Never let a second Windows process take over a listening port."""
+    """Exclusive Windows bind and bounded workers, shared by both listeners."""
     allow_reuse_address = os.name != "nt"
     daemon_threads = True
+    max_connections = 64
+    max_connections_per_peer = 16
+    max_streams = 16
+    max_streams_per_peer = 4
+
+    def __init__(self, *args, **kwargs):
+        self._capacity_lock = threading.Lock()
+        self._connections = {}
+        self._peer_connections = {}
+        self._streams = {}
+        self._stream_count = 0
+        self._security = SecurityEvents(logging.getLogger(__name__), "listener")
+        super().__init__(*args, **kwargs)
+
+    def process_request(self, request, client_address):
+        peer = client_address[0]
+        with self._capacity_lock:
+            admitted = (len(self._connections) < self.max_connections and
+                        self._peer_connections.get(peer, 0) < self.max_connections_per_peer)
+            if admitted:
+                self._connections[request] = peer
+                self._peer_connections[peer] = self._peer_connections.get(peer, 0) + 1
+        if not admitted:
+            self._security.rejected(503)
+            try:
+                # Never block the accept loop on a peer that will not read.
+                request.setblocking(False)
+                request.send(b"HTTP/1.1 503 Service Unavailable\r\nServer: EliteLab\r\n"
+                             b"Connection: close\r\nRetry-After: 1\r\nCache-Control: no-store\r\n"
+                             b"Content-Length: 0\r\n\r\n")
+            except OSError:
+                pass
+            finally:
+                self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except Exception:
+            self._release_connection(request)
+            raise
+
+    def _release_connection(self, request):
+        with self._capacity_lock:
+            peer = self._connections.pop(request, None)
+            if peer is not None:
+                count = self._peer_connections[peer] - 1
+                if count:
+                    self._peer_connections[peer] = count
+                else:
+                    del self._peer_connections[peer]
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._release_connection(request)
+
+    def acquire_stream(self, peer):
+        with self._capacity_lock:
+            count = self._streams.get(peer, 0)
+            if self._stream_count >= self.max_streams or count >= self.max_streams_per_peer:
+                return False
+            self._streams[peer] = count + 1
+            self._stream_count += 1
+            return True
+
+    def release_stream(self, peer):
+        with self._capacity_lock:
+            count = self._streams[peer] - 1
+            self._stream_count -= 1
+            if count:
+                self._streams[peer] = count
+            else:
+                del self._streams[peer]
 
     def server_bind(self):
         if os.name == "nt":

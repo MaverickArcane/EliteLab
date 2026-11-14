@@ -15,7 +15,7 @@
        <div class="note">${p.distance_requirement_met_when_observed ? 'Distance milestone recorded.' : 'Distance milestone not yet recorded.'}
        ${p.destination_distance_from_career_start_ly == null ? 'Career starting system unverified.' : `Destination: ${val(p.destination_distance_from_career_start_ly)} Ly from career start.`}</div>
        ${d.boost_observation ? `<div>Boost evidence: ${esc(d.boost_observation.status.replaceAll('_',' '))}. Injections and neutron boosts do not stack.</div>` : ''}
-       ${r ? `<div style="margin-top:10px"><strong>${esc(r.request.from)} to ${esc(r.request.to)}</strong> / ${esc(r.status)}
+       ${r ? `<div class="space-top-10"><strong>${esc(r.request.from)} to ${esc(r.request.to)}</strong> / ${esc(r.status)}
          <a href="${esc(r.spansh_url)}" target="_blank" rel="noopener">Open Spansh</a> <button data-neutron-clear>Clear</button>
          ${['queued','running'].includes(r.status) ? '<button data-neutron-refresh>Check result</button>' : ''}
          ${r.status === 'ready' ? '<button data-neutron-export>Download CSV</button>' : ''}</div>
@@ -37,11 +37,11 @@
   });
   Lab.card({id:'neutron', requires:['neutron'],
     mount(el) {
-      el.innerHTML = `<form data-neutron-plan style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <label>Destination <input name="destination" required maxlength="100" style="width:190px"></label>
-        <label>Normal range <input name="range_ly" type="number" min="1" max="200" step="0.01" style="width:75px"> Ly</label>
+      el.innerHTML = `<form data-neutron-plan class="form-row">
+        <label>Destination <input name="destination" required maxlength="100" class="input-system"></label>
+        <label>Normal range <input name="range_ly" type="number" min="1" max="200" step="0.01" class="input-range"> Ly</label>
         <details><summary>Route options</summary><label>Origin <input name="source" placeholder="Current system"></label>
-          <label>Efficiency <input name="efficiency" type="number" min="1" max="100" value="60" style="width:65px"></label>
+          <label>Efficiency <input name="efficiency" type="number" min="1" max="100" value="60" class="input-quantity"></label>
           <label>Neutron multiplier <select name="supercharge"><option value="auto">Auto from fitted FSD</option><option value="4">4x</option><option value="6">6x</option></select></label>
           <label>Confirmed career start (optional) <input name="career_start"></label></details>
         <button type="submit">Plan neutron route</button></form>

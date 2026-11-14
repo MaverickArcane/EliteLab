@@ -124,13 +124,13 @@
           <button class="mini map-layer on" data-layer="labels">all labels</button>
           <button class="mini" id="map-fit">fit all</button><button class="mini" id="map-local">local</button><button class="mini" id="map-center">centre</button>
         </div>
-        <div class="map-legend"><span><i style="background:#ff8c2a"></i>you</span><span><i style="background:#2fd4ff"></i>carrier</span><span id="map-legend-layers"></span><span><i style="background:#ffd27a;box-shadow:0 0 6px #ffd27a"></i>visited, by star class</span><span class="muted map-stats"></span></div>
+        <div class="map-legend"><span><i class="map-key-ship"></i>you</span><span><i class="map-key-carrier"></i>carrier</span><span id="map-legend-layers"></span><span><i class="map-key-history"></i>visited, by star class</span><span class="muted map-stats"></span></div>
         <div class="map-scale"></div><div class="map-tip"></div></div>`;
       canvas = el.querySelector('canvas'); ctx = canvas.getContext('2d'); tip = el.querySelector('.map-tip');
       el.querySelector('[data-layer=labels]').classList.remove('on');
       // layer toggles for every registered layer except ship/carrier
       const lay = el.querySelector('#map-layers'), leg = el.querySelector('#map-legend-layers');
-      Object.entries(Lab.map.layers).forEach(([id, L]) => { if (id === 'ship' || id === 'carrier') return; const b = document.createElement('button'); b.className = 'mini map-layer on'; b.textContent = L.label || id; b.onclick = () => { L.enabled = L.enabled === false; if (id === 'history') M.layers.history = L.enabled !== false; b.classList.toggle('on', L.enabled !== false); draw(); }; lay.appendChild(b); if (L.color) { const s = document.createElement('span'); s.innerHTML = `<i style="background:${L.color}"></i>${esc(L.label || id)}`; leg.appendChild(s); } });
+      Object.entries(Lab.map.layers).forEach(([id, L]) => { if (id === 'ship' || id === 'carrier') return; const b = document.createElement('button'); b.className = 'mini map-layer on'; b.textContent = L.label || id; b.onclick = () => { L.enabled = L.enabled === false; if (id === 'history') M.layers.history = L.enabled !== false; b.classList.toggle('on', L.enabled !== false); draw(); }; lay.appendChild(b); if (L.color) { const s = document.createElement('span'); s.innerHTML = `<i data-background-color="${esc(L.color)}"></i>${esc(L.label || id)}`; leg.appendChild(s); } });
       el.querySelector('[data-layer=labels]').onclick = e => { M.layers.labels = !M.layers.labels; e.target.classList.toggle('on', M.layers.labels); draw(); };
       el.querySelector('#map-fit').onclick = () => { fit(Lab.state, false); draw(); };
       el.querySelector('#map-local').onclick = () => { fit(Lab.state, true); draw(); };

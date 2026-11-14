@@ -442,6 +442,9 @@ class Party:
         security = SecurityEvents(log, "party")
 
         class Handler(BaseHTTPRequestHandler):
+            def version_string(self):
+                return "EliteLab"
+
             def handle_one_request(self):
                 try:
                     super().handle_one_request()
