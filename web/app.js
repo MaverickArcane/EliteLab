@@ -86,7 +86,7 @@ import {StateFeed} from './state-feed.js';
     trade:{label:'Trading',description:'Sell cargo nearby or plan a round trip',cards:['selling','cargo','personal']},
     carrier:{label:'Carrier ops',description:'Plan loading, mining and crew operations',cards:['trade','haul','party','carrier']},
     ptn:{label:'PTN desk',description:'Carrier routes, station checks and affiliate trade adverts',cards:['ptn']},
-    mining:{label:'Mining',description:'Ring and Rhino mining, saved surface sites and measured yield',cards:['mining','rhino','cargo']},
+    mining:{label:'Mining',description:'Mining spots, practical guides and materials gained this session',cards:['mining','rhino','materials','cargo']},
     powerplay:{label:'Powerplay',description:'Pledge, merits, sell targets and combat',cards:['powerplay','merits','targets','loop','combat']},
     history:{label:'History',description:'Recorded balances, merit cycles and collection locations',cards:['history']},
     all:{label:'Layouts',description:'Choose a layout tab or arrange your own panels',cards:null}

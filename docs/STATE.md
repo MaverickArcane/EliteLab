@@ -1,10 +1,10 @@
 # State reference
 
 `rhino.summary` contains commander-local saved sites, selected surface target,
-timestamped Status position, same-body distance/bearing, separate SRV/ship
-cargo observations and the current/last Rhino deployment's production and
-transfer totals. Rig counts are manual reports. Only explicit notebook actions
-persist to `rhino-sites.json`. See [Rhino mining](RHINO-MINING.md).
+timestamped Status position, same-body distance/bearing and the guide topic index.
+The guide itself is read on demand through `get_rhino_guide`, not repeated in SSE.
+Only explicit notebook actions persist to `rhino-sites.json`. The earlier
+preview's rig-fit field is preserved as a note. See [Rhino mining](RHINO-MINING.md).
 
 Release additions:
 

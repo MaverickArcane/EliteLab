@@ -1,4 +1,5 @@
 {"timestamp":"2026-11-15T12:00:00Z","event":"LoadGame","Commander":"Rhino Test","FID":"F-RHINO","Ship":"panthermkii"}
+{"timestamp":"2026-11-15T12:00:00Z","event":"Materials","Raw":[{"Name":"iron","Count":5}],"Manufactured":[],"Encoded":[]}
 {"timestamp":"2026-11-15T12:00:00Z","event":"Location","StarSystem":"Shinrarta Dezhra","Body":"Shinrarta Dezhra AB 2 j","BodyType":"Planet"}
 {"timestamp":"2026-11-15T12:00:00Z","event":"Loadout","Ship":"panthermkii","ShipID":10,"CargoCapacity":1136,"Modules":[]}
 {"timestamp":"2026-11-15T12:00:00Z","event":"Cargo","Vessel":"Ship","Count":100}
@@ -9,3 +10,4 @@
 {"timestamp":"2026-11-15T12:01:01Z","event":"MiningRefined","Type":"$water_name;","Type_Localised":"Water"}
 {"timestamp":"2026-11-15T12:01:02Z","event":"Cargo","Vessel":"SRV","Count":3}
 {"timestamp":"2026-11-15T12:02:01Z","event":"CargoTransfer","Transfers":[{"Type":"tritium","Count":2,"Direction":"toship"},{"Type":"water","Count":1,"Direction":"toship"}]}
+{"timestamp":"2026-11-15T12:02:02Z","event":"MaterialCollected","Category":"Raw","Name":"iron","Count":3}

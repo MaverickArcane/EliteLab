@@ -1,12 +1,12 @@
 {
   "name": "rhino",
   "version": "1.0.0",
-  "description": "Rhino surface mining: saved sites, surface navigation, cargo transfers and measured deployment yield.",
+  "description": "Rhino surface mining: saved spots, coordinate navigation and a detailed guide shared with MCP.",
   "requires": ["journal"],
   "provides": ["rhino"],
   "order": 81,
   "cards": [{
-    "id": "rhino", "title": "Rhino surface mining", "span": 12,
+    "id": "rhino", "title": "Rhino surface mining", "span": 8,
     "script": "card.js", "order": 48,
     "sources": [
       {"label": "Rhino field research", "url": "https://inara.cz/elite/logbook/98900/"},

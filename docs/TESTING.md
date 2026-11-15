@@ -1,9 +1,10 @@
 # Testing
 
 Rhino mining: `python -m unittest discover -s tests -p test_rhino.py -v`
-and `node tests/rhino-browser.mjs` cover production versus transfers, separate
-cargo holds, deployment/commander boundaries, persistent local sites, surface
-navigation, input validation, escaping and stable forms under SSE updates.
+and `node tests/rhino-browser.mjs` cover commander-local site persistence,
+surface navigation, legacy note preservation, input validation, escaping,
+stable forms under SSE, guide topics shared through HTTP/MCP and the browser,
+guide load/retry, and live material gains in the Mining workspace.
 Browser screenshots use synthetic data and are saved under `artifacts/rhino`.
 See [Rhino mining](RHINO-MINING.md). Use a separate `ELITELAB_INSTANCE_DIR`
 when running the full suite alongside a player's live installation.

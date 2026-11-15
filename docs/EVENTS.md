@@ -1,11 +1,10 @@
 # Journal events consumed
 
-`rhino` uses player-controlled `LaunchSRV` with `SRVType=mev_rhino` to begin a
-deployment, `MiningRefined` to count one tonne, `Cargo.Vessel` to distinguish
-holds, `CargoTransfer.Transfers` to count SRV-to-ship unloads, and Status
-latitude/longitude/radius for navigation. DockSRV, SRVDestroyed, departure,
-Died and Shutdown close a run; LoadGame and commander changes reset evidence.
-It does not infer deposits or rig placement from journal events.
+`rhino` uses LoadGame/Commander for notebook identity, location/jump/approach
+events for the system, and Status latitude/longitude/radius for navigation.
+Departure, Died and Shutdown clear the position; a new login resets navigation.
+It does not consume cargo or production events or infer deposits/rig placement.
+Session material gains remain owned by the existing `materials` module.
 
 Release consumers: Cargo/Cargo.json retains MissionID; `selling` excludes
 mission/stolen cargo from legal-market plans. MarketBuy records last observed
