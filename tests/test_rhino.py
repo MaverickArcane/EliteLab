@@ -235,7 +235,7 @@ class RhinoTests(unittest.TestCase):
         confirmed = self.call("get_rhino_sites", verification="confirmed")["sites"]
         self.assertEqual({s["id"] for s in confirmed}, {"wregoe-iridium-30", "shinrarta-tritium"})
         wregoe = next(s for s in confirmed if s["id"] == "wregoe-iridium-30")
-        self.assertEqual((wregoe["rigs_observed"], wregoe["rigs_reported"]), (5, 6))
+        self.assertEqual((wregoe["rigs_observed"], wregoe["rigs_reported"]), (6, 6))
         self.assertEqual((wregoe["latitude"], wregoe["longitude"]), (-66.9655, -109.5819))
         self.assertEqual(wregoe["availability"], "unknown")
         tritium = self.call("get_rhino_sites", commodity="tRiTiUm")["sites"]

@@ -4,7 +4,7 @@
   const place = s => s.body.startsWith(s.system + ' ') ? s.body : `${s.system} / ${s.body}`;
   const distance = n => n < 1000 ? `${fmt(Math.round(n))} m` : `${(n / 1000).toFixed(2)} km`;
   const badges = s => `<span class="rhino-badge ${s.verification === 'confirmed' ? 'confirmed' : ''}">${s.verification === 'confirmed' ? 'Confirmed' : 'Unconfirmed'}</span>${s.availability === 'reported_depleted' ? '<span class="rhino-badge depleted">Reported depleted</span>' : ''}`;
-  const rigEvidence = s => [s.rigs_observed != null ? `${s.rigs_observed} rigs observed` : '', s.rigs_reported != null ? `${s.rigs_reported} reported` : '', s.rigs_estimated != null ? `${s.rigs_estimated} rigs estimated` : ''].filter(Boolean).join(' / ');
+  const rigEvidence = s => [s.rigs_observed != null ? `${s.rigs_observed} rigs observed` : '', s.rigs_reported != null && s.rigs_reported !== s.rigs_observed ? `${s.rigs_reported} rigs reported` : '', s.rigs_estimated != null ? `${s.rigs_estimated} rigs estimated` : ''].filter(Boolean).join(' / ');
   const recent = p => {
     const age = (Date.now() - Date.parse(p?.timestamp)) / 1000;
     return p?.body && p?.system && Number.isFinite(p.latitude) && Number.isFinite(p.longitude)
@@ -138,6 +138,17 @@
         }
         if (button.hasAttribute('data-rhino-cancel')) form.hidden = true;
         if (button.hasAttribute('data-rhino-report-cancel')) reportForm.hidden = true;
+        if (button.dataset.rhinoConfirm) {
+          const site = state.sites?.find(s => s.id === button.dataset.rhinoConfirm);
+          if (site && site.verification !== 'confirmed') {
+            button.disabled = true;
+            action('/api/rhino/sites/report', {
+              id: site.id, verification: 'confirmed', availability: site.availability,
+              evidence: `Commander confirmed an on-site visit using Mark confirmed.${site.personal_report ? ` Previous report: ${site.evidence}` : ''}`,
+            }, 'Location confirmed. You can add details or change its status in Evidence and notes.')
+              .finally(() => { button.disabled = false; });
+          }
+        }
         if (button.dataset.rhinoReport) {
           const site = state.sites?.find(s => s.id === button.dataset.rhinoReport);
           if (site) {
@@ -253,7 +264,7 @@
           <div class="rhino-toolbar"><strong>${esc(s.name)}</strong><button class="mini" data-rhino-select="${esc(s.id)}" ${s.id === site?.id ? 'disabled' : ''}>${s.id === site?.id ? 'Selected' : 'Navigate'}</button></div>
           <div>${esc(place(s))}</div>
           <div class="rhino-coords">${coord(s.latitude)}, ${coord(s.longitude)} <button class="mini" data-copy="${esc(s.system)} | ${esc(s.body)} | ${coord(s.latitude)}, ${coord(s.longitude)}">Copy location</button></div>
-          <div class="rhino-badges">${badges(s)}</div>
+          <div class="rhino-badges">${badges(s)}${s.verification !== 'confirmed' ? `<button class="mini" data-rhino-confirm="${esc(s.id)}" title="Confirm that you visited and verified this location in game">Mark confirmed</button>` : ''}</div>
           <div class="note">${esc(s.commodity)}${rigEvidence(s) ? ` &middot; ${esc(rigEvidence(s))}` : ''}</div>
           <details data-site-notes="${esc(s.id)}" ${opened.has(s.id) ? 'open' : ''}><summary>Evidence and notes${s.personal_report ? ' / your report' : ''}</summary>
             <p>${esc(s.evidence || '')}</p><div class="note">Recorded ${esc((s.reported_at || '').slice(0, 10))}; current reserves are not measured.</div>

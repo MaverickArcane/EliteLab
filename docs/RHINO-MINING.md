@@ -42,7 +42,11 @@ a recording date and source links. Confirmation and depletion are separate:
 - **Reported depleted**: an observation of depletion, which can coexist with
   confirmation. Unknown reserves never imply a stocked deposit.
 
-Open **Evidence and notes > Update report** to record a visit or depletion.
+Click **Mark confirmed** directly on an unconfirmed location after verifying it
+in game. This records a dated confirmation and moves it into Confirmed in one
+click, retaining any depletion flag. It does not confirm an estimated rig count.
+Open **Evidence and notes > Update report** to add details, change the status
+back to Unconfirmed, or report depletion.
 Describe what was actually checked and include the visit date when it differs
 from the recording date. Reports are local to your commander, retain the original
 catalog evidence, and do not change the selected destination. Merely saving GPS
@@ -54,7 +58,7 @@ The initial catalog has two confirmed locations and six unconfirmed leads:
 
 | Location | Evidence retained |
 | --- | --- |
-| Wregoe JC-Y b57-0 A 1, PML 4 | Owner visited; five rigs demonstrated, six survey-reported |
+| Wregoe JC-Y b57-0 A 1, PML 4 | Owner visited and subsequently deployed six rigs, reproducing the survey's placement claim |
 | Shinrarta Dezhra AB 2 j | Three working rigs reproduced; later reported depleted |
 | Wregoe GW-Y c28-2 A 1, PML 4 / Spot 31 and PML 3 / Spot 33 | Six survey-reported rigs each; not reproduced by the contributor |
 | HIP 63920 AB 4 b, 35.3958 / 110.2640 | Large Tritium patch reported; exact link to six-rig test unresolved |
@@ -68,8 +72,8 @@ SpotIDX 30 -> LocID 22 -> bodyIDX 43 -> Parent_System 16;
 31 -> 23 -> 44 -> 17; 33 -> 24 -> 44 -> 17.
 The archive publication date is 2026-09-08; individual survey dates are unknown.
 Spot 30's location has `locatrion_survyed = no`, retained as a source caveat.
-The owner's later field report supplies location confirmation, with five rigs
-demonstrated. The catalog is a small factual extract, not a copy of the database
+The owner's later field report supplies location confirmation, with six rigs
+deployed. The catalog is a small factual extract, not a copy of the database
 or field guide. No network fetch is required at runtime.
 
 Choose **Add a spot > Use current position**, then enter a name, commodity and

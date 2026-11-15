@@ -12,9 +12,9 @@
     "availability": "unknown",
     "pml": 4,
     "survey_id": "SpotIDX 30",
-    "rigs_observed": 5,
+    "rigs_observed": 6,
     "rigs_reported": 6,
-    "evidence": "Owner confirmed the coordinates on site on 15 November 2026 with five rigs deployed. Six appears achievable but has not been demonstrated by that visit; the community survey records six.",
+    "evidence": "Owner confirmed the coordinates on site on 15 November 2026 and subsequently reported successfully deploying six rigs on this deposit. This reproduces the survey's six-rig placement claim; current reserves and output are not measured by EliteLab.",
     "notes": "Single surveyed deposit. Database join checked: SpotIDX 30 > LocID 22 (PML 4) > bodyIDX 43 (A 1) > Parent_System 16. The archive was published 8 September 2026; the individual survey date is unknown. The location's locatrion_survyed flag is no. No current reserve or refill guarantee.",
     "sources": [
       {
