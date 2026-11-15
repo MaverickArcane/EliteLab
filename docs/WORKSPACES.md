@@ -11,7 +11,7 @@ The default tabs now have narrower jobs:
 | Trading | Cargo buyers and tracked selling route, cargo, secondary personal round trips |
 | Carrier ops | Owner plans, crew task/party, stock and followed carrier |
 | PTN desk | Independent route scouting, confirmation and public-hauling preparation |
-| Mining | Mining sessions, ring/buyer search and cargo |
+| Mining | Rhino navigation, collection progress, spots and guide; Materials gains; ring/buyer search and cargo |
 | Powerplay | Pledge, merits, targets, rare loop and combat |
 | History | Credit balances, merit cycles and collection history |
 

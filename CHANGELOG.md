@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.6.0-beta.3
+
+- Add Rhino surface mining under Mining: observed collections, cargo space,
+  coordinate navigation and a sourced procedure guide shared by the UI and MCP.
+  Browse confirmed locations and unconfirmed research leads, retaining sources,
+  observed/reported/estimated rig evidence and separate depletion reports.
+  Save personal spots and field reports per commander. Keep forms and guide
+  details on demand, with contextual help for collecting, transferring cargo
+  without boarding, and depletion. Include the catalog in Linux packaging.
+  Show the existing Materials panel alongside mining, initially on session gains.
+- Fix Materials session gains when Commander, Materials and LoadGame share a
+  timestamp: recognize the login while preserving the opening inventory.
+- Preserve full confirmation reports and guard notebook writes across commander changes.
+- Reject cached departure coordinates; rebuild Materials gains on repeated replay.
+- Add a Start Menu Uninstall EliteLab shortcut to the existing Windows uninstaller.
+
 ## 0.6.0-beta.2
 
 - Security: recheck party invitations immediately before state changes. Reports

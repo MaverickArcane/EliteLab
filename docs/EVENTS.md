@@ -1,5 +1,16 @@
 # Journal events consumed
 
+`rhino` uses LoadGame/Commander for notebook identity, location/jump/approach
+events for the system, and Status latitude/longitude/radius for navigation.
+Departure, Died and Shutdown clear the position; a new login resets navigation.
+LaunchSRV starts a Rhino deployment; MiningRefined counts one collected tonne
+per event. CargoTransfer counts gross vehicle-to-ship unloads; Cargo snapshots
+remain authoritative for each hold. Loadout supplies capacity and observed
+DSS/large-hangar presence; module changes invalidate equipment checks.
+DockSRV, departure, ship swap, shutdown or death ends collection attribution.
+There is no inference of deposits, rig placement, hopper fill or replenishment.
+Session material gains remain owned by the existing `materials` module.
+
 Release consumers: Cargo/Cargo.json retains MissionID; `selling` excludes
 mission/stolen cargo from legal-market plans. MarketBuy records last observed
 unit cost; MarketSell advances only matched saved market/commodity quantities

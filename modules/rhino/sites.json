@@ -1,0 +1,210 @@
+[
+  {
+    "id": "wregoe-iridium-30",
+    "name": "Wregoe iridium - PML 4",
+    "system": "Wregoe JC-Y b57-0",
+    "body": "Wregoe JC-Y b57-0 A 1",
+    "latitude": -66.9655,
+    "longitude": -109.5819,
+    "radius_m": 651883.4375,
+    "commodity": "Iridium",
+    "verification": "confirmed",
+    "availability": "unknown",
+    "pml": 4,
+    "survey_id": "SpotIDX 30",
+    "rigs_observed": 6,
+    "rigs_reported": 6,
+    "evidence": "Owner confirmed the coordinates on site on 15 November 2026 and subsequently reported successfully deploying six rigs on this deposit. This reproduces the survey's six-rig placement claim; current reserves and output are not measured by EliteLab.",
+    "notes": "Single surveyed deposit. Database join checked: SpotIDX 30 > LocID 22 (PML 4) > bodyIDX 43 (A 1) > Parent_System 16. The archive was published 8 September 2026; the individual survey date is unknown. The location's locatrion_survyed flag is no. No current reserve or refill guarantee.",
+    "sources": [
+      {
+        "title": "Surface Mining v0.3 release (8 September 2026)",
+        "url": "https://www.forum.stellanebula.de/viewtopic.php?p=36652#p36652"
+      },
+      {
+        "title": "Original survey database (ZIP)",
+        "url": "https://ik.imagekit.io/Rkossler2/Surface%20Mining_V0.3.zip"
+      }
+    ],
+    "reported_at": "2026-11-15",
+    "reference": true
+  },
+  {
+    "id": "shinrarta-tritium",
+    "name": "Shinrarta tritium cluster",
+    "system": "Shinrarta Dezhra",
+    "body": "Shinrarta Dezhra AB 2 j",
+    "latitude": 35.9491,
+    "longitude": -31.2339,
+    "radius_m": 5963896,
+    "commodity": "Tritium",
+    "verification": "confirmed",
+    "availability": "reported_depleted",
+    "rigs_observed": 3,
+    "evidence": "Owner reproduced three working rigs near the video's 2:11 position on 15 November 2026. Later that day the deposit explicitly showed Depleted and reloading did not refill it.",
+    "notes": "Return coordinates locate the area, not individual rig placements. Retain as a bookmark; do not assume stocked ground or a replenishment timer.",
+    "sources": [
+      {
+        "title": "Video reference at 2:11",
+        "url": "https://www.youtube.com/watch?v=pmkU1LqwPjA&t=131s"
+      }
+    ],
+    "reported_at": "2026-11-15",
+    "reference": true
+  },
+  {
+    "id": "wregoe-iridium-31",
+    "name": "Wregoe iridium - PML 4 / Spot 31",
+    "system": "Wregoe GW-Y c28-2",
+    "body": "Wregoe GW-Y c28-2 A 1",
+    "latitude": -26.5578,
+    "longitude": 162.0099,
+    "radius_m": 1615000,
+    "commodity": "Iridium",
+    "verification": "unconfirmed",
+    "availability": "unknown",
+    "pml": 4,
+    "survey_id": "SpotIDX 31",
+    "rigs_reported": 6,
+    "evidence": "Surface Mining v0.3 records six rigs. Database coordinates and relationships checked; this catalog's contributor has not reproduced the placement in game.",
+    "notes": "Join: SpotIDX 31 > LocID 23 (PML 4) > bodyIDX 44 (A 1) > Parent_System 17. Radius rounded to 1615 km in the survey; live radius takes priority. Archive published 8 September 2026; visit date unknown.",
+    "sources": [
+      {
+        "title": "Surface Mining v0.3 release (8 September 2026)",
+        "url": "https://www.forum.stellanebula.de/viewtopic.php?p=36652#p36652"
+      },
+      {
+        "title": "Original survey database (ZIP)",
+        "url": "https://ik.imagekit.io/Rkossler2/Surface%20Mining_V0.3.zip"
+      }
+    ],
+    "reported_at": "2026-11-15",
+    "reference": true
+  },
+  {
+    "id": "wregoe-iridium-33",
+    "name": "Wregoe iridium - PML 3 / Spot 33",
+    "system": "Wregoe GW-Y c28-2",
+    "body": "Wregoe GW-Y c28-2 A 1",
+    "latitude": -26.0718,
+    "longitude": 162.0605,
+    "radius_m": 1615000,
+    "commodity": "Iridium",
+    "verification": "unconfirmed",
+    "availability": "unknown",
+    "pml": 3,
+    "survey_id": "SpotIDX 33",
+    "rigs_reported": 6,
+    "evidence": "Surface Mining v0.3 records six rigs. Database coordinates and relationships checked; this catalog's contributor has not reproduced the placement in game.",
+    "notes": "Join: SpotIDX 33 > LocID 24 (PML 3) > bodyIDX 44 (A 1) > Parent_System 17. Radius rounded to 1615 km in the survey; live radius takes priority. Archive published 8 September 2026; visit date unknown.",
+    "sources": [
+      {
+        "title": "Surface Mining v0.3 release (8 September 2026)",
+        "url": "https://www.forum.stellanebula.de/viewtopic.php?p=36652#p36652"
+      },
+      {
+        "title": "Original survey database (ZIP)",
+        "url": "https://ik.imagekit.io/Rkossler2/Surface%20Mining_V0.3.zip"
+      }
+    ],
+    "reported_at": "2026-11-15",
+    "reference": true
+  },
+  {
+    "id": "hip63920-tritium",
+    "name": "HIP 63920 large tritium lead",
+    "system": "HIP 63920",
+    "body": "HIP 63920 AB 4 b",
+    "latitude": 35.3958,
+    "longitude": 110.264,
+    "radius_m": null,
+    "commodity": "Tritium",
+    "verification": "unconfirmed",
+    "availability": "unknown",
+    "evidence": "Arrakis Arkstone publishes these coordinates for a large tritium patch. The same report describes six simultaneous rigs, but does not explicitly tie that test to this coordinate pair. PML number is absent; exact-site rig capacity remains unconfirmed.",
+    "notes": "An earlier visit to another patch on this body did not reproduce the six-rig result. These coordinates are a lead, not a promised six-rig or 421 t/h destination. Verify the specific deposit on arrival.",
+    "sources": [
+      {
+        "title": "Arkstone Intel Pack 001 - firsthand report",
+        "url": "https://www.reddit.com/r/ArkstoneIntel/comments/1we7lkx/arkstone_intel_pack_001_rhino_planetary_mining/"
+      }
+    ],
+    "reported_at": "2026-11-15",
+    "reference": true
+  },
+  {
+    "id": "hip39418-a11",
+    "name": "HIP 39418 monazite - A11",
+    "system": "HIP 39418",
+    "body": "HIP 39418 5 b",
+    "latitude": 55.029,
+    "longitude": -160.685,
+    "radius_m": null,
+    "commodity": "Monazite",
+    "pml": 1,
+    "survey_id": "A11",
+    "verification": "unconfirmed",
+    "availability": "unknown",
+    "rigs_estimated": 5,
+    "evidence": "Field guide Appendix A maps A11 in PML 1, with an estimated five-rig fit. This is a modeled capacity, not a demonstrated placement test. No sixth rig is established.",
+    "notes": "Published coordinates rounded to 0.001 degrees; scan the nearby ground. Surveyed mineral amount: Low. The catalog contributor has not reproduced this deposit in game.",
+    "sources": [
+      {
+        "title": "Rhino Planetary Mining Field Guide - Appendix A",
+        "url": "https://docs.google.com/document/d/1wfvkE73ZEhlvdhVZMjIpyzr5cAsceY4xPWTGdG2yEmo/edit"
+      }
+    ],
+    "reported_at": "2026-11-15",
+    "reference": true
+  },
+  {
+    "id": "hip39418-a25",
+    "name": "HIP 39418 serendibite - A25",
+    "system": "HIP 39418",
+    "body": "HIP 39418 5 b",
+    "latitude": 55.402,
+    "longitude": -160.353,
+    "radius_m": null,
+    "commodity": "Serendibite",
+    "pml": 1,
+    "survey_id": "A25",
+    "verification": "unconfirmed",
+    "availability": "unknown",
+    "rigs_estimated": 5,
+    "evidence": "Field guide Appendix A maps A25 in PML 1, with an estimated five-rig fit. This is a modeled capacity, not a demonstrated placement test. No sixth rig is established.",
+    "notes": "Published coordinates rounded to 0.001 degrees; scan the nearby ground. Surveyed mineral amount: High. The catalog contributor has not reproduced this deposit in game.",
+    "sources": [
+      {
+        "title": "Rhino Planetary Mining Field Guide - Appendix A",
+        "url": "https://docs.google.com/document/d/1wfvkE73ZEhlvdhVZMjIpyzr5cAsceY4xPWTGdG2yEmo/edit"
+      }
+    ],
+    "reported_at": "2026-11-15",
+    "reference": true
+  },
+  {
+    "id": "hip39418-b40",
+    "name": "HIP 39418 serendibite - B40",
+    "system": "HIP 39418",
+    "body": "HIP 39418 5 b",
+    "latitude": 25.657,
+    "longitude": 47.716,
+    "radius_m": null,
+    "commodity": "Serendibite",
+    "pml": 2,
+    "survey_id": "B40",
+    "verification": "unconfirmed",
+    "availability": "unknown",
+    "rigs_estimated": 5,
+    "evidence": "Field guide Appendix A maps B40 in PML 2, with an estimated five-rig fit. This is a modeled capacity, not a demonstrated placement test. No sixth rig is established.",
+    "notes": "Published coordinates rounded to 0.001 degrees; scan the nearby ground. Surveyed mineral amount: Medium. The catalog contributor has not reproduced this deposit in game.",
+    "sources": [
+      {
+        "title": "Rhino Planetary Mining Field Guide - Appendix A",
+        "url": "https://docs.google.com/document/d/1wfvkE73ZEhlvdhVZMjIpyzr5cAsceY4xPWTGdG2yEmo/edit"
+      }
+    ],
+    "reported_at": "2026-11-15",
+    "reference": true
+  }
+]

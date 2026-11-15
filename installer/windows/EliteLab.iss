@@ -41,6 +41,7 @@ Source: "{#StagingDir}\.windows-bundle"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\EliteLab"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\Launch EliteLab.vbs"""; WorkingDir: "{app}"
+Name: "{group}\Uninstall EliteLab"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\EliteLab"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\Launch EliteLab.vbs"""; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]

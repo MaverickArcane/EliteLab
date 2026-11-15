@@ -1,0 +1,16 @@
+{
+  "name": "rhino",
+  "version": "1.0.0",
+  "description": "Rhino surface mining: confirmed locations and research leads, coordinate navigation, collected cargo and a sourced guide shared with MCP.",
+  "requires": ["journal"],
+  "provides": ["rhino"],
+  "order": 81,
+  "cards": [{
+    "id": "rhino", "title": "Rhino surface mining", "span": 8,
+    "script": "card.js", "order": 48,
+    "sources": [
+      {"label": "Rhino field research", "url": "https://inara.cz/elite/logbook/98900/"},
+      {"label": "Transfer cargo without boarding", "url": "https://www.reddit.com/r/EliteDangerous/comments/1w7ypln/psa_offload_your_rhino_while_your_ship_is_landed/"}
+    ]
+  }]
+}

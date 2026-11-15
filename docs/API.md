@@ -1,5 +1,29 @@
 # API / AI tools
 
+Rhino surface mining adds `get_rhino_status` (GET `/api/rhino`),
+`get_rhino_guide` (GET `/api/rhino/guide?topic=overview`), and
+`save_rhino_site`, `select_rhino_site`, `remove_rhino_site` (POST
+`/api/rhino/sites/save`, `/select`, `/remove`). Guide topics are listed in
+the default overview; use `all` for the complete dated, sourced guide.
+These inherit the normal HTTP/MCP contract.
+`get_rhino_sites` (GET `/api/rhino/sites`) filters by `verification`
+(`all`, `confirmed`, `unconfirmed`) and exact case-insensitive `commodity`.
+`report_rhino_site` (POST `/api/rhino/sites/report`) requires `id`,
+`verification`, `availability` (`unknown`, `reported_depleted`) and `evidence`.
+It records a commander-local observation without overwriting catalog sources.
+`confirm_rhino_site` (POST `/api/rhino/sites/confirm`) requires `id`. It marks
+an on-site visit confirmed without replacing an existing report or its date,
+depletion flag or rig evidence; `confirmed_at` records the separate confirmation.
+Already-confirmed locations are unchanged. Status and catalog expose
+`commander_key`; pass that value on every notebook POST to reject a write if
+the commander changes after reading the location. It is an optional stale-write
+precondition for existing clients, not an authentication credential.
+Status includes observed per-deployment collection totals, commodity breakdown,
+bounded receipt chart points, unloads, last-reported holds and equipment checks.
+Missing evidence stays null. No per-rig state or deposit reset timer is inferred.
+Notebook mutations are commander-local; no route acts in game or uploads sites.
+See [Rhino mining](RHINO-MINING.md) for evidence and parameter semantics.
+
 Release additions (all inherit normal authorization/Origin/Host checks):
 
 | Tool | Route | Contract |

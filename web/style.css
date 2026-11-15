@@ -677,3 +677,63 @@ body[data-active-workspace=ship] #card-ship{grid-column:1/-1!important}
 .combat-empty{font-size:12px;margin-bottom:8px}
 [hidden]{display:none!important}
 .merit-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+
+/* Rhino notebook: navigation first, forms and long instructions on demand. */
+.rhino-desk { min-width:0; }
+.rhino-tabs { display:flex; gap:6px; border-bottom:1px solid var(--line); padding-bottom:10px; margin-bottom:12px; flex-wrap:wrap; }
+.rhino-tabs [aria-selected=true] { color:var(--accent); border-color:var(--accent); background:var(--accent-soft); }
+.rhino-desk [hidden] { display:none!important; }
+.rhino-toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin:10px 0; }
+.rhino-navigation { border-left:2px solid var(--accent); padding:0 14px 10px; overflow-wrap:anywhere; }
+.rhino-direction { font:600 20px var(--mono); color:var(--accent-2); }
+.rhino-haul { border:1px solid var(--line); background:linear-gradient(135deg,var(--accent-soft),var(--bg-2)); border-radius:8px; padding:14px 18px; margin:14px 0; }
+.rhino-haul .rhino-toolbar { margin-top:0; }
+.rhino-yield { display:flex; align-items:baseline; gap:10px; color:var(--accent-2); }
+.rhino-yield strong { font:600 48px var(--mono); }
+.rhino-breakdown { display:flex; flex-wrap:wrap; gap:8px 20px; margin:8px 0; }
+.rhino-breakdown b { margin-left:5px; color:var(--accent-2); }
+.rhino-chart { display:block; width:100%; height:82px; margin:16px 0 8px; overflow:visible; }
+.rhino-chart polygon { fill:var(--accent-soft); }
+.rhino-chart polyline { fill:none; stroke:var(--accent-2); stroke-width:2; vector-effect:non-scaling-stroke; }
+.rhino-chart-grid { stroke:var(--line); fill:none; }
+.rhino-haul details { font-size:12px; }
+.rhino-holds { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.rhino-hold .rhino-toolbar { font-size:12px; gap:4px; }
+.rhino-hold-bar { height:6px; background:var(--line); border-radius:4px; overflow:hidden; margin-bottom:7px; }
+.rhino-hold-bar span { display:block; height:100%; background:var(--accent-2); transition:width .3s ease; }
+.rhino-help { padding:14px 0 10px; margin-top:14px; border-top:1px solid var(--line); }
+.rhino-help p { margin:6px 0 10px; color:var(--muted); }
+.rhino-help button { margin-right:6px; }
+.rhino-shortcuts { display:flex; flex-wrap:wrap; gap:6px; }
+.rhino-coords { font-family:var(--mono); color:var(--accent-2); }
+.rhino-form label { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.rhino-form { display:grid; gap:10px; padding:16px; margin:12px 0; background:var(--bg-2); border:1px solid var(--line); }
+.rhino-form h3 { margin:0; font-size:14px; }
+.rhino-desk input,.rhino-desk select,.rhino-desk textarea { width:100%; min-width:0; box-sizing:border-box; }
+.rhino-desk textarea { resize:vertical; }
+.rhino-desk [data-rhino-message]:empty { display:none; }
+.rhino-site { border-top:1px solid var(--line); padding:10px 0; overflow-wrap:anywhere; }
+.rhino-site .row { flex-wrap:wrap; gap:6px; }
+.rhino-site details { margin-top:8px; }
+.rhino-site p { white-space:pre-wrap; }
+.rhino-catalog-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; }
+.rhino-location-group { min-width:0; }
+.rhino-location-group h3 { margin:14px 0 6px; font-size:15px; }
+.rhino-locations { max-height:590px; overflow:auto; padding-right:8px; scrollbar-width:thin; }
+.rhino-badges { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0; }
+.rhino-badge { display:inline-block; padding:3px 7px; border:1px solid var(--line); border-radius:4px; font-size:11px; color:var(--muted); }
+.rhino-badge.confirmed { color:var(--accent-2); border-color:var(--accent-2); }
+.rhino-badge.depleted { color:var(--accent); border-color:var(--accent); }
+.rhino-desk summary { cursor:pointer; padding:8px 0; }
+.rhino-topic { border-top:1px solid var(--line); padding:5px 0; line-height:1.65; overflow-wrap:anywhere; }
+.rhino-topic > summary { font-weight:600; color:var(--accent); }
+.rhino-topic p,.rhino-topic ol { max-width:80ch; }
+.rhino-evidence { font-size:12px; color:var(--muted); }
+.rhino-desk ol { padding-left:22px; }
+.rhino-desk li { padding-bottom:8px; }
+@media(max-width:760px) {
+  .rhino-form .grid2 { grid-template-columns:1fr; }
+  .rhino-catalog-grid { grid-template-columns:1fr; gap:6px; }
+  .rhino-direction { font-size:18px; }
+  .rhino-holds { grid-template-columns:1fr; gap:4px; }
+}

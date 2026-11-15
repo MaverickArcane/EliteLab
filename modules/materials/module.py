@@ -29,6 +29,17 @@ class Materials:
         self.catalog = MATERIAL_BY_KEY
         self.by_name = dict(MATERIAL_BY_NAME)
         self.sources = data.get("sources", {})
+        self._version = 0  # bumped on every publish; the store key other modules watch
+        self._replaying = False
+        self.reset_observations()
+        self.wishlist = core.read_data("wishlist.json", default={}) or {}
+        for e in ("Commander", "LoadGame", "Materials", "MaterialCollected", "MaterialDiscarded", "MaterialTrade", "EngineerCraft", "Synthesis",
+                  "TechnologyBroker", "MissionCompleted", "ScientificResearch", "EngineerContribution"):
+            core.bus.on("journal." + e, self.on_event)
+        core.bus.on("journal.replay.done", self.replay_done)
+        self.publish()
+
+    def reset_observations(self):
         self.inv = {}      # key -> count
         self.inventory_at = ""
         self.snapshot_at = None
@@ -38,15 +49,14 @@ class Materials:
         self.session_started_at = None
         self.session_gained = {}
         self.last_gain = None
-        self._version = 0  # bumped on every publish; the store key other modules watch
         self.names = {}    # key -> display name seen in journal
         self.cats = {}     # key -> category seen in journal
-        self.wishlist = core.read_data("wishlist.json", default={}) or {}
-        for e in ("Commander", "LoadGame", "Materials", "MaterialCollected", "MaterialDiscarded", "MaterialTrade", "EngineerCraft", "Synthesis",
-                  "TechnologyBroker", "MissionCompleted", "ScientificResearch", "EngineerContribution"):
-            core.bus.on("journal." + e, self.on_event)
-        core.bus.on("journal.replay.done", lambda n, v: self.publish())
-        self.publish()
+
+    def replay_done(self, name, value):
+        with self._publish_lock:
+            with self._lock:
+                self._replaying = False
+            self.publish()
 
     # -- resolving names ----------------------------------------------------------
     def resolve(self, name):
@@ -88,6 +98,9 @@ class Materials:
     def on_event(self, name, ev):
         with self._publish_lock:
             with self._lock:
+                if ev.get("_replay") and not self._replaying:
+                    self.reset_observations()
+                    self._replaying = True
                 self._on_event(name, ev)
                 state = self._snapshot()
             self.core.store.update(NS, state)
@@ -110,11 +123,15 @@ class Materials:
         if e in ("Commander", "LoadGame"):
             name = ev.get("Name") if e == "Commander" else ev.get("Commander")
             owner = ("fid:" + str(ev["FID"])) if ev.get("FID") else self.commander_key if name and name == self.commander_name else "name:" + str(name)
-            if at and (at > self.session_at or (at == self.session_at and owner != self.commander_key)):
+            # Commander -> Materials -> LoadGame can all share one second.
+            # Identity is known then, but the game-session boundary is not yet open.
+            starting_login = e == "LoadGame" and self.session_started_at is None
+            if at and (at > self.session_at or (at == self.session_at and (owner != self.commander_key or starting_login))):
                 self.session_started_at = ev.get("timestamp") if e == "LoadGame" else None
                 self.session_gained = {}
                 self.last_gain = None
                 if e == "LoadGame" and name and owner == self.commander_key:
+                    self.session_at = at
                     return  # Startup Materials can precede LoadGame after Commander.
                 self.session_at = at
                 self.commander_name = name

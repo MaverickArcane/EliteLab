@@ -75,6 +75,7 @@ def smoke(installer):
             env={**env, 'PYTHONIOENCODING': 'utf-8'}, encoding='utf-8',
             creationflags=flags, timeout=15).strip()
         shortcut = Path(programs) / group / 'EliteLab.lnk'
+        uninstall_shortcut = shortcut.with_name('Uninstall EliteLab.lnk')
         assert not shortcut.parent.exists(), 'Unique test shortcut folder already exists'
         # Inno ignores /GROUP when DisableProgramGroupPage=yes; the builder
         # embeds the unique group so even failed tests cannot touch a user's link.
@@ -119,6 +120,12 @@ def smoke(installer):
             assert initial_browser['browser'] in choices and initial_browser['profile'] == 'guest', initial_browser
             assert not (root / 'settings.json').exists(), 'Installer browser choice must not skip first-run journal setup'
             assert shortcut.is_file(), 'Installer did not create the Start Menu shortcut at ' + str(shortcut) + '\n' + setup_log.read_text(errors='replace')[-4000:]
+            assert uninstall_shortcut.is_file(), 'Installer did not create the Uninstall EliteLab shortcut'
+            shortcut_env = {**env, 'ELITELAB_TEST_UNINSTALL_LINK': str(uninstall_shortcut)}
+            shortcut_target = subprocess.check_output(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+                '(New-Object -ComObject WScript.Shell).CreateShortcut($env:ELITELAB_TEST_UNINSTALL_LINK).TargetPath'],
+                env=shortcut_env, encoding='utf-8', creationflags=flags, timeout=15).strip()
+            assert Path(shortcut_target).resolve() == (app / 'unins000.exe').resolve(), 'Uninstall shortcut targets the wrong application'
             # Keep installer guards on the ordinary profile lookup. Only child
             # apps opt out of legacy production-port probes during this test.
             app_env = {**env, 'ELITELAB_INSTANCE_DIR': str(instance)}
@@ -201,6 +208,7 @@ def smoke(installer):
                 time.sleep(.1)
             assert not (app/'runtime'/'pythonw.exe').exists(), 'Application was not removed'
             assert not shortcut.exists(), 'Uninstall retained the test Start Menu shortcut'
+            assert not uninstall_shortcut.exists(), 'Uninstall retained its own Start Menu shortcut'
             assert startup.status() == 'disabled', 'Owned sign-in entry should be removed on uninstall'
             assert sentinel.read_text(encoding='ascii') == 'preserve' and legacy.read_text(encoding='ascii') == 'keep'
             # The uninstaller clone can briefly retain the guard after its

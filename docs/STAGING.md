@@ -8,7 +8,7 @@ on that exact staging commit. Pushes to staging run the full CI/package workflow
 Keep the tested commit fixed for a group session so everyone uses the same build.
 
 For the coordinated beta, use the versioned packages on the
-[0.6.0 Beta 2 release page](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.2).
+[0.6.0 Beta 3 release page](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.3).
 CI artifacts below are for newer untagged candidates.
 
 Download the Windows portable ZIP from the `EliteLab-windows-x64` artifact in

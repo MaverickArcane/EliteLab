@@ -4,15 +4,23 @@ import assert from 'node:assert/strict';
 const source=fs.readFileSync(process.env.MATERIALS_CARD_SOURCE || new URL('../modules/materials/web/card.js',import.meta.url),'utf8');
 const tick=()=>new Promise(r=>setTimeout(r,0));
 const row=(count,gained=3)=>({name:'Iron',key:'iron',count,gained,category:'Raw',grade:1,cap:300});
-function harness() {
+function harness(workspace='all') {
   let card;const requests=[];
   vm.runInNewContext(source,{Lab:{util:{esc:String,fmt:String},card:c=>{card=c},
-    api:()=>new Promise((resolve,reject)=>requests.push({resolve,reject}))},Date});
+    api:()=>new Promise((resolve,reject)=>requests.push({resolve,reject}))},Date,document:{body:{dataset:{activeWorkspace:workspace}}}});
   const nodes=new Map();
   const el={querySelector:key=>{if(!nodes.has(key))nodes.set(key,{value:'',innerHTML:'',textContent:''});return nodes.get(key)}};
   card.mount(el);
   return {card,el,requests,list:()=>el.querySelector('.mat-list').innerHTML,
     render:version=>card.render(el,{materials:{inventory_version:version,totals:{Raw:25},inventory_count:1}})};
+}
+// Mining starts with gains, and inventory updates preserve the chosen filter.
+{
+  const h=harness('mining');
+  assert.equal(h.el.querySelector('#mat-view').value,'gained');
+  h.el.querySelector('#mat-view').value='all';h.render(1);
+  h.requests[0].resolve({materials:[row(25)]});await tick();
+  assert.equal(h.el.querySelector('#mat-view').value,'all');
 }
 // An older HTTP response cannot put old counts back after a newer inventory event.
 {

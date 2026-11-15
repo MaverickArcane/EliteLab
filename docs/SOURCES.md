@@ -10,6 +10,7 @@ to a market or station when an appropriate resource is available.
 | Cargo buyers and personal trades | [Spansh station search](https://spansh.co.uk/stations) | Community EDDN markets; cargo buyers link directly to `/station/{market_id}` |
 | Flight route generation | [Spansh neutron planner](https://spansh.co.uk/plotter) | Asynchronous external route job, saved locally after validation |
 | Mining rings and buyers | [Spansh body search](https://spansh.co.uk/bodies), [station search](https://spansh.co.uk/stations) | Reported rings/hotspots and commodity markets |
+| Rhino surface locations and procedures | [Surface Mining v0.3 survey](https://www.forum.stellanebula.de/viewtopic.php?p=36652#p36652), [field guide](https://docs.google.com/document/d/1wfvkE73ZEhlvdhVZMjIpyzr5cAsceY4xPWTGdG2yEmo/edit), linked firsthand reports | Bundled catalog and guide retain per-entry evidence and URLs; confirmation is separate from live reserves and rig estimates. See [Rhino provenance](RHINO-MINING.md) |
 | Mining merit route guidance | [MeritMiner](https://meritminer.cc/) | External planning guidance; no reward guarantee |
 | Carrier routes, PTN discovery, buy-source search | [Ardent Insight API](https://api.ardent-insight.com/v2) | Community markets and commodity catalog; not Inara scraping |
 | PTN competition board | [PTN missions](https://pilotstradenetwork.com/missions/) | Official public board; read only, no Discord actions |

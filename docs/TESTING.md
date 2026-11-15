@@ -14,6 +14,17 @@ For real multi-machine sessions, use [private staging](STAGING.md). The isolated
 launcher captures bounded redacted logs; the collector exports an allowlisted
 support ZIP without journals, settings or saved state.
 
+Rhino mining: `python -m unittest discover -s tests -p test_rhino.py -v`
+and `node tests/rhino-browser.mjs` cover commander-local site persistence,
+surface navigation, legacy note preservation, input validation, escaping,
+stable forms under SSE, guide topics shared through HTTP/MCP and the browser,
+guide load/retry, and live material gains in the Mining workspace.
+Regressions also submit forms across commander switches, retry failed quick
+confirmation, preserve a 1200-character report and reject cached departure GPS.
+Browser screenshots use synthetic data and are saved under `artifacts/rhino`.
+See [Rhino mining](RHINO-MINING.md). Use a separate `ELITELAB_INSTANCE_DIR`
+when running the full suite alongside a player's live installation.
+
 Release regressions: `test_release_security.py`, `test_build_quality.py`,
 `test_ptn_release.py`, `test_ptn_mining.py`, `test_selling.py` and `test_group_mining.py`. The latter
 uses two real private HTTP clients for equal tonnes, repeated/replayed sales,
@@ -336,7 +347,11 @@ python -m unittest discover -s tests -p test_restart_reliability.py -v
 `test_material_sessions.py` replays `fixtures/journals/material-session` to check
 inventory versus gross session gains through collection, rewards, trading,
 spending, inventory snapshots and restarts. Missing session boundaries stay
-unknown. `node tests/materials-feed.mjs` delays inventory responses to check
+unknown. Same-second Commander -> Materials -> LoadGame startup is covered in
+both direct/replayed events and the Rhino browser fixture, including preservation
+of the opening inventory. A later-second LoadGame advances the session boundary
+without erasing that inventory. Replaying twice on the same Core must rebuild
+the same totals without doubling gains. `node tests/materials-feed.mjs` delays inventory responses to check
 stale-response rejection, current filters and refresh after a failure; the
 browser suite imports it and checks the visible live pickup and session totals.
 

@@ -1,13 +1,13 @@
 # EliteLab
 
 [![Staging checks](https://github.com/MaverickArcane/EliteLab/actions/workflows/ci.yml/badge.svg?branch=staging)](https://github.com/MaverickArcane/EliteLab/actions/workflows/ci.yml?query=branch%3Astaging)
-[![Beta 2](https://img.shields.io/badge/beta-0.6.0--beta.2-orange)](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.2)
+[![Beta 3](https://img.shields.io/badge/beta-0.6.0--beta.3-orange)](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.3)
 [![Stable 0.5.0](https://img.shields.io/badge/stable-0.5.0-blue)](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.5.0)
 
 **Your cockpit, your cargo, your crew.** A local Elite Dangerous companion for
 trading, engineering, exploration and private group operations.
 
-**[Download 0.6.0 Beta 2](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.2)**
+**[Download 0.6.0 Beta 3](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.3)**
 | [Playtest setup](docs/STAGING.md)
 | [Report a beta issue](https://github.com/MaverickArcane/EliteLab/issues/new?title=%5BBeta%5D%20)
 | [Stable release](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.5.0)
@@ -33,7 +33,7 @@ interface, with no frontend build step.
 
 ## Desktop downloads
 
-**[0.6.0 Beta 2](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.2)**
+**[0.6.0 Beta 3](https://github.com/MaverickArcane/EliteLab/releases/tag/v0.6.0-beta.3)**
 provides versioned downloads, release notes and SHA-256 checksums. For group
 testing on Windows, download the portable ZIP, extract it and run **Start
 staging.cmd**. Use **Collect staging logs.cmd** to prepare a support ZIP.
@@ -111,6 +111,7 @@ tab alone does not stop the server. Windows dashboard and party ports are exclus
 | build | Pin an EDSY or Coriolis build (or SLEF JSON) and measure your ship against it: modules to buy (with credits), blueprints and grades still to roll, effects, every material vs inventory, one click to track it on the wishlist | `get_build_progress`, `pin_build`, `unpin_build`, `build_to_wishlist` |
 | history | [Credit snapshots, merit cycles, material locations and map history](docs/HISTORY.md) | `get_journal_history`, `get_journal_index`, `rebuild_journal_index`, `get_travel_history` |
 | mining | [Nearby rings, hotspot reports, Powerplay buyer candidates, observed merits, prospector composition, refinery output and session profit](docs/MINING.md) | `get_mining_status`, `find_mining_spots`, `find_mining_buyers` |
+| rhino | [Saved surface mining spots, return bearings and a practical guide shared with MCP](docs/RHINO-MINING.md) | `get_rhino_status`, `get_rhino_guide`, `save_rhino_site`, `select_rhino_site`, `remove_rhino_site` |
 | map | Star map: starfield, visited systems coloured by star class, route trail, layers from other modules | `get_system_coords` |
 | core | Header, live connection, layout, Quit EliteLab | `get_state`, `get_recent_events`, `list_modules`, `list_tools`, `health`, `stop_elitelab` |
 
