@@ -6,6 +6,9 @@ Rhino surface mining adds `get_rhino_status` (GET `/api/rhino`),
 `/api/rhino/sites/save`, `/select`, `/remove`). Guide topics are listed in
 the default overview; use `all` for the complete dated, sourced guide.
 These inherit the normal HTTP/MCP contract.
+Status includes observed per-deployment collection totals, commodity breakdown,
+bounded receipt chart points, unloads, last-reported holds and equipment checks.
+Missing evidence stays null. No per-rig state or deposit reset timer is inferred.
 Notebook mutations are commander-local; no route acts in game or uploads sites.
 See [Rhino mining](RHINO-MINING.md) for evidence and parameter semantics.
 

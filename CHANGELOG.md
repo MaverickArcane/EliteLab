@@ -4,6 +4,9 @@
 
 - Add Rhino surface mining under Mining: a commander-local spot notebook,
   coordinate navigation and a detailed, sourced guide shared by the UI and MCP.
+  Follow observed deployment collections with a commodity breakdown, cumulative
+  chart and cargo bars. Link contextual help to collection, transfer and
+  depletion procedures; distinguish measured receipts from unavailable rig data.
   Include the dated Shinrarta tritium reference, troubleshooting and the
   unload-without-boarding workflow. Keep site entry and guide detail on demand.
   Show the existing Materials panel alongside it, initially filtered to session

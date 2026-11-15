@@ -50,7 +50,7 @@ try {
   const click=selector=>evaluate(`document.querySelector(${JSON.stringify(selector)}).click();true`);
   const shot=async(name,width=1440,height=1100)=>{
     await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
-    await evaluate("document.querySelector('#card-rhino').scrollIntoView({block:'start'});true"); await sleep(200);
+    await evaluate("window.scrollTo(0,window.scrollY+document.querySelector('#card-rhino').getBoundingClientRect().top-125);true"); await sleep(200);
     assert.ok(await evaluate('document.body.scrollWidth')<=width,'Horizontal overflow: '+name);
     const r=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(output,name+'.png'),Buffer.from(r.data,'base64'));
   };
@@ -64,9 +64,22 @@ try {
   assert.match(await evaluate("document.querySelector('.mat-session').textContent"),/Gained this session: \+3/);
   assert.equal(await evaluate("document.querySelector('[data-rhino-site-form]').hidden"),true);
   assert.equal(await evaluate("document.querySelectorAll('[data-rhino-rigs],[data-rhino-metrics],[data-rhino-cargo]').length"),0);
+  assert.equal(await evaluate("document.querySelector('[data-rhino-tab=mining]').getAttribute('aria-selected')"),'true');
+  assert.match(await evaluate("document.querySelector('[data-rhino-haul]').textContent"),/Tritium\s+2 t/);
+  await click('[data-rhino-tab=spots]');
   await click('[data-rhino-select="shinrarta-tritium"]');
   await wait("Lab.state.rhino.summary.selected_site?.id==='shinrarta-tritium'");
   assert.match(await evaluate("document.querySelector('[data-rhino-navigation]').textContent"),/144 m/);
+  await click('[data-rhino-tab=mining]');
+  await shot('rhino-mining-desktop'); await shot('rhino-mining-mobile',390,1050);
+  append([{event:'MiningRefined',Type:'tritium',Type_Localised:'Tritium'},{event:'Cargo',Vessel:'SRV',Count:68},{event:'Cargo',Vessel:'Ship',Count:103}]);
+  await wait('Lab.state.rhino.summary.session.total_t===4');
+  await wait("document.querySelector('[data-rhino-help]').textContent.includes('Make room')");
+  assert.match(await evaluate("document.querySelector('[data-rhino-holds]').textContent"),/4 t free/);
+  append([{event:'CargoTransfer',Transfers:[{Type:'tritium',Count:68,Direction:'toship'}]},{event:'Cargo',Vessel:'SRV',Count:0},{event:'Cargo',Vessel:'Ship',Count:171}]);
+  await wait('Lab.state.rhino.summary.cargo.rhino.count===0');
+  assert.equal(await evaluate('Lab.state.rhino.summary.session.total_t'),4);
+  await click('[data-rhino-tab=spots]');
   await shot('rhino-spots-desktop'); await shot('rhino-spots-mobile',390,1050);
   await click('[data-rhino-new]'); await click('[data-rhino-capture]');
   assert.equal(await evaluate("document.querySelector('[name=latitude]').value"),'35.95034');
@@ -82,6 +95,7 @@ try {
   await wait("document.querySelector('[data-rhino-site-form]').hidden");
   await send('Page.reload');await wait(`typeof Lab!=='undefined'&&Lab.state?.rhino?.summary?.selected_site?.id===${JSON.stringify(id)}`);
   await wait("!!document.querySelector('[data-rhino-site-list]')");
+  await click('[data-rhino-tab=spots]');
   await click(`[data-site-notes="${id}"] summary`); await click(`[data-rhino-edit="${id}"]`);
   await evaluate("document.querySelector('[name=notes]').value='<img src=x onerror=alert(1)>';document.querySelector('[data-rhino-site-form]').requestSubmit();true");
   await wait("Lab.state.rhino.summary.selected_site?.notes.includes('<img')");
@@ -95,14 +109,17 @@ try {
   assert.match(await evaluate("document.querySelector('[data-rhino-topic=troubleshooting]').textContent"),/reroll recommendation is disputed/);
   await click('[data-rhino-topic=overview] > summary'); await click('[data-rhino-topic=unloading] > summary');
   await shot('rhino-guide-desktop');await shot('rhino-guide-mobile',390,1050);
+  await click('[data-rhino-tab=mining]');await click('[data-rhino-help-topic=placement]');
+  assert.equal(await evaluate("document.querySelector('[data-rhino-topic=placement]').open"),true);
+  assert.equal(await evaluate("document.querySelector('[data-rhino-tab=guide]').getAttribute('aria-selected')"),'true');
   // Client freshness also expires without waiting for a new journal event.
   await evaluate("window.rhinoNow=Date.now;Date.now=()=>window.rhinoNow()+121000;Lab.emit('rhino');true");
-  await click('[data-rhino-tab=spots]');
+  await click('[data-rhino-tab=mining]');
   await wait("document.querySelector('[data-rhino-navigation]').textContent.includes('Waiting for a recent')");
   await evaluate('Date.now=window.rhinoNow;true');
   assert.deepEqual(await evaluate("[...document.querySelectorAll('.render-error')].map(e=>e.textContent)"),[]);
   assert.deepEqual(errors,[]);assert.doesNotMatch(serverLog,/Traceback|handler failed/);
-  console.log('Rhino browser passed: compact spots/navigation, persistent save/edit, draft preservation, escaping, live Materials gains, shared guide/retry, stale position and desktop/mobile. Screenshots: '+output);
+  console.log('Rhino browser passed: live collection/hold tracking, transfer continuity, contextual help, spots/navigation, persistent save/edit, stable drafts, escaping, Materials gains, guide/retry/shortcuts, stale position and desktop/mobile. Screenshots: '+output);
   await send('Browser.close').catch(()=>{});
 } finally {
   ws?.close();chrome?.kill();

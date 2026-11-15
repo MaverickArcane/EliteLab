@@ -14,12 +14,26 @@
     mount(el) {
       el.innerHTML = `<div class="rhino-desk">
         <div class="rhino-tabs" role="tablist" aria-label="Rhino mining">
-          <button role="tab" id="rhino-tab-spots" aria-controls="rhino-spots" aria-selected="true" data-rhino-tab="spots">Saved spots</button>
+          <button role="tab" id="rhino-tab-mining" aria-controls="rhino-mining" aria-selected="true" data-rhino-tab="mining">Mining</button>
+          <button role="tab" id="rhino-tab-spots" aria-controls="rhino-spots" aria-selected="false" tabindex="-1" data-rhino-tab="spots">Saved spots</button>
           <button role="tab" id="rhino-tab-guide" aria-controls="rhino-guide" aria-selected="false" tabindex="-1" data-rhino-tab="guide">How to mine</button>
         </div>
         <div class="note" data-rhino-message role="status" aria-live="polite"></div>
-        <div id="rhino-spots" role="tabpanel" aria-labelledby="rhino-tab-spots">
+        <div id="rhino-mining" role="tabpanel" aria-labelledby="rhino-tab-mining">
           <div data-rhino-navigation></div>
+          <div class="rhino-toolbar"><button data-rhino-tab-open="spots">Choose a spot</button><button data-rhino-save-here>Save this location</button></div>
+          <div data-rhino-haul></div>
+          <div data-rhino-holds class="rhino-holds"></div>
+          <div data-rhino-help class="rhino-help"></div>
+          <div class="rhino-shortcuts" aria-label="Mining instructions">
+            <button class="mini" data-rhino-help-topic="finding">Find deposits</button>
+            <button class="mini" data-rhino-help-topic="placement">Place rigs</button>
+            <button class="mini" data-rhino-help-topic="collection">Collect</button>
+            <button class="mini" data-rhino-help-topic="unloading">Unload</button>
+            <button class="mini" data-rhino-help-topic="recovery">Pack up</button>
+          </div>
+        </div>
+        <div id="rhino-spots" role="tabpanel" aria-labelledby="rhino-tab-spots" hidden>
           <div class="rhino-toolbar"><span class="muted">Keep the places worth returning to.</span><button data-rhino-new>Add a spot</button></div>
           <form data-rhino-site-form class="rhino-form" hidden>
             <h3 data-rhino-form-title>Save a spot</h3>
@@ -46,7 +60,13 @@
         try { await Lab.post(path, body); if (el.isConnected) message(success); }
         catch (error) { if (el.isConnected) message(error.message || String(error), true); }
       };
-      let guideLoaded = false, guidePending = false;
+      let guideLoaded = false, guidePending = false, requestedTopic = null;
+      const revealTopic = () => {
+        if (!requestedTopic) return;
+        const node = [...el.querySelectorAll('[data-rhino-topic]')].find(n => n.dataset.rhinoTopic === requestedTopic);
+        if (!node) return;
+        node.open = true; node.scrollIntoView({block:'nearest'}); node.querySelector('summary').focus(); requestedTopic = null;
+      };
       const loadGuide = async () => {
         if (guideLoaded || guidePending) return;
         guidePending = true;
@@ -68,6 +88,7 @@
               </details>
             </details>`).join('');
           guideLoaded = true;
+          revealTopic();
         } catch (error) {
           if (el.isConnected) target.innerHTML = `<p role="alert">${esc(error.message || String(error))}</p><button data-rhino-retry>Retry guide</button>`;
         } finally { guidePending = false; }
@@ -90,9 +111,16 @@
         const button = event.target.closest('button');
         if (!button) return;
         if (button.dataset.rhinoTab) tab(button.dataset.rhinoTab);
+        if (button.dataset.rhinoTabOpen) tab(button.dataset.rhinoTabOpen);
+        if (button.dataset.rhinoHelpTopic) {
+          requestedTopic = button.dataset.rhinoHelpTopic; tab('guide'); if (guideLoaded) revealTopic();
+        }
         if (button.hasAttribute('data-rhino-retry')) loadGuide();
         const state = Lab.state.rhino?.summary || {};
         if (button.hasAttribute('data-rhino-new')) { freshForm(); form.elements.name.focus(); }
+        if (button.hasAttribute('data-rhino-save-here')) {
+          tab('spots'); freshForm(); el.querySelector('[data-rhino-capture]').click(); form.elements.name.focus();
+        }
         if (button.hasAttribute('data-rhino-cancel')) form.hidden = true;
         if (button.hasAttribute('data-rhino-capture')) {
           const p = state.position;
@@ -142,9 +170,44 @@
       const nav = recent(position) ? r.navigation || {} : {reason: 'Waiting for a recent surface position'};
       el.querySelector('[data-rhino-navigation]').innerHTML = site ? `<div class="rhino-navigation">
         <div class="rhino-toolbar"><strong>To ${esc(site.name)}</strong><button class="mini" data-rhino-clear>Clear</button></div>
+        <div>${esc(place(site))}</div><div class="rhino-coords">${coord(site.latitude)}, ${coord(site.longitude)} <button class="mini" data-copy="${esc(site.system)} | ${esc(site.body)} | ${coord(site.latitude)}, ${coord(site.longitude)}">Copy location</button></div>
         ${nav.distance_m != null ? `<p class="rhino-direction">${distance(nav.distance_m)}${nav.bearing != null ? ` &middot; Heading ${nav.bearing.toFixed(1)} deg` : ' &middot; At saved coordinates'}</p>` : ''}
         <div class="note">${esc(nav.reason || '')}</div>
-      </div>` : '<p class="muted">Choose a spot below to get directions.</p>';
+      </div>` : '<div class="rhino-navigation"><strong>Find your next worthwhile spot</strong><p class="muted">Choose a saved location for directions, or save what you find here.</p></div>';
+      const run = r.session, total = run?.total_t || 0, points = run?.points || [];
+      const elapsed = Math.max(1, run?.elapsed_seconds || 0), top = Math.max(1, total);
+      let previousY = 76;
+      const line = ['0,76', ...points.map(p => {
+        const x = Math.min(400, p.seconds / elapsed * 400).toFixed(1), y = (76 - p.tonnes / top * 68).toFixed(1);
+        const step = `${x},${previousY} ${x},${y}`; previousY = y; return step;
+      }), `400,${previousY}`].join(' ');
+      const haul = el.querySelector('[data-rhino-haul]'), signatureHaul = JSON.stringify(run);
+      if (haul.dataset.signature !== signatureHaul) {
+        const detailOpen = haul.querySelector('details')?.open;
+        haul.innerHTML = `<section class="rhino-haul">
+          <div class="rhino-toolbar"><span>${run?.active ? 'This deployment' : run ? 'Last deployment' : 'Ready for a mining run'}</span><span class="note">${run?.partial ? 'Observed since login' : run?.active ? 'Tracking collections' : run ? 'Completed' : 'Starts when you launch the Rhino'}</span></div>
+          <div class="rhino-yield"><strong>${fmt(total)}</strong><span>t refined</span></div>
+          <div class="rhino-breakdown">${run?.commodities?.length ? run.commodities.map(c => `<span>${esc(c.name)} <b>${fmt(c.tonnes)} t</b></span>`).join('') : '<span class="muted">Your first collection will appear here.</span>'}</div>
+          <svg class="rhino-chart" viewBox="0 0 400 82" preserveAspectRatio="none" role="img" aria-label="Cumulative refined cargo this deployment: ${total} tonnes"><path d="M0 76 H400" class="rhino-chart-grid"/><polygon points="${line} 400,82 0,82"/><polyline points="${line}"/></svg>
+          <div class="note">Collected cargo over this deployment. Rigs still working in the ground are not measured.</div>
+          ${run ? `<details ${detailOpen ? 'open' : ''}><summary>Run details &middot; ${fmt(run.unloaded_t)} t unloaded</summary>
+            <p>${fmt(run.unloads)} unload${run.unloads === 1 ? '' : 's'} &middot; ${Math.floor(elapsed / 60)} min observed${run.average_tph != null ? ` &middot; ${fmt(run.average_tph)} t/h average` : ''}</p>
+            <p class="note">Average includes setup, driving and idle time through the latest recorded event. Transfers do not reset the collection total.</p>
+            ${run.last_collection ? `<p class="note">Latest receipt: ${esc(run.last_collection.name)} at ${esc(new Date(run.last_collection.timestamp).toLocaleTimeString())}</p>` : ''}</details>` : ''}
+        </section>`;
+        haul.dataset.signature = signatureHaul;
+      }
+      el.querySelector('[data-rhino-holds]').innerHTML = ['rhino','ship'].map(key => {
+        const h = r.cargo?.[key] || {}, known = h.count != null && h.capacity != null, percentage = known ? Math.min(100, 100*h.count/Math.max(1,h.capacity)) : 0;
+        return `<div class="rhino-hold"><div class="rhino-toolbar"><strong>${key === 'rhino' ? 'Rhino hold' : 'Ship hold'}</strong><span>${h.count == null ? 'Unknown' : `${fmt(h.count)} t`}${h.capacity != null ? ` / ${fmt(h.capacity)} t` : ''}</span></div>
+          <div class="rhino-hold-bar" role="img" aria-label="${key} hold ${known ? `${Math.round(percentage)} percent full` : 'capacity unknown'}"><span style="width:${percentage}%"></span></div>
+          <div class="note">${h.free != null ? `${fmt(h.free)} t free at last report` : 'Waiting for cargo report'}</div></div>`;
+      }).join('');
+      const gear = r.equipment || {}, lowSpace = r.cargo?.rhino?.free != null && r.cargo.rhino.free < 12;
+      let help = run?.active ? ['unloading', 'Keep the circuit running', 'Transfer cargo under the ship\'s bay without boarding. Leave the rigs deployed between collections.'] : ['equipment', 'Before the next trip', 'Check the Rhino is fitted, then confirm the scanner and hangar before leaving outfitting.'];
+      if (run?.active && lowSpace) help = ['unloading', 'Make room before the next collection', 'Your last Rhino cargo report had less than 12 t free. Check space and transfer to the ship.'];
+      if (!run?.active && (gear.dss === false || gear.large_hangar === false)) help = ['equipment', 'Check your fitted modules', `${gear.dss === false ? 'No Detailed Surface Scanner in the last loadout. ' : ''}${gear.large_hangar === false ? 'No Large Planetary Vehicle Hangar in the last loadout.' : ''}`];
+      el.querySelector('[data-rhino-help]').innerHTML = `<strong>${esc(help[1])}</strong><p>${esc(help[2])}</p><button class="mini" data-rhino-help-topic="${help[0]}">Show steps</button><button class="mini" data-rhino-help-topic="troubleshooting">Rig stopped / depleted?</button>`;
       const list = el.querySelector('[data-rhino-site-list]');
       const signature = JSON.stringify([r.sites, site?.id]);
       // Position updates must not close notes, move focus or erase a form draft.

@@ -4,6 +4,9 @@
   "scope": "Elite Dangerous Live. Procedures use control names because bindings vary. Community reports are dated observations, not guarantees for a later game build.",
   "sources": {
     "release": {"title": "Frontier: Rhino SRV Update", "url": "https://steamcommunity.com/app/359320/announcements/", "kind": "official", "note": "Frontier's 2 September 2026 announcement: DSS mining locations and built-in scanner, refinery and rig module."},
+    "replenishment": {"title": "Tracked depleted deposits began replenishing", "url": "https://www.reddit.com/r/EliteDangerous/comments/1wk828s/we_finally_caught_depleted_rhino_mining_deposits/", "kind": "community field observations", "note": "19 September 2026: two Iridium deposits had begun replenishing by a check around day 11; other deposits remained depleted longer. This does not establish an 11-day timer or tritium timing."},
+    "journal": {"title": "Frontier Player Journal manual v37", "url": "https://hosting.zaonce.net/community/journal/v37/Journal_Manual_v37.pdf", "kind": "official event reference, supplemented by local observation", "note": "MiningRefined records one refined cargo unit. Reviewed against the owner's November 2026 Rhino journals: MiningRefined, Cargo, CargoTransfer and LaunchSRV are present; no per-rig status events were found. The manual predates the Rhino."},
+    "capture": {"title": "SrvSurvey-XP experimental surface mining detection", "url": "https://github.com/Fenris159/SrvSurvey/blob/SrvSurvey-Avalonia/docs/SURFACE_MINING.md", "kind": "tool author's implementation documentation", "note": "Optional Windows screen capture detects calibrated rig HUD bars under restricted viewing conditions. This is not journal telemetry or proof of hopper/reserve data. EliteLab does not implement screen capture."},
     "quick": {"title": "Quick and Dirty Rhino Guide", "url": "https://www.reddit.com/r/EliteDangerous/comments/1w5e7e1/quick_and_dirty_rhino_guide/", "kind": "community report", "note": "Useful collection controls; the author corrected the numbered-signal explanation. Reroll advice conflicts with the owner's return test. Old hopper figures are not used."},
     "survey": {"title": "Rhino Tips: surface search pattern", "url": "https://www.reddit.com/r/EliteDangerous/comments/1w965x0/rhino_tips/", "kind": "community field tests", "note": "Read the comments too: approximate scanner coverage is not proof of a hard location boundary."},
     "loop": {"title": "Mining loop and corrections in the comments", "url": "https://www.reddit.com/r/EliteDangerous/comments/1wa2ile/new_mining_loop_with_rhino/", "kind": "community procedure", "note": "Comments clarify orbital-cruise commodity lists and leaving rigs deployed between collections. Reports disagree on whether the cargo scoop needs enabling."},
@@ -11,7 +14,7 @@
     "transfer": {"title": "Transfer Rhino cargo without boarding", "url": "https://www.reddit.com/r/EliteDangerous/comments/1w7ypln/psa_offload_your_rhino_while_your_ship_is_landed/", "kind": "community procedure", "note": "Inventory transfer, alignment under the bay, and recalling the ship on foot. NPC avoidance is anecdotal, not guaranteed."},
     "replacement": {"title": "Rig replacement and synthesis reports", "url": "https://www.reddit.com/r/EliteDangerous/comments/1w7ymkg/fd_please_let_us_buy_replacement_mining_rigs_from/", "kind": "community reports", "note": "Synthesis and sell/re-equip workaround; reports disagree on automatic replenishment."},
     "deployment": {"title": "Rhino mining: deployment and fire groups", "url": "https://inara.cz/elite/logbook/97944/", "kind": "commander report", "note": "8 September 2026. Hover deployment, recovery and fire groups. Its hangar naming is not treated as a current compatibility table."},
-    "owner": {"title": "Owner's reproduced tritium spot", "url": "https://www.youtube.com/watch?v=pmkU1LqwPjA&t=131s", "kind": "owner observation with video reference", "note": "15 November 2026: owner read AB 2 j and 35.9491, -31.2339 at 2:11, reached the area and operated three rigs. Video frames were not independently verified. This is not a stock or rate guarantee."}
+    "owner": {"title": "Owner's reproduced tritium spot", "url": "https://www.youtube.com/watch?v=pmkU1LqwPjA&t=131s", "kind": "owner observation with video reference", "note": "15 November 2026: owner read AB 2 j and 35.9491, -31.2339 at 2:11, reached the area and operated three rigs. Later confirmed Depleted and unchanged after reload. Video frames were not independently verified. This is not a current stock or rate guarantee."}
   },
   "topics": [
     {
@@ -24,7 +27,7 @@
         "Collect minerals while leaving the rigs deployed. Use Inventory > Transfer > Transfer all to ship under your ship's bay when you need cargo space.",
         "Save coordinates and practical notes. Recover every rig you want to keep before boarding or leaving."
       ],
-      "notes": ["Open the topic for your current step below. For visual progress, use the Materials panel's gained this session view; its game-session gains include other activities too."],
+      "notes": ["The Mining tab follows refined cargo for the current Rhino deployment and last reported hold space. Open the steps for the task at hand. The Materials panel's gained this session view includes other activities since login too."],
       "evidence": "Overview of the procedures below; follow their source notes and limitations.",
       "sources": ["release", "quick", "transfer", "owner"]
     },
@@ -61,7 +64,7 @@
         "Choose Navigate on a saved spot. Plot the system and select the listed body in game. EliteLab does not set an in-game waypoint or prove permit access.",
         "Approach the surface until fresh coordinates are available. EliteLab then gives surface distance and the initial compass bearing on that body. This is a direction, not a terrain-safe route.",
         "Coordinates are latitude first, longitude second. Heading 000 increases latitude, 180 decreases it; 090 increases longitude and 270 decreases it. Slow down near the target and scan locally.",
-        "Reference: Shinrarta Dezhra AB 2 j, latitude 35.9491, longitude -31.2339. The owner reproduced a three-rig tritium operation in this area on 15 November 2026. Check access and current deposit conditions before travelling."
+        "Reference: Shinrarta Dezhra AB 2 j, latitude 35.9491, longitude -31.2339. The owner reproduced a three-rig tritium operation on 15 November 2026, then reported the deposit Depleted later that day; reloading did not refill it. Treat it as a future return location, not a presently stocked destination. Check access and deposit conditions before travelling."
       ],
       "notes": ["The saved point marks a useful area, not three exact rig positions. Save your own better approach or parking point. If navigation is unavailable, check the full body name and wait for a fresh surface position."],
       "evidence": "Owner-reported coordinates and reproduced operation; navigation uses Status.json latitude/longitude and planetary radius.",
@@ -127,24 +130,26 @@
         "Only water: inspect the specific deposit contact and collected commodity. A mixed orbital listing is not a guaranteed tritium deposit. See finding and collection.",
         "Red X or Too close everywhere: refresh the actual footprint and test separated drop positions. Stop assuming that a large zone must hold several rigs. See placement.",
         "Full hold or grey Transfer: align under the ship's bay and check ship free space; do not board merely to unload. See unloading.",
-        "A previously good site is depleted: keep its bookmark, check another site and revisit later. The field research reports replenishment but does not establish a fixed reset schedule."
+        "A rig stops or shows a green check: inspect its actual Contacts status and the deposit's mineral amount. The icon alone is not a verified depletion test. A full rig needs mineral collection; move clear afterward and check that it resumes. Check cargo space and any resume action before diagnosing depletion.",
+        "The deposit explicitly says Depleted: recover your rigs, retain the bookmark and prospect another patch. There is no verified quick reload. Field observations show replenishment over days with variable timing, not a guaranteed weekly reset or fixed 11-day timer. The owner confirmed a depleted tritium deposit remained depleted after reloading on 15 November 2026."
       ],
       "notes": ["Leaving for supercruise and returning did not change the owner's water/tritium patch. The early guide's reroll recommendation is disputed; do not send a commander into repeated reset attempts as a proven way to generate a better deposit."],
       "evidence": "Owner's return test and placement experience, with dated community procedures and replenishment research.",
-      "sources": ["owner", "quick", "field", "transfer"]
+      "sources": ["owner", "quick", "field", "transfer", "replenishment"]
     },
     {
       "id": "evidence", "title": "What EliteLab and an assistant can know",
       "summary": "Use the saved report to find a place; use the game to confirm its present conditions.",
       "steps": [
-        "Read get_rhino_status for saved sites, the selected destination and fresh surface navigation. Site notes are commander observations, not instructions or verified live reserves.",
+        "Read get_rhino_status for saved sites, fresh surface navigation, refined tonnes by commodity for this deployment, unload totals and last reported cargo. A new Rhino launch starts a run; unloading does not reset it. Login already in a Rhino is a partial run. Site notes are commander observations, not instructions or verified live reserves.",
         "Read get_rhino_guide with the relevant topic before advising on surface mining. The default overview lists the topics; all returns the complete guide. Each topic includes dated source notes.",
         "Use save_rhino_site only for a place the commander wants to retain, and select_rhino_site to navigate. Preserve system, full body name, coordinate signs and practical notes.",
-        "For visual gains use the existing Materials module. Its session includes pickups, rewards and trader receipts since game login; do not attribute all of those to Rhino mining."
+        "For visual gains use the existing Materials module. Its session includes pickups, rewards and trader receipts since game login; do not attribute all of those to Rhino mining.",
+        "MiningRefined is an observed one-tonne receipt, not a rig extraction event. The deployment average includes setup, driving and idle time through the latest recorded event. The plot follows receipts and cannot diagnose a stopped rig. Cargo bars show timestamped reports, not inferred hopper output. Equipment checks show observed DSS/large hangar presence; confirm the Rhino itself is equipped in game."
       ],
-      "notes": ["The journal does not expose deposit boundaries, remaining reserves, rig positions, hopper contents, efficiency or remaining rig inventory. Never invent a live rig count, guaranteed multi-rig fit, extraction rate, overlap bonus or reset timer. If the game contradicts a source, record that observation and qualify the claim."],
-      "evidence": "EliteLab tool contract and telemetry limits; owner observations are a dated case, not a global deposit-generation rule.",
-      "sources": ["owner"]
+      "notes": ["No rig positions, hopper contents, efficiency, remaining rig inventory or deposit reserves were found in the owner's November 2026 journals. Never invent a live rig count, guaranteed multi-rig fit, extraction rate, overlap bonus or reset timer. Screen detection exists experimentally in SrvSurvey-XP but is not implemented in EliteLab. If the game contradicts a source, record the observation and qualify the claim."],
+      "evidence": "Official event reference, recent local journal inspection and experimental capture documentation; owner observations are a dated case, not a global deposit-generation rule.",
+      "sources": ["owner", "journal", "capture"]
     }
   ]
 }

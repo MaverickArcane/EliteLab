@@ -1,12 +1,32 @@
 # Rhino surface mining
 
-Open **Mining > Rhino surface mining**. This module has three jobs: save useful
-places, guide you back to them, and explain how to mine. The two tabs are
-**Saved spots** and **How to mine**. Site entry and long explanations open only
-when needed. The existing Materials panel appears alongside it for visual
+Open **Mining > Rhino surface mining**. The **Mining** tab combines a selected
+destination, automatic collection progress, hold space and useful next-step
+instructions. **Saved spots** keeps your notebook; **How to mine** contains the
+full sourced guide. Forms and long explanations open only when needed.
+The existing Materials panel appears alongside it for visual
 progress; when first opened from Mining it selects **gained this session**.
 Those gains include pickups, mission rewards and trader receipts since game
 login, not only Rhino output.
+
+## Watch a deployment
+
+Launching a player-controlled `mev_rhino` starts a new deployment. Each
+`MiningRefined` event adds one tonne, including separate receipts with the same
+timestamp. The total, commodity breakdown and cumulative chart survive cargo
+transfers. Run details show gross unloaded tonnes, unload count and the observed
+average, including setup, driving and idle time through the last recorded event.
+This is collection throughput, not a rig production estimate. Boarding, shutdown,
+death, ship departure or another controlled SRV ends the run. Login already in a
+Rhino begins a clearly marked partial run. Replay reconstructs the same totals.
+
+Cargo bars use timestamped `Cargo` reports for Ship and SRV separately, never
+subtracting a transfer twice or treating unknown inventory as empty. The Rhino
+has a 72 t hold; ship capacity comes from Loadout. An older report cannot replace
+a newer one. The equipment hint checks observed DSS and large-hangar module IDs;
+missing Loadout means unknown, and outfitting changes invalidate the checks.
+It does not prove which vehicle is installed. Low reported free space links
+directly to the unloading procedure. Guide shortcuts cover the whole loop.
 
 ## Save and revisit a spot
 
@@ -31,6 +51,8 @@ The built-in reference is **Shinrarta Dezhra AB 2 j, 35.9491, -31.2339**.
 The owner read that position at 2:11 in the linked video and reported three
 operating rigs in the area on 2026-11-15. This locates an area, not exact rig
 placements, current reserves, guaranteed access or a promised extraction rate.
+Later that day the owner reported it Depleted and unchanged after reloading;
+the reference notes retain this warning for future visits.
 
 ## The mining guide is shared with MCP
 
@@ -68,18 +90,27 @@ current purchases, compatibility and changed mechanics before advising.
 ## Tools and limits
 
 - `get_rhino_status`: GET `/api/rhino`; notebook, selected destination,
-  current position, navigation and guide topic index.
+  current position, navigation, deployment collection totals/chart points,
+  separate last-reported holds, equipment evidence and guide topic index.
 - `get_rhino_guide`: GET `/api/rhino/guide`; optional `topic`, default `overview`.
 - `save_rhino_site`: POST `/api/rhino/sites/save`; name, system, body, commodity,
   latitude and longitude required; notes/radius optional; ID edits an existing spot.
 - `select_rhino_site`: POST `/api/rhino/sites/select`; ID selects, empty ID clears.
 - `remove_rhino_site`: POST `/api/rhino/sites/remove`; remove a personal spot.
 
-The journal does not expose deposit footprints, remaining reserves, rig
-positions, hopper contents, efficiency or remaining rig inventory. The module
-does not generate deposits or predict resets, overlaps, rig fit or yield.
-The earlier preview's manual rig report route and deployment/cargo metrics
-have been removed. Use the existing Materials and Cargo panels for inventory.
+No deposit footprints, remaining reserves, rig positions, hopper contents,
+efficiency or remaining rig inventory were found in the owner's November 2026
+journals. The module does not generate deposits or predict resets, overlaps,
+rig fit or yield. It has no manual rig counter. SrvSurvey-XP documents experimental
+HUD capture for rig detection; this module does not capture the screen or claim
+that capture supplies live hopper/reserve data. The shared guide links that
+research and the official journal reference with their limitations.
+
+A stopped rig is not enough to diagnose depletion. Check its Contacts status
+and the deposit's mineral amount. Collect a full rig; move on from a deposit
+explicitly marked Depleted. The owner confirmed reloading did not refill the
+tritium patch. Replenishment observations concern days, with no established
+universal timer. This distinction is available to MCP under `troubleshooting`.
 
 The module requires `journal` and writes only `rhino.summary`. Explicit
 notebook actions persist data atomically. Events and mutations share a lock;
@@ -89,10 +120,12 @@ including before commander login. External links are optional further reading.
 ## Validation
 
 `python -m unittest discover -s tests -p test_rhino.py -v` covers notebook
-persistence and identity, validation, navigation, old notes, guide selection
+persistence and identity, collection attribution, transfer continuity, separate
+cargo snapshots, stale input, equipment evidence, navigation, guide selection
 and MCP discovery/calls. `node tests/rhino-browser.mjs` runs an isolated real
 CLI/watcher/API/SSE/browser stack with synthetic journals. It checks compact
-UI, saves/edits/reload, stable drafts, escaping, live Materials gains, shared
-guide content/retry, and desktop/mobile layouts. Screenshots go to
+UI, live collections/holds, unloading continuity, low-space help,
+saves/edits/reload, stable drafts, escaping, live Materials gains, shared
+guide content/retry/shortcuts, and desktop/mobile layouts. Screenshots go to
 `artifacts/rhino` or `ELITELAB_SCREENSHOT_DIR`. `node tests/materials-feed.mjs`
 checks material response ordering and filter preservation.

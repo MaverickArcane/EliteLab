@@ -49,7 +49,11 @@ class RhinoTests(unittest.TestCase):
             self.core.bus.emit("journal." + event["event"], event)
         expected = self.call()
         self.assertEqual(expected["selected_site"]["id"], site["id"])
-        self.assertFalse({"session", "cargo", "rigs"} & expected.keys())
+        self.assertNotIn("rigs", expected)
+        self.assertEqual(expected["session"]["total_t"], 3)
+        self.assertEqual(expected["session"]["unloaded_t"], 3)
+        self.assertEqual(expected["session"]["commodities"][0]["id"], "tritium")
+        self.assertEqual(expected["session"]["commodities"][0]["tonnes"], 2)
         for _ in range(2):
             self.core.watcher.replay()
             self.assertEqual(self.call(), expected)
@@ -72,6 +76,85 @@ class RhinoTests(unittest.TestCase):
         self.call("select_rhino_site", id=site["id"])
         self.call("remove_rhino_site", id=site["id"])
         self.assertIsNone(self.call()["selected_site"])
+
+    def test_collections_survive_unloading_and_stop_at_docking(self):
+        self.launch()
+        self.emit("MiningRefined", Type="tritium")
+        self.assertIsNone(self.call()["session"])
+        self.emit("LaunchSRV", SRVType="mev_rhino", PlayerControlled=True)
+        for _ in range(2):
+            self.emit("MiningRefined", "2026-11-15T12:01:00Z", Type="tritium", Count=99)
+        self.emit("MiningRefined", "2026-11-15T12:01:01Z", Type="water")
+        self.emit("CargoTransfer", "2026-11-15T12:02:00Z", Transfers=[{"Type":"tritium", "Count":2, "Direction":"toship"}])
+        self.emit("CargoTransfer", "2026-11-15T12:02:01Z", Transfers=[{"Type":"tritium", "Count":2, "Direction":"tosrv"}])
+        self.emit("CargoTransfer", "2026-11-15T12:02:02Z", CarrierID=123, Transfers=[{"Count":80, "Direction":"toship"}])
+        run = self.call()["session"]
+        self.assertEqual((run["total_t"], run["unloaded_t"], run["unloads"]), (3, 2, 1))
+        self.assertEqual(len(run["points"]), 2)
+        self.emit("DockSRV", "2026-11-15T12:03:00Z", ID=66)
+        run = self.call()["session"]
+        self.assertFalse(run["active"])
+        self.assertEqual(run["elapsed_seconds"], 180)
+        self.assertEqual(run["average_tph"], 60)
+        self.emit("MiningRefined", "2026-11-15T12:05:00Z", Type="tritium")
+        self.assertEqual(self.call()["session"], run)
+        self.emit("LaunchSRV", "2026-11-15T12:06:00Z", SRVType="mev_rhino", PlayerControlled=True)
+        self.assertEqual(self.call()["session"]["total_t"], 0)
+        self.assertEqual(self.call()["session"]["elapsed_seconds"], 0)
+
+    def test_partial_login_identity_and_other_srv_do_not_mix_runs(self):
+        self.emit("LoadGame", Commander="Rhino Test", FID="F-RHINO", Ship="mev_rhino")
+        self.assertTrue(self.call()["session"]["partial"])
+        self.emit("MiningRefined", "2026-11-15T12:00:01Z", Type="tritium")
+        self.emit("LaunchSRV", "2026-11-15T12:00:02Z", SRVType="mev_scarab", PlayerControlled=False)
+        self.assertTrue(self.call()["session"]["active"])
+        self.emit("LaunchSRV", "2026-11-15T12:00:03Z", SRVType="mev_scarab", PlayerControlled=True)
+        self.assertFalse(self.call()["session"]["active"])
+        self.emit("Cargo", "2026-11-15T12:00:04Z", Vessel="SRV", Count=2)
+        self.assertIsNone(self.call()["cargo"]["rhino"]["count"])
+        self.emit("Commander", "2026-11-15T12:00:05Z", Name="Another", FID="F-OTHER")
+        self.assertIsNone(self.call()["session"])
+        self.assertIsNone(self.call()["equipment"]["dss"])
+
+    def test_cargo_reports_are_absolute_and_unknown_is_not_empty(self):
+        self.launch()
+        self.assertIsNone(self.call()["cargo"]["ship"]["count"])
+        self.emit("Loadout", CargoCapacity=1136, Modules=[])
+        self.emit("Cargo", Vessel="Ship", Count=100)
+        self.emit("LaunchSRV", SRVType="mev_rhino")
+        self.emit("Cargo", "2026-11-15T12:01:00Z", Vessel="SRV", Count=72)
+        self.emit("CargoTransfer", "2026-11-15T12:01:01Z", Transfers=[{"Count":72, "Direction":"toship"}])
+        self.emit("Cargo", "2026-11-15T12:01:01Z", Vessel="Ship", Count=172)
+        self.emit("Cargo", "2026-11-15T12:01:01Z", Vessel="SRV", Count=0)
+        self.emit("Cargo", "2026-11-15T12:00:59Z", Vessel="SRV", Count=55)
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 172)
+        self.assertEqual(self.call()["cargo"]["rhino"]["free"], 72)
+        self.assertEqual(self.call()["session"]["total_t"], 0)
+        self.assertEqual(self.call()["session"]["unloaded_t"], 72)
+
+    def test_equipment_unknown_missing_and_observed_are_distinct(self):
+        self.launch()
+        self.assertEqual(self.call()["equipment"], {"dss":None, "large_hangar":None})
+        self.emit("Loadout", CargoCapacity=400, Modules=[])
+        self.assertEqual(self.call()["equipment"], {"dss":False, "large_hangar":False})
+        self.emit("Loadout", CargoCapacity=400, Modules=[{"Item":"int_mkiilargebuggybay_size2_class3"}, {"Item":"int_detailedsurfacescanner_tiny"}])
+        self.assertEqual(self.call()["equipment"], {"dss":True, "large_hangar":True})
+        self.emit("ModuleSell")
+        self.assertIsNone(self.call()["equipment"]["large_hangar"])
+        self.assertIsNone(self.call()["cargo"]["ship"]["capacity"])
+
+    def test_stale_and_malformed_receipts_cannot_contaminate_new_deployment(self):
+        self.launch()
+        self.emit("LaunchSRV", "2026-11-15T12:02:00Z", SRVType="mev_rhino")
+        for timestamp in ("bad", "2026-11-15T12:01:59Z"):
+            self.emit("MiningRefined", timestamp, Type="tritium")
+        for value in (None, {}, [], ""):
+            self.emit("MiningRefined", "2026-11-15T12:02:01Z", Type=value)
+        self.assertEqual(self.call()["session"]["total_t"], 0)
+        self.emit("Shutdown", "2026-11-15T12:03:00Z")
+        self.emit("MiningRefined", "2026-11-15T12:03:01Z", Type="tritium")
+        self.assertEqual(self.call()["session"]["total_t"], 0)
+        json.dumps(self.call(), allow_nan=False)
 
     def test_legacy_rig_fit_survives_as_notes(self):
         self.launch(); site = self.save(notes="Flat ground")

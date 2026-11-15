@@ -654,6 +654,25 @@ body[data-active-workspace=ship] #card-ship{grid-column:1/-1!important}
 .rhino-toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin:10px 0; }
 .rhino-navigation { border-left:2px solid var(--accent); padding:0 14px 10px; overflow-wrap:anywhere; }
 .rhino-direction { font:600 20px var(--mono); color:var(--accent-2); }
+.rhino-haul { border:1px solid var(--line); background:linear-gradient(135deg,var(--accent-soft),var(--bg-2)); border-radius:8px; padding:14px 18px; margin:14px 0; }
+.rhino-haul .rhino-toolbar { margin-top:0; }
+.rhino-yield { display:flex; align-items:baseline; gap:10px; color:var(--accent-2); }
+.rhino-yield strong { font:600 48px var(--mono); }
+.rhino-breakdown { display:flex; flex-wrap:wrap; gap:8px 20px; margin:8px 0; }
+.rhino-breakdown b { margin-left:5px; color:var(--accent-2); }
+.rhino-chart { display:block; width:100%; height:82px; margin:16px 0 8px; overflow:visible; }
+.rhino-chart polygon { fill:var(--accent-soft); }
+.rhino-chart polyline { fill:none; stroke:var(--accent-2); stroke-width:2; vector-effect:non-scaling-stroke; }
+.rhino-chart-grid { stroke:var(--line); fill:none; }
+.rhino-haul details { font-size:12px; }
+.rhino-holds { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.rhino-hold .rhino-toolbar { font-size:12px; gap:4px; }
+.rhino-hold-bar { height:6px; background:var(--line); border-radius:4px; overflow:hidden; margin-bottom:7px; }
+.rhino-hold-bar span { display:block; height:100%; background:var(--accent-2); transition:width .3s ease; }
+.rhino-help { padding:14px 0 10px; margin-top:14px; border-top:1px solid var(--line); }
+.rhino-help p { margin:6px 0 10px; color:var(--muted); }
+.rhino-help button { margin-right:6px; }
+.rhino-shortcuts { display:flex; flex-wrap:wrap; gap:6px; }
 .rhino-coords { font-family:var(--mono); color:var(--accent-2); }
 .rhino-form label { display:flex; flex-direction:column; gap:5px; min-width:0; }
 .rhino-form { display:grid; gap:10px; padding:16px; margin:12px 0; background:var(--bg-2); border:1px solid var(--line); }
@@ -675,4 +694,5 @@ body[data-active-workspace=ship] #card-ship{grid-column:1/-1!important}
 @media(max-width:760px) {
   .rhino-form .grid2 { grid-template-columns:1fr; }
   .rhino-direction { font-size:18px; }
+  .rhino-holds { grid-template-columns:1fr; gap:4px; }
 }
