@@ -89,6 +89,7 @@ tab alone does not stop the server. Windows dashboard and party ports are exclus
 | build | Pin an EDSY or Coriolis build (or SLEF JSON) and measure your ship against it: modules to buy (with credits), blueprints and grades still to roll, effects, every material vs inventory, one click to track it on the wishlist | `get_build_progress`, `pin_build`, `unpin_build`, `build_to_wishlist` |
 | history | [Credit snapshots, merit cycles, material locations and map history](docs/HISTORY.md) | `get_journal_history`, `get_journal_index`, `rebuild_journal_index`, `get_travel_history` |
 | mining | [Nearby rings, hotspot reports, Powerplay buyer candidates, observed merits, prospector composition, refinery output and session profit](docs/MINING.md) | `get_mining_status`, `find_mining_spots`, `find_mining_buyers` |
+| rhino | [Surface mining, saved coordinates, return bearings, separate cargo holds and measured deployment yield](docs/RHINO-MINING.md) | `get_rhino_status`, `save_rhino_site`, `select_rhino_site`, `remove_rhino_site`, `report_rhino_rigs` |
 | map | Star map: starfield, visited systems coloured by star class, route trail, layers from other modules | `get_system_coords` |
 | core | Header, live connection, layout, Quit EliteLab | `get_state`, `get_recent_events`, `list_modules`, `list_tools`, `health`, `stop_elitelab` |
 

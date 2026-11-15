@@ -1,5 +1,12 @@
 # API / AI tools
 
+Rhino surface mining adds `get_rhino_status` (GET `/api/rhino`),
+`save_rhino_site`, `select_rhino_site`, `remove_rhino_site` (POST
+`/api/rhino/sites/save`, `/select`, `/remove`) and `report_rhino_rigs`
+(POST `/api/rhino/rigs`). These inherit the normal HTTP/MCP contract.
+Notebook mutations are commander-local; no route acts in game or uploads sites.
+See [Rhino mining](RHINO-MINING.md) for evidence and parameter semantics.
+
 Release additions (all inherit normal authorization/Origin/Host checks):
 
 | Tool | Route | Contract |

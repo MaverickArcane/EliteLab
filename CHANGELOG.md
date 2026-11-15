@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add Rhino surface mining under Mining: a commander-local site notebook,
+  same-body coordinate navigation, separate Rhino/ship holds, deployment yield
+  and cargo-transfer tracking. Include the dated Shinrarta tritium reference,
+  manual rig counts and the unload-without-boarding workflow. Expose five tools;
+  do not infer live rig placement, efficiency or deposit reserves.
+
 - PTN: resize a selected station-trade plan up to 25,000 t before departure,
   including 19,898 t orders that exceeded the default 18,000 t plan. Preserve
   recorded loading progress and prices, then recheck the actual order.

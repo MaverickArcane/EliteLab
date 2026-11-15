@@ -1,5 +1,13 @@
 # Testing
 
+Rhino mining: `python -m unittest discover -s tests -p test_rhino.py -v`
+and `node tests/rhino-browser.mjs` cover production versus transfers, separate
+cargo holds, deployment/commander boundaries, persistent local sites, surface
+navigation, input validation, escaping and stable forms under SSE updates.
+Browser screenshots use synthetic data and are saved under `artifacts/rhino`.
+See [Rhino mining](RHINO-MINING.md). Use a separate `ELITELAB_INSTANCE_DIR`
+when running the full suite alongside a player's live installation.
+
 Release regressions: `test_release_security.py`, `test_build_quality.py`,
 `test_ptn_release.py`, `test_ptn_mining.py`, `test_selling.py` and `test_group_mining.py`. The latter
 uses two real private HTTP clients for equal tonnes, repeated/replayed sales,

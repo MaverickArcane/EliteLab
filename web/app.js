@@ -86,7 +86,7 @@ import {StateFeed} from './state-feed.js';
     trade:{label:'Trading',description:'Sell cargo nearby or plan a round trip',cards:['selling','cargo','personal']},
     carrier:{label:'Carrier ops',description:'Plan loading, mining and crew operations',cards:['trade','haul','party','carrier']},
     ptn:{label:'PTN desk',description:'Carrier routes, station checks and affiliate trade adverts',cards:['ptn']},
-    mining:{label:'Mining',description:'Mining sessions, locations and buyers',cards:['mining','cargo']},
+    mining:{label:'Mining',description:'Ring and Rhino mining, saved surface sites and measured yield',cards:['mining','rhino','cargo']},
     powerplay:{label:'Powerplay',description:'Pledge, merits, sell targets and combat',cards:['powerplay','merits','targets','loop','combat']},
     history:{label:'History',description:'Recorded balances, merit cycles and collection locations',cards:['history']},
     all:{label:'Layouts',description:'Choose a layout tab or arrange your own panels',cards:null}
@@ -113,7 +113,7 @@ import {StateFeed} from './state-feed.js';
   Lab.util.tabKeys(document.getElementById('workspace-nav'),'[data-workspace]');
   const CARD_WORKSPACE={wishlist:'materials',build:'materials',ptn:'ptn',personal:'trade',selling:'trade',
     trade:'carrier',haul:'carrier',party:'carrier',carrier:'carrier',history:'history',credits:'overview',
-    mining:'mining',ship:'ship',neutron:'flight',map:'flight',location:'flight',
+    mining:'mining',rhino:'mining',ship:'ship',neutron:'flight',map:'flight',location:'flight',
     powerplay:'powerplay',merits:'powerplay',targets:'powerplay',combat:'powerplay',loop:'powerplay'};
   Lab.focusCard=id=>{setWorkspace(CARD_WORKSPACE[id]||'all');if(!mounted[id])showCard(id);const card=mounted[id]?.sec;card?.classList.remove('collapsed');card?.scrollIntoView({block:'start',behavior:'smooth'});};
 
