@@ -2,17 +2,16 @@
 
 ## Unreleased
 
-- Add Rhino surface mining under Mining: a commander-local spot notebook,
-  coordinate navigation and a detailed, sourced guide shared by the UI and MCP.
-  Follow observed deployment collections with a commodity breakdown, cumulative
-  chart and cargo bars. Link contextual help to collection, transfer and
-  depletion procedures; distinguish measured receipts from unavailable rig data.
-  Include the dated Shinrarta tritium reference, troubleshooting and the
-  unload-without-boarding workflow. Keep site entry and guide detail on demand.
-  Show the existing Materials panel alongside it, initially filtered to session
-  gains. Remove the preview's rig counter, deployment metrics and duplicate cargo
-  displays; retain old site rig-fit reports as notes. Include the module and
-  guide in the Linux package manifest.
+- Add Rhino surface mining under Mining: observed collections, cargo space,
+  coordinate navigation and a sourced procedure guide shared by the UI and MCP.
+  Browse confirmed locations and unconfirmed research leads, retaining sources,
+  observed/reported/estimated rig evidence and separate depletion reports.
+  Save personal spots and field reports per commander. Keep forms and guide
+  details on demand, with contextual help for collecting, transferring cargo
+  without boarding, and depletion. Include the catalog in Linux packaging.
+  Show the existing Materials panel alongside mining, initially on session gains.
+- Fix Materials session gains when Commander, Materials and LoadGame share a
+  timestamp: recognize the login while preserving the opening inventory.
 
 - PTN: resize a selected station-trade plan up to 25,000 t before departure,
   including 19,898 t orders that exceeded the default 18,000 t plan. Preserve

@@ -6,6 +6,11 @@ Rhino surface mining adds `get_rhino_status` (GET `/api/rhino`),
 `/api/rhino/sites/save`, `/select`, `/remove`). Guide topics are listed in
 the default overview; use `all` for the complete dated, sourced guide.
 These inherit the normal HTTP/MCP contract.
+`get_rhino_sites` (GET `/api/rhino/sites`) filters by `verification`
+(`all`, `confirmed`, `unconfirmed`) and exact case-insensitive `commodity`.
+`report_rhino_site` (POST `/api/rhino/sites/report`) requires `id`,
+`verification`, `availability` (`unknown`, `reported_depleted`) and `evidence`.
+It records a commander-local observation without overwriting catalog sources.
 Status includes observed per-deployment collection totals, commodity breakdown,
 bounded receipt chart points, unloads, last-reported holds and equipment checks.
 Missing evidence stays null. No per-rig state or deposit reset timer is inferred.

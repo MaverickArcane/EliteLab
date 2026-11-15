@@ -3,6 +3,8 @@
   const coord = n => Number.isFinite(n) ? n.toFixed(4) : '--';
   const place = s => s.body.startsWith(s.system + ' ') ? s.body : `${s.system} / ${s.body}`;
   const distance = n => n < 1000 ? `${fmt(Math.round(n))} m` : `${(n / 1000).toFixed(2)} km`;
+  const badges = s => `<span class="rhino-badge ${s.verification === 'confirmed' ? 'confirmed' : ''}">${s.verification === 'confirmed' ? 'Confirmed' : 'Unconfirmed'}</span>${s.availability === 'reported_depleted' ? '<span class="rhino-badge depleted">Reported depleted</span>' : ''}`;
+  const rigEvidence = s => [s.rigs_observed != null ? `${s.rigs_observed} rigs observed` : '', s.rigs_reported != null ? `${s.rigs_reported} reported` : '', s.rigs_estimated != null ? `${s.rigs_estimated} rigs estimated` : ''].filter(Boolean).join(' / ');
   const recent = p => {
     const age = (Date.now() - Date.parse(p?.timestamp)) / 1000;
     return p?.body && p?.system && Number.isFinite(p.latitude) && Number.isFinite(p.longitude)
@@ -15,7 +17,7 @@
       el.innerHTML = `<div class="rhino-desk">
         <div class="rhino-tabs" role="tablist" aria-label="Rhino mining">
           <button role="tab" id="rhino-tab-mining" aria-controls="rhino-mining" aria-selected="true" data-rhino-tab="mining">Mining</button>
-          <button role="tab" id="rhino-tab-spots" aria-controls="rhino-spots" aria-selected="false" tabindex="-1" data-rhino-tab="spots">Saved spots</button>
+          <button role="tab" id="rhino-tab-spots" aria-controls="rhino-spots" aria-selected="false" tabindex="-1" data-rhino-tab="spots">Locations</button>
           <button role="tab" id="rhino-tab-guide" aria-controls="rhino-guide" aria-selected="false" tabindex="-1" data-rhino-tab="guide">How to mine</button>
         </div>
         <div class="note" data-rhino-message role="status" aria-live="polite"></div>
@@ -34,7 +36,8 @@
           </div>
         </div>
         <div id="rhino-spots" role="tabpanel" aria-labelledby="rhino-tab-spots" hidden>
-          <div class="rhino-toolbar"><span class="muted">Keep the places worth returning to.</span><button data-rhino-new>Add a spot</button></div>
+          <div class="rhino-toolbar"><span class="muted">Proven visits and places to investigate.</span><button data-rhino-new>Add a spot</button></div>
+          <p class="note">Confirmed means visited and reported in game. Reserves can change; rig counts retain their own evidence.</p>
           <form data-rhino-site-form class="rhino-form" hidden>
             <h3 data-rhino-form-title>Save a spot</h3>
             <input type="hidden" name="id"><input type="hidden" name="radius_m">
@@ -45,6 +48,16 @@
             <label>Commodity<input name="commodity" maxlength="160" value="Tritium" required></label>
             <label>Notes<textarea name="notes" maxlength="1200" rows="3" placeholder="What worked here, how to approach, anything worth remembering"></textarea></label>
             <div class="row"><button class="primary" type="submit">Save spot</button><button type="button" data-rhino-cancel>Cancel</button></div>
+          </form>
+          <form data-rhino-report-form class="rhino-form" hidden>
+            <h3 data-rhino-report-title>Update location report</h3><input type="hidden" name="id">
+            <div class="grid2">
+              <label>Location evidence<select name="verification"><option value="unconfirmed">Unconfirmed</option><option value="confirmed">Confirmed in game</option></select></label>
+              <label>Deposit condition<select name="availability"><option value="unknown">Current reserves unknown</option><option value="reported_depleted">Reported depleted</option></select></label>
+            </div>
+            <label>What did you verify?<textarea name="evidence" maxlength="1200" rows="3" required placeholder="Visit date, mineral found, rigs actually placed, or source and what remains untested"></textarea></label>
+            <p class="note">Saved for your commander. Include what you actually observed; saving coordinates alone does not confirm a deposit.</p>
+            <div class="row"><button class="primary" type="submit">Save report</button><button type="button" data-rhino-report-cancel>Cancel</button></div>
           </form>
           <div data-rhino-site-list></div>
         </div>
@@ -94,7 +107,9 @@
         } finally { guidePending = false; }
       };
       const form = el.querySelector('[data-rhino-site-form]');
+      const reportForm = el.querySelector('[data-rhino-report-form]');
       const freshForm = () => {
+        reportForm.hidden = true;
         form.reset(); form.elements.id.value = ''; form.elements.radius_m.value = ''; form.hidden = false;
         el.querySelector('[data-rhino-form-title]').textContent = 'Save a spot';
       };
@@ -122,6 +137,17 @@
           tab('spots'); freshForm(); el.querySelector('[data-rhino-capture]').click(); form.elements.name.focus();
         }
         if (button.hasAttribute('data-rhino-cancel')) form.hidden = true;
+        if (button.hasAttribute('data-rhino-report-cancel')) reportForm.hidden = true;
+        if (button.dataset.rhinoReport) {
+          const site = state.sites?.find(s => s.id === button.dataset.rhinoReport);
+          if (site) {
+            form.hidden = true; reportForm.reset(); reportForm.hidden = false;
+            for (const key of ['id', 'verification', 'availability']) reportForm.elements[key].value = site[key];
+            reportForm.elements.evidence.value = site.personal_report ? site.evidence : '';
+            el.querySelector('[data-rhino-report-title]').textContent = `Report: ${site.name}`;
+            reportForm.elements.evidence.focus();
+          }
+        }
         if (button.hasAttribute('data-rhino-capture')) {
           const p = state.position;
           if (!recent(p)) { message('Approach a body and wait for recent surface coordinates.', true); return; }
@@ -162,6 +188,15 @@
         } catch (error) { if (el.isConnected) message(error.message || String(error), true); }
         finally { submit.disabled = false; }
       });
+      reportForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        const submit = reportForm.querySelector('[type=submit]'); submit.disabled = true;
+        try {
+          await Lab.post('/api/rhino/sites/report', Object.fromEntries(new FormData(reportForm)));
+          if (el.isConnected) { reportForm.hidden = true; message('Location report saved for your commander.'); }
+        } catch (error) { if (el.isConnected) message(error.message || String(error), true); }
+        finally { submit.disabled = false; }
+      });
       el._rhinoFreshness = setInterval(() => { if (el.isConnected && !document.hidden) Lab.emit('rhino'); }, 5000);
     },
     unmount(el) { clearInterval(el._rhinoFreshness); },
@@ -171,6 +206,7 @@
       el.querySelector('[data-rhino-navigation]').innerHTML = site ? `<div class="rhino-navigation">
         <div class="rhino-toolbar"><strong>To ${esc(site.name)}</strong><button class="mini" data-rhino-clear>Clear</button></div>
         <div>${esc(place(site))}</div><div class="rhino-coords">${coord(site.latitude)}, ${coord(site.longitude)} <button class="mini" data-copy="${esc(site.system)} | ${esc(site.body)} | ${coord(site.latitude)}, ${coord(site.longitude)}">Copy location</button></div>
+        <div class="rhino-badges">${badges(site)}</div>
         ${nav.distance_m != null ? `<p class="rhino-direction">${distance(nav.distance_m)}${nav.bearing != null ? ` &middot; Heading ${nav.bearing.toFixed(1)} deg` : ' &middot; At saved coordinates'}</p>` : ''}
         <div class="note">${esc(nav.reason || '')}</div>
       </div>` : '<div class="rhino-navigation"><strong>Find your next worthwhile spot</strong><p class="muted">Choose a saved location for directions, or save what you find here.</p></div>';
@@ -213,15 +249,24 @@
       // Position updates must not close notes, move focus or erase a form draft.
       if (list.dataset.signature !== signature) {
         const opened = new Set([...list.querySelectorAll('details[open]')].map(d => d.dataset.siteNotes));
-        list.innerHTML = (r.sites || []).map(s => `<article class="rhino-site">
+        const renderSite = s => `<article class="rhino-site">
           <div class="rhino-toolbar"><strong>${esc(s.name)}</strong><button class="mini" data-rhino-select="${esc(s.id)}" ${s.id === site?.id ? 'disabled' : ''}>${s.id === site?.id ? 'Selected' : 'Navigate'}</button></div>
           <div>${esc(place(s))}</div>
           <div class="rhino-coords">${coord(s.latitude)}, ${coord(s.longitude)} <button class="mini" data-copy="${esc(s.system)} | ${esc(s.body)} | ${coord(s.latitude)}, ${coord(s.longitude)}">Copy location</button></div>
-          <details data-site-notes="${esc(s.id)}" ${opened.has(s.id) ? 'open' : ''}><summary>${esc(s.commodity)} &middot; ${s.reference ? 'Reference' : 'Your notes'}</summary>
-            <p>${esc(s.notes || 'No notes yet.')}</p><div class="note">Reported ${esc((s.reported_at || '').slice(0, 10))}; check conditions on arrival.</div>
-            <div class="row">${s.reference ? '<a href="https://www.youtube.com/watch?v=pmkU1LqwPjA&t=131s" target="_blank" rel="noopener noreferrer">Video reference at 2:11</a>' : `<button class="mini" data-rhino-edit="${esc(s.id)}">Edit</button><button class="mini" data-rhino-remove="${esc(s.id)}">Remove</button>`}</div>
+          <div class="rhino-badges">${badges(s)}</div>
+          <div class="note">${esc(s.commodity)}${rigEvidence(s) ? ` &middot; ${esc(rigEvidence(s))}` : ''}</div>
+          <details data-site-notes="${esc(s.id)}" ${opened.has(s.id) ? 'open' : ''}><summary>Evidence and notes${s.personal_report ? ' / your report' : ''}</summary>
+            <p>${esc(s.evidence || '')}</p><div class="note">Recorded ${esc((s.reported_at || '').slice(0, 10))}; current reserves are not measured.</div>
+            ${s.reference_evidence ? `<p class="note">Original evidence: ${esc(s.reference_evidence)}</p>` : ''}
+            ${s.notes ? `<p>${esc(s.notes)}</p>` : ''}
+            ${(s.sources || []).filter(source => /^https:\/\//.test(source.url)).map(source => `<p><a href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.title)}</a></p>`).join('')}
+            <div class="row"><button class="mini" data-rhino-report="${esc(s.id)}">Update report</button>${s.reference ? '' : `<button class="mini" data-rhino-edit="${esc(s.id)}">Edit</button><button class="mini" data-rhino-remove="${esc(s.id)}">Remove</button>`}</div>
           </details>
-        </article>`).join('');
+        </article>`;
+        list.innerHTML = '<div class="rhino-catalog-grid">' + ['confirmed', 'unconfirmed'].map(status => {
+          const rows = (r.sites || []).filter(s => s.verification === status);
+          return `<section data-rhino-group="${status}" class="rhino-location-group"><h3>${status === 'confirmed' ? 'Confirmed' : 'Unconfirmed'} <span class="note">${rows.length}</span></h3><p class="note">${status === 'confirmed' ? 'Field reports; check conditions on arrival.' : 'Research leads and bookmarks awaiting a visit.'}</p><div class="rhino-locations">${rows.map(renderSite).join('') || '<p class="muted">No locations yet.</p>'}</div></section>`;
+        }).join('') + '</div>';
         list.dataset.signature = signature;
       }
     },

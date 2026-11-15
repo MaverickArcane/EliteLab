@@ -110,7 +110,10 @@ class Materials:
         if e in ("Commander", "LoadGame"):
             name = ev.get("Name") if e == "Commander" else ev.get("Commander")
             owner = ("fid:" + str(ev["FID"])) if ev.get("FID") else self.commander_key if name and name == self.commander_name else "name:" + str(name)
-            if at and (at > self.session_at or (at == self.session_at and owner != self.commander_key)):
+            # Commander -> Materials -> LoadGame can all share one second.
+            # Identity is known then, but the game-session boundary is not yet open.
+            starting_login = e == "LoadGame" and self.session_started_at is None
+            if at and (at > self.session_at or (at == self.session_at and (owner != self.commander_key or starting_login))):
                 self.session_started_at = ev.get("timestamp") if e == "LoadGame" else None
                 self.session_gained = {}
                 self.last_gain = None

@@ -1,7 +1,7 @@
 {
   "name": "rhino",
   "version": "1.0.0",
-  "description": "Rhino surface mining: navigate saved spots, watch collected cargo and follow a sourced guide shared with MCP.",
+  "description": "Rhino surface mining: confirmed locations and research leads, coordinate navigation, collected cargo and a sourced guide shared with MCP.",
   "requires": ["journal"],
   "provides": ["rhino"],
   "order": 81,

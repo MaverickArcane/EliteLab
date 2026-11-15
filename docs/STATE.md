@@ -1,13 +1,17 @@
 # State reference
 
 `rhino.summary` contains commander-local saved sites, selected surface target,
+bundled catalog locations with confirmation/availability/evidence/source fields,
 timestamped Status position, same-body distance/bearing and the guide topic index.
 It also includes `session` (current or last Rhino deployment, observed refined
 tonnes by commodity, cumulative receipt points, unload totals and average),
 `cargo` (separate timestamped Ship/Rhino hold reports) and nullable `equipment`
 checks. Transfers do not reset collections; a new launch resets the deployment.
 The guide itself is read on demand through `get_rhino_guide`, not repeated in SSE.
-Only explicit notebook actions persist to `rhino-sites.json`. The earlier
+Only explicit notebook/report actions persist to `rhino-sites.json`. Commander
+accounts contain `sites`, `selected` and `reports` keyed by site ID. Local reports
+override effective classification while retaining `reference_evidence` and
+`reference_verification`; bundled catalog data is never rewritten. The earlier
 preview's rig-fit field is preserved as a note. See [Rhino mining](RHINO-MINING.md).
 
 Release additions:

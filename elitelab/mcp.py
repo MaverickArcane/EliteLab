@@ -112,6 +112,8 @@ PROMPTS = {
         "description": "Learn Rhino surface mining, save worthwhile spots and navigate back to them.",
         "arguments": [],
         "text": ("Read get_rhino_guide before giving Rhino mining instructions; overview lists the procedure topics. "
+                 "Use get_rhino_sites for confirmed locations and unconfirmed leads with sources. Read per-claim rig evidence; "
+                 "confirmation does not establish current reserves. Record requested field observations with report_rhino_site. "
                  "Use get_rhino_status for saved places, surface navigation, deployment collections and cargo space. "
                  "Collected tonnes are observed receipts, not rig extraction; equipment checks can be unknown. Read the relevant guide topic "
                  "for prospecting, Too close, collecting vs recovering, unloading without boarding, or replacement rigs. "

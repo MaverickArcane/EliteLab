@@ -331,7 +331,9 @@ python -m unittest discover -s tests -p test_restart_reliability.py -v
 `test_material_sessions.py` replays `fixtures/journals/material-session` to check
 inventory versus gross session gains through collection, rewards, trading,
 spending, inventory snapshots and restarts. Missing session boundaries stay
-unknown. `node tests/materials-feed.mjs` delays inventory responses to check
+unknown. Same-second Commander -> Materials -> LoadGame startup is covered in
+both direct/replayed events and the Rhino browser fixture, including preservation
+of the opening inventory. `node tests/materials-feed.mjs` delays inventory responses to check
 stale-response rejection, current filters and refresh after a failure; the
 browser suite imports it and checks the visible live pickup and session totals.
 

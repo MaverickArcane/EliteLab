@@ -67,6 +67,13 @@ try {
   assert.equal(await evaluate("document.querySelector('[data-rhino-tab=mining]').getAttribute('aria-selected')"),'true');
   assert.match(await evaluate("document.querySelector('[data-rhino-haul]').textContent"),/Tritium\s+2 t/);
   await click('[data-rhino-tab=spots]');
+  assert.equal(await evaluate("document.querySelectorAll('[data-rhino-group=confirmed] .rhino-site').length"),2);
+  assert.equal(await evaluate("document.querySelectorAll('[data-rhino-group=unconfirmed] .rhino-site').length"),6);
+  assert.match(await evaluate("document.querySelector('[data-rhino-group=confirmed]').textContent"),/5 rigs observed \/ 6 reported/);
+  assert.match(await evaluate("document.querySelector('[data-rhino-group=confirmed]').textContent"),/Reported depleted/);
+  const leads=await(await fetch(base+'/api/rhino/sites?verification=unconfirmed&commodity=Tritium')).json();
+  assert.deepEqual(leads.sites.map(s=>s.id),['hip63920-tritium']);
+  assert.equal(await evaluate("document.querySelector('[data-site-notes=hip63920-tritium] a').href"),leads.sites[0].sources[0].url);
   await click('[data-rhino-select="shinrarta-tritium"]');
   await wait("Lab.state.rhino.summary.selected_site?.id==='shinrarta-tritium'");
   assert.match(await evaluate("document.querySelector('[data-rhino-navigation]').textContent"),/144 m/);
@@ -80,7 +87,16 @@ try {
   await wait('Lab.state.rhino.summary.cargo.rhino.count===0');
   assert.equal(await evaluate('Lab.state.rhino.summary.session.total_t'),4);
   await click('[data-rhino-tab=spots]');
-  await shot('rhino-spots-desktop'); await shot('rhino-spots-mobile',390,1050);
+  await shot('rhino-spots-desktop'); await shot('rhino-spots-mobile',390,1200);
+  await click('[data-site-notes=hip39418-a11] summary'); await click('[data-rhino-report=hip39418-a11]');
+  await evaluate("const f=document.querySelector('[data-rhino-report-form]');f.elements.verification.value='confirmed';f.elements.availability.value='reported_depleted';f.elements.evidence.value='Fixture visit: found monazite, then depleted. <img src=x onerror=alert(1)>';true");
+  append([{event:'MiningRefined',Type:'water'}]);await wait('Lab.state.rhino.summary.session.total_t===5');
+  assert.match(await evaluate("document.querySelector('[data-rhino-report-form]').elements.evidence.value"),/Fixture visit/);
+  await evaluate("document.querySelector('[data-rhino-report-form]').requestSubmit();true");
+  await wait("document.querySelector('[data-rhino-report-form]').hidden");
+  await wait("document.querySelectorAll('[data-rhino-group=confirmed] .rhino-site').length===3");
+  assert.equal(await evaluate("document.querySelectorAll('.rhino-site img').length"),0);
+  assert.equal(await evaluate("Lab.state.rhino.summary.selected_site.id"),'shinrarta-tritium');
   await click('[data-rhino-new]'); await click('[data-rhino-capture]');
   assert.equal(await evaluate("document.querySelector('[name=latitude]').value"),'35.95034');
   await evaluate("document.querySelector('[name=name]').value='My tritium route';document.querySelector('[name=notes]').value='Keep this draft through telemetry';true");
@@ -95,6 +111,7 @@ try {
   await wait("document.querySelector('[data-rhino-site-form]').hidden");
   await send('Page.reload');await wait(`typeof Lab!=='undefined'&&Lab.state?.rhino?.summary?.selected_site?.id===${JSON.stringify(id)}`);
   await wait("!!document.querySelector('[data-rhino-site-list]')");
+  assert.equal(await evaluate("Lab.state.rhino.summary.sites.find(s=>s.id==='hip39418-a11').availability"),'reported_depleted');
   await click('[data-rhino-tab=spots]');
   await click(`[data-site-notes="${id}"] summary`); await click(`[data-rhino-edit="${id}"]`);
   await evaluate("document.querySelector('[name=notes]').value='<img src=x onerror=alert(1)>';document.querySelector('[data-rhino-site-form]').requestSubmit();true");
@@ -119,7 +136,7 @@ try {
   await evaluate('Date.now=window.rhinoNow;true');
   assert.deepEqual(await evaluate("[...document.querySelectorAll('.render-error')].map(e=>e.textContent)"),[]);
   assert.deepEqual(errors,[]);assert.doesNotMatch(serverLog,/Traceback|handler failed/);
-  console.log('Rhino browser passed: live collection/hold tracking, transfer continuity, contextual help, spots/navigation, persistent save/edit, stable drafts, escaping, Materials gains, guide/retry/shortcuts, stale position and desktop/mobile. Screenshots: '+output);
+  console.log('Rhino browser passed: confirmed/unconfirmed catalog, sources, report/persistence, live collection/holds, transfer continuity, contextual help, navigation, save/edit, stable drafts, escaping, Materials gains, guide/retry/shortcuts, stale position and desktop/mobile. Screenshots: '+output);
   await send('Browser.close').catch(()=>{});
 } finally {
   ws?.close();chrome?.kill();

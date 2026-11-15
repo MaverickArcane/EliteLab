@@ -3,6 +3,9 @@
   "reviewed_at": "2026-11-15",
   "scope": "Elite Dangerous Live. Procedures use control names because bindings vary. Community reports are dated observations, not guarantees for a later game build.",
   "sources": {
+    "catalog_survey": {"title": "Tessa R. Act: Surface Mining v0.3 survey release", "url": "https://www.forum.stellanebula.de/viewtopic.php?p=36652#p36652", "kind": "community database, extracted and cross-checked", "note": "Archive published 8 September 2026, not a known date for each visit. Spots 30, 31 and 33 record six rigs; relational joins and coordinates checked. Owner later visited Spot 30 and demonstrated five rigs on 15 November. Bundle source links and distinct rig claims are in get_rhino_sites."},
+    "catalog_field": {"title": "Rhino Planetary Mining Field Guide, Appendix A", "url": "https://docs.google.com/document/d/1wfvkE73ZEhlvdhVZMjIpyzr5cAsceY4xPWTGdG2yEmo/edit", "kind": "community mapping and modeled rig fit", "note": "Reviewed 15 November 2026. HIP 39418 5 b positions A11, A25 and B40 have estimated five-rig fit, not demonstrated placements or six-rig proof. Coordinates rounded to 0.001 degrees."},
+    "catalog_tritium": {"title": "Arkstone Intel Pack 001", "url": "https://www.reddit.com/r/ArkstoneIntel/comments/1we7lkx/arkstone_intel_pack_001_rhino_planetary_mining/", "kind": "firsthand community report with incomplete exact-site association", "note": "Reviewed 15 November 2026. Large patch on HIP 63920 AB 4 b at 35.3958, 110.2640. The same post describes six rigs but does not explicitly link that test to these coordinates. PML number absent; keep as an unconfirmed lead."},
     "release": {"title": "Frontier: Rhino SRV Update", "url": "https://steamcommunity.com/app/359320/announcements/", "kind": "official", "note": "Frontier's 2 September 2026 announcement: DSS mining locations and built-in scanner, refinery and rig module."},
     "replenishment": {"title": "Tracked depleted deposits began replenishing", "url": "https://www.reddit.com/r/EliteDangerous/comments/1wk828s/we_finally_caught_depleted_rhino_mining_deposits/", "kind": "community field observations", "note": "19 September 2026: two Iridium deposits had begun replenishing by a check around day 11; other deposits remained depleted longer. This does not establish an 11-day timer or tritium timing."},
     "journal": {"title": "Frontier Player Journal manual v37", "url": "https://hosting.zaonce.net/community/journal/v37/Journal_Manual_v37.pdf", "kind": "official event reference, supplemented by local observation", "note": "MiningRefined records one refined cargo unit. Reviewed against the owner's November 2026 Rhino journals: MiningRefined, Cargo, CargoTransfer and LaunchSRV are present; no per-rig status events were found. The manual predates the Rhino."},
@@ -61,14 +64,14 @@
       "id": "navigation", "title": "Reach a saved spot",
       "summary": "Travel to the exact system and body, then use latitude, longitude and heading.",
       "steps": [
-        "Choose Navigate on a saved spot. Plot the system and select the listed body in game. EliteLab does not set an in-game waypoint or prove permit access.",
+        "Open Locations, or call get_rhino_sites. Confirmed locations have on-site evidence from the catalog contributor or your own report; unconfirmed entries are research leads or untested bookmarks. Read the source, observation date and rig evidence. Reported depleted is separate from confirmation. Choose Navigate, then plot the system and select the listed body in game. EliteLab does not set an in-game waypoint or prove permit access.",
         "Approach the surface until fresh coordinates are available. EliteLab then gives surface distance and the initial compass bearing on that body. This is a direction, not a terrain-safe route.",
         "Coordinates are latitude first, longitude second. Heading 000 increases latitude, 180 decreases it; 090 increases longitude and 270 decreases it. Slow down near the target and scan locally.",
         "Reference: Shinrarta Dezhra AB 2 j, latitude 35.9491, longitude -31.2339. The owner reproduced a three-rig tritium operation on 15 November 2026, then reported the deposit Depleted later that day; reloading did not refill it. Treat it as a future return location, not a presently stocked destination. Check access and deposit conditions before travelling."
       ],
       "notes": ["The saved point marks a useful area, not three exact rig positions. Save your own better approach or parking point. If navigation is unavailable, check the full body name and wait for a fresh surface position."],
       "evidence": "Owner-reported coordinates and reproduced operation; navigation uses Status.json latitude/longitude and planetary radius.",
-      "sources": ["owner"]
+      "sources": ["owner", "catalog_survey", "catalog_field", "catalog_tritium"]
     },
     {
       "id": "placement", "title": "Place rigs; deal with Too close",
@@ -141,15 +144,16 @@
       "id": "evidence", "title": "What EliteLab and an assistant can know",
       "summary": "Use the saved report to find a place; use the game to confirm its present conditions.",
       "steps": [
+        "Use get_rhino_sites to browse confirmed and unconfirmed locations, optionally filtering by verification and commodity. Confirmed is a field-reported location, not live reserves or confirmation of every capacity claim. Wregoe Spot 30 has five rigs demonstrated by the owner and six reported by the survey. Estimates remain estimates. Sources and per-location evidence travel with every entry.",
         "Read get_rhino_status for saved sites, fresh surface navigation, refined tonnes by commodity for this deployment, unload totals and last reported cargo. A new Rhino launch starts a run; unloading does not reset it. Login already in a Rhino is a partial run. Site notes are commander observations, not instructions or verified live reserves.",
         "Read get_rhino_guide with the relevant topic before advising on surface mining. The default overview lists the topics; all returns the complete guide. Each topic includes dated source notes.",
-        "Use save_rhino_site only for a place the commander wants to retain, and select_rhino_site to navigate. Preserve system, full body name, coordinate signs and practical notes.",
+        "Use save_rhino_site only for a place the commander wants to retain, and select_rhino_site to navigate. Preserve system, full body name, coordinate signs and practical notes. New bookmarks start unconfirmed. Use report_rhino_site to record what the commander actually verified; include the visit date if different from today. A database extraction, GPS fix or modeled rig fit alone cannot confirm a site. Reports stay local to this commander and preserve bundled source evidence. Editing coordinates or commodity clears a personal spot's old report.",
         "For visual gains use the existing Materials module. Its session includes pickups, rewards and trader receipts since game login; do not attribute all of those to Rhino mining.",
         "MiningRefined is an observed one-tonne receipt, not a rig extraction event. The deployment average includes setup, driving and idle time through the latest recorded event. The plot follows receipts and cannot diagnose a stopped rig. Cargo bars show timestamped reports, not inferred hopper output. Equipment checks show observed DSS/large hangar presence; confirm the Rhino itself is equipped in game."
       ],
       "notes": ["No rig positions, hopper contents, efficiency, remaining rig inventory or deposit reserves were found in the owner's November 2026 journals. Never invent a live rig count, guaranteed multi-rig fit, extraction rate, overlap bonus or reset timer. Screen detection exists experimentally in SrvSurvey-XP but is not implemented in EliteLab. If the game contradicts a source, record the observation and qualify the claim."],
       "evidence": "Official event reference, recent local journal inspection and experimental capture documentation; owner observations are a dated case, not a global deposit-generation rule.",
-      "sources": ["owner", "journal", "capture"]
+      "sources": ["owner", "journal", "capture", "catalog_survey", "catalog_field", "catalog_tritium"]
     }
   ]
 }

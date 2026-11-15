@@ -2,7 +2,8 @@
 
 Open **Mining > Rhino surface mining**. The **Mining** tab combines a selected
 destination, automatic collection progress, hold space and useful next-step
-instructions. **Saved spots** keeps your notebook; **How to mine** contains the
+instructions. **Locations** groups confirmed visits and unconfirmed leads;
+**How to mine** contains the
 full sourced guide. Forms and long explanations open only when needed.
 The existing Materials panel appears alongside it for visual
 progress; when first opened from Mining it selects **gained this session**.
@@ -29,6 +30,47 @@ It does not prove which vehicle is installed. Low reported free space links
 directly to the unloading procedure. Guide shortcuts cover the whole loop.
 
 ## Save and revisit a spot
+
+The Locations tab combines the bundled [catalog](../modules/rhino/sites.json)
+with your personal notebook. Each entry has coordinates, navigation, evidence,
+a recording date and source links. Confirmation and depletion are separate:
+
+- **Confirmed**: a field report by the catalog contributor or current commander
+  supports the location. It does not prove current reserves or every rig claim.
+- **Unconfirmed**: a research lead or bookmark awaiting that field confirmation.
+  Survey-reported and modeled rig counts stay labeled as such.
+- **Reported depleted**: an observation of depletion, which can coexist with
+  confirmation. Unknown reserves never imply a stocked deposit.
+
+Open **Evidence and notes > Update report** to record a visit or depletion.
+Describe what was actually checked and include the visit date when it differs
+from the recording date. Reports are local to your commander, retain the original
+catalog evidence, and do not change the selected destination. Merely saving GPS
+coordinates starts an unconfirmed bookmark. Moving a personal bookmark to another
+system/body/coordinate or changing its commodity clears its old report; editing
+the name or notes preserves it.
+
+The initial catalog has two confirmed locations and six unconfirmed leads:
+
+| Location | Evidence retained |
+| --- | --- |
+| Wregoe JC-Y b57-0 A 1, PML 4 | Owner visited; five rigs demonstrated, six survey-reported |
+| Shinrarta Dezhra AB 2 j | Three working rigs reproduced; later reported depleted |
+| Wregoe GW-Y c28-2 A 1, PML 4 / Spot 31 and PML 3 / Spot 33 | Six survey-reported rigs each; not reproduced by the contributor |
+| HIP 63920 AB 4 b, 35.3958 / 110.2640 | Large Tritium patch reported; exact link to six-rig test unresolved |
+| HIP 39418 5 b, A11 / A25 / B40 | Mapped Monazite/Serendibite positions; five-rig estimates, not placement tests |
+
+The Wregoe entries were extracted from the original Surface Mining v0.3 FileMaker
+archive linked in Tessa R. Act's [release post](https://www.forum.stellanebula.de/viewtopic.php?p=36652#p36652).
+SHA-256: `0631289d9d6225967a759993f9d5622c6ddd31fb858d4ebe1091d3f963cb8d75`.
+Relational keys, not duplicate system names, establish the locations:
+SpotIDX 30 -> LocID 22 -> bodyIDX 43 -> Parent_System 16;
+31 -> 23 -> 44 -> 17; 33 -> 24 -> 44 -> 17.
+The archive publication date is 2026-09-08; individual survey dates are unknown.
+Spot 30's location has `locatrion_survyed = no`, retained as a source caveat.
+The owner's later field report supplies location confirmation, with five rigs
+demonstrated. The catalog is a small factual extract, not a copy of the database
+or field guide. No network fetch is required at runtime.
 
 Choose **Add a spot > Use current position**, then enter a name, commodity and
 useful notes. Alternatively enter a reported system, full body name, latitude
@@ -80,7 +122,8 @@ For example, an MCP call to `get_rhino_guide` with
 `{"topic":"unloading"}` returns the same instructions shown in that browser
 section. HTTP uses `GET /api/rhino/guide?topic=unloading`. The `rhino_mining`
 MCP prompt and server introduction direct assistants to the guide before
-advising. Saved coordinates come from `get_rhino_status`.
+advising. Browse coordinates and evidence with `get_rhino_sites`; navigation
+and the selected destination come from `get_rhino_status`.
 
 Do not turn early community claims into rules. The guide records the author's
 correction about numbered mining locations, the owner's unsuccessful reroll
@@ -93,6 +136,11 @@ current purchases, compatibility and changed mechanics before advising.
   current position, navigation, deployment collection totals/chart points,
   separate last-reported holds, equipment evidence and guide topic index.
 - `get_rhino_guide`: GET `/api/rhino/guide`; optional `topic`, default `overview`.
+- `get_rhino_sites`: GET `/api/rhino/sites`; `verification` defaults to `all`;
+  accepts `confirmed` or `unconfirmed`, plus optional exact `commodity` filter.
+- `report_rhino_site`: POST `/api/rhino/sites/report`; `id`, `verification`,
+  `availability` (`unknown` or `reported_depleted`) and nonempty `evidence`.
+  Server records the current time; returns the effective site and original evidence.
 - `save_rhino_site`: POST `/api/rhino/sites/save`; name, system, body, commodity,
   latitude and longitude required; notes/radius optional; ID edits an existing spot.
 - `select_rhino_site`: POST `/api/rhino/sites/select`; ID selects, empty ID clears.
@@ -125,7 +173,7 @@ cargo snapshots, stale input, equipment evidence, navigation, guide selection
 and MCP discovery/calls. `node tests/rhino-browser.mjs` runs an isolated real
 CLI/watcher/API/SSE/browser stack with synthetic journals. It checks compact
 UI, live collections/holds, unloading continuity, low-space help,
-saves/edits/reload, stable drafts, escaping, live Materials gains, shared
+saves/edits/reload, catalog groups/sources, local reports, stable drafts, escaping, live Materials gains, shared
 guide content/retry/shortcuts, and desktop/mobile layouts. Screenshots go to
 `artifacts/rhino` or `ELITELAB_SCREENSHOT_DIR`. `node tests/materials-feed.mjs`
 checks material response ordering and filter preservation.

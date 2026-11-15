@@ -62,6 +62,31 @@ class MaterialSessionTests(unittest.TestCase):
         self.assertIsNone(result['materials'][0]['gained'])
         self.assertIsNone(result['session']['gained'])
 
+    def test_same_second_commander_snapshot_and_login_open_session_without_losing_inventory(self):
+        # Real Rhino journal order: all three startup events can share a timestamp.
+        for replay in (False, True):
+            with self.subTest(replay=replay):
+                core = self.client()
+                def emit(event, timestamp='2026-11-15T18:30:09Z', **fields):
+                    core.bus.emit('journal.' + event, {'event':event, 'timestamp':timestamp, '_replay':replay, **fields})
+                emit('Commander', Name='Test pilot', FID='F-TEST')
+                emit('Materials', Raw=[{'Name':'iron', 'Count':10}])
+                emit('LoadGame', Commander='Test pilot', FID='F-TEST')
+                self.assertEqual(self.materials(core)['session']['gained'], 0)
+                self.assertEqual(self.materials(core)['materials'][0]['count'], 10)
+                emit('MaterialCollected', timestamp='2026-11-15T19:20:03Z', Name='iron', Count=1, Category='Raw')
+                # Repeated login metadata at the same boundary must not wipe gains.
+                emit('LoadGame', Commander='Test pilot', FID='F-TEST')
+                result = self.materials(core)
+                self.assertEqual(result['session']['started_at'], '2026-11-15T18:30:09Z')
+                self.assertEqual(result['session']['gained'], 1)
+                self.assertEqual((result['materials'][0]['count'], result['materials'][0]['gained']), (11, 1))
+                emit('Commander', timestamp='2026-11-15T20:00:00Z', Name='Other pilot', FID='F-OTHER')
+                emit('Materials', timestamp='2026-11-15T20:00:00Z', Raw=[{'Name':'nickel','Count':2}])
+                emit('LoadGame', timestamp='2026-11-15T20:00:00Z', Commander='Other pilot', FID='F-OTHER')
+                self.assertEqual(self.materials(core)['session']['gained'], 0)
+                self.assertEqual([r['key'] for r in self.materials(core)['materials']], ['nickel'])
+
     def test_spent_material_remains_visible_in_gains_and_wishlist_uses_current_count(self):
         self.core.watcher.replay()
         self.core.http.tools['wishlist_add'].fn({'item':'iron', 'qty':12})

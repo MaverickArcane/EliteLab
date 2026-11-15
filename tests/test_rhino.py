@@ -22,6 +22,7 @@ class RhinoTests(unittest.TestCase):
         self.core = Core()
         loader.load_all(self.core)
         self.addCleanup(self.core.close)
+        self.catalog_size = len(self.call("get_rhino_sites")["sites"])
 
     def call(self, tool="get_rhino_status", **params):
         return self.core.http.tools[tool].fn(params)
@@ -61,7 +62,7 @@ class RhinoTests(unittest.TestCase):
     def test_notebook_persists_and_is_commander_scoped(self):
         self.launch(); site = self.save()
         self.emit("Commander", Name="Other", FID="OTHER")
-        self.assertEqual(len(self.call()["sites"]), 1)
+        self.assertEqual(len(self.call()["sites"]), self.catalog_size)
         self.assertIsNone(self.call()["selected_site"])
         self.emit("Commander", Name="Rhino Test", FID="F-RHINO")
         self.assertEqual(self.call()["selected_site"]["id"], site["id"])
@@ -72,7 +73,7 @@ class RhinoTests(unittest.TestCase):
         self.assertEqual(self.call()["selected_site"]["notes"], "Three rigs tested; flat approach")
         self.call("select_rhino_site", id="")
         self.assertIsNone(self.call()["selected_site"])
-        self.assertEqual(len(self.call()["sites"]), 2)
+        self.assertEqual(len(self.call()["sites"]), self.catalog_size + 1)
         self.call("select_rhino_site", id=site["id"])
         self.call("remove_rhino_site", id=site["id"])
         self.assertIsNone(self.call()["selected_site"])
@@ -175,7 +176,7 @@ class RhinoTests(unittest.TestCase):
         self.launch()
         for data in ({"latitude":91}, {"longitude":-181}, {"latitude":True}, {"radius_m":-1}, {"latitude":float("nan")}, {"id":"shinrarta-tritium"}, {"name":""}):
             with self.assertRaises(ValueError): self.save(**data)
-        self.assertEqual(len(self.call()["sites"]), 1)
+        self.assertEqual(len(self.call()["sites"]), self.catalog_size)
         with self.assertRaises(ValueError): self.call("remove_rhino_site", id="shinrarta-tritium")
         for bad in (True, float("nan"), float("inf"), {}, [], 10**400):
             self.position(Latitude=bad, PlanetRadius=bad)
@@ -207,9 +208,9 @@ class RhinoTests(unittest.TestCase):
         self.position(timestamp="2026-11-15T12:01:59Z", Latitude=0)
         self.assertEqual(self.call()["position"]["latitude"], 35.950340)
         self.emit("Commander", Name="Rhino Test")
-        self.assertEqual(len(self.call()["sites"]), 2)
+        self.assertEqual(len(self.call()["sites"]), self.catalog_size + 1)
         self.emit("LoadGame")
-        self.assertEqual(len(self.call()["sites"]), 1)
+        self.assertEqual(len(self.call()["sites"]), self.catalog_size)
         self.assertIsNone(self.call()["selected_site"])
 
     def test_failed_save_keeps_previous_selection_and_invalid_id_does_not_clear(self):
@@ -229,6 +230,69 @@ class RhinoTests(unittest.TestCase):
         self.assertEqual(module.navigation(p, site, now)["bearing"], 90)
         for clock in (now+121, now-6):
             self.assertIsNone(module.navigation(p, site, clock)["distance_m"])
+
+    def test_catalog_filters_keep_field_confirmation_separate_from_rig_claims_and_reserves(self):
+        confirmed = self.call("get_rhino_sites", verification="confirmed")["sites"]
+        self.assertEqual({s["id"] for s in confirmed}, {"wregoe-iridium-30", "shinrarta-tritium"})
+        wregoe = next(s for s in confirmed if s["id"] == "wregoe-iridium-30")
+        self.assertEqual((wregoe["rigs_observed"], wregoe["rigs_reported"]), (5, 6))
+        self.assertEqual((wregoe["latitude"], wregoe["longitude"]), (-66.9655, -109.5819))
+        self.assertEqual(wregoe["availability"], "unknown")
+        tritium = self.call("get_rhino_sites", commodity="tRiTiUm")["sites"]
+        self.assertEqual(len(tritium), 2)
+        self.assertEqual(next(s for s in tritium if s["verification"] == "confirmed")["availability"], "reported_depleted")
+        lead = self.call("get_rhino_sites", verification="unconfirmed", commodity="Tritium")["sites"][0]
+        self.assertEqual(lead["id"], "hip63920-tritium")
+        self.assertNotIn("rigs_reported", lead)  # Six-rig test is not tied to these coordinates.
+        monazite = self.call("get_rhino_sites", commodity="Monazite")["sites"][0]
+        self.assertEqual(monazite["rigs_estimated"], 5)
+        self.assertEqual(monazite["verification"], "unconfirmed")
+        for site in self.call("get_rhino_sites")["sites"]:
+            self.assertTrue(site["evidence"] and site["reported_at"] and site["sources"])
+            self.assertTrue(all(s["url"].startswith("https://") for s in site["sources"]))
+        wregoe["sources"].clear()
+        self.assertTrue(self.call("get_rhino_sites")["sites"][0]["sources"])
+        with self.assertRaises(ValueError): self.call("get_rhino_sites", verification="stocked")
+
+    def test_location_reports_persist_per_commander_without_rewriting_source_evidence(self):
+        self.launch()
+        original = next(s for s in self.call()["sites"] if s["id"] == "wregoe-iridium-31")
+        report = self.call("report_rhino_site", id=original["id"], verification="confirmed", availability="reported_depleted", evidence="Fixture visit: six deployed, then depleted.")
+        self.assertEqual(report["reference_evidence"], original["evidence"])
+        self.assertEqual(report["sources"], original["sources"])
+        self.assertEqual(report["verification"], "confirmed")
+        self.assertEqual(report["availability"], "reported_depleted")
+        self.assertIsNone(self.call()["selected_site"])  # Reporting does not move the destination.
+        self.save(notes="An unrelated notebook edit")
+        self.emit("Commander", Name="Other", FID="OTHER")
+        self.assertEqual(next(s for s in self.call()["sites"] if s["id"] == original["id"]), original)
+        restarted = Core(); loader.load_all(restarted); self.addCleanup(restarted.close); restarted.watcher.replay()
+        after = restarted.http.tools["get_rhino_sites"].fn({})["sites"]
+        self.assertEqual(next(s for s in after if s["id"] == original["id"]), report)
+
+    def test_bookmarks_start_unconfirmed_and_moving_one_invalidates_its_report(self):
+        self.launch(); site = self.save()
+        self.assertEqual(site["verification"], "unconfirmed")
+        report = self.call("report_rhino_site", id=site["id"], verification="confirmed", availability="unknown", evidence="Visited, found tritium.")
+        edited = self.save(id=site["id"], notes="Approach from the south")
+        self.assertEqual(edited["reported_at"], report["reported_at"])
+        self.assertEqual(edited["verification"], "confirmed")
+        moved = self.save(id=site["id"], latitude=0)
+        self.assertEqual(moved["verification"], "unconfirmed")
+        self.assertNotIn(site["id"], self.core.read_data("rhino-sites.json")["fid:F-RHINO"]["reports"])
+        self.call("report_rhino_site", id=site["id"], verification="unconfirmed", availability="unknown", evidence="Unvisited lead")
+        self.call("remove_rhino_site", id=site["id"])
+        self.assertNotIn(site["id"], self.core.read_data("rhino-sites.json")["fid:F-RHINO"]["reports"])
+
+    def test_report_validation_and_failed_persistence_leave_catalog_unchanged(self):
+        params = {"id":"shinrarta-tritium", "verification":"confirmed", "availability":"unknown", "evidence":"Fixture visit"}
+        with self.assertRaises(ValueError): self.call("report_rhino_site", **params)
+        self.launch(); before = self.call()
+        for overrides in ({"id":"missing"}, {"verification":"sure"}, {"availability":"stocked"}, {"evidence":"  "}):
+            with self.assertRaises(ValueError): self.call("report_rhino_site", **{**params, **overrides})
+        with patch.object(self.core, "write_data", side_effect=OSError("disk full")):
+            with self.assertRaises(OSError): self.call("report_rhino_site", **params)
+        self.assertEqual(self.call(), before)
 
     def test_guide_available_without_login_bounded_by_topic_and_detached(self):
         overview = self.call("get_rhino_guide")
@@ -255,6 +319,7 @@ class RhinoTests(unittest.TestCase):
             {"id":2, "method":"tools/list"},
             {"id":3, "method":"tools/call", "params":{"name":"get_rhino_guide", "arguments":{"topic":"unloading"}}},
             {"id":4, "method":"prompts/get", "params":{"name":"rhino_mining"}},
+            {"id":5, "method":"tools/call", "params":{"name":"get_rhino_sites", "arguments":{"verification":"unconfirmed", "commodity":"Tritium"}}},
         ]
         output = io.StringIO()
         with patch.object(mcp, "_tool_cache", {}), patch.object(mcp, "_http", side_effect=backend), \
@@ -266,13 +331,17 @@ class RhinoTests(unittest.TestCase):
         self.assertIn("placement", tool["inputSchema"]["properties"]["topic"]["enum"])
         self.assertEqual(json.loads(replies[2]["content"][0]["text"]), self.call("get_rhino_guide", topic="unloading"))
         self.assertIn("get_rhino_guide", replies[3]["messages"][0]["content"]["text"])
+        self.assertEqual(json.loads(replies[4]["content"][0]["text"]), self.call("get_rhino_sites", verification="unconfirmed", commodity="Tritium"))
+        report_tool = next(t for t in replies[1]["tools"] if t["name"] == "report_rhino_site")
+        self.assertIn("evidence", report_tool["inputSchema"]["required"])
         self.assertNotIn("report_rhino_rigs", self.core.http.tools)
 
     def test_mutations_are_post_and_reading_guide_is_read_only(self):
-        for name in ("save_rhino_site", "select_rhino_site", "remove_rhino_site"):
+        for name in ("save_rhino_site", "select_rhino_site", "remove_rhino_site", "report_rhino_site"):
             self.assertEqual(self.core.http.tools[name].method, "POST")
         self.assertEqual(self.core.http.tools["get_rhino_status"].method, "GET")
         self.assertEqual(self.core.http.tools["get_rhino_guide"].method, "GET")
+        self.assertEqual(self.core.http.tools["get_rhino_sites"].method, "GET")
         before = self.call()
         self.call("get_rhino_guide", topic="all")
         self.assertEqual(self.call(), before)

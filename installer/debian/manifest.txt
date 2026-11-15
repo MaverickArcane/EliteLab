@@ -120,6 +120,7 @@ modules/recipes/web/card.js
 modules/rhino/guide.json
 modules/rhino/module.json
 modules/rhino/module.py
+modules/rhino/sites.json
 modules/rhino/tracking.py
 modules/rhino/web/card.js
 modules/selling/module.json

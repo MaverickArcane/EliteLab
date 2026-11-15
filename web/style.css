@@ -684,6 +684,14 @@ body[data-active-workspace=ship] #card-ship{grid-column:1/-1!important}
 .rhino-site .row { flex-wrap:wrap; gap:6px; }
 .rhino-site details { margin-top:8px; }
 .rhino-site p { white-space:pre-wrap; }
+.rhino-catalog-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; }
+.rhino-location-group { min-width:0; }
+.rhino-location-group h3 { margin:14px 0 6px; font-size:15px; }
+.rhino-locations { max-height:590px; overflow:auto; padding-right:8px; scrollbar-width:thin; }
+.rhino-badges { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0; }
+.rhino-badge { display:inline-block; padding:3px 7px; border:1px solid var(--line); border-radius:4px; font-size:11px; color:var(--muted); }
+.rhino-badge.confirmed { color:var(--accent-2); border-color:var(--accent-2); }
+.rhino-badge.depleted { color:var(--accent); border-color:var(--accent); }
 .rhino-desk summary { cursor:pointer; padding:8px 0; }
 .rhino-topic { border-top:1px solid var(--line); padding:5px 0; line-height:1.65; overflow-wrap:anywhere; }
 .rhino-topic > summary { font-weight:600; color:var(--accent); }
@@ -693,6 +701,7 @@ body[data-active-workspace=ship] #card-ship{grid-column:1/-1!important}
 .rhino-desk li { padding-bottom:8px; }
 @media(max-width:760px) {
   .rhino-form .grid2 { grid-template-columns:1fr; }
+  .rhino-catalog-grid { grid-template-columns:1fr; gap:6px; }
   .rhino-direction { font-size:18px; }
   .rhino-holds { grid-template-columns:1fr; gap:4px; }
 }
