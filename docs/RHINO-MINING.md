@@ -44,7 +44,9 @@ a recording date and source links. Confirmation and depletion are separate:
 
 Click **Mark confirmed** directly on an unconfirmed location after verifying it
 in game. This records a dated confirmation and moves it into Confirmed in one
-click, retaining any depletion flag. It does not confirm an estimated rig count.
+click, retaining the complete existing report, its original date and any
+depletion flag. A separate date records the confirmation. It does not confirm
+an estimated rig count, and confirming an already-confirmed entry changes nothing.
 Open **Evidence and notes > Update report** to add details, change the status
 back to Unconfirmed, or report depletion.
 Describe what was actually checked and include the visit date when it differs
@@ -85,13 +87,16 @@ Saved spots and selection belong to the current commander (FID when available,
 otherwise commander name), in `rhino-sites.json`. Up to 100 personal spots can
 be edited or removed. Previous preview rig-fit fields become ordinary notes.
 No route controls the game or uploads sites.
+Forms remember which commander opened them. If the commander changes before
+submission, reopen the form for the intended commander; the old draft is rejected.
 
 Choose **Navigate** on a spot. Travel to its system and body in game. On that
 body, fresh Status coordinates (at most 120 seconds old) and a known radius
 produce spherical surface distance and an initial compass bearing. This is
 not terrain routing or a ship flight path. Latitude comes first and is
 north-positive; longitude is east-positive. Stale or mismatched positions do
-not produce directions. The target persists across restarts and departures.
+not produce directions. Departure clears the position and rejects older or
+same-second cached Status data. The target persists across restarts and departures.
 
 The built-in reference is **Shinrarta Dezhra AB 2 j, 35.9491, -31.2339**.
 The owner read that position at 2:11 in the linked video and reported three
@@ -145,10 +150,17 @@ current purchases, compatibility and changed mechanics before advising.
 - `report_rhino_site`: POST `/api/rhino/sites/report`; `id`, `verification`,
   `availability` (`unknown` or `reported_depleted`) and nonempty `evidence`.
   Server records the current time; returns the effective site and original evidence.
+- `confirm_rhino_site`: POST `/api/rhino/sites/confirm`; `id` required. Preserves
+  existing evidence, report date and depletion flag; adds `confirmed_at`.
 - `save_rhino_site`: POST `/api/rhino/sites/save`; name, system, body, commodity,
   latitude and longitude required; notes/radius optional; ID edits an existing spot.
 - `select_rhino_site`: POST `/api/rhino/sites/select`; ID selects, empty ID clears.
 - `remove_rhino_site`: POST `/api/rhino/sites/remove`; remove a personal spot.
+
+Status and catalog responses include `commander_key`. All notebook POST tools
+accept it as an optional precondition; pass the value from the observation or
+form that prompted the action. A changed commander rejects the request. The UI
+always sends it. HTTP authentication still controls access to the local server.
 
 No deposit footprints, remaining reserves, rig positions, hopper contents,
 efficiency or remaining rig inventory were found in the owner's November 2026
@@ -174,7 +186,9 @@ including before commander login. External links are optional further reading.
 `python -m unittest discover -s tests -p test_rhino.py -v` covers notebook
 persistence and identity, collection attribution, transfer continuity, separate
 cargo snapshots, stale input, equipment evidence, navigation, guide selection
-and MCP discovery/calls. `node tests/rhino-browser.mjs` runs an isolated real
+and MCP discovery/calls. Regressions cover cached positions after departure,
+full-length report preservation, confirmation retry and stale commander writes.
+`node tests/rhino-browser.mjs` runs an isolated real
 CLI/watcher/API/SSE/browser stack with synthetic journals. It checks compact
 UI, live collections/holds, unloading continuity, low-space help,
 saves/edits/reload, catalog groups/sources, local reports, stable drafts, escaping, live Materials gains, shared

@@ -14,6 +14,10 @@ Use `get_rhino_sites` for confirmed locations and unconfirmed leads, with option
 `verification` and `commodity` filters. Read each source and rig claim: observed,
 reported and estimated counts are distinct. `report_rhino_site` records requested
 field observations locally for this commander, preserving original evidence.
+Use `confirm_rhino_site` for a requested on-site confirmation that should keep
+the full existing report, its date and depletion flag. Pass `commander_key`
+from the status/catalog on notebook writes; if it changes, read the current
+commander's locations and re-establish the intended action before retrying.
 Saving coordinates or extracting a survey row does not confirm a location.
 See [Rhino mining](RHINO-MINING.md) for tool examples and telemetry limits.
 

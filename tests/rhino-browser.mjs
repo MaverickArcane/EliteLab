@@ -90,7 +90,7 @@ try {
   await shot('rhino-spots-desktop'); await shot('rhino-spots-mobile',390,1200);
   // Confirm directly from a closed location card; no form or extra prompt.
   assert.equal(await evaluate("document.querySelector('[data-site-notes=hip39418-a11]').open"),false);
-  await evaluate("window.rhinoOriginalPost=Lab.post;Lab.post=(url,...args)=>url==='/api/rhino/sites/report'?Promise.reject(new Error('Report temporarily unavailable')):window.rhinoOriginalPost(url,...args);true");
+  await evaluate("window.rhinoOriginalPost=Lab.post;Lab.post=(url,...args)=>url==='/api/rhino/sites/confirm'?Promise.reject(new Error('Report temporarily unavailable')):window.rhinoOriginalPost(url,...args);true");
   await click('[data-rhino-confirm=hip39418-a11]');
   await wait("document.querySelector('[data-rhino-message]').textContent.includes('Report temporarily unavailable')");
   assert.equal(await evaluate("document.querySelectorAll('[data-rhino-group=confirmed] .rhino-site').length"),2);
@@ -101,7 +101,7 @@ try {
   assert.equal(await evaluate("Lab.state.rhino.summary.sites.find(s=>s.id==='hip39418-a11').rigs_estimated"),5);
   assert.match(await evaluate("Lab.state.rhino.summary.sites.find(s=>s.id==='hip39418-a11').evidence"),/Commander confirmed an on-site visit/);
   await click('[data-site-notes=hip39418-a11] summary'); await click('[data-rhino-report=hip39418-a11]');
-  await evaluate("const f=document.querySelector('[data-rhino-report-form]');f.elements.verification.value='unconfirmed';f.elements.availability.value='reported_depleted';f.elements.evidence.value='Fixture visit: found monazite, then depleted. <img src=x onerror=alert(1)>';true");
+  await evaluate("const f=document.querySelector('[data-rhino-report-form]');f.elements.verification.value='unconfirmed';f.elements.availability.value='reported_depleted';f.elements.evidence.value='Fixture visit: found monazite, then depleted. <img src=x onerror=alert(1)>'.padEnd(1196,'x')+'TAIL';true");
   append([{event:'MiningRefined',Type:'water'}]);await wait('Lab.state.rhino.summary.session.total_t===5');
   assert.match(await evaluate("document.querySelector('[data-rhino-report-form]').elements.evidence.value"),/Fixture visit/);
   await evaluate("document.querySelector('[data-rhino-report-form]').requestSubmit();true");
@@ -111,6 +111,8 @@ try {
   await wait("document.querySelectorAll('[data-rhino-group=confirmed] .rhino-site').length===3");
   assert.equal(await evaluate("Lab.state.rhino.summary.sites.find(s=>s.id==='hip39418-a11').availability"),'reported_depleted');
   assert.match(await evaluate("Lab.state.rhino.summary.sites.find(s=>s.id==='hip39418-a11').evidence"),/Fixture visit: found monazite/);
+  assert.equal(await evaluate("Lab.state.rhino.summary.sites.find(s=>s.id==='hip39418-a11').evidence.length"),1200);
+  assert.equal(await evaluate("Lab.state.rhino.summary.sites.find(s=>s.id==='hip39418-a11').evidence.endsWith('TAIL')"),true);
   assert.equal(await evaluate("document.querySelectorAll('.rhino-site img').length"),0);
   assert.equal(await evaluate("Lab.state.rhino.summary.selected_site.id"),'shinrarta-tritium');
   await click('[data-rhino-new]'); await click('[data-rhino-capture]');
@@ -150,6 +152,23 @@ try {
   await click('[data-rhino-tab=mining]');
   await wait("document.querySelector('[data-rhino-navigation]').textContent.includes('Waiting for a recent')");
   await evaluate('Date.now=window.rhinoNow;true');
+  // An open form belongs to the commander who opened it, even across logins.
+  await click('[data-rhino-tab=spots]');
+  await click('[data-rhino-report=hip39418-a11]');
+  await evaluate("document.querySelector('[data-rhino-report-form]').elements.evidence.value='First commander draft';true");
+  append([{event:'Commander',Name:'Other Test',FID:'F-OTHER'}]);
+  await wait("Lab.state.rhino.summary.commander_key==='fid:F-OTHER'");
+  await evaluate("document.querySelector('[data-rhino-report-form]').requestSubmit();true");
+  await wait("document.querySelector('[data-rhino-message]').textContent.includes('Commander changed')");
+  assert.equal(await evaluate("Lab.state.rhino.summary.sites.find(s=>s.id==='hip39418-a11').verification"),'unconfirmed');
+  await click('[data-rhino-new]');
+  await evaluate("const f=document.querySelector('[data-rhino-site-form]');for(const [key,value] of Object.entries({name:'Old draft',system:'A',body:'A 1',latitude:1,longitude:2}))f.elements[key].value=value;true");
+  append([{event:'Commander',Name:'Rhino Test',FID:'F-RHINO'}]);
+  await wait("Lab.state.rhino.summary.commander_key==='fid:F-RHINO'");
+  await evaluate("document.querySelector('[data-rhino-message]').textContent='';true");
+  await evaluate("document.querySelector('[data-rhino-site-form]').requestSubmit();true");
+  await wait("document.querySelector('[data-rhino-message]').textContent.includes('Commander changed')");
+  assert.equal(await evaluate("Lab.state.rhino.summary.sites.some(s=>s.name==='Old draft')"),false);
   assert.deepEqual(await evaluate("[...document.querySelectorAll('.render-error')].map(e=>e.textContent)"),[]);
   assert.deepEqual(errors,[]);assert.doesNotMatch(serverLog,/Traceback|handler failed/);
   console.log('Rhino browser passed: confirmed/unconfirmed catalog, sources, report/persistence, live collection/holds, transfer continuity, contextual help, navigation, save/edit, stable drafts, escaping, Materials gains, guide/retry/shortcuts, stale position and desktop/mobile. Screenshots: '+output);

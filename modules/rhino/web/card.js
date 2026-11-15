@@ -70,7 +70,7 @@
         node.textContent = value; node.classList.toggle('bad', bad);
       };
       const action = async (path, body, success) => {
-        try { await Lab.post(path, body); if (el.isConnected) message(success); }
+        try { await Lab.post(path, {...body, commander_key: Lab.state.rhino?.summary?.commander_key || ''}); if (el.isConnected) message(success); }
         catch (error) { if (el.isConnected) message(error.message || String(error), true); }
       };
       let guideLoaded = false, guidePending = false, requestedTopic = null;
@@ -110,6 +110,7 @@
       const reportForm = el.querySelector('[data-rhino-report-form]');
       const freshForm = () => {
         reportForm.hidden = true;
+        form._rhinoCommander = Lab.state.rhino?.summary?.commander_key || '';
         form.reset(); form.elements.id.value = ''; form.elements.radius_m.value = ''; form.hidden = false;
         el.querySelector('[data-rhino-form-title]').textContent = 'Save a spot';
       };
@@ -142,10 +143,7 @@
           const site = state.sites?.find(s => s.id === button.dataset.rhinoConfirm);
           if (site && site.verification !== 'confirmed') {
             button.disabled = true;
-            action('/api/rhino/sites/report', {
-              id: site.id, verification: 'confirmed', availability: site.availability,
-              evidence: `Commander confirmed an on-site visit using Mark confirmed.${site.personal_report ? ` Previous report: ${site.evidence}` : ''}`,
-            }, 'Location confirmed. You can add details or change its status in Evidence and notes.')
+            action('/api/rhino/sites/confirm', {id: site.id}, 'Location confirmed. You can add details or change its status in Evidence and notes.')
               .finally(() => { button.disabled = false; });
           }
         }
@@ -153,6 +151,7 @@
           const site = state.sites?.find(s => s.id === button.dataset.rhinoReport);
           if (site) {
             form.hidden = true; reportForm.reset(); reportForm.hidden = false;
+            reportForm._rhinoCommander = state.commander_key || '';
             for (const key of ['id', 'verification', 'availability']) reportForm.elements[key].value = site[key];
             reportForm.elements.evidence.value = site.personal_report ? site.evidence : '';
             el.querySelector('[data-rhino-report-title]').textContent = `Report: ${site.name}`;
@@ -188,7 +187,7 @@
       });
       form.addEventListener('submit', async event => {
         event.preventDefault();
-        const body = Object.fromEntries(new FormData(form));
+        const body = {...Object.fromEntries(new FormData(form)), commander_key: form._rhinoCommander};
         for (const key of ['latitude', 'longitude']) body[key] = Number(body[key]);
         if (body.radius_m) body.radius_m = Number(body.radius_m); else delete body.radius_m;
         if (!body.id) delete body.id;
@@ -203,7 +202,7 @@
         event.preventDefault();
         const submit = reportForm.querySelector('[type=submit]'); submit.disabled = true;
         try {
-          await Lab.post('/api/rhino/sites/report', Object.fromEntries(new FormData(reportForm)));
+          await Lab.post('/api/rhino/sites/report', {...Object.fromEntries(new FormData(reportForm)), commander_key: reportForm._rhinoCommander});
           if (el.isConnected) { reportForm.hidden = true; message('Location report saved for your commander.'); }
         } catch (error) { if (el.isConnected) message(error.message || String(error), true); }
         finally { submit.disabled = false; }
@@ -268,6 +267,7 @@
           <div class="note">${esc(s.commodity)}${rigEvidence(s) ? ` &middot; ${esc(rigEvidence(s))}` : ''}</div>
           <details data-site-notes="${esc(s.id)}" ${opened.has(s.id) ? 'open' : ''}><summary>Evidence and notes${s.personal_report ? ' / your report' : ''}</summary>
             <p>${esc(s.evidence || '')}</p><div class="note">Recorded ${esc((s.reported_at || '').slice(0, 10))}; current reserves are not measured.</div>
+            ${s.confirmed_at ? `<div class="note">Visit confirmed ${esc(s.confirmed_at.slice(0, 10))}.</div>` : ''}
             ${s.reference_evidence ? `<p class="note">Original evidence: ${esc(s.reference_evidence)}</p>` : ''}
             ${s.notes ? `<p>${esc(s.notes)}</p>` : ''}
             ${(s.sources || []).filter(source => /^https:\/\//.test(source.url)).map(source => `<p><a href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.title)}</a></p>`).join('')}

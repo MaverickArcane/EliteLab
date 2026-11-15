@@ -41,6 +41,9 @@ class MaterialSessionTests(unittest.TestCase):
         restarted = self.client()
         restarted.watcher.replay()
         self.assertEqual(self.materials(restarted), result)
+        for _ in range(2):
+            self.core.watcher.replay()
+            self.assertEqual(self.materials(), result)
 
     def test_new_game_resets_gains_but_inventory_dump_is_not_a_pickup(self):
         self.core.watcher.replay()
@@ -97,6 +100,17 @@ class MaterialSessionTests(unittest.TestCase):
         needs = self.core.http.tools['get_engineering_wishlist'].fn({})['needs']
         iron = next(r for r in needs if r['key']=='iron')
         self.assertEqual((iron['have'],iron['need'],iron['short']), (0,12,12))
+
+    def test_loadgame_advances_boundary_when_commander_was_in_previous_second(self):
+        self.emit('Commander', timestamp='2026-11-15T12:00:00Z', Name='Pilot', FID='F-PILOT')
+        self.emit('Materials', timestamp='2026-11-15T12:00:00Z', Raw=[{'Name':'iron','Count':10}])
+        self.emit('LoadGame', timestamp='2026-11-15T12:00:01Z', Commander='Pilot', FID='F-PILOT')
+        self.emit('MaterialCollected', timestamp='2026-11-15T12:00:00Z', Name='iron', Count=5, Category='Raw')
+        self.assertEqual(self.materials()['session']['gained'], 0)
+        self.assertEqual(self.materials()['materials'][0]['count'], 10)
+        self.emit('MaterialCollected', timestamp='2026-11-15T12:01:00Z', Name='iron', Count=3, Category='Raw')
+        self.emit('LoadGame', timestamp='2026-11-15T12:00:01Z', Commander='Pilot', FID='F-PILOT')
+        self.assertEqual(self.materials()['session']['gained'], 3)
 
 
 if __name__ == '__main__':

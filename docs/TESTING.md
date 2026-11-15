@@ -5,6 +5,8 @@ and `node tests/rhino-browser.mjs` cover commander-local site persistence,
 surface navigation, legacy note preservation, input validation, escaping,
 stable forms under SSE, guide topics shared through HTTP/MCP and the browser,
 guide load/retry, and live material gains in the Mining workspace.
+Regressions also submit forms across commander switches, retry failed quick
+confirmation, preserve a 1200-character report and reject cached departure GPS.
 Browser screenshots use synthetic data and are saved under `artifacts/rhino`.
 See [Rhino mining](RHINO-MINING.md). Use a separate `ELITELAB_INSTANCE_DIR`
 when running the full suite alongside a player's live installation.
@@ -333,7 +335,9 @@ inventory versus gross session gains through collection, rewards, trading,
 spending, inventory snapshots and restarts. Missing session boundaries stay
 unknown. Same-second Commander -> Materials -> LoadGame startup is covered in
 both direct/replayed events and the Rhino browser fixture, including preservation
-of the opening inventory. `node tests/materials-feed.mjs` delays inventory responses to check
+of the opening inventory. A later-second LoadGame advances the session boundary
+without erasing that inventory. Replaying twice on the same Core must rebuild
+the same totals without doubling gains. `node tests/materials-feed.mjs` delays inventory responses to check
 stale-response rejection, current filters and refresh after a failure; the
 browser suite imports it and checks the visible live pickup and session totals.
 

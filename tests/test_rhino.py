@@ -213,6 +213,19 @@ class RhinoTests(unittest.TestCase):
         self.assertEqual(len(self.call()["sites"]), self.catalog_size)
         self.assertIsNone(self.call()["selected_site"])
 
+    def test_delayed_status_cannot_restore_navigation_from_before_departure(self):
+        for event in ("LeaveBody", "SupercruiseEntry", "StartJump", "FSDJump"):
+            with self.subTest(event=event):
+                self.launch(); self.call("select_rhino_site", id="shinrarta-tritium"); self.position()
+                self.emit(event, "2026-11-15T12:02:01Z")
+                for stamp in ("2026-11-15T12:02:00Z", "2026-11-15T12:02:01Z"):
+                    self.position(timestamp=stamp)  # Old or same-second cached snapshot.
+                    self.assertEqual(self.call()["position"], {})
+                    self.assertIsNone(self.call()["navigation"]["distance_m"])
+                self.emit("ApproachBody", "2026-11-15T12:03:00Z", StarSystem="Shinrarta Dezhra")
+                self.position(timestamp="2026-11-15T12:03:00Z")
+                self.assertEqual(self.call()["position"]["latitude"], 35.950340)
+
     def test_failed_save_keeps_previous_selection_and_invalid_id_does_not_clear(self):
         self.launch(); site = self.save()
         with patch.object(self.core, "write_data", side_effect=OSError("disk full")):
@@ -294,6 +307,38 @@ class RhinoTests(unittest.TestCase):
             with self.assertRaises(OSError): self.call("report_rhino_site", **params)
         self.assertEqual(self.call(), before)
 
+    def test_quick_confirmation_preserves_full_report_date_and_depletion(self):
+        self.launch()
+        evidence = "Original observation: " + "x" * 1174 + "TAIL"
+        self.assertEqual(len(evidence), 1200)
+        report = self.call("report_rhino_site", id="hip39418-a11", verification="unconfirmed", availability="reported_depleted", evidence=evidence)
+        before = self.call()
+        with patch.object(self.core, "write_data", side_effect=OSError("disk full")):
+            with self.assertRaises(OSError): self.call("confirm_rhino_site", id=report["id"])
+        self.assertEqual(self.call(), before)
+        confirmed = self.call("confirm_rhino_site", id=report["id"])
+        self.assertEqual(confirmed["evidence"], evidence)
+        self.assertEqual(confirmed["reported_at"], report["reported_at"])
+        self.assertTrue(confirmed["confirmed_at"])
+        self.assertEqual((confirmed["verification"], confirmed["availability"]), ("confirmed", "reported_depleted"))
+        self.assertEqual(confirmed["rigs_estimated"], 5)
+        self.assertEqual(self.call("confirm_rhino_site", id=report["id"]), confirmed)
+
+    def test_commander_guard_rejects_stale_notebook_and_catalog_actions(self):
+        self.launch(); site = self.save()
+        key = self.call()["commander_key"]
+        self.emit("Commander", "2026-11-15T12:04:00Z", Name="Other", FID="OTHER")
+        before = self.call()
+        requests = [("select_rhino_site", {"id":"hip63920-tritium"}),
+                    ("confirm_rhino_site", {"id":"hip63920-tritium"}),
+                    ("report_rhino_site", {"id":"hip63920-tritium", "verification":"confirmed", "availability":"unknown", "evidence":"Old draft"}),
+                    ("remove_rhino_site", {"id":site["id"]}), ("save_rhino_site", site)]
+        for tool, params in requests:
+            with self.subTest(tool=tool), self.assertRaisesRegex(ValueError, "Commander changed"):
+                self.call(tool, **{**params, "commander_key":key})
+            self.assertEqual(self.call(), before)
+        self.assertNotIn("fid:OTHER", self.core.read_data("rhino-sites.json"))
+
     def test_guide_available_without_login_bounded_by_topic_and_detached(self):
         overview = self.call("get_rhino_guide")
         self.assertEqual([s["id"] for s in overview["sections"]], ["overview"])
@@ -337,8 +382,9 @@ class RhinoTests(unittest.TestCase):
         self.assertNotIn("report_rhino_rigs", self.core.http.tools)
 
     def test_mutations_are_post_and_reading_guide_is_read_only(self):
-        for name in ("save_rhino_site", "select_rhino_site", "remove_rhino_site", "report_rhino_site"):
+        for name in ("save_rhino_site", "select_rhino_site", "remove_rhino_site", "report_rhino_site", "confirm_rhino_site"):
             self.assertEqual(self.core.http.tools[name].method, "POST")
+            self.assertIn("commander_key", self.core.http.tools[name].params)
         self.assertEqual(self.core.http.tools["get_rhino_status"].method, "GET")
         self.assertEqual(self.core.http.tools["get_rhino_guide"].method, "GET")
         self.assertEqual(self.core.http.tools["get_rhino_sites"].method, "GET")

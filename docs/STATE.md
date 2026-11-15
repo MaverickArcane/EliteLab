@@ -13,6 +13,11 @@ accounts contain `sites`, `selected` and `reports` keyed by site ID. Local repor
 override effective classification while retaining `reference_evidence` and
 `reference_verification`; bundled catalog data is never rewritten. The earlier
 preview's rig-fit field is preserved as a note. See [Rhino mining](RHINO-MINING.md).
+`commander_key` identifies the observed owner for notebook-write preconditions.
+Reports retain `reported_at`; quick confirmation adds `confirmed_at` without
+replacing the report's text, date or depletion flag. Navigation keeps a separate
+location-transition timestamp so cleared departure GPS cannot reappear from a
+cached Status snapshot.
 
 Release additions:
 
