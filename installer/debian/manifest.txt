@@ -117,6 +117,12 @@ modules/ptn/web/card.js
 modules/recipes/module.json
 modules/recipes/module.py
 modules/recipes/web/card.js
+modules/rhino/guide.json
+modules/rhino/module.json
+modules/rhino/module.py
+modules/rhino/sites.json
+modules/rhino/tracking.py
+modules/rhino/web/card.js
 modules/selling/module.json
 modules/selling/module.py
 modules/selling/planning.py

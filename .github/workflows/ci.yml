@@ -128,6 +128,16 @@ jobs:
         env:
           ELITELAB_SCREENSHOT_DIR: mining-screenshots
         run: node tests/mining-browser.mjs
+      - name: Rhino surface mining and saved sites
+        env:
+          ELITELAB_SCREENSHOT_DIR: rhino-screenshots
+        run: node tests/rhino-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rhino-browser-screenshots
+          path: rhino-screenshots/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         if: always()
         with:

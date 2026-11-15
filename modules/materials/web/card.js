@@ -13,6 +13,8 @@
         <div class="mat-status muted" role="status"></div>
         <div class="mat-list" style="max-height:320px;overflow:auto"></div>
         <div class="note">Have is your current inventory. Gained counts pickups, mission rewards and trader receipts this game session; spending reduces Have, not Gained. A new game login starts a new session. Track requirements in the Materials / Recipe Wishlist.</div>`;
+      // Mining opens on its useful activity view; later user choices stay intact.
+      if (document.body.dataset.activeWorkspace === 'mining') el.querySelector('#mat-view').value = 'gained';
       const filter = () => draw(el);
       el.querySelector('#mat-q').oninput = filter; el.querySelector('#mat-cat').onchange = filter;
       el.querySelector('#mat-view').onchange = filter;
