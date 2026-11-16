@@ -53,6 +53,8 @@ class RhinoTests(unittest.TestCase):
         self.assertNotIn("rigs", expected)
         self.assertEqual(expected["session"]["total_t"], 3)
         self.assertEqual(expected["session"]["unloaded_t"], 3)
+        self.assertEqual(expected["cargo"]["ship"]["count"], 103)
+        self.assertEqual(expected["cargo"]["rhino"]["count"], 0)
         self.assertEqual(expected["session"]["commodities"][0]["id"], "tritium")
         self.assertEqual(expected["session"]["commodities"][0]["tonnes"], 2)
         for _ in range(2):
@@ -132,6 +134,93 @@ class RhinoTests(unittest.TestCase):
         self.assertEqual(self.call()["cargo"]["rhino"]["free"], 72)
         self.assertEqual(self.call()["session"]["total_t"], 0)
         self.assertEqual(self.call()["session"]["unloaded_t"], 72)
+
+    def test_unloads_update_both_holds_without_a_new_ship_snapshot(self):
+        self.launch()
+        self.emit("Loadout", CargoCapacity=1136, Modules=[])
+        self.emit("Cargo", Vessel="Ship", Count=0)
+        self.emit("LaunchSRV", SRVType="mev_rhino")
+        for minute, tonnes in enumerate((68, 68, 67, 68, 68, 68, 68, 67, 68), 1):
+            self.emit("Cargo", f"2026-11-15T12:{minute:02}:00Z", Vessel="SRV", Count=tonnes)
+            self.emit("CargoTransfer", f"2026-11-15T12:{minute:02}:01Z",
+                      Transfers=[{"Type":"iridium", "Count":tonnes, "Direction":"toship"}])
+            self.assertEqual(self.call()["cargo"]["rhino"]["count"], 0)
+        state = self.call()
+        self.assertEqual(state["cargo"]["ship"]["count"], 610)
+        self.assertEqual(state["cargo"]["ship"]["free"], 526)
+        self.assertEqual(state["cargo"]["ship"]["observed_at"], "2026-11-15T12:09:01Z")
+        self.assertEqual(state["session"]["unloaded_t"], 610)
+        # A subsequent absolute report replaces, rather than adds to, the total.
+        self.emit("Cargo", "2026-11-15T12:09:01Z", Vessel="Ship", Count=610)
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 610)
+
+    def test_transfer_back_to_srv_and_cached_snapshots_do_not_restore_old_hold(self):
+        self.launch()
+        self.emit("Cargo", Vessel="Ship", Count=100)
+        self.emit("LaunchSRV", SRVType="mev_rhino")
+        self.emit("Cargo", "2026-11-15T12:01:00Z", Vessel="SRV", Count=10)
+        self.emit("CargoTransfer", "2026-11-15T12:01:00Z",
+                  Transfers=[{"Count":10, "Direction":"toship"}])
+        for vessel, amount in (("Ship", 100), ("SRV", 10)):
+            self.core.bus.emit("journal.file.Cargo", {"event":"Cargo", "timestamp":"2026-11-15T12:01:00Z",
+                                                       "Vessel":vessel, "Count":amount})
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 110)
+        self.assertEqual(self.call()["cargo"]["rhino"]["count"], 0)
+        self.emit("CargoTransfer", "2026-11-15T12:01:01Z",
+                  Transfers=[{"Count":4, "Direction":"tosrv"}])
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 106)
+        self.assertEqual(self.call()["cargo"]["rhino"]["count"], 4)
+        self.emit("Cargo", "2026-11-15T12:00:59Z", Vessel="Ship", Count=999)
+        self.emit("CargoTransfer", "2026-11-15T12:00:59Z",
+                  Transfers=[{"Count":10, "Direction":"toship"}])
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 106)
+
+    def test_carrier_transfers_update_ship_without_touching_rhino_or_unloads(self):
+        self.launch()
+        self.emit("Cargo", Vessel="Ship", Count=100)
+        self.emit("LaunchSRV", SRVType="mev_rhino")
+        self.emit("Cargo", Vessel="SRV", Count=5)
+        self.emit("CargoTransfer", "2026-11-15T12:01:00Z", Transfers=[{"Count":40, "Direction":"tocarrier"}])
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 60)
+        self.emit("CargoTransfer", "2026-11-15T12:02:00Z", CarrierID=123,
+                  Transfers=[{"Count":20, "Direction":"toship"}])
+        state = self.call()
+        self.assertEqual(state["cargo"]["ship"]["count"], 80)
+        self.assertEqual(state["cargo"]["rhino"]["count"], 5)
+        self.assertEqual(state["session"]["unloaded_t"], 0)
+        self.emit("DockSRV", "2026-11-15T12:03:00Z")
+        self.emit("CargoTransfer", "2026-11-15T12:03:01Z", Transfers=[{"Count":20, "Direction":"toship"}])
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 100)
+        self.assertEqual(self.call()["cargo"]["rhino"]["count"], 5)
+
+    def test_transfers_do_not_invent_missing_hold_baselines(self):
+        self.launch()
+        self.emit("CargoTransfer", Transfers=[{"Count":68, "Direction":"toship"}])
+        self.assertIsNone(self.call()["cargo"]["ship"]["count"])
+        self.emit("Cargo", "2026-11-15T12:01:00Z", Vessel="Ship", Count=2)
+        self.emit("CargoTransfer", "2026-11-15T12:01:01Z", Transfers=[{"Count":3, "Direction":"tosrv"}])
+        self.assertIsNone(self.call()["cargo"]["ship"]["count"])
+        self.emit("Cargo", "2026-11-15T12:02:00Z", Vessel="Ship", Count=20)
+        self.emit("CargoTransfer", "2026-11-15T12:02:01Z", Transfers=[None, {"Count":True, "Direction":"toship"},
+                  {"Count":-4, "Direction":"tosrv"}, {"Count":50, "Direction":"other"}])
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 20)
+        self.emit("ShipyardSwap", "2026-11-15T12:03:00Z")
+        self.emit("CargoTransfer", "2026-11-15T12:03:01Z", Transfers=[{"Count":68, "Direction":"toship"}])
+        self.assertIsNone(self.call()["cargo"]["ship"]["count"])
+
+    def test_snapshot_ahead_of_tail_uses_unknown_for_same_second_transfer(self):
+        self.launch()
+        self.core.bus.emit("journal.file.Cargo", {"event":"Cargo", "timestamp":"2026-11-15T12:01:00Z",
+                                                   "Vessel":"Ship", "Count":68})
+        self.emit("CargoTransfer", "2026-11-15T12:01:00Z", Transfers=[{"Count":68, "Direction":"toship"}])
+        self.assertIsNone(self.call()["cargo"]["ship"]["count"])
+        self.emit("Cargo", "2026-11-15T12:01:01Z", Vessel="Ship", Count=68)
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 68)
+        # A newer snapshot has already accounted for an older tail event.
+        self.core.bus.emit("journal.file.Cargo", {"event":"Cargo", "timestamp":"2026-11-15T12:02:01Z",
+                                                   "Vessel":"Ship", "Count":136})
+        self.emit("CargoTransfer", "2026-11-15T12:02:00Z", Transfers=[{"Count":68, "Direction":"toship"}])
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 136)
 
     def test_equipment_unknown_missing_and_observed_are_distinct(self):
         self.launch()

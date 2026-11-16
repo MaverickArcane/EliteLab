@@ -1,4 +1,4 @@
-"""Observed Rhino collections and hold snapshots; no inferred rig production."""
+"""Observed Rhino collections, hold snapshots and transfers; no rig production estimates."""
 import copy
 
 from elitelab.core.gamedata import norm
@@ -27,7 +27,7 @@ class Tracking:
                     "ended_at": None, "end_reason": None, "total_t": 0, "commodities": {},
                     "unloaded_t": 0, "unloads": 0, "points": [], "last_collection": None}
 
-    def event(self, event, ev, when):
+    def event(self, event, ev, when, snapshot=False):
         if when is None or (self.floor is not None and when < self.floor):
             return False
         if self.run and self.run["active"]:
@@ -67,7 +67,35 @@ class Tracking:
             vessel = ev.get("Vessel")
             amount = count(ev.get("Count"))
             if vessel in self.holds and amount is not None and when >= self.holds[vessel].get("when", 0):
-                self.holds[vessel] = {"count": amount, "when": when, "observed_at": ev.get("timestamp")}
+                # Cargo.json can still contain the pre-transfer report from this
+                # second. Ordered journal Cargo rows remain authoritative.
+                if not snapshot or when > self.holds[vessel].get("when", 0):
+                    self.holds[vessel] = {"count": amount, "when": when, "observed_at": ev.get("timestamp"), "snapshot": snapshot}
+        elif event == "CargoTransfer" and isinstance(ev.get("Transfers"), list):
+            deltas = {"Ship": 0, "SRV": 0}
+            carrier = bool(ev.get("CarrierID") or ev.get("MarketID"))
+            vehicle = not carrier and self.run and self.run["active"]
+            for row in ev["Transfers"]:
+                if not isinstance(row, dict) or count(row.get("Count")) is None:
+                    continue
+                amount, direction = row["Count"], row.get("Direction")
+                if direction == "toship":
+                    deltas["Ship"] += amount
+                    if vehicle:
+                        deltas["SRV"] -= amount
+                elif direction == "tosrv":
+                    deltas["Ship"] -= amount
+                    if vehicle:
+                        deltas["SRV"] += amount
+                elif direction == "tocarrier":
+                    deltas["Ship"] -= amount
+            for vessel, delta in deltas.items():
+                hold = self.holds[vessel]
+                if delta and hold.get("count") is not None and when >= hold["when"]:
+                    # A file snapshot read ahead of the tail has no ordering
+                    # within its second. Wait for another report if ambiguous.
+                    amount = None if hold.get("snapshot") and when == hold["when"] else count(hold["count"] + delta)
+                    self.holds[vessel] = {"count": amount, "when": when, "observed_at": ev.get("timestamp")}
         if self.run and self.run["active"] and when >= self.run["started"]:
             self.as_of = max(when, self.as_of or when)
             if event == "MiningRefined":

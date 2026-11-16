@@ -7,6 +7,10 @@ stable forms under SSE, guide topics shared through HTTP/MCP and the browser,
 guide load/retry, and live material gains in the Mining workspace.
 Regressions also submit forms across commander switches, retry failed quick
 confirmation, preserve a 1200-character report and reject cached departure GPS.
+Hold regressions reproduce nine unloads totaling 610 t without a ship Cargo
+snapshot, reverse/carrier transfers, missing baselines, stale snapshots and
+same-second ordering. The browser checks that unloads update ship free space
+through the watcher, API, SSE and rendered hold count.
 Browser screenshots use synthetic data and are saved under `artifacts/rhino`.
 See [Rhino mining](RHINO-MINING.md). Use a separate `ELITELAB_INSTANCE_DIR`
 when running the full suite alongside a player's live installation.

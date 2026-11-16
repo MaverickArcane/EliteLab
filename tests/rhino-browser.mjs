@@ -66,6 +66,15 @@ try {
   assert.equal(await evaluate("document.querySelectorAll('[data-rhino-rigs],[data-rhino-metrics],[data-rhino-cargo]').length"),0);
   assert.equal(await evaluate("document.querySelector('[data-rhino-tab=mining]').getAttribute('aria-selected')"),'true');
   assert.match(await evaluate("document.querySelector('[data-rhino-haul]').textContent"),/Tritium\s+2 t/);
+  assert.match(await evaluate("document.querySelector('[data-rhino-holds]').textContent"),/Ship hold\s*103 t\s*\/\s*1,136 t/);
+  // Unloading while still driving must update the ship through API/SSE/rendering.
+  append([{event:'Cargo',Vessel:'SRV',Count:68},{event:'CargoTransfer',Transfers:[{Type:'tritium',Count:68,Direction:'toship'}]}]);
+  await wait('Lab.state.rhino.summary.cargo.ship.count===171');
+  await wait("document.querySelector('[data-rhino-holds]').textContent.includes('171 t')");
+  assert.equal(await evaluate('Lab.state.rhino.summary.cargo.rhino.count'),0);
+  assert.equal(await evaluate('Lab.state.rhino.summary.cargo.ship.free'),965);
+  append([{event:'Cargo',Vessel:'Ship',Count:171}]);
+  await wait('Lab.state.rhino.summary.cargo.ship.observed_at!==null');
   await click('[data-rhino-tab=spots]');
   assert.equal(await evaluate("document.querySelectorAll('[data-rhino-group=confirmed] .rhino-site').length"),2);
   assert.equal(await evaluate("document.querySelectorAll('[data-rhino-group=unconfirmed] .rhino-site').length"),6);

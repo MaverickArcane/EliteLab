@@ -143,7 +143,8 @@ current purchases, compatibility and changed mechanics before advising.
 
 - `get_rhino_status`: GET `/api/rhino`; notebook, selected destination,
   current position, navigation, deployment collection totals/chart points,
-  separate last-reported holds, equipment evidence and guide topic index.
+  separate holds updated by cargo reports and transfers, equipment evidence and
+  guide topic index. Missing starting counts remain unknown.
 - `get_rhino_guide`: GET `/api/rhino/guide`; optional `topic`, default `overview`.
 - `get_rhino_sites`: GET `/api/rhino/sites`; `verification` defaults to `all`;
   accepts `confirmed` or `unconfirmed`, plus optional exact `commodity` filter.

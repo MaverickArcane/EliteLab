@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Update the Rhino module's ship and SRV holds when transferring cargo, including
+  unloading without boarding. Later cargo reports replace the running count.
+
 - Add Rhino surface mining under Mining: observed collections, cargo space,
   coordinate navigation and a sourced procedure guide shared by the UI and MCP.
   Browse confirmed locations and unconfirmed research leads, retaining sources,

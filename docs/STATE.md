@@ -6,7 +6,9 @@ timestamped Status position, same-body distance/bearing and the guide topic inde
 It also includes `session` (current or last Rhino deployment, observed refined
 tonnes by commodity, cumulative receipt points, unload totals and average),
 `cargo` (separate timestamped Ship/Rhino hold reports) and nullable `equipment`
-checks. Transfers do not reset collections; a new launch resets the deployment.
+checks. Hold counts include journal transfers since the last absolute report;
+`observed_at` advances with that evidence. Missing baselines stay unknown.
+Transfers do not reset collections; a new launch resets the deployment.
 The guide itself is read on demand through `get_rhino_guide`, not repeated in SSE.
 Only explicit notebook/report actions persist to `rhino-sites.json`. Commander
 accounts contain `sites`, `selected` and `reports` keyed by site ID. Local reports
