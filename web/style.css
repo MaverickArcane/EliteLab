@@ -686,6 +686,11 @@ body[data-active-workspace=ship] #card-ship{grid-column:1/-1!important}
 .rhino-site p { white-space:pre-wrap; }
 .rhino-catalog-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; }
 .rhino-location-group { min-width:0; }
+.rhino-pml { margin:12px 0; padding:12px; border:1px solid var(--line); border-radius:6px; overflow-wrap:anywhere; }
+.rhino-pml h4 { margin:0 0 8px; color:var(--accent-2); font-size:14px; }
+.rhino-pml > details { font-size:12px; }
+.rhino-pml > details .row { flex-wrap:wrap; gap:6px; }
+.rhino-pml .rhino-site { margin-top:8px; }
 .rhino-location-group h3 { margin:14px 0 6px; font-size:15px; }
 .rhino-locations { max-height:590px; overflow:auto; padding-right:8px; scrollbar-width:thin; }
 .rhino-badges { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0; }

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Group Rhino deposits by system/body/PML, retaining individual directions,
+  confirmation and depletion reports. Capture additional deposits into a group;
+  record circuit rig totals separately from per-deposit observations and show
+  missing coordinates explicitly. Expose the same grouping through MCP.
+
 - Show system distance and estimated jumps on Rhino location cards and the
   selected destination. Lead with the jump and body approach before surface
   directions; keep live distance updates from closing location notes.
