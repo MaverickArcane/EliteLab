@@ -187,6 +187,10 @@ Client-only: `ui_selected` (the browser's Show on map toggle; the map draws the 
 
 ## materials (module: materials)
 
+Historical replay rebuilds private observations and publishes once at completion.
+The materials API returns matching rows and totals from the last completed
+publication while replay is in progress. Live gains still publish immediately.
+
 | Key | Type |
 |---|---|
 | `totals` | `{Raw, Manufactured, Encoded}` |

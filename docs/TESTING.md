@@ -1,5 +1,12 @@
 # Testing
 
+Materials replay: `test_material_sessions.py` observes the published session
+stream and queries HTTP tool data mid-replay. Historical gains must stay private
+until replay completes; repeated replay must not reset the visible counter.
+Fresh receipts still publish immediately. The API returns rows and totals from
+one completed snapshot. `node tests/materials-feed.mjs` covers response ordering,
+pending filter changes and retry.
+
 Rhino mining: `python -m unittest discover -s tests -p test_rhino.py -v`
 and `node tests/rhino-browser.mjs` cover commander-local site persistence,
 surface navigation, legacy note preservation, input validation, escaping,

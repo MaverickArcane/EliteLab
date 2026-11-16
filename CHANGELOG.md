@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Keep Materials session gains steady during journal replay: publish the final
+  rebuilt totals once and return matching inventory rows and session totals.
+  New pickups still update immediately.
+
 - Add Rhino surface mining under Mining: observed collections, cargo space,
   coordinate navigation and a sourced procedure guide shared by the UI and MCP.
   Browse confirmed locations and unconfirmed research leads, retaining sources,
