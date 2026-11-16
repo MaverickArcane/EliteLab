@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- PTN: build direct-sale or unloading adverts from carrier hold stock, your
+  chosen tonnes and price, without a sourcing route. Suggest sale prices from
+  nearby reported buyers after a configurable hauler payout. Show quote age,
+  demand, distance and carrier price settings; keep unknown stock explicit.
+  Preserve sale drafts through live updates and expose both flows through MCP.
+
 - Add Rhino surface mining under Mining: observed collections, cargo space,
   coordinate navigation and a sourced procedure guide shared by the UI and MCP.
   Browse confirmed locations and unconfirmed research leads, retaining sources,

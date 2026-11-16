@@ -1,5 +1,14 @@
 # Testing
 
+PTN hold-sale adverts: `test_ptn_sale.py` covers direct/unloading drafts without
+a sourcing plan, exact prices and estimated margins, unknown stock, buy-order
+separation, owner changes, manual quantities and unchanged inventory/plans.
+Price suggestions cover full-load demand, unlimited demand, strict radius/age/pad
+filters, mean-price settings, failed feeds and current-system buyers. The PTN
+browser run checks draft persistence, journal updates while editing, price
+suggestions, overrides, regeneration on copy, HTML escaping and desktop/mobile
+layouts. All providers and cargo records are synthetic in these tests.
+
 Rhino mining: `python -m unittest discover -s tests -p test_rhino.py -v`
 and `node tests/rhino-browser.mjs` cover commander-local site persistence,
 surface navigation, legacy note preservation, input validation, escaping,

@@ -1,5 +1,51 @@
 # PTN trade desk
 
+## Sell stock already aboard
+
+Open **Advert > Sell from hold**. Choose a commodity from the carrier inventory,
+enter the tonnes and your selling price in Cr/t, and generate or copy the draft.
+Known stock and active sell prices prefill from journal evidence with their ages.
+Unknown quantities stay blank; buy orders never supply a stock quantity or sale
+price. You can enter an unrecorded commodity or override an old quantity without
+changing the inventory ledger. Pickup defaults to the carrier's reported system,
+not your ship's location. Draft inputs survive refresh in this browser, scoped to
+the current commander and carrier. Changing inputs or stock/location evidence
+invalidates the generated preview; copying regenerates it from the current terms.
+
+**Find price suggestions** checks this commodity's buyers within 500 Ly by
+default (editable up to 1500). Suggestions require reported large pads, orbital
+stations, prices within 24 hours and demand covering the full advertised load.
+Explicit reported unlimited demand is accepted. Current-system reports are
+included alongside nearby reports; wider searches supplement them with global
+price leaders. Results are capped at ten suggestions and report incomplete feeds.
+They are bounded market reports, not an exhaustive market search.
+
+The suggested carrier price leaves your chosen hauler profit (default 20,000
+Cr/t). When a reported meanPrice is available, choose the highest whole-percent
+carrier setting that leaves at least that payout; otherwise show an arithmetic
+price target with its setting unknown. Every suggestion includes station, system,
+buyer price, demand, age/source, distance and minimum 500 Ly jumps. Applying one
+explicitly fills both the price and pickup system, plus its buyer fields.
+These prices estimate a resale opportunity near the buyer, not guaranteed demand
+for a direct sale or owner net profit. Park near the buyer and recheck its market.
+
+Choose **Haulers unload to a station** to include a buyer station and price. Its
+advert states the exact carrier price, quantity and estimated hauler profit.
+You can type these values yourself or use a suggestion. No purchase route or
+mining job is needed. These are editable sale drafts; **Route advert** retains
+the separately checked affiliate workflow described below. Generating and
+copying do not create game orders, post to Discord, or replace the PTN plan.
+
+MCP: read `get_ptn_desk.sale_cargo` for stock evidence and `context` for owner,
+carrier and location. Call `suggest_ptn_sale_price(commodity, quantity, system,
+payout, radius)` for optional reported suggestions, then
+`prepare_ptn_sale_advert(commander, callsign, commodity, quantity, price, system)`.
+Pass `kind="unloading"`, `station` and `buyer_price` for an unloading draft.
+The selected price is the owner's asking price, not hauler profit. Never infer
+unknown physical stock from a buy order or invent the owner's price. Responses
+include exact gross proceeds, stock evidence and notes for unknown/exceeded stock
+or a pickup system different from the last carrier report.
+
 Discovery now returns a background `search_job` immediately. Poll
 `get_ptn_desk` (about every two seconds) for completion or failure; duplicate
 searches are rejected while a job runs. The browser follows the same contract.

@@ -44,10 +44,20 @@ def scenario(q):
     return {'ok':True}
 
 
+def sale_stock(q):
+    core.store.update('trade',dict(inventory={
+        'liquor':dict(name='Liquor',stock=q.get('stock',340),source='observed local transfers',updated_at=fixture.time()),
+        'tritium':dict(name='Tritium',stock=None,source='observed local transfers',updated_at=fixture.time())},
+        orders={'liquor':dict(side='sell',active=True,price=50000,quantity=340,updated_at=fixture.time()),
+                'tritium':dict(side='buy',active=True,price=40000,quantity=18000)}))
+    return fixture.desk.view()
+
+
 core.http.route('/audit/ptn/visit',visit,method='POST')
 core.http.route('/audit/ptn/move',move,method='POST')
 core.http.route('/audit/ptn/order',order,method='POST')
 core.http.route('/audit/ptn/scenario',scenario,method='POST')
+core.http.route('/audit/ptn/sale-stock',sale_stock,method='POST')
 server = ThreadingHTTPServer(('127.0.0.1',0),make_handler(core))
 print(server.server_port,flush=True)
 try:
