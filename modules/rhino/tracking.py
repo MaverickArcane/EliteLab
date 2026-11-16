@@ -18,10 +18,14 @@ class Tracking:
         self.equipment = {"dss": None, "large_hangar": None}
         self.holds = {"Ship": {}, "SRV": {}}
         self.rhino_hold = False
+        self.srv_id = None
+        self.srv_docked = False
 
-    def start(self, timestamp, when, partial=False):
+    def start(self, timestamp, when, partial=False, srv_id=None):
         self.floor = self.as_of = when
         self.rhino_hold = True
+        self.srv_id = srv_id
+        self.srv_docked = False
         self.holds["SRV"] = {}
         self.run = {"active": True, "started_at": timestamp, "started": when, "partial": partial,
                     "ended_at": None, "end_reason": None, "total_t": 0, "commodities": {},
@@ -51,20 +55,37 @@ class Tracking:
             self.capacity = None
         elif event == "LaunchSRV" and ev.get("PlayerControlled") is not False:
             if ev.get("SRVType") == "mev_rhino":
-                self.start(ev.get("timestamp"), when)
+                self.start(ev.get("timestamp"), when, srv_id=count(ev.get("ID")))
             else:
                 self.end(ev, "Another SRV launched")
                 self.rhino_hold = False
                 self.holds["SRV"] = {}
-        elif event in ("DockSRV", "Shutdown", "Died", "SupercruiseEntry", "StartJump", "FSDJump", "CarrierJump", "ShipyardSwap", "ShipyardBuy"):
-            if event != "DockSRV" or ev.get("PlayerControlled") is not False:
-                self.end(ev, event)
+        elif event == "DockSRV":
+            if (ev.get("PlayerControlled") is False or ev.get("SRVType") not in (None, "mev_rhino") or
+                    (self.srv_id is not None and ev.get("ID") is not None and ev["ID"] != self.srv_id)):
+                return False
+            if self.rhino_hold:
+                # Successful boarding empties the SRV, without CargoTransfer or
+                # an empty SRV Cargo row in the observed November 2026 journals.
+                hold = self.holds["SRV"]
+                amount = hold.get("count") if when >= hold.get("when", 0) else None
+                if amount and self.run and self.run["active"]:
+                    self.run["unloaded_t"] += amount
+                    self.run["unloads"] += 1
+                self.holds["SRV"] = {"count": 0, "when": when, "observed_at": ev.get("timestamp")}
+                self.srv_docked = True
+            # Let the following ship Cargo report supply its absolute total.
+            self.end(ev, event)
+        elif event in ("Shutdown", "Died", "SupercruiseEntry", "StartJump", "FSDJump", "CarrierJump", "ShipyardSwap", "ShipyardBuy"):
+            self.end(ev, event)
             if event in ("ShipyardSwap", "ShipyardBuy"):
                 self.holds["Ship"] = {}
                 self.capacity = None
                 self.equipment = {"dss": None, "large_hangar": None}
         elif event == "Cargo":
             vessel = ev.get("Vessel")
+            if vessel == "SRV" and self.srv_docked:
+                return False
             amount = count(ev.get("Count"))
             if vessel in self.holds and amount is not None and when >= self.holds[vessel].get("when", 0):
                 # Cargo.json can still contain the pre-transfer report from this

@@ -4,6 +4,8 @@
 
 - Update the Rhino module's ship and SRV holds when transferring cargo, including
   unloading without boarding. Later cargo reports replace the running count.
+  Boarding also empties the Rhino hold and records its known remaining cargo as
+  an automatic unload; cached SRV reports cannot restore cargo after docking.
 
 - Add Rhino surface mining under Mining: observed collections, cargo space,
   coordinate navigation and a sourced procedure guide shared by the UI and MCP.

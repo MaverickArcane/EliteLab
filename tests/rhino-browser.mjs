@@ -161,6 +161,23 @@ try {
   await click('[data-rhino-tab=mining]');
   await wait("document.querySelector('[data-rhino-navigation]').textContent.includes('Waiting for a recent')");
   await evaluate('Date.now=window.rhinoNow;true');
+  // Successful boarding transfers cargo automatically, with no CargoTransfer
+  // or empty SRV Cargo event. The bearing still works in the main ship.
+  append([{event:'LaunchSRV',SRVType:'mev_rhino',ID:66},{event:'Cargo',Vessel:'Ship',Count:0},
+    ...Array.from({length:62},()=>({event:'MiningRefined',Type:'iridium'})),
+    {event:'Cargo',Vessel:'SRV',Count:62},{event:'DockSRV',SRVType:'mev_rhino',ID:66},
+    {event:'Loadout',Ship:'panthermkii',ShipID:10,CargoCapacity:1136,Modules:[{Item:'int_detailedsurfacescanner_tiny'},{Item:'int_mkiilargebuggybay_size2_class3'}]},
+    {event:'Cargo',Vessel:'Ship',Count:62}]);
+  const dockingStatus={...status,Latitude:status.Latitude+.001,timestamp:new Date().toISOString(),Flags:(1<<21)|(1<<24)};
+  fs.writeFileSync(path.join(journals,'Status.json'),JSON.stringify(dockingStatus));
+  await wait('Lab.state.rhino.summary.session.end_reason===\'DockSRV\'&&Lab.state.rhino.summary.cargo.ship.count===62');
+  await wait("document.querySelector('[data-rhino-holds]').textContent.includes('1,074 t free')");
+  assert.equal(await evaluate('Lab.state.rhino.summary.cargo.rhino.count'),0);
+  assert.equal(await evaluate('Lab.state.rhino.summary.session.unloaded_t'),62);
+  assert.equal(await evaluate('Lab.state.rhino.summary.session.total_t'),62);
+  await wait('Lab.state.rhino.summary.navigation.bearing!==null');
+  assert.match(await evaluate("document.querySelector('[data-rhino-navigation]').textContent"),/Heading/);
+  await shot('rhino-docked-desktop');await shot('rhino-docked-mobile',390,1200);
   // An open form belongs to the commander who opened it, even across logins.
   await click('[data-rhino-tab=spots]');
   await click('[data-rhino-report=hip39418-a11]');

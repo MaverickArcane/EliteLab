@@ -191,7 +191,8 @@ class RhinoTests(unittest.TestCase):
         self.emit("DockSRV", "2026-11-15T12:03:00Z")
         self.emit("CargoTransfer", "2026-11-15T12:03:01Z", Transfers=[{"Count":20, "Direction":"toship"}])
         self.assertEqual(self.call()["cargo"]["ship"]["count"], 100)
-        self.assertEqual(self.call()["cargo"]["rhino"]["count"], 5)
+        self.assertEqual(self.call()["cargo"]["rhino"]["count"], 0)
+        self.assertEqual(self.call()["session"]["unloaded_t"], 5)
 
     def test_transfers_do_not_invent_missing_hold_baselines(self):
         self.launch()
@@ -221,6 +222,64 @@ class RhinoTests(unittest.TestCase):
                                                    "Vessel":"Ship", "Count":136})
         self.emit("CargoTransfer", "2026-11-15T12:02:00Z", Transfers=[{"Count":68, "Direction":"toship"}])
         self.assertEqual(self.call()["cargo"]["ship"]["count"], 136)
+
+    def test_docking_fixture_clears_rhino_without_a_transfer_event_live_and_replayed(self):
+        fixture = Path(__file__).parent / "fixtures" / "rhino-docking"
+        for replay in (False, True, True):
+            for line in next(fixture.glob("Journal.*")).read_text().splitlines():
+                event = {**json.loads(line), "_replay": replay}
+                self.core.bus.emit("journal." + event["event"], event)
+            state = self.call()
+            self.assertEqual(state["cargo"]["ship"]["count"], 62)
+            self.assertEqual(state["cargo"]["rhino"]["count"], 0)
+            self.assertEqual(state["cargo"]["rhino"]["free"], 72)
+            self.assertEqual(state["session"]["unloaded_t"], 62)
+            self.assertEqual(state["session"]["total_t"], 62)
+            self.assertEqual(state["session"]["unloads"], 1)
+            self.assertEqual(state["session"]["end_reason"], "DockSRV")
+        self.emit("DockSRV", "2026-11-16T03:08:30Z", SRVType="mev_rhino", ID=66)
+        self.assertEqual(self.call()["session"]["unloaded_t"], 62)
+        for timestamp in ("2026-11-16T03:06:39Z", "2026-11-16T03:08:30Z", "2026-11-16T03:08:34Z"):
+            self.core.bus.emit("journal.file.Cargo", {"event":"Cargo", "timestamp":timestamp, "Vessel":"SRV", "Count":62})
+            self.assertEqual(self.call()["cargo"]["rhino"]["count"], 0)
+        self.emit("LaunchSRV", "2026-11-16T03:10:00Z", SRVType="mev_rhino", ID=66)
+        self.assertIsNone(self.call()["cargo"]["rhino"]["count"])
+        self.emit("Cargo", "2026-11-16T03:10:01Z", Vessel="SRV", Count=4)
+        self.assertEqual(self.call()["cargo"]["rhino"]["count"], 4)
+
+    def test_manual_unload_then_dock_does_not_double_count_cargo_or_unloads(self):
+        self.launch()
+        self.emit("Cargo", Vessel="Ship", Count=100)
+        self.emit("LaunchSRV", SRVType="mev_rhino", ID=66)
+        self.emit("MiningRefined", "2026-11-15T12:00:01Z", Type="iridium")
+        self.emit("Cargo", "2026-11-15T12:00:02Z", Vessel="SRV", Count=1)
+        self.emit("CargoTransfer", "2026-11-15T12:00:03Z", Transfers=[{"Count":1, "Direction":"toship"}])
+        self.emit("DockSRV", "2026-11-15T12:00:04Z", SRVType="mev_rhino", ID=66)
+        self.emit("Cargo", "2026-11-15T12:00:08Z", Vessel="Ship", Count=101)
+        state = self.call()
+        self.assertEqual(state["cargo"]["ship"]["count"], 101)
+        self.assertEqual(state["cargo"]["rhino"]["count"], 0)
+        self.assertEqual((state["session"]["total_t"], state["session"]["unloaded_t"], state["session"]["unloads"]), (1, 1, 1))
+
+    def test_other_vehicle_docking_does_not_empty_or_end_current_rhino(self):
+        self.launch()
+        self.emit("LaunchSRV", SRVType="mev_rhino", ID=66)
+        self.emit("Cargo", Vessel="SRV", Count=62)
+        for data in ({"SRVType":"mev_scarab", "ID":66}, {"SRVType":"mev_rhino", "ID":77},
+                     {"SRVType":"mev_rhino", "ID":66, "PlayerControlled":False}):
+            self.emit("DockSRV", "2026-11-15T12:01:00Z", **data)
+            self.assertTrue(self.call()["session"]["active"])
+            self.assertEqual(self.call()["cargo"]["rhino"]["count"], 62)
+        self.emit("DockSRV", "2026-11-15T12:01:01Z", SRVType="mev_rhino", ID=66)
+        self.assertEqual(self.call()["cargo"]["rhino"]["count"], 0)
+        self.assertIsNone(self.call()["cargo"]["ship"]["count"])
+
+    def test_docking_with_missing_cargo_history_does_not_invent_unloaded_tonnes(self):
+        self.emit("LoadGame", Commander="Rhino Test", FID="F-RHINO", Ship="mev_rhino")
+        self.emit("DockSRV", "2026-11-15T12:01:00Z", SRVType="mev_rhino", ID=66)
+        self.assertEqual(self.call()["cargo"]["rhino"]["count"], 0)
+        self.assertEqual(self.call()["session"]["unloaded_t"], 0)
+        self.assertIsNone(self.call()["cargo"]["ship"]["count"])
 
     def test_equipment_unknown_missing_and_observed_are_distinct(self):
         self.launch()
@@ -280,8 +339,22 @@ class RhinoTests(unittest.TestCase):
             self.assertTrue(180 < state["navigation"]["bearing"] < 220)
             self.position(BodyName="Other body")
             self.assertIsNone(self.call()["navigation"]["distance_m"])
+            self.assertIn("Shinrarta Dezhra AB 2 j", self.call()["navigation"]["reason"])
             self.position(Flags=0)
             self.assertIsNone(self.call()["navigation"]["bearing"])
+
+    def test_surface_bearing_remains_available_after_boarding_ship(self):
+        self.launch()
+        self.call("select_rhino_site", id="shinrarta-tritium")
+        self.emit("LaunchSRV", SRVType="mev_rhino", ID=66)
+        self.emit("DockSRV", "2026-11-15T12:01:00Z", SRVType="mev_rhino", ID=66)
+        self.position(Flags=(1 << 21) | (1 << 24))  # Surface GPS + InMainShip, no InSRV.
+        module = self.core.modules["rhino"].instance
+        with patch.object(module.time, "time", return_value=module.stamp("2026-11-15T12:02:01Z")):
+            state = self.call()
+            self.assertFalse(state["session"]["active"])
+            self.assertAlmostEqual(state["navigation"]["distance_m"], 144.3, delta=1)
+            self.assertTrue(180 < state["navigation"]["bearing"] < 220)
 
     def test_departure_and_shutdown_clear_coordinates_without_losing_sites(self):
         self.launch(); site = self.save()

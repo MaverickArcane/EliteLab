@@ -9,6 +9,9 @@ tonnes by commodity, cumulative receipt points, unload totals and average),
 checks. Hold counts include journal transfers since the last absolute report;
 `observed_at` advances with that evidence. Missing baselines stay unknown.
 Transfers do not reset collections; a new launch resets the deployment.
+Boarding empties the Rhino hold, adds its known remaining cargo to unloads once,
+and leaves the ship total to its next Cargo report. Surface navigation remains
+available in the main ship when fresh coordinates match the selected body.
 The guide itself is read on demand through `get_rhino_guide`, not repeated in SSE.
 Only explicit notebook/report actions persist to `rhino-sites.json`. Commander
 accounts contain `sites`, `selected` and `reports` keyed by site ID. Local reports
