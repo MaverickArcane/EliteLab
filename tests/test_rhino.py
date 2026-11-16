@@ -356,6 +356,45 @@ class RhinoTests(unittest.TestCase):
             self.assertAlmostEqual(state["navigation"]["distance_m"], 144.3, delta=1)
             self.assertTrue(180 < state["navigation"]["bearing"] < 220)
 
+    def test_travel_distinguishes_jumps_body_approach_and_surface_heading(self):
+        self.launch()
+        module = self.core.modules["rhino"].instance
+        site = {"system":"Destination", "body":"Destination A 1", "latitude":0, "longitude":1, "radius_m":1000}
+        origin = {"system":"Origin", "star_pos":[0,0,0], "jump_range_now":30,
+                  "jump_range_laden":20, "jump_range":40, "status":{"vehicle":"ship"}}
+        result = module.travel(site, origin, {"x":0,"y":0,"z":30.004}, {})
+        self.assertEqual((result["stage"], result["distance_ly"], result["estimated_jumps"]), ("system", 30.0, 2))
+        self.assertIsNone(result["bearing"])
+        # SRV fuel must not masquerade as the mothership's current jump range.
+        origin["status"]["vehicle"] = "srv"
+        origin["jump_range_now"] = 200
+        result = module.travel(site, origin, [0,0,35], {})
+        self.assertEqual((result["estimated_jumps"], result["range_basis"]), (2, "laden"))
+        for coords in (None, [0,0,float("nan")], {"x":1}):
+            result = module.travel(site, origin, coords, {})
+            self.assertIsNone(result["distance_ly"])
+            self.assertIsNone(result["estimated_jumps"])
+        origin.update(system="destination", star_pos=None, jump_range_laden=None, jump_range=None)
+        result = module.travel(site, origin, None, {})
+        self.assertEqual((result["stage"], result["distance_ly"], result["estimated_jumps"]), ("body", 0, 0))
+        position = {"system":"Destination", "body":"Destination A 1", "timestamp":"2026-11-15T12:00:00Z",
+                    "latitude":0, "longitude":0, "radius_m":1000}
+        result = module.travel(site, origin, None, position, module.stamp(position["timestamp"]))
+        self.assertEqual(result["stage"], "surface")
+        self.assertEqual(result["bearing"], 90)
+        self.assertAlmostEqual(result["surface_distance_m"], 17.5, delta=.1)
+
+    def test_catalog_and_selected_site_share_live_travel_context(self):
+        self.launch()
+        self.core.store.update("journal", {"system":"Origin", "star_pos":[0,0,0], "jump_range":40})
+        with patch("elitelab.core.coords.CoordCache.get", return_value={"x":0,"y":0,"z":35}):
+            catalog = self.call("get_rhino_sites")["sites"]
+            target = next(s for s in catalog if s["id"] == "wregoe-iridium-31")
+            self.assertEqual(target["travel"]["distance_ly"], 35)
+            self.assertEqual(target["travel"]["estimated_jumps"], 1)
+            self.call("select_rhino_site", id=target["id"])
+            self.assertEqual(self.call()["selected_site"]["travel"], target["travel"])
+
     def test_departure_and_shutdown_clear_coordinates_without_losing_sites(self):
         self.launch(); site = self.save()
         for event in ("LeaveBody", "SupercruiseEntry", "StartJump", "FSDJump", "Shutdown"):
@@ -443,7 +482,8 @@ class RhinoTests(unittest.TestCase):
         self.assertEqual(next(s for s in self.call()["sites"] if s["id"] == original["id"]), original)
         restarted = Core(); loader.load_all(restarted); self.addCleanup(restarted.close); restarted.watcher.replay()
         after = restarted.http.tools["get_rhino_sites"].fn({})["sites"]
-        self.assertEqual(next(s for s in after if s["id"] == original["id"]), report)
+        actual = next(s for s in after if s["id"] == original["id"])
+        self.assertEqual({k:v for k,v in actual.items() if k != "travel"}, report)
 
     def test_bookmarks_start_unconfirmed_and_moving_one_invalidates_its_report(self):
         self.launch(); site = self.save()

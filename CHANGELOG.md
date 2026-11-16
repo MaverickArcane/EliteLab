@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Show system distance and estimated jumps on Rhino location cards and the
+  selected destination. Lead with the jump and body approach before surface
+  directions; keep live distance updates from closing location notes.
+
 - Update the Rhino module's ship and SRV holds when transferring cargo, including
   unloading without boarding. Later cargo reports replace the running count.
   Boarding also empties the Rhino hold and records its known remaining cargo as

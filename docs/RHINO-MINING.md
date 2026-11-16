@@ -144,7 +144,9 @@ current purchases, compatibility and changed mechanics before advising.
 - `get_rhino_status`: GET `/api/rhino`; notebook, selected destination,
   current position, navigation, deployment collection totals/chart points,
   separate holds updated by cargo reports and transfers, equipment evidence and
-  guide topic index. Missing starting counts remain unknown.
+  guide topic index. Missing starting counts remain unknown. Every site includes
+  travel distance and estimated jumps from your ship. Follow system -> body ->
+  surface directions; the surface bearing works in the ship or SRV.
 - `get_rhino_guide`: GET `/api/rhino/guide`; optional `topic`, default `overview`.
 - `get_rhino_sites`: GET `/api/rhino/sites`; `verification` defaults to `all`;
   accepts `confirmed` or `unconfirmed`, plus optional exact `commodity` filter.

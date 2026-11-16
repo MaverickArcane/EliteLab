@@ -18,12 +18,15 @@ const journal=path.join(journals,'Journal.2026-11-15T120000.01.log');
 const offset=Date.now()-Date.parse('2026-11-15T12:02:03Z');
 const shifted=value=>new Date(Date.parse(value)+offset).toISOString();
 const events=fs.readFileSync(path.join(root,'tests/fixtures/rhino/Journal.2026-11-15T120000.01.log'),'utf8').trim().split('\n').map(JSON.parse).map(e=>({...e,timestamp:shifted(e.timestamp)}));
+for(const e of events){if(e.event==='Location')e.StarPos=[0,0,0];if(e.event==='Loadout')e.MaxJumpRange=40;}
 fs.writeFileSync(journal,events.map(JSON.stringify).join('\n')+'\n');
 const append=rows=>fs.appendFileSync(journal,rows.map(e=>JSON.stringify({timestamp:new Date().toISOString(),...e})).join('\n')+'\n');
 const status={event:'Status',timestamp:new Date().toISOString(),Flags:(1<<21)|(1<<26),BodyName:'Shinrarta Dezhra AB 2 j',Latitude:35.950340,Longitude:-31.233133,PlanetRadius:5963896};
 fs.writeFileSync(path.join(journals,'Status.json'),JSON.stringify(status));
 const env={...process.env,ELITELAB_SETTINGS:path.join(temporary,'settings.json'),ELITELAB_HOST:'127.0.0.1',ELITELAB_PORT:String(port),
   ELITELAB_OFFLINE:'1',ELITELAB_JOURNAL_DIR:journals,ELITELAB_DATA_DIR:path.join(temporary,'data'),ELITELAB_INSTANCE_DIR:path.join(temporary,'instance'),ELITELAB_AUTH_TOKEN:''};
+fs.mkdirSync(env.ELITELAB_DATA_DIR,{recursive:true});
+fs.writeFileSync(path.join(env.ELITELAB_DATA_DIR,'rhino-coords.json'),JSON.stringify({'Wregoe GW-Y c28-2':{x:0,y:0,z:35}}));
 const output=path.resolve(process.env.ELITELAB_SCREENSHOT_DIR||path.join(root,'artifacts/rhino')); fs.mkdirSync(output,{recursive:true});
 let server,chrome,ws,serverLog='';
 try {
@@ -75,6 +78,13 @@ try {
   assert.equal(await evaluate('Lab.state.rhino.summary.cargo.ship.free'),965);
   append([{event:'Cargo',Vessel:'Ship',Count:171}]);
   await wait('Lab.state.rhino.summary.cargo.ship.observed_at!==null');
+  await click('[data-rhino-tab=spots]');
+  await wait("document.querySelector('[data-rhino-travel=wregoe-iridium-31]').textContent.includes('35 Ly')");
+  assert.match(await evaluate("document.querySelector('[data-rhino-travel=wregoe-iridium-31]').textContent"),/est\. 1\+ jump/);
+  await click('[data-rhino-select=wregoe-iridium-31]');
+  await wait("document.querySelector('[data-rhino-navigation]').textContent.includes('Jump to Wregoe GW-Y c28-2')");
+  await click('[data-rhino-tab=mining]');
+  await shot('rhino-travel-desktop');await shot('rhino-travel-mobile',390,1200);
   await click('[data-rhino-tab=spots]');
   assert.equal(await evaluate("document.querySelectorAll('[data-rhino-group=confirmed] .rhino-site').length"),2);
   assert.equal(await evaluate("document.querySelectorAll('[data-rhino-group=unconfirmed] .rhino-site').length"),6);

@@ -12,6 +12,13 @@ Transfers do not reset collections; a new launch resets the deployment.
 Boarding empties the Rhino hold, adds its known remaining cargo to unloads once,
 and leaves the ship total to its next Cargo report. Surface navigation remains
 available in the main ship when fresh coordinates match the selected body.
+Each site also has `travel`: `stage` (system/body/surface/unknown), system
+`distance_ly`, `estimated_jumps`, `jump_range_ly`/`range_basis`, and surface
+distance/bearing when available. EDSM system coordinates are fetched outside the
+watcher and cached in `rhino-coords.json`. Same-system sites have zero jumps;
+missing coordinates or range give null, never a fabricated distance or route.
+Jump estimates use unrounded distance and the current ship range, or a labelled
+laden/loadout fallback while driving an SRV. They are not plotted routes.
 The guide itself is read on demand through `get_rhino_guide`, not repeated in SSE.
 Only explicit notebook/report actions persist to `rhino-sites.json`. Commander
 accounts contain `sites`, `selected` and `reports` keyed by site ID. Local reports
