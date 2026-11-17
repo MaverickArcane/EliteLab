@@ -10,7 +10,7 @@ from statistics import median
 from urllib.parse import quote, urlencode
 
 from elitelab.core.gamedata import is_rare, norm
-from modules.ptn import mining
+from modules.ptn import mining, sale
 from modules.ptn.planning import (COMMON, DEFAULTS, advert, advertised_profit, finite, integer, key, line,
                                   now, paid_leg, owner_minimum, pricing, settings, stamp, station_kind, unlimited_demand)
 
@@ -126,6 +126,7 @@ class PTN:
             data.update(context=self.context(), result=copy.deepcopy(self.results), board=copy.deepcopy(self.board),
                         defaults=copy.deepcopy(DEFAULTS), common=list(COMMON), searching=self.searching,
                         progress=copy.deepcopy(self.progress), search_job=copy.deepcopy(self.search_job))
+            data['sale_cargo'] = sale.cargo(data['context'])
             job = self.core.store.get('trade', 'job') or {}
             source_plan, source_op = job.get('plan') or {}, job.get('operation') or {}
             data['mining_job'] = (dict(id=source_op['id'], updated_at=source_op['updated_at'],
@@ -860,6 +861,13 @@ class PTN:
                         advertised_profit_per_ton=advertised_profit(profit),
                         remaining=op['remaining'],instructions='Use /aco trade and review its generated string, then paste in affiliate-trade-alerts without role pings. Review and confirm Roomba; close it with the appropriate completion reaction. This desk does not post or close Discord adverts.')
 
+    def sale_advert(self, q):
+        with self.lock:
+            return sale.prepare(self.context(), q)
+
+    def sale_prices(self, q):
+        return sale.suggestions(self, q)
+
 
 def setup(core, module):
     desk = PTN(core)
@@ -878,7 +886,26 @@ def setup(core, module):
     search_params['breadth']['description']='Commodity limit: 0 (default) checks every non-rare catalog commodity after explicit exclusions, up to 500. Nonzero limits are optional. Coverage reports incomplete scans.'
     search_params['arrival']['description']='Optional maximum station distance from the main star in Ls; 0 (default) imposes no cutoff. This is a scouting approach, not the hauler trip from a carrier parked near the body.'
     core.http.route('/api/ptn',lambda q:desk.view(),tool='get_ptn_desk',module=module.name,
-                    description='PTN carrier plan, independent of Carrier job. Includes scouted prices, payout floors, readiness blockers, order confirmations and public official-board comparisons. No game or Discord actions.')
+                    description='PTN carrier plan, independent of Carrier job. Includes scouted prices, payout floors, readiness blockers, order confirmations and public official-board comparisons. sale_cargo lists physical carrier stock evidence and observed active sell prices for direct sale drafts; null stock is unknown, not zero. No game or Discord actions.')
+    core.http.route('/api/ptn/sale-advert',desk.sale_advert,tool='prepare_ptn_sale_advert',method='POST',module=module.name,
+                    params={
+                        'kind':dict(type='string',enum=['direct_sale','unloading'],default='direct_sale',description='Direct asking-price offer or an unloading draft with a buyer quote and estimated hauler profit.'),
+                        'station':dict(type='string',description='Required for unloading: intended buyer station in the pickup system.'),
+                        'buyer_price':dict(type='integer',description='Required for unloading: entered or reported station purchase price in Cr/t, greater than your carrier price. Not a verified scout.'),
+                        'commander':dict(type='string',required=True,description='Current context.commander from get_ptn_desk.'),
+                        'callsign':dict(type='string',required=True,description='Current owned carrier callsign; rejects a switched owner/carrier.'),
+                        'commodity':dict(type='string',required=True,description='Commodity key or display name from sale_cargo, or an explicitly supplied commodity name.'),
+                        'quantity':dict(type='integer',required=True,description='Tonnes to offer, 1-25000. Use physical stock or an explicit owner quantity; never a buy-order quantity.'),
+                        'price':dict(type='integer',required=True,description='Your chosen carrier selling price in Cr/t, not hauler profit. Do not invent a price.'),
+                        'system':dict(type='string',required=True,description='Pickup system. Use context.system unless the owner specifies another; never assume the ship system is the carrier location.')},
+                    description='Preview a direct carrier sale or unloading advert from hold stock and the owner\'s chosen price. No sourcing route, station scout or active PTN plan required. For unloading, include the buyer station/price; profit is explicitly estimated. Returns exact tonnes, Cr/t, gross proceeds and stock evidence; unknown or exceeded recorded stock stays explicit. This is a draft, not the checked affiliate workflow. Does not save, change stock/orders/plans or post to Discord.')
+    core.http.route('/api/ptn/sale-prices',desk.sale_prices,tool='suggest_ptn_sale_price',module=module.name,
+                    params={'commodity':dict(type='string',required=True,description='Commodity key or display name.'),
+                            'quantity':dict(type='integer',required=True,description='Tonnes to sell, 1-25000; buyer demand must cover the load.'),
+                            'system':dict(type='string',description='Search origin; defaults to the carrier system, never the ship location.'),
+                            'payout':dict(type='integer',default=20000,description='Desired hauler profit in Cr/t; suggest carrier sell prices that leave at least this margin.'),
+                            'radius':dict(type='integer',default=500,description='Strict search radius in Ly, 1-1500. Buyer reports are bounded, not exhaustive.')},
+                    description='Suggest carrier sale prices for stock already aboard from up to ten nearby large-pad orbital buyers with fresh reported demand covering the full load. No purchase/source leg. Returns station price, carrier asking price, hauler margin, age/source, distance and 500 Ly minimum jumps. Prices use whole-percent carrier settings when meanPrice is known; otherwise arithmetic targets. Reports are estimates, not scouts or guaranteed direct-sale demand. Does not change your draft, stock or plans.')
     core.http.route('/api/ptn/board',desk.refresh_board,tool='get_ptn_public_board',module=module.name,
                     description='Refresh public official PTN missions and median loading/unloading payouts. Affiliate adverts and unadvertised carriers are not covered. Failure is unknown competition, not zero.')
     core.http.route('/api/ptn/search',desk.search,tool='find_ptn_routes',params=search_params,module=module.name,

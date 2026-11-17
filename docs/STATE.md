@@ -1,15 +1,40 @@
 # State reference
 
+`ptn.sale_cargo` lists physical carrier stock evidence for the hold-sale builder:
+commodity, display name, nullable stock, source/time and nullable active sell
+price/order time. It does not infer available stock from buy orders. The existing
+PTN plan and Carrier job remain independent. Sale-price suggestions and generated
+direct/unloading adverts are request results, not persisted operations. Browser
+drafts use `ptn.sale.v1` local storage scoped to commander and carrier callsign;
+generated text is invalidated when its inputs or context change.
+
 `rhino.summary` contains commander-local saved sites, selected surface target,
 bundled catalog locations with confirmation/availability/evidence/source fields,
 timestamped Status position, same-body distance/bearing and the guide topic index.
 It also includes `session` (current or last Rhino deployment, observed refined
 tonnes by commodity, cumulative receipt points, unload totals and average),
 `cargo` (separate timestamped Ship/Rhino hold reports) and nullable `equipment`
-checks. Transfers do not reset collections; a new launch resets the deployment.
+checks. Hold counts include journal transfers since the last absolute report;
+`observed_at` advances with that evidence. Missing baselines stay unknown.
+Transfers do not reset collections; a new launch resets the deployment.
+Boarding empties the Rhino hold, adds its known remaining cargo to unloads once,
+and leaves the ship total to its next Cargo report. Surface navigation remains
+available in the main ship when fresh coordinates match the selected body.
+Each site also has `travel`: `stage` (system/body/surface/unknown), system
+`distance_ly`, `estimated_jumps`, `jump_range_ly`/`range_basis`, and surface
+distance/bearing when available. EDSM system coordinates are fetched outside the
+watcher and cached in `rhino-coords.json`. Same-system sites have zero jumps;
+missing coordinates or range give null, never a fabricated distance or route.
+Jump estimates use unrounded distance and the current ship range, or a labelled
+laden/loadout fallback while driving an SRV. They are not plotted routes.
 The guide itself is read on demand through `get_rhino_guide`, not repeated in SSE.
 Only explicit notebook/report actions persist to `rhino-sites.json`. Commander
-accounts contain `sites`, `selected` and `reports` keyed by site ID. Local reports
+accounts contain `sites`, `selected` and `reports` keyed by site ID,
+plus `group_reports` keyed by the stable system/body/PML group ID.
+Personal sites retain optional `pml`; reports retain optional `rigs_observed`.
+`summary.groups` links flat site IDs and separates reported circuit totals
+from mapped deposit counts. Unknown-PML entries are not merged by proximity.
+Local reports
 override effective classification while retaining `reference_evidence` and
 `reference_verification`; bundled catalog data is never rewritten. The earlier
 preview's rig-fit field is preserved as a note. See [Rhino mining](RHINO-MINING.md).
@@ -186,6 +211,10 @@ Client-side manual overrides live in `localStorage.loopManual` as `{system: {don
 Client-only: `ui_selected` (the browser's Show on map toggle; the map draws the dashed line to `progress.next`) and `ui_powerplay` (an explicit request to populate the finder). The card keeps the last search result in memory only. The targets extension keeps `handoff_active` and `handoff_last` browser-local to prevent late legacy search responses from replacing a bound map selection.
 
 ## materials (module: materials)
+
+Historical replay rebuilds private observations and publishes once at completion.
+The materials API returns matching rows and totals from the last completed
+publication while replay is in progress. Live gains still publish immediately.
 
 | Key | Type |
 |---|---|

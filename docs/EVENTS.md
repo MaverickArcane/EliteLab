@@ -4,10 +4,22 @@
 events for the system, and Status latitude/longitude/radius for navigation.
 Departure, Died and Shutdown clear the position; a new login resets navigation.
 LaunchSRV starts a Rhino deployment; MiningRefined counts one collected tonne
-per event. CargoTransfer counts gross vehicle-to-ship unloads; Cargo snapshots
-remain authoritative for each hold. Loadout supplies capacity and observed
+per event. CargoTransfer counts gross vehicle-to-ship unloads and adjusts known
+ship/SRV holds in either direction; carrier transfers only adjust the ship hold.
+Unknown starting holds remain unknown. Cargo reports replace those totals;
+older reports and same-second cached Cargo.json cannot undo a transfer. If a
+file snapshot precedes a same-second transfer, its ordering is ambiguous and
+the affected count becomes unknown until the next report.
+Loadout supplies capacity and observed
 DSS/large-hangar presence; module changes invalidate equipment checks.
 DockSRV, departure, ship swap, shutdown or death ends collection attribution.
+Successful Rhino DockSRV also empties its hold and counts the last known SRV
+cargo as one automatic unload, without requiring CargoTransfer. The following
+ship Cargo report remains authoritative; it is not incremented again. Cached
+SRV cargo cannot repopulate the docked hold before the next launch. Match the
+launched vehicle ID/type when supplied. This boarding sequence is reproduced
+from the November 2026 journal; DockSRV fields are documented in the
+[Frontier journal manual, section 13.16](https://hosting.zaonce.net/community/journal/v37/Journal_Manual_v37.pdf).
 There is no inference of deposits, rig placement, hopper fill or replenishment.
 Session material gains remain owned by the existing `materials` module.
 

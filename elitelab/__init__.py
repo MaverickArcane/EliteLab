@@ -7,7 +7,7 @@ with an AI-facing API (every route is also an MCP tool).
     web/             the browser shell that hosts module cards
 """
 
-__version__ = "0.6.0-beta.3"
+__version__ = "0.6.0-beta.4"
 # Native metadata needs numeric versions; the dashboard/diagnostics retain the
 # complete prerelease identity. Debian uses '~' so beta sorts before stable.
 __native_version__ = __version__.split('-', 1)[0]

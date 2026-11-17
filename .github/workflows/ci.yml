@@ -70,6 +70,9 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Module manifest check
         run: python -m elitelab modules
+      - name: Native Windows Rhino overlay
+        if: runner.os == 'Windows'
+        run: python scripts/smoke_rhino_overlay.py
 
   frontend:
     name: Front-end syntax
@@ -91,6 +94,8 @@ jobs:
         run: node --test tests/chrome-ready.test.mjs
       - name: Cargo panel response ordering
         run: node tests/selling-state.mjs
+      - name: Rhino overlay direction and telemetry guards
+        run: node tests/rhino-overlay.mjs
 
   browser:
     name: Owner and crew browser regression

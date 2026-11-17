@@ -43,6 +43,128 @@ class RhinoTests(unittest.TestCase):
             "Flags":(1 << 21) | (1 << 26), "BodyName":"Shinrarta Dezhra AB 2 j", "PlanetRadius":5963896,
             "Latitude":35.950340, "Longitude":-31.233133, **overrides})
 
+    def test_groups_match_system_body_pml_without_merging_unknowns(self):
+        self.launch()
+        first = self.save(pml=4)
+        second = self.save(name="Another deposit", pml=4, latitude=36)
+        other_pml = self.save(pml=3)
+        other_body = self.save(pml=4, body="Shinrarta Dezhra AB 2 k")
+        other_system = self.save(pml=4, system="Other system")
+        unknown1, unknown2 = self.save(), self.save()
+        groups = self.call()["groups"]
+        own = next(g for g in groups if first["id"] in g["site_ids"])
+        self.assertEqual(own["site_ids"], [first["id"], second["id"]])
+        self.assertEqual(own["mapped_deposits"], 2)
+        self.assertEqual(own["confirmed_deposits"], 0)
+        self.assertIsNone(own["rigs_observed_total"])
+        for site in (other_pml, other_body, other_system, unknown1, unknown2):
+            self.assertNotEqual(site["group_id"], first["group_id"])
+        self.assertNotEqual(unknown1["group_id"], unknown2["group_id"])
+        self.assertEqual(self.save(pml=4, system="shinrarta dezhra",
+                                   body="shinrarta dezhra ab 2 j")["group_id"], first["group_id"])
+
+    def test_circuit_total_is_separate_from_deposit_capacity_and_missing_coordinates(self):
+        self.launch()
+        first = next(s for s in self.call()["sites"] if s["id"] == "wregoe-iridium-31")
+        group = self.call("report_rhino_group", id=first["group_id"], reported_deposits=3,
+                          rigs_observed_total=6, evidence="Six rigs total across three deposits")
+        self.assertEqual((group["mapped_deposits"], group["unmapped_deposits"]), (1, 2))
+        self.assertEqual(group["rigs_observed_total"], 6)
+        self.assertEqual(len(self.call()["sites"]), self.catalog_size)
+        self.assertEqual(group["confirmed_deposits"], 0)
+        self.assertNotIn("rigs_observed", next(s for s in self.call()["sites"] if s["id"] == first["id"]))
+        self.call("report_rhino_site", id=first["id"], verification="confirmed", availability="unknown",
+                  evidence="Two rigs here on first visit", rigs_observed=2)
+        group = next(g for g in self.call()["groups"] if g["id"] == first["group_id"])
+        self.assertEqual(group["confirmed_deposits"], 1)
+        for latitude in (-26.56, -26.57):
+            self.save(pml=4, system=first["system"], body=first["body"], commodity="Iridium", latitude=latitude)
+        group = next(g for g in self.call()["groups"] if g["id"] == first["group_id"])
+        self.assertEqual((group["mapped_deposits"], group["unmapped_deposits"], group["rigs_observed_total"]), (3, 0, 6))
+        deposits = [s for s in self.call()["sites"] if s["group_id"] == group["id"]]
+        self.assertEqual([s.get("rigs_observed") for s in deposits], [2, None, None])
+        self.assertEqual(deposits[0]["rigs_reported"], 6)
+
+    def test_filtered_catalog_retains_full_group_context(self):
+        self.launch()
+        first = self.save(pml=4)
+        second = self.save(pml=4, commodity="Water", latitude=36)
+        self.call("confirm_rhino_site", id=first["id"])
+        self.call("report_rhino_group", id=first["group_id"], reported_deposits=3,
+                  rigs_observed_total=6, evidence="Field report")
+        result = self.call("get_rhino_sites", verification="confirmed", commodity="Tritium")
+        group = next(g for g in result["groups"] if g["id"] == first["group_id"])
+        self.assertIn(second["id"], group["site_ids"])
+        self.assertNotIn(second["id"], [s["id"] for s in result["sites"]])
+        self.assertEqual((group["mapped_deposits"], group["confirmed_deposits"], group["rigs_observed_total"]), (2, 1, 6))
+
+    def test_group_reports_persist_and_reject_commander_switch(self):
+        self.launch()
+        site = self.save(pml=4)
+        params = dict(id=site["group_id"], reported_deposits=3, rigs_observed_total=6,
+                      evidence="Observed circuit", commander_key="fid:F-RHINO")
+        expected = self.call("report_rhino_group", **params)
+        restarted = Core(); loader.load_all(restarted); self.addCleanup(restarted.close)
+        restarted.watcher.replay()
+        self.assertIn(expected, restarted.http.tools["get_rhino_status"].fn({})["groups"])
+        self.emit("Commander", Name="Other", FID="OTHER")
+        with self.assertRaisesRegex(ValueError, "Commander changed"):
+            self.call("report_rhino_group", **params)
+        self.assertNotIn(site["group_id"], [g["id"] for g in self.call()["groups"]])
+        self.emit("Commander", Name="Rhino Test", FID="F-RHINO")
+        self.assertIn(expected, self.call()["groups"])
+
+    def test_group_and_rig_reports_validate_without_writing(self):
+        self.launch()
+        site = self.save(pml=4)
+        original = self.call()
+        params = dict(id=site["group_id"], reported_deposits=3, rigs_observed_total=6, evidence="Observed")
+        for field, values in (("reported_deposits", [0, -1, 101, 1.5, True, "3", None]),
+                              ("rigs_observed_total", [-1, 601, 1.5, True, "6", None])):
+            for value in values:
+                with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                    self.call("report_rhino_group", **{**params, field:value})
+        for extra in (dict(id="missing"), dict(evidence="")):
+            with self.assertRaises(ValueError):
+                self.call("report_rhino_group", **{**params, **extra})
+        for value in (-1, 7, 1.5, True, "2"):
+            with self.assertRaises(ValueError):
+                self.call("report_rhino_site", id=site["id"], verification="confirmed",
+                          availability="unknown", evidence="Observed", rigs_observed=value)
+        self.assertEqual(self.call(), original)
+        unknown = self.save()
+        with self.assertRaisesRegex(ValueError, "known PML"):
+            self.call("report_rhino_group", **{**params, "id":unknown["group_id"]})
+
+    def test_deposit_rig_observation_preserved_cleared_and_source_retained(self):
+        self.launch()
+        params = dict(id="wregoe-iridium-30", verification="unconfirmed",
+                      availability="reported_depleted", evidence="Only tested two here")
+        report = self.call("report_rhino_site", **params, rigs_observed=2)
+        self.assertEqual((report["rigs_observed"], report["reference_rigs_observed"]), (2, 6))
+        report = self.call("confirm_rhino_site", id=params["id"])
+        self.assertEqual((report["personal_rigs_observed"], report["availability"]), (2, "reported_depleted"))
+        self.assertEqual(self.call("report_rhino_site", **params)["personal_rigs_observed"], 2)
+        report = self.call("report_rhino_site", **params, rigs_observed=None)
+        self.assertNotIn("personal_rigs_observed", report)
+        self.assertEqual(report["rigs_observed"], 6)
+        self.assertEqual(self.call("report_rhino_site", **params, rigs_observed=0)["rigs_observed"], 0)
+
+    def test_pml_update_legacy_clear_and_moving_deposit(self):
+        self.launch()
+        site = self.save(pml=4)
+        self.assertEqual(self.save(id=site["id"], notes="New notes")["group_id"], site["group_id"])
+        changed = self.save(id=site["id"], pml=3)
+        self.assertNotEqual(changed["group_id"], site["group_id"])
+        cleared = self.save(id=site["id"], pml=None)
+        self.assertIsNone(cleared["pml"])
+        for value in (0, -1, 1000001, 1.5, True, "4"):
+            with self.assertRaises(ValueError):
+                self.save(pml=value)
+        self.save(id=site["id"], pml=4)
+        moved = self.save(id=site["id"], body="Shinrarta Dezhra AB 2 k")
+        self.assertIsNone(moved["pml"])
+
     def test_fixture_replay_live_and_repeat_preserve_notebook(self):
         self.launch(); site = self.save()
         for line in next(FIXTURE.glob("Journal.*")).read_text().splitlines():
@@ -53,6 +175,8 @@ class RhinoTests(unittest.TestCase):
         self.assertNotIn("rigs", expected)
         self.assertEqual(expected["session"]["total_t"], 3)
         self.assertEqual(expected["session"]["unloaded_t"], 3)
+        self.assertEqual(expected["cargo"]["ship"]["count"], 103)
+        self.assertEqual(expected["cargo"]["rhino"]["count"], 0)
         self.assertEqual(expected["session"]["commodities"][0]["id"], "tritium")
         self.assertEqual(expected["session"]["commodities"][0]["tonnes"], 2)
         for _ in range(2):
@@ -133,6 +257,152 @@ class RhinoTests(unittest.TestCase):
         self.assertEqual(self.call()["session"]["total_t"], 0)
         self.assertEqual(self.call()["session"]["unloaded_t"], 72)
 
+    def test_unloads_update_both_holds_without_a_new_ship_snapshot(self):
+        self.launch()
+        self.emit("Loadout", CargoCapacity=1136, Modules=[])
+        self.emit("Cargo", Vessel="Ship", Count=0)
+        self.emit("LaunchSRV", SRVType="mev_rhino")
+        for minute, tonnes in enumerate((68, 68, 67, 68, 68, 68, 68, 67, 68), 1):
+            self.emit("Cargo", f"2026-11-15T12:{minute:02}:00Z", Vessel="SRV", Count=tonnes)
+            self.emit("CargoTransfer", f"2026-11-15T12:{minute:02}:01Z",
+                      Transfers=[{"Type":"iridium", "Count":tonnes, "Direction":"toship"}])
+            self.assertEqual(self.call()["cargo"]["rhino"]["count"], 0)
+        state = self.call()
+        self.assertEqual(state["cargo"]["ship"]["count"], 610)
+        self.assertEqual(state["cargo"]["ship"]["free"], 526)
+        self.assertEqual(state["cargo"]["ship"]["observed_at"], "2026-11-15T12:09:01Z")
+        self.assertEqual(state["session"]["unloaded_t"], 610)
+        # A subsequent absolute report replaces, rather than adds to, the total.
+        self.emit("Cargo", "2026-11-15T12:09:01Z", Vessel="Ship", Count=610)
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 610)
+
+    def test_transfer_back_to_srv_and_cached_snapshots_do_not_restore_old_hold(self):
+        self.launch()
+        self.emit("Cargo", Vessel="Ship", Count=100)
+        self.emit("LaunchSRV", SRVType="mev_rhino")
+        self.emit("Cargo", "2026-11-15T12:01:00Z", Vessel="SRV", Count=10)
+        self.emit("CargoTransfer", "2026-11-15T12:01:00Z",
+                  Transfers=[{"Count":10, "Direction":"toship"}])
+        for vessel, amount in (("Ship", 100), ("SRV", 10)):
+            self.core.bus.emit("journal.file.Cargo", {"event":"Cargo", "timestamp":"2026-11-15T12:01:00Z",
+                                                       "Vessel":vessel, "Count":amount})
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 110)
+        self.assertEqual(self.call()["cargo"]["rhino"]["count"], 0)
+        self.emit("CargoTransfer", "2026-11-15T12:01:01Z",
+                  Transfers=[{"Count":4, "Direction":"tosrv"}])
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 106)
+        self.assertEqual(self.call()["cargo"]["rhino"]["count"], 4)
+        self.emit("Cargo", "2026-11-15T12:00:59Z", Vessel="Ship", Count=999)
+        self.emit("CargoTransfer", "2026-11-15T12:00:59Z",
+                  Transfers=[{"Count":10, "Direction":"toship"}])
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 106)
+
+    def test_carrier_transfers_update_ship_without_touching_rhino_or_unloads(self):
+        self.launch()
+        self.emit("Cargo", Vessel="Ship", Count=100)
+        self.emit("LaunchSRV", SRVType="mev_rhino")
+        self.emit("Cargo", Vessel="SRV", Count=5)
+        self.emit("CargoTransfer", "2026-11-15T12:01:00Z", Transfers=[{"Count":40, "Direction":"tocarrier"}])
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 60)
+        self.emit("CargoTransfer", "2026-11-15T12:02:00Z", CarrierID=123,
+                  Transfers=[{"Count":20, "Direction":"toship"}])
+        state = self.call()
+        self.assertEqual(state["cargo"]["ship"]["count"], 80)
+        self.assertEqual(state["cargo"]["rhino"]["count"], 5)
+        self.assertEqual(state["session"]["unloaded_t"], 0)
+        self.emit("DockSRV", "2026-11-15T12:03:00Z")
+        self.emit("CargoTransfer", "2026-11-15T12:03:01Z", Transfers=[{"Count":20, "Direction":"toship"}])
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 100)
+        self.assertEqual(self.call()["cargo"]["rhino"]["count"], 0)
+        self.assertEqual(self.call()["session"]["unloaded_t"], 5)
+
+    def test_transfers_do_not_invent_missing_hold_baselines(self):
+        self.launch()
+        self.emit("CargoTransfer", Transfers=[{"Count":68, "Direction":"toship"}])
+        self.assertIsNone(self.call()["cargo"]["ship"]["count"])
+        self.emit("Cargo", "2026-11-15T12:01:00Z", Vessel="Ship", Count=2)
+        self.emit("CargoTransfer", "2026-11-15T12:01:01Z", Transfers=[{"Count":3, "Direction":"tosrv"}])
+        self.assertIsNone(self.call()["cargo"]["ship"]["count"])
+        self.emit("Cargo", "2026-11-15T12:02:00Z", Vessel="Ship", Count=20)
+        self.emit("CargoTransfer", "2026-11-15T12:02:01Z", Transfers=[None, {"Count":True, "Direction":"toship"},
+                  {"Count":-4, "Direction":"tosrv"}, {"Count":50, "Direction":"other"}])
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 20)
+        self.emit("ShipyardSwap", "2026-11-15T12:03:00Z")
+        self.emit("CargoTransfer", "2026-11-15T12:03:01Z", Transfers=[{"Count":68, "Direction":"toship"}])
+        self.assertIsNone(self.call()["cargo"]["ship"]["count"])
+
+    def test_snapshot_ahead_of_tail_uses_unknown_for_same_second_transfer(self):
+        self.launch()
+        self.core.bus.emit("journal.file.Cargo", {"event":"Cargo", "timestamp":"2026-11-15T12:01:00Z",
+                                                   "Vessel":"Ship", "Count":68})
+        self.emit("CargoTransfer", "2026-11-15T12:01:00Z", Transfers=[{"Count":68, "Direction":"toship"}])
+        self.assertIsNone(self.call()["cargo"]["ship"]["count"])
+        self.emit("Cargo", "2026-11-15T12:01:01Z", Vessel="Ship", Count=68)
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 68)
+        # A newer snapshot has already accounted for an older tail event.
+        self.core.bus.emit("journal.file.Cargo", {"event":"Cargo", "timestamp":"2026-11-15T12:02:01Z",
+                                                   "Vessel":"Ship", "Count":136})
+        self.emit("CargoTransfer", "2026-11-15T12:02:00Z", Transfers=[{"Count":68, "Direction":"toship"}])
+        self.assertEqual(self.call()["cargo"]["ship"]["count"], 136)
+
+    def test_docking_fixture_clears_rhino_without_a_transfer_event_live_and_replayed(self):
+        fixture = Path(__file__).parent / "fixtures" / "rhino-docking"
+        for replay in (False, True, True):
+            for line in next(fixture.glob("Journal.*")).read_text().splitlines():
+                event = {**json.loads(line), "_replay": replay}
+                self.core.bus.emit("journal." + event["event"], event)
+            state = self.call()
+            self.assertEqual(state["cargo"]["ship"]["count"], 62)
+            self.assertEqual(state["cargo"]["rhino"]["count"], 0)
+            self.assertEqual(state["cargo"]["rhino"]["free"], 72)
+            self.assertEqual(state["session"]["unloaded_t"], 62)
+            self.assertEqual(state["session"]["total_t"], 62)
+            self.assertEqual(state["session"]["unloads"], 1)
+            self.assertEqual(state["session"]["end_reason"], "DockSRV")
+        self.emit("DockSRV", "2026-11-16T03:08:30Z", SRVType="mev_rhino", ID=66)
+        self.assertEqual(self.call()["session"]["unloaded_t"], 62)
+        for timestamp in ("2026-11-16T03:06:39Z", "2026-11-16T03:08:30Z", "2026-11-16T03:08:34Z"):
+            self.core.bus.emit("journal.file.Cargo", {"event":"Cargo", "timestamp":timestamp, "Vessel":"SRV", "Count":62})
+            self.assertEqual(self.call()["cargo"]["rhino"]["count"], 0)
+        self.emit("LaunchSRV", "2026-11-16T03:10:00Z", SRVType="mev_rhino", ID=66)
+        self.assertIsNone(self.call()["cargo"]["rhino"]["count"])
+        self.emit("Cargo", "2026-11-16T03:10:01Z", Vessel="SRV", Count=4)
+        self.assertEqual(self.call()["cargo"]["rhino"]["count"], 4)
+
+    def test_manual_unload_then_dock_does_not_double_count_cargo_or_unloads(self):
+        self.launch()
+        self.emit("Cargo", Vessel="Ship", Count=100)
+        self.emit("LaunchSRV", SRVType="mev_rhino", ID=66)
+        self.emit("MiningRefined", "2026-11-15T12:00:01Z", Type="iridium")
+        self.emit("Cargo", "2026-11-15T12:00:02Z", Vessel="SRV", Count=1)
+        self.emit("CargoTransfer", "2026-11-15T12:00:03Z", Transfers=[{"Count":1, "Direction":"toship"}])
+        self.emit("DockSRV", "2026-11-15T12:00:04Z", SRVType="mev_rhino", ID=66)
+        self.emit("Cargo", "2026-11-15T12:00:08Z", Vessel="Ship", Count=101)
+        state = self.call()
+        self.assertEqual(state["cargo"]["ship"]["count"], 101)
+        self.assertEqual(state["cargo"]["rhino"]["count"], 0)
+        self.assertEqual((state["session"]["total_t"], state["session"]["unloaded_t"], state["session"]["unloads"]), (1, 1, 1))
+
+    def test_other_vehicle_docking_does_not_empty_or_end_current_rhino(self):
+        self.launch()
+        self.emit("LaunchSRV", SRVType="mev_rhino", ID=66)
+        self.emit("Cargo", Vessel="SRV", Count=62)
+        for data in ({"SRVType":"mev_scarab", "ID":66}, {"SRVType":"mev_rhino", "ID":77},
+                     {"SRVType":"mev_rhino", "ID":66, "PlayerControlled":False}):
+            self.emit("DockSRV", "2026-11-15T12:01:00Z", **data)
+            self.assertTrue(self.call()["session"]["active"])
+            self.assertEqual(self.call()["cargo"]["rhino"]["count"], 62)
+        self.emit("DockSRV", "2026-11-15T12:01:01Z", SRVType="mev_rhino", ID=66)
+        self.assertEqual(self.call()["cargo"]["rhino"]["count"], 0)
+        self.assertIsNone(self.call()["cargo"]["ship"]["count"])
+
+    def test_docking_with_missing_cargo_history_does_not_invent_unloaded_tonnes(self):
+        self.emit("LoadGame", Commander="Rhino Test", FID="F-RHINO", Ship="mev_rhino")
+        self.emit("DockSRV", "2026-11-15T12:01:00Z", SRVType="mev_rhino", ID=66)
+        self.assertEqual(self.call()["cargo"]["rhino"]["count"], 0)
+        self.assertEqual(self.call()["session"]["unloaded_t"], 0)
+        self.assertIsNone(self.call()["cargo"]["ship"]["count"])
+
     def test_equipment_unknown_missing_and_observed_are_distinct(self):
         self.launch()
         self.assertEqual(self.call()["equipment"], {"dss":None, "large_hangar":None})
@@ -191,8 +461,61 @@ class RhinoTests(unittest.TestCase):
             self.assertTrue(180 < state["navigation"]["bearing"] < 220)
             self.position(BodyName="Other body")
             self.assertIsNone(self.call()["navigation"]["distance_m"])
+            self.assertIn("Shinrarta Dezhra AB 2 j", self.call()["navigation"]["reason"])
             self.position(Flags=0)
             self.assertIsNone(self.call()["navigation"]["bearing"])
+
+    def test_surface_bearing_remains_available_after_boarding_ship(self):
+        self.launch()
+        self.call("select_rhino_site", id="shinrarta-tritium")
+        self.emit("LaunchSRV", SRVType="mev_rhino", ID=66)
+        self.emit("DockSRV", "2026-11-15T12:01:00Z", SRVType="mev_rhino", ID=66)
+        self.position(Flags=(1 << 21) | (1 << 24))  # Surface GPS + InMainShip, no InSRV.
+        module = self.core.modules["rhino"].instance
+        with patch.object(module.time, "time", return_value=module.stamp("2026-11-15T12:02:01Z")):
+            state = self.call()
+            self.assertFalse(state["session"]["active"])
+            self.assertAlmostEqual(state["navigation"]["distance_m"], 144.3, delta=1)
+            self.assertTrue(180 < state["navigation"]["bearing"] < 220)
+
+    def test_travel_distinguishes_jumps_body_approach_and_surface_heading(self):
+        self.launch()
+        module = self.core.modules["rhino"].instance
+        site = {"system":"Destination", "body":"Destination A 1", "latitude":0, "longitude":1, "radius_m":1000}
+        origin = {"system":"Origin", "star_pos":[0,0,0], "jump_range_now":30,
+                  "jump_range_laden":20, "jump_range":40, "status":{"vehicle":"ship"}}
+        result = module.travel(site, origin, {"x":0,"y":0,"z":30.004}, {})
+        self.assertEqual((result["stage"], result["distance_ly"], result["estimated_jumps"]), ("system", 30.0, 2))
+        self.assertIsNone(result["bearing"])
+        # SRV fuel must not masquerade as the mothership's current jump range.
+        origin["status"]["vehicle"] = "srv"
+        origin["jump_range_now"] = 200
+        result = module.travel(site, origin, [0,0,35], {})
+        self.assertEqual((result["estimated_jumps"], result["range_basis"]), (2, "laden"))
+        for coords in (None, [0,0,float("nan")], {"x":1}):
+            result = module.travel(site, origin, coords, {})
+            self.assertIsNone(result["distance_ly"])
+            self.assertIsNone(result["estimated_jumps"])
+        origin.update(system="destination", star_pos=None, jump_range_laden=None, jump_range=None)
+        result = module.travel(site, origin, None, {})
+        self.assertEqual((result["stage"], result["distance_ly"], result["estimated_jumps"]), ("body", 0, 0))
+        position = {"system":"Destination", "body":"Destination A 1", "timestamp":"2026-11-15T12:00:00Z",
+                    "latitude":0, "longitude":0, "radius_m":1000}
+        result = module.travel(site, origin, None, position, module.stamp(position["timestamp"]))
+        self.assertEqual(result["stage"], "surface")
+        self.assertEqual(result["bearing"], 90)
+        self.assertAlmostEqual(result["surface_distance_m"], 17.5, delta=.1)
+
+    def test_catalog_and_selected_site_share_live_travel_context(self):
+        self.launch()
+        self.core.store.update("journal", {"system":"Origin", "star_pos":[0,0,0], "jump_range":40})
+        with patch("elitelab.core.coords.CoordCache.get", return_value={"x":0,"y":0,"z":35}):
+            catalog = self.call("get_rhino_sites")["sites"]
+            target = next(s for s in catalog if s["id"] == "wregoe-iridium-31")
+            self.assertEqual(target["travel"]["distance_ly"], 35)
+            self.assertEqual(target["travel"]["estimated_jumps"], 1)
+            self.call("select_rhino_site", id=target["id"])
+            self.assertEqual(self.call()["selected_site"]["travel"], target["travel"])
 
     def test_departure_and_shutdown_clear_coordinates_without_losing_sites(self):
         self.launch(); site = self.save()
@@ -281,7 +604,8 @@ class RhinoTests(unittest.TestCase):
         self.assertEqual(next(s for s in self.call()["sites"] if s["id"] == original["id"]), original)
         restarted = Core(); loader.load_all(restarted); self.addCleanup(restarted.close); restarted.watcher.replay()
         after = restarted.http.tools["get_rhino_sites"].fn({})["sites"]
-        self.assertEqual(next(s for s in after if s["id"] == original["id"]), report)
+        actual = next(s for s in after if s["id"] == original["id"])
+        self.assertEqual({k:v for k,v in actual.items() if k != "travel"}, report)
 
     def test_bookmarks_start_unconfirmed_and_moving_one_invalidates_its_report(self):
         self.launch(); site = self.save()
