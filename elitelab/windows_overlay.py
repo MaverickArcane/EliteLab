@@ -449,5 +449,3 @@ def run(feed, preferences, demo=False, close_after=0, activity=None, requested_a
         for value in fonts.values():
             delete(value)
         close_handle(mutex)
-
-

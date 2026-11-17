@@ -6,6 +6,7 @@ import path from 'node:path';
 import http from 'node:http';
 import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
+import {waitForChromePage} from './chrome-ready.mjs';
 
 const fetch=(url,options={})=>globalThis.fetch(url,{...options,headers:{Connection:'close',...options.headers}});
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -39,11 +40,8 @@ try {
   chrome=spawn(process.env.CHROME_BIN||(process.platform==='win32'?'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe':'google-chrome'),
     ['--headless=new','--no-sandbox','--disable-gpu','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
   const debugFile=path.join(profile,'DevToolsActivePort');
-  for(let i=0;i<200&&!fs.existsSync(debugFile);i++)await sleep(100);
-  assert.ok(fs.existsSync(debugFile),'Chrome did not start');
-  const debugPort=Number(fs.readFileSync(debugFile,'utf8').split('\n')[0]);
-  const tabs=await(await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
-  ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);
+  const page=await waitForChromePage(chrome,debugFile);
+  ws=new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((resolve,reject)=>{ws.onopen=resolve;ws.onerror=reject;});
   let sequence=0; const pending=new Map(),errors=[];
   ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);pending.delete(m.id);m.error?p.reject(m.error):p.resolve(m.result);}else if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails);};
