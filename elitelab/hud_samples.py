@@ -1,0 +1,46 @@
+"""Synthetic examples for the labeled demo window and native acceptance checks."""
+from datetime import datetime, timezone
+
+NOW = datetime.now(timezone.utc).isoformat()
+JOURNAL = {'ship': 'Python', 'ship_name': 'Sample hauler', 'system': 'Sample A', 'credits': 12000000,
+           'jump_range_now': 32.5, 'cargo_capacity': 128, 'hull_health': .92, 'hull_at': NOW,
+           'game_running': True, 'status': {'timestamp': NOW, 'fuel_at': NOW, 'fuel': 18.5,
+           'shields_up': True, 'vehicle': 'ship', 'hardpoints': True},
+           'cargo': {'count': 84, 'items': [{'name': 'Gold', 'count': 84}]},
+           'feed': [{'event': 'FSDJump', 'text': 'Arrived in Sample A', 'ts': NOW}],
+           'market': {'station': 'Sample Market', 'system': 'Sample A', 'timestamp': NOW,
+                      'commodities': [{}, {}], 'rares_in_stock': [{'stock': 12}]}}
+
+SAMPLES = {
+    **{key: JOURNAL for key in ('overview', 'cargo', 'market', 'combat', 'feed')},
+    'flight': {'status': 'plotted', 'next_system': 'Sample B', 'destination': 'Sample D', 'remaining_jumps': 3,
+               'current_location': {'system': 'Sample A'}, 'remaining_distance_ly': 83.7, 'remaining_route': [{'star_class': 'K'}]},
+    'loop': {'name': 'Sample rares loop', 'next': {'station': 'Sample Port', 'system': 'Sample B', 'dist': 38},
+             'done_count': 2, 'stations': [{}, {}, {}, {}], 'tons_total': 42, 'workflow': {'free_capacity': 86}},
+    'personal': {'plan': {'profit': 2600000}, 'progress': {'stage': 'travel_sell', 'title': 'Travel to sell',
+                 'action': 'Travel', 'next': {'system': 'Sample B', 'station': 'Sample Port'}, 'quantity': 84, 'leg': 0, 'leg_count': 2}},
+    'selling': {'plan': {'next_stop': {'system': 'Sample B', 'station': 'Sample Port', 'sales': [{'remaining': 84}]}, 'stops': [{}]}},
+    'hauling': {'mode': 'host', 'desk': {'commodity': 'Gold', 'phase': 'loading', 'action': 'deliver', 'quantity': 84,
+                'delivery': {'system': 'Sample B', 'station': 'Sample Carrier'}, 'aboard': 84, 'capacity': 128, 'cargo_count': 84}},
+    'trade': {'plan': {'commodity': 'Gold', 'mode': 'load', 'target': 2000}, 'calculation': {'remaining': 800, 'stock': 1200, 'runs': 7, 'next_load': 128}},
+    'ptn': {'plan': {'commodity': 'Gold'}, 'operation': {'phase': 'loading', 'remaining': 1200, 'runs': 10,
+             'buy': {'system': 'Sample B', 'station': 'Sample Port'}, 'pricing': {'loading_per_ton': 20000}, 'ready': True}},
+    'carrier': {'carrier': {'pinned': None}, 'journal': {'carrier': {'name': 'Sample Carrier', 'callsign': 'ABC-123',
+                 'system': 'Sample B', 'fuel': 750, 'free_space': 8000, 'docking': 'All', 'stats_time': NOW}}},
+    'powerplay': {'power': 'Sample Power', 'session_merits': 5400, 'merits': 24200, 'rank': 12, 'cycle_hours_left': 28.3},
+    'merits': {'session_merits': 5400, 'per_hour': 3600, 'per_hour_earning': 4200, 'last_hour': 3200, 'unattributed': 200},
+    'targets': {'targets': {'last': {'results': [{'system': 'Sample B', 'station': 'Sample Port', 'dist': 38, 'jumps': 2}]}}},
+    'materials': {'session': {'gained': 186, 'last_gain': {'name': 'Tellurium', 'count': 3}, 'totals': {'Raw': 93, 'Manufactured': 57, 'Encoded': 36}}},
+    'wishlist': {'wishlist': {'inventory_known': True, 'summary': {'entries': 3, 'short': 2, 'units_short': 12}, 'needs': [{'need': 40}]}},
+    'build': {'pinned': {'name': 'Sample explorer'}, 'progress': {'same_ship': True, 'target_ship': 'Python',
+               'completion_known': True, 'percent': {'overall': 75}, 'totals': {'to_engineer': 3, 'to_buy': 1}, 'materials_short': 2}},
+    'engineers': {'engineers': [{'engineer': 'Sample engineer', 'access': {'unlocked': True, 'progress': 'Unlocked'}},
+                               {'engineer': 'Another engineer', 'access': {'progress': 'Invited'}}]},
+    'synthesis': {'boost': {'status': 'observed', 'observed_at': NOW}, 'injections': [{'grade': 'basic', 'craftable': 12},
+                    {'grade': 'standard', 'craftable': 7}, {'grade': 'premium', 'craftable': 3}]},
+    'missions': {'cargo_current': True, 'missions': [{'mission_id': 1, 'name': 'Deliver Gold', 'expiry': NOW,
+                  'remaining_to_deliver': 24, 'aboard_allocated': 18, 'shortfall': 6, 'hand_in': {'system': 'Sample B', 'station': 'Sample Port'}}]},
+    'neutron': {'route': {'request': {'to': 'Sample D'}}, 'navigation_status': 'on_route', 'remaining_waypoints': 6,
+                'next_waypoint': {'system': 'Sample Neutron', 'distance_from_previous_ly': 154}, 'ship': {'suggested_range_ly': 42}},
+    'history': {'total_ly': 1250, 'jumps': 37, 'systems': [{}] * 29, 'days': 1},
+}

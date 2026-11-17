@@ -2,6 +2,7 @@
    Modules load their card scripts from /modules/<name>/... and call Lab.card({...}) / Lab.map.addLayer(...). No build step. */
 'use strict';
 import {StateFeed} from './state-feed.js';
+import {initHud, addHudButton} from './hud.js';
 (() => {
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fmt = n => (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString();
@@ -49,6 +50,7 @@ import {StateFeed} from './state-feed.js';
 
   document.body.addEventListener('click', e => { const b = e.target.closest('[data-copy]'); if (b) { Lab.util.copy(b.dataset.copy); const t = b.textContent; b.textContent = 'copied'; setTimeout(() => b.textContent = t, 900); } });
 
+  initHud((message, kind) => Lab.toast(message, kind));
   // header
   const stopHeader=Lab.on('journal', S => { const j = S.journal || {}; document.getElementById('h-cmdr').textContent = j.cmdr || '—'; document.getElementById('h-ship').textContent = [j.ship, j.ship_name, j.ship_ident].filter(Boolean).join(' · ') || '—'; document.getElementById('h-credits').textContent = fmt(j.credits); document.getElementById('h-ver').textContent = j.game_version || '—'; const live = document.getElementById('h-live'); if (j.last_event_time) live.textContent = 'live · ' + j.last_event_time.replace('T', ' ').replace('Z', ' UTC'); });
 
@@ -156,6 +158,8 @@ import {StateFeed} from './state-feed.js';
     const sec = document.createElement('section'); sec.className = 'card'; sec.id = 'card-' + c.id; sec.dataset.id = c.id;
     if (layout.collapsed.includes(c.id) || (workspace==='trade'&&c.id==='personal')) sec.classList.add('collapsed');
     sec.innerHTML = `<h2><span class="grip" title="drag to move">⋮⋮</span><span class="title">${esc(c.title)}</span><span class="mod">${esc(c.module)}</span><span class="right"></span><span class="tools"><button class="icon" data-act="collapse" title="collapse">–</button><button class="icon" data-act="hide" title="hide">×</button></span></h2><div class="body"></div><div class="resize" title="drag to resize"></div>`;
+    // The catalog promise resolves after this synchronous mount attaches the card.
+    addHudButton(sec);
     if(c.sources?.length){const footer=document.createElement('div');footer.className='card-sources note';footer.innerHTML='Sources: '+c.sources.filter(s=>/^https:\/\//.test(s.url)).map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.label)}</a>`).join(' | ');sec.querySelector('.body').after(footer);}
     applySpan(sec, spanOf(c));
     if ((layout.heights || {})[c.id]) applyHeight(sec, layout.heights[c.id]);

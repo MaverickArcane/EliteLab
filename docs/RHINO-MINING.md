@@ -11,6 +11,136 @@ progress; when first opened from Mining it selects **gained this session**.
 Those gains include pickups, mission rewards and trader receipts since game
 login, not only Rhino output.
 
+## Single-screen navigation overlay
+
+### Transparent Windows HUD
+
+Click **Open clear HUD** in the Rhino panel or **Open HUD** in the dashboard
+header. Allow the browser's external-app prompt if it appears. The Windows
+installer registers this launcher; portable users can open **EliteLab HUD.vbs**.
+The **EliteLab HUD** desktop / Start Menu shortcut also opens or recovers it.
+Existing **Rhino Overlay** shortcuts still work. Source users can run
+`pythonw -m elitelab.overlay`. Keep EliteLab running; this HUD does not need the
+browser tab to stay open.
+
+The HUD is shared across EliteLab. The header's **Current activity** picker can
+open any activity, and **HUD** beside each panel title opens that panel's readout.
+Reopening changes the existing window's activity, then shows, pins and unlocks
+it. No extra overlay window is created. The native selector groups the views:
+
+| Group | Available readouts |
+|---|---|
+| Flight | Ship/location and live alerts, plotted next jump, cargo, last market report, combat shield/last hull status, neutron waypoints, 24-hour travel, recent event |
+| Mining | Automatic Rhino approach/progress, surface compass, Rhino collections, last prospector report |
+| Trade | Rare loop next stop, selected trade route, cargo sale plan, personal crew run, carrier job, PTN order progress, followed/owned carrier |
+| Powerplay | Recorded session/total merits, merit pace, first candidate from the last buyer search |
+| Engineering | Material collection, wishlist budget, pinned build progress, reviewed engineer access, FSD synthesis availability |
+| Missions | Earliest-deadline mission, allocated cargo and remaining delivery |
+
+Farming opens material collection; recipes open their wishlist budget; the map
+opens the plotted ship route. These panels' browser-only selections are not
+treated as saved HUD targets. Engineer access covers the reviewed catalog, not
+every engineer in the game. A buyer search result is a candidate, not a selected
+destination. This release does not implement asteroid route books; see the
+[future mapped-mining investigation](MAPPED-MINING-RESEARCH.md).
+
+Only the selected view is polled, using existing local read endpoints. No HUD
+view starts market searches, changes plans, joins parties or posts adverts.
+Slow-changing views poll less often. Disconnected or unavailable data pauses
+readouts; stale game Status pauses combat flags. Cargo and hull retain explicit
+last-report labels. A changed ship/fit suppresses neutron guidance, and a wrong
+ship suppresses build completion. Current settings live in `data/overlay.json`;
+older Rhino settings migrate on first launch. Errors go to `data/logs/overlay.log`.
+
+`web/hud-modes.json` supplies the shared activity labels and panel mapping.
+`elitelab/hud_activities.py` maps local API responses into `hud_model.Card`;
+`overlay.py` owns polling and validated `elitelab-hud:open?mode=...` links;
+`windows_overlay.py` owns rendering and window controls. The protocol accepts
+only known mode IDs and never reads an arbitrary path or endpoint from a link.
+Source and portable users can select a view with `pythonw -m elitelab.overlay
+--mode flight`; the installer enables the dashboard protocol links.
+
+Use the activity selector beneath the header:
+
+- **Rhino - automatic**: directions on approach, then collection progress during
+  an active deployment within 25 m of the point, or within 2 km after collecting
+  ore. Mining without a selected destination also shows progress after collecting.
+  Once arrival is observed, progress stays visible while GPS is quiet during
+  processing. Changing commander, deployment or target resets that memory;
+  fresh GPS at least 2.5 km away, a different body/system, or the end of the
+  deployment returns to navigation. A connection failure still hides readouts.
+  Rig processing percentages/timers are not reported; totals advance on collection
+  receipts. Arrival memory lasts for the running HUD; it does not invent arrival
+  when opened with stale GPS.
+- **Surface navigation**: keep the prominent STEER bearing, turn instruction and
+  rotating compass visible. Choose the target in **Locations > Navigate**.
+- **Rhino mining progress**: collected and unloaded tonnes, Rhino hold gauge,
+  free ship space, deployment average and a low-space warning. Totals cover the
+  deployment across deposits; they do not measure reserves or individual rigs.
+- **Mining readouts**: the last dated prospector composition, remaining percentage
+  from that report, refined session tonnes and average rate. These are journal
+  reports, not live rock identification or mapped-asteroid navigation.
+
+The native window has no border or Windows title bar. Its background starts
+fully transparent and it starts pinned above normal windows. Controls in the
+small header are:
+
+- **PINNED / PIN**: turn always-on-top on or off.
+- **LOCK**: pass all clicks through to the game. Ctrl+Alt+L toggles it.
+- **MENU**: clear/shaded background, opacity in 10% steps, activity and hide.
+- **X**: close only the HUD. Drag **ELITELAB / HUD** to reposition it.
+- **Ctrl+Alt+H**: hide/show. **Ctrl+Alt+R**: show, pin and unlock.
+
+The large **STEER** readout is the target compass heading; the turn instruction
+or **On course** sits beneath it. **YOUR HEADING** shows the vehicle's current heading.
+The compass rose rotates with that heading, while its arrow points toward the
+saved target. Text uses grayscale antialiasing and a light shadow for contrast.
+
+Right-click a visible part for the same controls. Position, pin, background and
+opacity and activity are saved locally. Reopening the shortcut recovers the
+existing HUD, showing it pinned and unlocked. Lock is never persisted. If the
+recovery hotkey is already taken, Lock is disabled and the footer says so.
+Clear mode also removes control and header fills, leaving just outlines and
+labels. Click a label or outline to operate a control or drag the header;
+transparent pixels pass mouse clicks through. The HUD shows without activating or taking keyboard focus.
+Use Elite's Borderless or Windowed display mode. Exclusive fullscreen still
+needs switching modes. Readouts use the same saved target and GPS guards as the
+browser overlay, with a local authenticated read-only feed. Rig detection and
+terrain routing are not available.
+
+The implementation uses the built-in [Windows layered window APIs](https://learn.microsoft.com/en-us/windows/win32/winmsg/window-features)
+through Python's standard library; no extra GUI package is installed.
+
+### Browser overlay
+
+In **Locations**, choose **Navigate** on a saved deposit. Return to **Mining**
+and click **Browser overlay**. A small always-on-top window shows:
+
+- A forward-relative arrow and the shortest left/right turn toward the target.
+- Surface distance, target compass bearing, current heading and last reported Rhino cargo.
+- A green **On course** cue within 5 degrees, then **At saved spot** within 25 m.
+- Clear waiting, travel and disconnected states, with no stale steering arrow.
+
+Drag the window's title bar to an unused corner, resize it, or choose **Compact**.
+Keep the dashboard tab open; switching its workspace does not stop the overlay.
+Changing the selected deposit updates the overlay automatically. Closing or
+reloading the dashboard closes the overlay; open it again from the Rhino panel.
+The selected target works in either the main ship or the SRV near the surface.
+
+Use a browser with [Document Picture-in-Picture](https://developer.chrome.com/docs/web-platform/document-picture-in-picture),
+such as current Chrome or Edge, on localhost (or HTTPS). Unsupported browsers
+show an explanation when you click the button. This is a browser window, so use
+Elite's **Borderless** or **Windowed** display mode. It is not click-through;
+place it away from controls. Exclusive fullscreen and in-game rendering are not
+supported by this version. In-game foreground behavior still needs a play test.
+
+The overlay reads the existing Rhino endpoint once per second while open and
+clears directions if that connection fails. It requires fresh, same-body GPS
+(the existing 120-second limit). Missing vehicle heading shows a numeric compass
+bearing without a relative arrow. Directions lead to the saved area, not a
+terrain-safe route or a detected rig. Unconfirmed and depleted reports remain
+visible; the overlay cannot detect reserves or rigs.
+
 ## Watch a deployment
 
 Launching a player-controlled `mev_rhino` starts a new deployment. Each

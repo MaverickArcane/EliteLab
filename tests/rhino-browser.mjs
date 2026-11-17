@@ -6,6 +6,7 @@ import path from 'node:path';
 import http from 'node:http';
 import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
+import {waitForChromePage} from './chrome-ready.mjs';
 
 const fetch=(url,options={})=>globalThis.fetch(url,{...options,headers:{Connection:'close',...options.headers}});
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -39,11 +40,8 @@ try {
   chrome=spawn(process.env.CHROME_BIN||(process.platform==='win32'?'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe':'google-chrome'),
     ['--headless=new','--no-sandbox','--disable-gpu','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
   const debugFile=path.join(profile,'DevToolsActivePort');
-  for(let i=0;i<200&&!fs.existsSync(debugFile);i++)await sleep(100);
-  assert.ok(fs.existsSync(debugFile),'Chrome did not start');
-  const debugPort=Number(fs.readFileSync(debugFile,'utf8').split('\n')[0]);
-  const tabs=await(await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
-  ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);
+  const page=await waitForChromePage(chrome,debugFile);
+  ws=new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((resolve,reject)=>{ws.onopen=resolve;ws.onerror=reject;});
   let sequence=0; const pending=new Map(),errors=[];
   ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);pending.delete(m.id);m.error?p.reject(m.error):p.resolve(m.result);}else if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails);};
@@ -62,6 +60,93 @@ try {
   await click('[data-workspace=mining]'); await wait("!!document.querySelector('[data-rhino-site-list]')");
   assert.equal(await evaluate("document.querySelector('#card-rhino').classList.contains('workspace-off')"),false);
   assert.equal(await evaluate("document.querySelector('#card-materials').classList.contains('workspace-off')"),false);
+  assert.equal(await evaluate("document.querySelector('[data-rhino-native-overlay]').textContent"),'Open clear HUD');
+  assert.equal(await evaluate("document.querySelector('header a[href=\"elitelab-hud:open\"]').textContent"),'Open HUD');
+  await wait("document.querySelectorAll('#hud-activity option').length===29");
+  await evaluate("document.querySelector('#hud-activity').value='flight';document.querySelector('#hud-activity').dispatchEvent(new Event('change'));true");
+  assert.equal(await evaluate("document.querySelector('#hud-open').getAttribute('href')"),'elitelab-hud:open?mode=flight');
+  const hudModes = JSON.parse(fs.readFileSync(path.join(root,'web/hud-modes.json'),'utf8'));
+  for (const workspace of ['overview','trade','materials','ptn','all']) {
+    await click(`[data-workspace=${workspace}]`);
+    await wait("[...document.querySelectorAll('.card[data-id]')].filter(c=>!c.classList.contains('workspace-off')).every(c=>c.querySelector('[data-hud-mode]'))");
+  }
+  for (const row of hudModes) for (const card of row.cards) {
+    const selector = `#card-${card} [data-hud-mode]`;
+    assert.equal(await evaluate(`document.querySelector(${JSON.stringify(selector)})?.getAttribute('href')`),`elitelab-hud:open?mode=${row.id}`);
+  }
+  await click('[data-workspace=overview]');
+  assert.ok(await evaluate("document.querySelector('#card-ship [data-hud-mode]').getBoundingClientRect().width>0"),'Panel HUD button is hidden');
+  const globalShot = await send('Page.captureScreenshot',{format:'png'});
+  fs.writeFileSync(path.join(output,'hud-global-desktop.png'),Buffer.from(globalShot.data,'base64'));
+  await send('Emulation.setDeviceMetricsOverride',{width:420,height:900,deviceScaleFactor:1,mobile:true});
+  await sleep(250);
+  assert.ok(await evaluate('document.body.scrollWidth')<=420,'HUD launcher causes narrow-screen overflow');
+  const narrowShot = await send('Page.captureScreenshot',{format:'png'});
+  fs.writeFileSync(path.join(output,'hud-global-narrow.png'),Buffer.from(narrowShot.data,'base64'));
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
+  await click('[data-workspace=mining]');
+  // A real browser PiP window, launched with user activation (no fake window API).
+  await evaluate("import('/modules/rhino/overlay.js').then(m => {window.rhinoOverlayModule=m;return true;})");
+  await send('Runtime.evaluate',{expression:"document.querySelector('[data-rhino-overlay]').click()",userGesture:true});
+  await wait("!!documentPictureInPicture.window?.document.querySelector('[data-status]')");
+  const overlayText = field => evaluate(`documentPictureInPicture.window.document.querySelector('[data-${field}]').textContent`);
+  await wait("documentPictureInPicture.window.document.querySelector('[data-instruction]').textContent==='Choose a mining spot'");
+  await evaluate("Lab.post('/api/rhino/sites/select',{id:'shinrarta-tritium'})");
+  fs.writeFileSync(path.join(journals,'Status.json'),JSON.stringify({...status,timestamp:new Date().toISOString(),Heading:160}));
+  await wait("documentPictureInPicture.window.document.querySelector('[data-status]').textContent==='SURFACE GPS'");
+  assert.match(await overlayText('instruction'),/Turn right/);
+  assert.equal(await overlayText('heading'),'160\u00b0');
+  await evaluate("window.rhinoTestFetch=documentPictureInPicture.window.fetch;documentPictureInPicture.window.fetch=()=>Promise.reject(new Error('Fixture disconnect'));true");
+  await wait("documentPictureInPicture.window.document.querySelector('[data-status]').textContent==='OFFLINE'");
+  assert.equal(await overlayText('distance'),'--');
+  assert.equal(await evaluate("documentPictureInPicture.window.document.querySelector('[data-arrow]').hasAttribute('hidden')"),true);
+  await evaluate("documentPictureInPicture.window.fetch=window.rhinoTestFetch;true");
+  await wait("documentPictureInPicture.window.document.querySelector('[data-status]').textContent==='SURFACE GPS'");
+  // Switching workspaces must not stop the overlay's independent data feed.
+  await click('[data-workspace=overview]');
+  fs.writeFileSync(path.join(journals,'Status.json'),JSON.stringify({...status,timestamp:new Date().toISOString(),Heading:230}));
+  await wait("documentPictureInPicture.window.document.querySelector('[data-heading]').textContent==='230\u00b0'");
+  assert.match(await overlayText('instruction'),/Turn left/);
+  await evaluate("documentPictureInPicture.window.document.querySelector('[data-compact]').click();true");
+  assert.equal(await evaluate("documentPictureInPicture.window.document.querySelector('[data-compact]').getAttribute('aria-pressed')"),'true');
+  // Save the actual HUD renderer at normal and compact sizes with synthetic data.
+  const preview=await send('Runtime.evaluate',{expression:`(async()=>{
+    const frame=document.createElement('iframe');frame.id='overlay-capture';frame.style='position:fixed;inset:0;z-index:999999;width:370px;height:390px;border:0';document.body.append(frame);
+    const render=window.rhinoOverlayModule.mountOverlay(frame.contentDocument);
+    const data=await Lab.api('/api/rhino');render(data);return true;
+  })()`,awaitPromise:true,returnByValue:true});
+  assert.equal(preview.exceptionDetails,undefined);
+  await sleep(250);
+  const hudShot=await send('Page.captureScreenshot',{format:'png',clip:{x:0,y:0,width:370,height:390,scale:1}});
+  fs.writeFileSync(path.join(output,'rhino-overlay.png'),Buffer.from(hudShot.data,'base64'));
+  await evaluate("document.querySelector('#overlay-capture').contentDocument.querySelector('[data-compact]').click();true");
+  const smallShot=await send('Page.captureScreenshot',{format:'png',clip:{x:0,y:0,width:370,height:242,scale:1}});
+  fs.writeFileSync(path.join(output,'rhino-overlay-compact.png'),Buffer.from(smallShot.data,'base64'));
+  // External strings remain text, and the small layout has no horizontal overflow.
+  await evaluate(`{const frame=document.querySelector('#overlay-capture');frame.style.width='280px';
+    const render=window.rhinoOverlayModule.mountOverlay(frame.contentDocument);
+    render({selected_site:{name:'<img src=x onerror=alert(1)>'.repeat(5),system:'Test',body:'Test A 1',commodity:'Tritium'}});}true`);
+  await sleep(100);
+  assert.equal(await evaluate("document.querySelector('#overlay-capture').contentDocument.querySelectorAll('img').length"),0);
+  assert.ok(await evaluate("document.querySelector('#overlay-capture').contentDocument.body.scrollWidth<=280"));
+  await evaluate("document.querySelector('#overlay-capture').remove();true");
+  // A departure clears guidance even when the saved target still exists.
+  append([{event:'LeaveBody',StarSystem:'Shinrarta Dezhra',Body:'Shinrarta Dezhra AB 2 j'}]);
+  await wait("documentPictureInPicture.window.document.querySelector('[data-distance]').textContent==='--'");
+  assert.equal(await evaluate("documentPictureInPicture.window.document.querySelector('[data-arrow]').hasAttribute('hidden')"),true);
+  await evaluate("documentPictureInPicture.window.close();true");
+  await wait('documentPictureInPicture.window===null');
+  // Reopening after close starts a new feed; repeated clicks reuse the window.
+  await send('Runtime.evaluate',{expression:"document.querySelector('[data-rhino-overlay]').click()",userGesture:true});
+  await wait("!!documentPictureInPicture.window?.document.querySelector('[data-status]')");
+  await evaluate("window.rhinoTestPip=documentPictureInPicture.window;true");
+  await send('Runtime.evaluate',{expression:"document.querySelector('[data-rhino-overlay]').click()",userGesture:true});
+  assert.equal(await evaluate('window.rhinoTestPip===documentPictureInPicture.window'),true);
+  await evaluate("documentPictureInPicture.window.close();true");
+  await evaluate("Lab.post('/api/rhino/sites/select',{id:''})");
+  await sleep(1100);
+  fs.writeFileSync(path.join(journals,'Status.json'),JSON.stringify({...status,timestamp:new Date().toISOString()}));
+  await click('[data-workspace=mining]');
   assert.equal(await evaluate("document.querySelector('#mat-view').value"),'gained');
   await wait("document.querySelector('.mat-list').textContent.includes('Iron')");
   assert.match(await evaluate("document.querySelector('.mat-session').textContent"),/Gained this session: \+3/);
@@ -252,7 +337,7 @@ try {
   assert.equal(await evaluate("Lab.state.rhino.summary.sites.some(s=>s.name==='Old draft')"),false);
   assert.deepEqual(await evaluate("[...document.querySelectorAll('.render-error')].map(e=>e.textContent)"),[]);
   assert.deepEqual(errors,[]);assert.doesNotMatch(serverLog,/Traceback|handler failed/);
-  console.log('Rhino browser passed: confirmed/unconfirmed catalog, sources, report/persistence, live collection/holds, transfer continuity, contextual help, navigation, save/edit, stable drafts, escaping, Materials gains, guide/retry/shortcuts, stale position and desktop/mobile. Screenshots: '+output);
+  console.log('Rhino browser passed: real PiP overlay, live turns, disconnect/reconnect, departure, workspace changes, compact/reopen, catalog, report/persistence, live collection/holds, navigation, stable drafts, escaping, Materials gains, guide/retry, stale position and desktop/mobile. Screenshots: '+output);
   await send('Browser.close').catch(()=>{});
 } finally {
   ws?.close();chrome?.kill();
