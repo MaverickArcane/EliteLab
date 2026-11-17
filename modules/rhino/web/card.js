@@ -1,4 +1,7 @@
 (() => {
+  // Load ahead of the click so opening the floating window retains user activation.
+  const overlayModule = import('./overlay.js');
+  overlayModule.catch(() => {}); // The launch button reports a load error.
   const {esc, fmt} = Lab.util;
   const coord = n => Number.isFinite(n) ? n.toFixed(4) : '--';
   const place = s => s.body.startsWith(s.system + ' ') ? s.body : `${s.system} / ${s.body}`;
@@ -32,7 +35,8 @@
         <div class="note" data-rhino-message role="status" aria-live="polite"></div>
         <div id="rhino-mining" role="tabpanel" aria-labelledby="rhino-tab-mining">
           <div data-rhino-navigation></div>
-          <div class="rhino-toolbar"><button data-rhino-tab-open="spots">Choose a spot</button><button data-rhino-save-here>Save this location</button></div>
+          <div class="rhino-toolbar"><button data-rhino-tab-open="spots">Choose a spot</button><button data-rhino-save-here>Save this location</button><button data-rhino-native-overlay>Open clear HUD</button><button data-rhino-overlay>Browser overlay</button></div>
+          <div class="note">Windows: Open clear HUD for a transparent, pinnable overlay. Rhino - automatic shows directions on approach, then your mining progress nearby. Choose Surface navigation in the HUD to bring the compass back. Use Borderless or Windowed game mode.</div>
           <div data-rhino-haul></div>
           <div data-rhino-holds class="rhino-holds"></div>
           <div data-rhino-help class="rhino-help"></div>
@@ -146,6 +150,16 @@
       el.addEventListener('click', event => {
         const button = event.target.closest('button');
         if (!button) return;
+        if (button.hasAttribute('data-rhino-native-overlay')) {
+          window.location.href = 'elitelab-hud:open?mode=surface';
+          message('Allow EliteLab HUD to open if your browser asks. If it stays closed, use the EliteLab HUD desktop or Start Menu shortcut. Browser overlay is also available.');
+        }
+        if (button.hasAttribute('data-rhino-overlay')) {
+          button.disabled = true;
+          overlayModule.then(({openOverlay}) => openOverlay())
+            .catch(error => message(error.message || String(error), true))
+            .finally(() => { button.disabled = false; });
+        }
         if (button.dataset.rhinoTab) tab(button.dataset.rhinoTab);
         if (button.dataset.rhinoTabOpen) tab(button.dataset.rhinoTabOpen);
         if (button.dataset.rhinoHelpTopic) {

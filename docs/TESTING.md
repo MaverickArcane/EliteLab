@@ -1,5 +1,36 @@
 # Testing
 
+Native Rhino HUD: `python -m unittest discover -s tests -p test_rhino_overlay.py -v`
+checks navigation, stale telemetry, unknown cargo and preference persistence.
+`python -m unittest discover -s tests -p test_overlay.py -v` checks automatic
+arrival/progress, deployment totals, dated prospector reports, mode changes,
+late replies and stale/disconnected readouts. Quiet-GPS regression cases keep
+observed Rhino arrival through processing, including before the first receipt,
+and reset it for commander/deployment/target changes, departure and run end.
+`python -m unittest discover -s tests -p test_hud_activities.py -v` checks the
+shared activity catalog covers every dashboard card, rejects invalid launch
+links, preserves unknown quantities, pauses stale combat/crew telemetry and
+invalid route/build guidance, and exercises polling through a real local HTTP
+server including unavailable modules. The browser check also verifies every
+panel's HUD link, the global activity picker and narrow-screen layout.
+On Windows, `python scripts/smoke_rhino_overlay.py` launches a labeled synthetic
+HUD and inspects real HWND styles: no frame/caption, transparent background,
+pin/unpin, opacity, clear/shaded modes, click-through lock, hide/recovery hotkeys,
+all activities, duplicate launch and close. Demo hotkeys include Shift to avoid
+conflicting with the player's HUD. The smoke test
+uses isolated settings and captures `artifacts/rhino/rhino-native.png`; it never
+closes the player's HUD or changes their settings. Actual game foreground and
+terrain legibility remain a play test.
+
+Rhino overlay: `node tests/rhino-overlay.mjs` checks north-crossing turns,
+alignment, arrival, absent heading, stale/future GPS, wrong body/system and
+disconnected states. `node tests/rhino-browser.mjs` opens a real Document PiP
+window with user activation and checks live headings, disconnect/recovery,
+departure, workspace switches, compact mode, close/reopen and duplicate launches.
+It captures the same HUD renderer with synthetic data as `rhino-overlay.png`
+and `rhino-overlay-compact.png`, including a narrow-layout and text-escaping check.
+These are browser checks; borderless Elite foreground behavior needs a play test.
+
 Rhino mining: `python -m unittest discover -s tests -p test_rhino.py -v`
 and `node tests/rhino-browser.mjs` cover commander-local site persistence,
 surface navigation, legacy note preservation, input validation, escaping,

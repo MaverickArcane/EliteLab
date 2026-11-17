@@ -1,0 +1,223 @@
+[
+  {
+    "id": "overview",
+    "label": "Ship and location",
+    "group": "Flight",
+    "cards": [
+      "location",
+      "ship",
+      "credits"
+    ]
+  },
+  {
+    "id": "flight",
+    "label": "Plotted route",
+    "group": "Flight",
+    "cards": [
+      "map"
+    ]
+  },
+  {
+    "id": "cargo",
+    "label": "Cargo hold",
+    "group": "Flight",
+    "cards": [
+      "cargo"
+    ]
+  },
+  {
+    "id": "market",
+    "label": "Local market",
+    "group": "Flight",
+    "cards": [
+      "market"
+    ]
+  },
+  {
+    "id": "combat",
+    "label": "Combat telemetry",
+    "group": "Flight",
+    "cards": [
+      "combat"
+    ]
+  },
+  {
+    "id": "neutron",
+    "label": "Neutron highway",
+    "group": "Flight",
+    "cards": [
+      "neutron"
+    ]
+  },
+  {
+    "id": "history",
+    "label": "Travel history",
+    "group": "Flight",
+    "cards": [
+      "history"
+    ]
+  },
+  {
+    "id": "feed",
+    "label": "Recent activity",
+    "group": "Flight",
+    "cards": [
+      "feed"
+    ]
+  },
+  {
+    "id": "surface",
+    "label": "Rhino - automatic",
+    "group": "Mining",
+    "cards": [
+      "rhino"
+    ]
+  },
+  {
+    "id": "navigation",
+    "label": "Surface navigation",
+    "group": "Mining",
+    "cards": []
+  },
+  {
+    "id": "rhino",
+    "label": "Rhino mining progress",
+    "group": "Mining",
+    "cards": []
+  },
+  {
+    "id": "mining",
+    "label": "Mining readouts",
+    "group": "Mining",
+    "cards": [
+      "mining"
+    ]
+  },
+  {
+    "id": "loop",
+    "label": "Rare goods loop",
+    "group": "Trade",
+    "cards": [
+      "loop"
+    ]
+  },
+  {
+    "id": "personal",
+    "label": "Trading",
+    "group": "Trade",
+    "cards": [
+      "personal"
+    ]
+  },
+  {
+    "id": "selling",
+    "label": "Sell cargo",
+    "group": "Trade",
+    "cards": [
+      "selling"
+    ]
+  },
+  {
+    "id": "hauling",
+    "label": "My hauling run",
+    "group": "Trade",
+    "cards": [
+      "haul",
+      "party"
+    ]
+  },
+  {
+    "id": "trade",
+    "label": "Carrier job",
+    "group": "Trade",
+    "cards": [
+      "trade"
+    ]
+  },
+  {
+    "id": "ptn",
+    "label": "PTN operation",
+    "group": "Trade",
+    "cards": [
+      "ptn"
+    ]
+  },
+  {
+    "id": "carrier",
+    "label": "Fleet carrier",
+    "group": "Trade",
+    "cards": [
+      "carrier"
+    ]
+  },
+  {
+    "id": "powerplay",
+    "label": "Powerplay merits",
+    "group": "Powerplay",
+    "cards": [
+      "powerplay"
+    ]
+  },
+  {
+    "id": "merits",
+    "label": "Merit pace",
+    "group": "Powerplay",
+    "cards": [
+      "merits"
+    ]
+  },
+  {
+    "id": "targets",
+    "label": "Powerplay buyers",
+    "group": "Powerplay",
+    "cards": [
+      "targets"
+    ]
+  },
+  {
+    "id": "materials",
+    "label": "Material collection",
+    "group": "Engineering",
+    "cards": [
+      "materials",
+      "farming"
+    ]
+  },
+  {
+    "id": "wishlist",
+    "label": "Materials / recipe wishlist",
+    "group": "Engineering",
+    "cards": [
+      "wishlist",
+      "recipes"
+    ]
+  },
+  {
+    "id": "build",
+    "label": "Ship build progress",
+    "group": "Engineering",
+    "cards": [
+      "build"
+    ]
+  },
+  {
+    "id": "engineers",
+    "label": "Engineer access",
+    "group": "Engineering",
+    "cards": []
+  },
+  {
+    "id": "synthesis",
+    "label": "FSD synthesis",
+    "group": "Engineering",
+    "cards": []
+  },
+  {
+    "id": "missions",
+    "label": "Mission supplies",
+    "group": "Missions",
+    "cards": [
+      "missions"
+    ]
+  }
+]

@@ -47,6 +47,8 @@ def build(output, runtime_zip=None):
             shutil.copyfile(ROOT / name, app / name)
         (app / ".windows-bundle").write_text("Windows portable bundle\n", encoding="ascii")
         shutil.copyfile(ROOT / "scripts" / "launch_desktop.vbs", app / "Launch EliteLab.vbs")
+        shutil.copyfile(ROOT / "scripts" / "launch_rhino_overlay.vbs", app / "Rhino Overlay.vbs")
+        shutil.copyfile(ROOT / "scripts" / "launch_overlay.vbs", app / "EliteLab HUD.vbs")
         (app / "scripts").mkdir()
         shutil.copyfile(ROOT / "scripts" / "serve-loop.cmd", app / "scripts" / "serve-loop.cmd")
         (app / "START HERE.txt").write_text(
@@ -54,6 +56,8 @@ def build(output, runtime_zip=None):
             "1. Extract the entire ZIP to a folder you can write to.\n"
             "2. Double-click Launch EliteLab.vbs. Python is included.\n"
             "3. Use Quit in the dashboard or tray menu to stop EliteLab.\n"
+            "Open EliteLab HUD.vbs for the transparent activity overlay.\n"
+            "The installer also enables Open HUD inside the dashboard.\n"
             "Start at sign-in is optional and off by default in the tray menu.\n\n"
             "Choose journals in setup, Save, then Restart if requested.\n"
             "Next time, double-click Launch EliteLab.vbs.\n"

@@ -710,3 +710,9 @@ body[data-active-workspace=ship] #card-ship{grid-column:1/-1!important}
   .rhino-direction { font-size:18px; }
   .rhino-holds { grid-template-columns:1fr; gap:4px; }
 }
+
+/* Global HUD launch controls remain available in every workspace. */
+.hud-launcher{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#hud-activity{max-width:185px;font-size:12px}
+.hud-card-launch{padding:3px 5px;white-space:nowrap;text-decoration:none;border:1px solid var(--line);border-radius:3px;flex-shrink:0}
+.hud-launcher .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
