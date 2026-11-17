@@ -144,7 +144,38 @@
       </aside></div></div>`;
   }
 
+  const saleRow=(u,d)=>(d.sale_cargo||[]).find(row=>row.commodity===u.saleDraft?.sale_commodity);
+  const saleTotal=u=>{const q=Number(u.saleDraft?.sale_quantity),p=Number(u.saleDraft?.sale_price);return Number.isSafeInteger(q)&&q>0&&Number.isSafeInteger(p)&&p>0?money(q*p):'Enter tonnes and price';};
+
+  function salePane(u,d){
+    const s=u.saleDraft||{},r=saleRow(u,d),c=d.context||{},rows=d.sale_cargo||[];
+    return `<div class="ptn-sale-layout"><form data-ptn-sale class="ptn-flight-checks"><h3>Sell from your carrier hold</h3>
+      <p class="note">Choose cargo, set your price, then copy your sale advert.</p>
+      <label>Sale type<select name="sale_kind"><option value="direct_sale" ${s.sale_kind!=='unloading'?'selected':''}>Direct carrier sale</option><option value="unloading" ${s.sale_kind==='unloading'?'selected':''}>Haulers unload to a station</option></select></label>
+      <label>Commodity<select name="sale_commodity" required><option value="">Choose cargo</option>${s.sale_commodity&&s.sale_commodity!=='custom'&&!r?`<option value="${esc(s.sale_commodity)}" selected>${esc(s.sale_commodity)} / stock record unavailable</option>`:''}${rows.map(row=>`<option value="${esc(row.commodity)}" ${s.sale_commodity===row.commodity?'selected':''}>${esc(row.name)} / ${row.stock==null?'stock unknown':fmt(row.stock)+' t recorded'}</option>`).join('')}<option value="custom" ${s.sale_commodity==='custom'?'selected':''}>Enter another commodity</option></select></label>
+      ${s.sale_commodity==='custom'?`<label>Commodity name<input name="sale_name" value="${esc(s.sale_name||'')}" maxlength="80" required></label>`:''}
+      <p class="note">${r?`${r.stock==null?'Stock unknown':fmt(r.stock)+' t last recorded'} &middot; ${esc(age(r.observed_at))}. ${esc(r.source||'Carrier inventory')}.`:'Uses your carrier hold. Enter another commodity if it has not appeared in the journal yet.'}</p>
+      <div class="ptn-fields">${field('sale_quantity','Tonnes to sell',s.sale_quantity??'',1,25000)}${field('sale_price','Your selling price / Cr per t',s.sale_price??'',1)}</div>
+      ${r?.sell_price?`<small class="muted">Last sell order: ${money(r.sell_price)}/t &middot; ${esc(age(r.order_observed_at))}. Set the price you want to offer.</small>`:''}
+      <label>Pickup system<input name="sale_system" value="${esc(s.sale_system||'')}" maxlength="160" required></label>
+      <small class="muted">Carrier location: ${esc(c.system||'Unknown')}. Change pickup if you are planning to move.</small>
+      ${s.sale_kind==='unloading'?`<label>Buyer station<input name="sale_station" value="${esc(s.sale_station||'')}" maxlength="160" required></label>${field('sale_buyer_price','Buyer quote / Cr per t',s.sale_buyer_price??'',1)}<small class="muted">Buyer is in the pickup system. Enter its price or use a suggestion.</small>`:''}
+      <button type="submit" class="primary" ${u.busy||!c.carrier||!c.callsign?'disabled':''}>Generate sale advert</button>
+    </form><section class="ptn-sale-output"><div class="ptn-section-heading"><div><span class="k">${s.sale_kind==='unloading'?'Unloading draft':'Direct carrier sale'}</span><h3>Your advert</h3></div>${metric('Offer total',`<span data-ptn-sale-total>${saleTotal(u)}</span>`,'Gross proceeds if the full offer sells')}</div>
+      <div class="ptn-advert-preview"><span class="k">Copy-ready Markdown</span><pre data-ptn-sale-text>${esc(u.saleAdvert?.copy_text||'Choose your cargo, tonnes and price to generate an advert.')}</pre></div>
+      <div class="ptn-actions">${button('copy-sale','Copy sale advert','primary',u.busy||!u.saleAdvert)}</div>
+      <div data-ptn-sale-notes>${(u.saleAdvert?.notes||[]).map(note=>`<p class="note">${esc(note)}</p>`).join('')}</div>
+      <p class="note">Set your carrier sell order and docking access in game, then post the text yourself. Unloading drafts show estimated hauler profit from the buyer quote. Route advert keeps the checked affiliate workflow.</p>
+      <form data-ptn-sale-prices class="ptn-flight-checks"><h3>Suggested selling price</h3><div class="ptn-fields">${field('sale_payout','Leave haulers / Cr per t',s.sale_payout??20000,1,1000000)}${field('sale_radius','Buyer radius / Ly',s.sale_radius??500,1,1500)}</div><button type="submit" ${u.busy?'disabled':''}>Find price suggestions</button><small class="muted">Uses reported buyers for your commodity and tonnes. A suggestion includes a pickup system near the buyer.</small></form>
+      ${u.salePrices?`<div data-ptn-sale-quotes><p class="note">Buyer reports within ${fmt(u.salePrices.radius)} Ly of ${esc(u.salePrices.system)}. Check the quoted price before posting.</p>${u.salePrices.warnings.map(w=>`<p class="note">${esc(w)}</p>`).join('')}${u.salePrices.rows.length?u.salePrices.rows.map((q,i)=>`<article class="ptn-sale-quote"><b>${money(q.suggested_price)}/t ${q.percent==null?'(setting unknown)':`(${q.percent}%)`}</b><p>${esc(q.station)} / ${esc(q.system)} &middot; ${fmt(q.distance)} Ly &middot; ${q.jumps} jump minimum</p><p>Buyer ${money(q.price)}/t &middot; hauler ${money(q.hauler_profit)}/t<br>${volumeLabel(q,'sell')} &middot; L pads &middot; ${esc(age(q.observed_at))} &middot; ${esc(q.source)}</p><button type="button" data-ptn-sale-quote="${i}" ${u.busy?'disabled':''}>Use price &amp; pickup system</button></article>`).join(''):'<p class="note">No reported buyer supports this load and hauler margin within the radius. Adjust the search or enter your own price.</p>'}</div>`:''}
+    </section></div>`;
+  }
+
   function advertPane(u,d){
+    return `<div class="ptn-actions" aria-label="Advert type">${button('sale-mode','Sell from hold',u.advertMode==='sale'?'primary':'')}${button('route-mode','Route advert',u.advertMode==='route'?'primary':'')}</div>${u.advertMode==='sale'?salePane(u,d):routeAdvertPane(u,d)}`;
+  }
+
+  function routeAdvertPane(u,d){
     const p=d.plan,o=d.operation;
     if(!p)return `<div class="ptn-empty"><h3>Select and check a route before generating an advert.</h3>${button('find','Search routes','primary')}</div>`;
     return `<div class="ptn-advert-layout"><section><span class="k">Affiliate trade alert</span><h3>Generate trade advert</h3><p class="note">Discord Markdown using the confirmed prices and remaining order. Use /aco trade to generate the required string, review it, then paste in affiliate-trade-alerts.</p>
@@ -170,7 +201,7 @@
 
   Lab.card({id:'ptn',requires:['ptn','journal','trade'],
     mount(el){
-      const u=el._ptn={tab:ls.get('ptn.tab.v1','find'),prefs:{},data:{},draft:{},draftId:'',busy:false,near:false,targetOnly:false,status:'',advert:null,postLink:''};
+      const u=el._ptn={tab:ls.get('ptn.tab.v1','find'),prefs:{},data:{},draft:{},draftId:'',busy:false,near:false,targetOnly:false,status:'',advert:null,postLink:'',advertMode:'sale',saleDraft:{},saleAdvert:null};
       const draw=()=>{
         const d=u.data;if(!d.defaults)return;
         const active=document.activeElement,focus=el.contains(active)?active.name||active.dataset.ptnTab:null;
@@ -179,6 +210,11 @@
         const scrolls=['.ptn-content','.ptn-search','.ptn-opportunities'].map(selector=>[selector,sameTab?el.querySelector(selector)?.scrollTop||0:0]);
         const openDetails=new Set(sameTab?[...el.querySelectorAll('details[open][data-ptn-detail]')].map(node=>node.dataset.ptnDetail):[]);
         const c=d.context||{},o=d.operation,p=d.plan,best=d.result?.rows.find(row=>row.viable);
+        const saleOwner=JSON.stringify([c.commander,c.callsign]);
+        if(u.saleOwner!==saleOwner){const saved=ls.get('ptn.sale.v1',null);u.saleOwner=saleOwner;u.saleDraft=saved?.owner===saleOwner?{...saved.draft}:{};u.saleAdvert=null;u.salePrices=null;}
+        if(!u.saleDraft.systemEdited)u.saleDraft.sale_system=c.system||'';
+        const saleContext=JSON.stringify([saleOwner,c.carrier,c.system,d.sale_cargo]);
+        if(u.saleContext!==saleContext){u.saleContext=saleContext;u.saleAdvert=null;}
         if(u.handoffPlanId!==p?.id){u.handoffPlanId=p?.id;u.handoffStock='';u.stockCheck=null;u.quantityDraft=null;}
         if(u.postedPhase!==p?.id+':'+o?.phase){u.postedPhase=p?.id+':'+o?.phase;u.postLink=o?.posted?.link||'';}
         if(u.miningJobId!==d.mining_job?.id){u.miningJobId=d.mining_job?.id;u.miningDraft={};}
@@ -186,7 +222,7 @@
         if(draftId!==u.draftId||!u.draftDirty){if(draftId!==u.draftId)u.advert=null;u.draftId=draftId;u.draftDirty=false;u.draft={price:o?.order?.price??o?.pricing[o.phase==='unloading'?'carrier_sell':'carrier_buy']??'',remaining:o?.remaining??0,stock:o?.stock?.quantity??'',checks:{...o?.checks},sco:p?.sco!==false};}
         if(!tabs[u.tab])u.tab='find';
         el.innerHTML=`<div class="ptn-desk"><div class="ptn-hero"><div><h3>${esc(c.carrier||'Carrier not identified')}<span>${c.callsign?` (${esc(c.callsign)})`:''}</span></h3><p>${c.carrier?`Carrier location: ${esc(c.system||'Unknown')}`:'Open Carrier Management to identify your carrier.'}</p></div><div class="ptn-hero-state">${p?esc(p.stage):'No active plan'}</div></div>
-          ${p?.kind==='mining_unload'?`<div class="ptn-overview ptn-mining-overview">${metric('Unloading hauler payout',money(o.pricing.unloading_per_ton)+'/t','From the checked buyer and carrier sell prices','ptn-hauler')}${metric('Remaining public order',fmt(o.remaining)+' t',`${fmt(o.stock.quantity)} t checked stock; ${fmt(p.source.baseline_stock)} t retained`)}</div>`:`<div class="ptn-overview">${metric('Best route loading payout',best?paid(best.settings,'loading')?money(best.pricing.loading_per_ton)+'/t':'You haul':'Run a search',best?'Unloading: '+(paid(best.settings,'unloading')?money(best.pricing.unloading_per_ton)+'/t':'you haul'):'Both leg payouts appear on each route','ptn-hauler')}${metric('Best route carrier return',best?short(best.pricing.owner_after_reserve)+' Cr':'Run a search','After the selected cost reserve')}${metric('Carrier space',c.free_space==null?'Unknown':fmt(c.free_space)+' t',`${fmt(c.reserved_space)} t reserved by buy orders`)}${metric('Public loading median',d.board?.benchmarks?.loading==null?'Refresh board':money(d.board.benchmarks.loading)+'/t','Official adverts; affiliate offers unknown')}</div>`}
+          ${u.tab==='advert'&&u.advertMode==='sale'?'':p?.kind==='mining_unload'?`<div class="ptn-overview ptn-mining-overview">${metric('Unloading hauler payout',money(o.pricing.unloading_per_ton)+'/t','From the checked buyer and carrier sell prices','ptn-hauler')}${metric('Remaining public order',fmt(o.remaining)+' t',`${fmt(o.stock.quantity)} t checked stock; ${fmt(p.source.baseline_stock)} t retained`)}</div>`:`<div class="ptn-overview">${metric('Best route loading payout',best?paid(best.settings,'loading')?money(best.pricing.loading_per_ton)+'/t':'You haul':'Run a search',best?'Unloading: '+(paid(best.settings,'unloading')?money(best.pricing.unloading_per_ton)+'/t':'you haul'):'Both leg payouts appear on each route','ptn-hauler')}${metric('Best route carrier return',best?short(best.pricing.owner_after_reserve)+' Cr':'Run a search','After the selected cost reserve')}${metric('Carrier space',c.free_space==null?'Unknown':fmt(c.free_space)+' t',`${fmt(c.reserved_space)} t reserved by buy orders`)}${metric('Public loading median',d.board?.benchmarks?.loading==null?'Refresh board':money(d.board.benchmarks.loading)+'/t','Official adverts; affiliate offers unknown')}</div>`}
           <nav class="view-tabs ptn-tabs" role="tablist" aria-label="PTN trade desk">${Object.entries(tabs).map(([id,label])=>`<button id="ptn-tab-${id}" type="button" data-ptn-tab="${id}" role="tab" aria-selected="${u.tab===id}" aria-controls="ptn-pane" tabindex="${u.tab===id?0:-1}">${label}</button>`).join('')}</nav>
           <div class="ptn-status ${u.error?'bad':''}" role="status" aria-live="polite">${esc(u.status)}</div><div class="ptn-content" id="ptn-pane" role="tabpanel" aria-labelledby="ptn-tab-${u.tab}">${u.tab==='find'?discovery(u,d):u.tab==='run'?operation(u,d):u.tab==='advert'?advertPane(u,d):boardPane(u,d)}</div></div>`;
         Lab.util.tabKeys(el.querySelector('.ptn-tabs'),'[data-ptn-tab]');
@@ -217,8 +253,36 @@
       },'Checking nearby markets and public adverts...');
       u.ensurePolling=()=>{if(!u.busy&&!searchTimer&&u.pollingEpoch==null&&u.data.search_job?.status==='running'){const epoch=++searchEpoch;searchTimer=setTimeout(()=>pollSearch(epoch),2000);}};
       const tab=name=>{u.tab=name;ls.set('ptn.tab.v1',name);draw();};
+      const saleQuery=()=>({commander:u.data.context.commander,callsign:u.data.context.callsign,
+        commodity:u.saleDraft.sale_commodity==='custom'?u.saleDraft.sale_name:u.saleDraft.sale_commodity,
+        quantity:Number(u.saleDraft.sale_quantity),price:Number(u.saleDraft.sale_price),system:u.saleDraft.sale_system,
+        kind:u.saleDraft.sale_kind||'direct_sale',station:u.saleDraft.sale_station,buyer_price:Number(u.saleDraft.sale_buyer_price)});
+      const priceQuery=()=>{const q=saleQuery();return {commodity:q.commodity,quantity:q.quantity,system:q.system,payout:Number(u.saleDraft.sale_payout??20000),radius:Number(u.saleDraft.sale_radius??500)};};
+      const saveSale=()=>ls.set('ptn.sale.v1',{owner:u.saleOwner,draft:u.saleDraft});
+      const generateSale=(copy=false)=>{const query=saleQuery(),context=u.saleContext;return request(async()=>{
+        const result=await Lab.post('/api/ptn/sale-advert',query);
+        if(context!==u.saleContext||JSON.stringify(query)!==JSON.stringify(saleQuery())){u.status='Sale details changed. Generate the updated advert.';return;}
+        u.saleAdvert=result;
+        if(copy){if(!navigator.clipboard)throw Error('Clipboard unavailable. Select and copy the preview manually.');await navigator.clipboard.writeText(result.copy_text);}
+        u.status=copy?'Sale advert copied.':'Sale advert ready.';
+      });};
+      el.addEventListener('input',event=>{
+        const t=event.target;if(!t.closest('[data-ptn-sale],[data-ptn-sale-prices]'))return;
+        u.saleDraft[t.name]=t.value;
+        if(t.name==='sale_commodity'){const row=saleRow(u,u.data);u.saleDraft.sale_quantity=row?.stock??'';u.saleDraft.sale_price=row?.sell_price??'';}
+        if(t.name==='sale_system')u.saleDraft.systemEdited=true;
+        if(['sale_commodity','sale_name','sale_quantity','sale_system','sale_payout','sale_radius'].includes(t.name)){u.salePrices=null;el.querySelector('[data-ptn-sale-quotes]')?.remove();}
+        saveSale();u.saleAdvert=null;
+        el.querySelector('[data-ptn-sale-text]').textContent='Sale details changed. Generate your advert.';
+        el.querySelector('[data-ptn-sale-notes]').textContent='';
+        el.querySelector('[data-ptn-action=copy-sale]').disabled=true;
+        el.querySelector('[data-ptn-sale-total]').textContent=saleTotal(u);
+        if(t.name==='sale_commodity'||t.name==='sale_kind')draw();
+      });
       el.addEventListener('input',event=>{const t=event.target;if(t.name==='plan_quantity'){u.quantityDraft=t.value;}else if(t.closest('[data-ptn-mining]')){u.miningDraft[t.name]=t.value;}else if(t.name==='stock_check'){u.stockCheck=t.value;}else if(t.closest('[data-ptn-search]')){u.prefs[t.name]=t.type==='checkbox'?t.checked:t.type==='number'?Number(t.value):t.value;ls.set(KEY,u.prefs);}else if(t.closest('[data-ptn-confirm]')){u.draftDirty=true;if(['near_station','docking_open','funds_checked','competition_checked'].includes(t.name))u.draft.checks[t.name]=t.checked;else if(t.name==='actual_price')u.draft.price=t.value;else if(t.name==='remaining')u.draft.remaining=t.value;else if(t.name==='checked_stock')u.draft.stock=t.value;else if(t.name==='sco')u.draft.sco=t.checked;}else if(t.name==='handoff_stock')u.handoffStock=t.value;else if(t.name==='discord_link')u.postLink=t.value;});
       el.addEventListener('submit',event=>{event.preventDefault();const form=event.target;
+        if(form.matches('[data-ptn-sale]'))generateSale();
+        if(form.matches('[data-ptn-sale-prices]')){const query=priceQuery(),owner=u.saleOwner;request(async()=>{const result=await Lab.api('/api/ptn/sale-prices',query);if(owner!==u.saleOwner||JSON.stringify(query)!==JSON.stringify(priceQuery())){u.status='Cargo or search details changed. Search again for current suggestions.';return;}u.salePrices=result;u.status=result.rows.length?'Price suggestions ready. Choose one or keep your own price.':'No suitable price suggestions in the available reports.';},'Checking buyer prices for your held cargo...');}
         if(form.matches('[data-ptn-search]'))search();
         if(form.matches('[data-ptn-quantity]')){const quantity=Number(form.elements.plan_quantity.value);request(async()=>{await post('/api/ptn/update',{action:'resize',quantity});u.quantityDraft=null;u.draftDirty=false;u.advert=null;u.status='Plan quantity updated. Confirm the actual remaining order and checks below. Update any existing Discord advert separately.';});}
         if(form.matches('[data-ptn-mining]')){const job=u.data.mining_job,buyer=u.data.mining_buyer,q={operation_id:job.id,operation_updated_at:job.updated_at,buyer_market_id:buyer.market_id,checked_stock:Number(form.elements.mining_stock.value),quantity:Number(form.elements.mining_quantity.value),unloading_floor:Number(form.elements.mining_floor.value)};request(async()=>{await post('/api/ptn/mining',q);u.status='Mined load imported. Capture this buyer market before opening unloading.';tab('run');});}
@@ -228,12 +292,16 @@
       });
       el.addEventListener('click',event=>{
         const t=event.target.closest('button');if(!t)return;
+        if(t.dataset.ptnSaleQuote!==undefined){const q=u.salePrices?.rows[Number(t.dataset.ptnSaleQuote)];if(!q)return;Object.assign(u.saleDraft,{sale_price:q.suggested_price,sale_system:q.system,systemEdited:true,sale_station:q.station,sale_buyer_price:q.price});saveSale();u.saleAdvert=null;u.status='Suggested price and pickup system applied. Park near the buyer and check its price for unloading.';draw();return;}
         if(t.dataset.ptnTab){tab(t.dataset.ptnTab);return;}
         if(t.dataset.ptnCopy!==undefined){request(async()=>{if(!navigator.clipboard)throw Error('Clipboard unavailable. Select and copy the text manually.');await navigator.clipboard.writeText(t.dataset.ptnCopy);u.status='Copied.';});return;}
         if(t.dataset.ptnSelect){request(async()=>{await post('/api/ptn/select',{id:t.dataset.ptnSelect});u.status='Route saved. Scout both stations before opening loading.';tab('run');});return;}
         if(t.dataset.ptnCapture){request(async()=>{await post('/api/ptn/capture',{side:t.dataset.ptnCapture});u.status='Current station market captured from your journal.';u.advert=null;});return;}
         if(t.dataset.ptnStage){request(async()=>{await post('/api/ptn/update',{action:'stage',stage:t.dataset.ptnStage});u.status='PTN stage updated. Game orders and Discord messages are managed in game and Discord.';});return;}
         const action=t.dataset.ptnAction;
+        if(action==='sale-mode'||action==='route-mode'){u.advertMode=action==='sale-mode'?'sale':'route';draw();return;}
+        if(action==='copy-sale'){generateSale(true);return;}
+        if(action==='advert')u.advertMode='route';
         if(['find','run','advert','board'].includes(action)){tab(action);return;}
         if(['near','qualified','target-only'].includes(action)){u.near=action==='near';u.targetOnly=action==='target-only';draw();return;}
         if(action==='payout-20-20'||action==='payout-30-20'){u.prefs={...u.prefs,haul_mode:'both',loading_floor:action==='payout-30-20'?30000:20000,unloading_floor:20000,share_surplus:false};ls.set(KEY,u.prefs);u.status='Minimum payouts set for public haulers on both legs; you keep the surplus. Search routes to apply.';draw();return;}

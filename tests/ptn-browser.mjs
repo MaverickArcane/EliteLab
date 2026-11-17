@@ -40,6 +40,50 @@ try{
   await wait("!!document.querySelector('[data-workspace=ptn]')");
   await click('[data-workspace=ptn]');await wait("!!document.querySelector('[data-ptn-search]')");
   await shot('ptn-empty-1920x1080',1920,1080);
+  // Held cargo can be advertised without any source route, including unknown stock.
+  await post('/audit/ptn/sale-stock');await click('[data-ptn-tab=advert]');
+  await wait("!!document.querySelector('[data-ptn-sale]')");
+  const saleInput=(name,value)=>evaluate(`{const input=document.querySelector('[name='+${JSON.stringify(name)}+']');input.value=${JSON.stringify(value)};input.dispatchEvent(new Event('input',{bubbles:true}));}true`);
+  await saleInput('sale_commodity','tritium');
+  assert.equal(await evaluate("document.querySelector('[name=sale_quantity]').value"),'');
+  assert.equal(await evaluate("document.querySelector('[name=sale_price]').value"),'');
+  await saleInput('sale_commodity','liquor');
+  assert.equal(await evaluate("document.querySelector('[name=sale_quantity]').value"),'340');
+  await saleInput('sale_price','54001');
+  await evaluate("document.querySelector('[data-ptn-sale]').requestSubmit();true");
+  await wait("document.querySelector('[data-ptn-sale-text]').textContent.includes('54,001 Cr/t')");
+  assert.equal(await evaluate('Lab.state.ptn.plan'),null);
+  await shot('ptn-sale-desktop',1920,1080);await shot('ptn-sale-mobile',390,844);
+  await evaluate("document.querySelector('.ptn-content').scrollTop=document.querySelector('.ptn-content').scrollHeight;true");
+  await shot('ptn-sale-preview-mobile',390,844);
+  await send('Emulation.setDeviceMetricsOverride',{width:1920,height:1080,deviceScaleFactor:1,mobile:false});
+  await saleInput('sale_quantity','300');await post('/audit/ptn/sale-stock',{stock:320});await sleep(250);
+  assert.equal(await evaluate("document.querySelector('[name=sale_quantity]').value"),'300');
+  assert.equal(await evaluate("document.querySelector('[data-ptn-action=copy-sale]').disabled"),true);
+  await send('Page.reload');await wait("document.querySelector('[name=sale_quantity]')?.value==='300'");
+  assert.equal(await evaluate("document.querySelector('[name=sale_price]').value"),'54001');
+  await evaluate("document.querySelector('[data-ptn-sale-prices]').requestSubmit();true");
+  await wait("!!document.querySelector('[data-ptn-sale-quote]')&&!document.querySelector('[data-ptn-sale-quote]').disabled");
+  assert.match(await evaluate("document.querySelector('[data-ptn-sale-quotes]').textContent"),/55,000 Cr/);
+  await click('[data-ptn-sale-quote="0"]');await saleInput('sale_kind','unloading');
+  assert.equal(await evaluate("document.querySelector('[name=sale_station]').value"),'Sell Port');
+  assert.equal(await evaluate("document.querySelector('[name=sale_system]').value"),'Buyer');
+  await evaluate("document.querySelector('[data-ptn-sale]').requestSubmit();true");
+  await wait("document.querySelector('[data-ptn-sale-text]').textContent.includes('estimated hauler profit: **20,000 Cr/t**')");
+  await shot('ptn-sale-unloading-desktop',1920,1080);
+  await saleInput('sale_price','54321');
+  assert.equal(await evaluate("document.querySelector('[data-ptn-action=copy-sale]').disabled"),true);
+  await evaluate("document.querySelector('[data-ptn-sale]').requestSubmit();true");
+  await wait("document.querySelector('[data-ptn-sale-text]').textContent.includes('20,679 Cr/t')");
+  // Copy requests the current terms again and uses the returned text.
+  await evaluate("window.saleCopied='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.saleCopied=text;}}});true");
+  await click('[data-ptn-action=copy-sale]');await wait("window.saleCopied.includes('54,321 Cr/t')");
+  await saleInput('sale_commodity','custom');await saleInput('sale_name','<img src=x onerror="window.ptnInjected=true">');
+  await saleInput('sale_quantity','10');await saleInput('sale_price','50000');
+  await evaluate("document.querySelector('[data-ptn-sale]').requestSubmit();true");
+  await wait("document.querySelector('[data-ptn-sale-text]').textContent.includes('<img')");
+  assert.equal(await evaluate('!!window.ptnInjected'),false);
+  await click('[data-ptn-tab=find]');
   // Force the job to finish before its start response reaches the card. This
   // catches the terminal-status race even on slower Windows fixture servers.
   await evaluate("window.realPtnApi=Lab.api;Lab.api=async function(p,q){const d=await window.realPtnApi.call(this,p,q);if(p==='/api/ptn/search'){for(let i=0;i<100;i++){const status=await window.realPtnApi.call(this,'/api/ptn');if(status.search_job?.status!=='running')break;await new Promise(r=>setTimeout(r,20));}}return d;};true");

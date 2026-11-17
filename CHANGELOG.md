@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- PTN: build direct-sale or unloading adverts from carrier hold stock, your
+  chosen tonnes and price, without a sourcing route. Suggest sale prices from
+  nearby reported buyers after a configurable hauler payout. Show quote age,
+  demand, distance and carrier price settings; keep unknown stock explicit.
+  Preserve sale drafts through live updates and expose both flows through MCP.
 - Keep Materials session gains steady during journal replay: publish the final
   rebuilt totals once and return matching inventory rows and session totals.
   New pickups still update immediately.

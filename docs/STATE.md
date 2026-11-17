@@ -1,5 +1,13 @@
 # State reference
 
+`ptn.sale_cargo` lists physical carrier stock evidence for the hold-sale builder:
+commodity, display name, nullable stock, source/time and nullable active sell
+price/order time. It does not infer available stock from buy orders. The existing
+PTN plan and Carrier job remain independent. Sale-price suggestions and generated
+direct/unloading adverts are request results, not persisted operations. Browser
+drafts use `ptn.sale.v1` local storage scoped to commander and carrier callsign;
+generated text is invalidated when its inputs or context change.
+
 `rhino.summary` contains commander-local saved sites, selected surface target,
 bundled catalog locations with confirmation/availability/evidence/source fields,
 timestamped Status position, same-body distance/bearing and the guide topic index.
