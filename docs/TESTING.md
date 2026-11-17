@@ -12,6 +12,19 @@ stable forms under SSE, guide topics shared through HTTP/MCP and the browser,
 guide load/retry, and live material gains in the Mining workspace.
 Regressions also submit forms across commander switches, retry failed quick
 confirmation, preserve a 1200-character report and reject cached departure GPS.
+Hold regressions reproduce nine unloads totaling 610 t without a ship Cargo
+snapshot, reverse/carrier transfers, missing baselines, stale snapshots and
+same-second ordering. The browser checks that unloads update ship free space
+through the watcher, API, SSE and rendered hold count.
+The `rhino-docking` fixture reproduces automatic boarding unloads without a
+CargoTransfer or an empty SRV report. Tests cover live/replayed docking, cached
+SRV snapshots, different vehicle IDs, manual unloading before docking, and the
+surface bearing while flying the main ship. Browser docking captures are saved
+as `rhino-docked-desktop.png` and `rhino-docked-mobile.png`.
+Travel tests distinguish another system, another body in the same system, and a
+surface target. They cover missing/invalid coordinates, zero/unknown range, SRV
+range fallback and jump rounding. Browser captures `rhino-travel-*` show the
+destination system before its surface coordinates and distances in Locations.
 Browser screenshots use synthetic data and are saved under `artifacts/rhino`.
 See [Rhino mining](RHINO-MINING.md). Use a separate `ELITELAB_INSTANCE_DIR`
 when running the full suite alongside a player's live installation.

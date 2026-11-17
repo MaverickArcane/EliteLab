@@ -10,6 +10,15 @@
     return p?.body && p?.system && Number.isFinite(p.latitude) && Number.isFinite(p.longitude)
       && Number.isFinite(age) && age >= -5 && age <= 120;
   };
+  const trip = (site, fresh, selected = false) => {
+    const t = site.travel || {}, jumps = t.estimated_jumps;
+    if (t.stage === 'surface' && fresh) return `<div class="rhino-direction">${distance(t.surface_distance_m)}${t.bearing != null ? ` &middot; Heading ${t.bearing.toFixed(1)} deg` : ' &middot; At saved coordinates'}</div><div class="note">On this body &middot; 0 jumps</div>`;
+    if (t.stage === 'surface' || t.stage === 'body') return `<div class="rhino-direction">In this system &middot; 0 jumps</div><div class="note">${selected ? `Approach ${esc(site.body)}${site.pml ? ` &middot; PML ${esc(site.pml)}` : ''} for surface directions.` : 'Surface distance available near the target body.'}</div>`;
+    return `<div class="rhino-direction">${t.distance_ly != null ? `${fmt(t.distance_ly)} Ly` : 'Distance unknown'} &middot; ${jumps != null ? `est. ${fmt(jumps)}+ jump${jumps === 1 ? '' : 's'}` : 'Jumps unknown'}</div>
+      <div class="note">${t.from_system ? `From ${esc(t.from_system)} &middot; different system` : 'Waiting for your system'}</div>
+      ${selected ? `<p><strong>Jump to ${esc(site.system)}</strong> <button class="mini" data-copy="${esc(site.system)}">Copy system</button></p><div class="note">Then fly to ${esc(site.body)}${site.pml ? ` &middot; PML ${esc(site.pml)}` : ''}. Surface bearing appears on that body.</div>` : ''}
+      ${selected && jumps != null ? '<div class="note">Jump count is a minimum estimate; plot the route in game.</div>' : ''}`;
+  };
 
   Lab.card({
     id: 'rhino', requires: ['rhino'],
@@ -215,10 +224,10 @@
       const nav = recent(position) ? r.navigation || {} : {reason: 'Waiting for a recent surface position'};
       el.querySelector('[data-rhino-navigation]').innerHTML = site ? `<div class="rhino-navigation">
         <div class="rhino-toolbar"><strong>To ${esc(site.name)}</strong><button class="mini" data-rhino-clear>Clear</button></div>
+        ${trip(site, recent(position), true)}
         <div>${esc(place(site))}</div><div class="rhino-coords">${coord(site.latitude)}, ${coord(site.longitude)} <button class="mini" data-copy="${esc(site.system)} | ${esc(site.body)} | ${coord(site.latitude)}, ${coord(site.longitude)}">Copy location</button></div>
         <div class="rhino-badges">${badges(site)}</div>
-        ${nav.distance_m != null ? `<p class="rhino-direction">${distance(nav.distance_m)}${nav.bearing != null ? ` &middot; Heading ${nav.bearing.toFixed(1)} deg` : ' &middot; At saved coordinates'}</p>` : ''}
-        <div class="note">${esc(nav.reason || '')}</div>
+        ${site.travel?.stage === 'surface' ? `<div class="note">${esc(nav.reason || '')}</div>` : ''}
       </div>` : '<div class="rhino-navigation"><strong>Find your next worthwhile spot</strong><p class="muted">Choose a saved location for directions, or save what you find here.</p></div>';
       const run = r.session, total = run?.total_t || 0, points = run?.points || [];
       const elapsed = Math.max(1, run?.elapsed_seconds || 0), top = Math.max(1, total);
@@ -255,13 +264,14 @@
       if (!run?.active && (gear.dss === false || gear.large_hangar === false)) help = ['equipment', 'Check your fitted modules', `${gear.dss === false ? 'No Detailed Surface Scanner in the last loadout. ' : ''}${gear.large_hangar === false ? 'No Large Planetary Vehicle Hangar in the last loadout.' : ''}`];
       el.querySelector('[data-rhino-help]').innerHTML = `<strong>${esc(help[1])}</strong><p>${esc(help[2])}</p><button class="mini" data-rhino-help-topic="${help[0]}">Show steps</button><button class="mini" data-rhino-help-topic="troubleshooting">Rig stopped / depleted?</button>`;
       const list = el.querySelector('[data-rhino-site-list]');
-      const signature = JSON.stringify([r.sites, site?.id]);
+      const signature = JSON.stringify([(r.sites || []).map(({travel, ...s}) => s), site?.id]);
       // Position updates must not close notes, move focus or erase a form draft.
       if (list.dataset.signature !== signature) {
         const opened = new Set([...list.querySelectorAll('details[open]')].map(d => d.dataset.siteNotes));
         const renderSite = s => `<article class="rhino-site">
           <div class="rhino-toolbar"><strong>${esc(s.name)}</strong><button class="mini" data-rhino-select="${esc(s.id)}" ${s.id === site?.id ? 'disabled' : ''}>${s.id === site?.id ? 'Selected' : 'Navigate'}</button></div>
           <div>${esc(place(s))}</div>
+          <div data-rhino-travel="${esc(s.id)}">${trip(s, recent(position))}</div>
           <div class="rhino-coords">${coord(s.latitude)}, ${coord(s.longitude)} <button class="mini" data-copy="${esc(s.system)} | ${esc(s.body)} | ${coord(s.latitude)}, ${coord(s.longitude)}">Copy location</button></div>
           <div class="rhino-badges">${badges(s)}${s.verification !== 'confirmed' ? `<button class="mini" data-rhino-confirm="${esc(s.id)}" title="Confirm that you visited and verified this location in game">Mark confirmed</button>` : ''}</div>
           <div class="note">${esc(s.commodity)}${rigEvidence(s) ? ` &middot; ${esc(rigEvidence(s))}` : ''}</div>
@@ -280,6 +290,13 @@
         }).join('') + '</div>';
         list.dataset.signature = signature;
       }
+      // Telemetry changes only the distance line, preserving open notes and focus.
+      list.querySelectorAll('[data-rhino-travel]').forEach(node => {
+        const entry = r.sites?.find(s => s.id === node.dataset.rhinoTravel);
+        if (!entry) return;
+        const html = trip(entry, recent(position));
+        if (node.innerHTML !== html) node.innerHTML = html;
+      });
     },
   });
 })();
