@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Keep Materials session gains steady during journal replay: publish the final
+  rebuilt totals once and return matching inventory rows and session totals.
+  New pickups still update immediately.
 - Show system distance and estimated jumps on Rhino location cards and the
   selected destination. Lead with the jump and body approach before surface
   directions; keep live distance updates from closing location notes.

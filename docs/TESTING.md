@@ -1,5 +1,11 @@
 # Testing
 
+Materials replay: `test_material_sessions.py` observes the published session
+stream and queries HTTP tool data mid-replay. Historical gains must stay private
+until replay completes; repeated replay must not reset the visible counter.
+Fresh receipts still publish immediately. The API returns rows and totals from
+one completed snapshot. `node tests/materials-feed.mjs` covers response ordering,
+pending filter changes and retry.
 `BrowserReadinessTests` in `test_source_setup.py` exercises startup beyond the
 former ten-second deadline, verifies the owning PID before opening, and cancels
 an in-flight health probe without opening a late window. Startup remains bounded
