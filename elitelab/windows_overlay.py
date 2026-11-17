@@ -73,7 +73,7 @@ def run(feed, preferences, demo=False, close_after=0, activity=None, requested_a
     show = bind(user, 'ShowWindow', W.BOOL, W.HWND, C.c_int)
     post = bind(user, 'PostMessageW', W.BOOL, W.HWND, W.UINT, W.WPARAM, W.LPARAM)
     position = bind(user, 'SetWindowPos', W.BOOL, W.HWND, W.HWND, C.c_int, C.c_int, C.c_int, C.c_int, W.UINT)
-    layered = bind(user, 'SetLayeredWindowAttributes', W.BOOL, W.HWND, W.COLORREF, W.BYTE, W.DWORD)
+    layered = bind(user, 'SetLayeredWindowAttributes', W.BOOL, W.HWND, W.COLORREF, C.c_ubyte, W.DWORD)
     getrect = bind(user, 'GetWindowRect', W.BOOL, W.HWND, C.POINTER(W.RECT))
     getstyle = bind(user, 'GetWindowLongW', C.c_long, W.HWND, C.c_int)
     setstyle = bind(user, 'SetWindowLongW', C.c_long, W.HWND, C.c_int, C.c_long)

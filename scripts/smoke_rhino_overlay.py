@@ -23,7 +23,7 @@ def main():
     style = bind('GetWindowLongW', C.c_long, W.HWND, C.c_int)
     post = bind('PostMessageW', W.BOOL, W.HWND, W.UINT, W.WPARAM, W.LPARAM)
     rect = bind('GetWindowRect', W.BOOL, W.HWND, C.POINTER(W.RECT))
-    layers = bind('GetLayeredWindowAttributes', W.BOOL, W.HWND, C.POINTER(W.COLORREF), C.POINTER(W.BYTE), C.POINTER(W.DWORD))
+    layers = bind('GetLayeredWindowAttributes', W.BOOL, W.HWND, C.POINTER(W.COLORREF), C.POINTER(C.c_ubyte), C.POINTER(W.DWORD))
     win_dpi = bind('GetDpiForWindow', W.UINT, W.HWND)
     visible = bind('IsWindowVisible', W.BOOL, W.HWND)
     gettitle = bind('GetWindowTextW', C.c_int, W.HWND, W.LPWSTR, C.c_int)
@@ -36,7 +36,7 @@ def main():
             time.sleep(.05)
         raise AssertionError(message)
     def attributes(hwnd):
-        key, alpha, flags = W.COLORREF(), W.BYTE(), W.DWORD()
+        key, alpha, flags = W.COLORREF(), C.c_ubyte(), W.DWORD()
         assert layers(hwnd, C.byref(key), C.byref(alpha), C.byref(flags))
         return key.value, alpha.value, flags.value
     def title(hwnd):
