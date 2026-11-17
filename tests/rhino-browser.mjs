@@ -18,12 +18,15 @@ const journal=path.join(journals,'Journal.2026-11-15T120000.01.log');
 const offset=Date.now()-Date.parse('2026-11-15T12:02:03Z');
 const shifted=value=>new Date(Date.parse(value)+offset).toISOString();
 const events=fs.readFileSync(path.join(root,'tests/fixtures/rhino/Journal.2026-11-15T120000.01.log'),'utf8').trim().split('\n').map(JSON.parse).map(e=>({...e,timestamp:shifted(e.timestamp)}));
+for(const e of events){if(e.event==='Location')e.StarPos=[0,0,0];if(e.event==='Loadout')e.MaxJumpRange=40;}
 fs.writeFileSync(journal,events.map(JSON.stringify).join('\n')+'\n');
 const append=rows=>fs.appendFileSync(journal,rows.map(e=>JSON.stringify({timestamp:new Date().toISOString(),...e})).join('\n')+'\n');
 const status={event:'Status',timestamp:new Date().toISOString(),Flags:(1<<21)|(1<<26),BodyName:'Shinrarta Dezhra AB 2 j',Latitude:35.950340,Longitude:-31.233133,PlanetRadius:5963896};
 fs.writeFileSync(path.join(journals,'Status.json'),JSON.stringify(status));
 const env={...process.env,ELITELAB_SETTINGS:path.join(temporary,'settings.json'),ELITELAB_HOST:'127.0.0.1',ELITELAB_PORT:String(port),
   ELITELAB_OFFLINE:'1',ELITELAB_JOURNAL_DIR:journals,ELITELAB_DATA_DIR:path.join(temporary,'data'),ELITELAB_INSTANCE_DIR:path.join(temporary,'instance'),ELITELAB_AUTH_TOKEN:''};
+fs.mkdirSync(env.ELITELAB_DATA_DIR,{recursive:true});
+fs.writeFileSync(path.join(env.ELITELAB_DATA_DIR,'rhino-coords.json'),JSON.stringify({'Wregoe GW-Y c28-2':{x:0,y:0,z:35}}));
 const output=path.resolve(process.env.ELITELAB_SCREENSHOT_DIR||path.join(root,'artifacts/rhino')); fs.mkdirSync(output,{recursive:true});
 let server,chrome,ws,serverLog='';
 try {
@@ -66,6 +69,22 @@ try {
   assert.equal(await evaluate("document.querySelectorAll('[data-rhino-rigs],[data-rhino-metrics],[data-rhino-cargo]').length"),0);
   assert.equal(await evaluate("document.querySelector('[data-rhino-tab=mining]').getAttribute('aria-selected')"),'true');
   assert.match(await evaluate("document.querySelector('[data-rhino-haul]').textContent"),/Tritium\s+2 t/);
+  assert.match(await evaluate("document.querySelector('[data-rhino-holds]').textContent"),/Ship hold\s*103 t\s*\/\s*1,136 t/);
+  // Unloading while still driving must update the ship through API/SSE/rendering.
+  append([{event:'Cargo',Vessel:'SRV',Count:68},{event:'CargoTransfer',Transfers:[{Type:'tritium',Count:68,Direction:'toship'}]}]);
+  await wait('Lab.state.rhino.summary.cargo.ship.count===171');
+  await wait("document.querySelector('[data-rhino-holds]').textContent.includes('171 t')");
+  assert.equal(await evaluate('Lab.state.rhino.summary.cargo.rhino.count'),0);
+  assert.equal(await evaluate('Lab.state.rhino.summary.cargo.ship.free'),965);
+  append([{event:'Cargo',Vessel:'Ship',Count:171}]);
+  await wait('Lab.state.rhino.summary.cargo.ship.observed_at!==null');
+  await click('[data-rhino-tab=spots]');
+  await wait("document.querySelector('[data-rhino-travel=wregoe-iridium-31]').textContent.includes('35 Ly')");
+  assert.match(await evaluate("document.querySelector('[data-rhino-travel=wregoe-iridium-31]').textContent"),/est\. 1\+ jump/);
+  await click('[data-rhino-select=wregoe-iridium-31]');
+  await wait("document.querySelector('[data-rhino-navigation]').textContent.includes('Jump to Wregoe GW-Y c28-2')");
+  await click('[data-rhino-tab=mining]');
+  await shot('rhino-travel-desktop');await shot('rhino-travel-mobile',390,1200);
   await click('[data-rhino-tab=spots]');
   assert.equal(await evaluate("document.querySelectorAll('[data-rhino-group=confirmed] .rhino-site').length"),2);
   assert.equal(await evaluate("document.querySelectorAll('[data-rhino-group=unconfirmed] .rhino-site').length"),6);
@@ -152,6 +171,23 @@ try {
   await click('[data-rhino-tab=mining]');
   await wait("document.querySelector('[data-rhino-navigation]').textContent.includes('Waiting for a recent')");
   await evaluate('Date.now=window.rhinoNow;true');
+  // Successful boarding transfers cargo automatically, with no CargoTransfer
+  // or empty SRV Cargo event. The bearing still works in the main ship.
+  append([{event:'LaunchSRV',SRVType:'mev_rhino',ID:66},{event:'Cargo',Vessel:'Ship',Count:0},
+    ...Array.from({length:62},()=>({event:'MiningRefined',Type:'iridium'})),
+    {event:'Cargo',Vessel:'SRV',Count:62},{event:'DockSRV',SRVType:'mev_rhino',ID:66},
+    {event:'Loadout',Ship:'panthermkii',ShipID:10,CargoCapacity:1136,Modules:[{Item:'int_detailedsurfacescanner_tiny'},{Item:'int_mkiilargebuggybay_size2_class3'}]},
+    {event:'Cargo',Vessel:'Ship',Count:62}]);
+  const dockingStatus={...status,Latitude:status.Latitude+.001,timestamp:new Date().toISOString(),Flags:(1<<21)|(1<<24)};
+  fs.writeFileSync(path.join(journals,'Status.json'),JSON.stringify(dockingStatus));
+  await wait('Lab.state.rhino.summary.session.end_reason===\'DockSRV\'&&Lab.state.rhino.summary.cargo.ship.count===62');
+  await wait("document.querySelector('[data-rhino-holds]').textContent.includes('1,074 t free')");
+  assert.equal(await evaluate('Lab.state.rhino.summary.cargo.rhino.count'),0);
+  assert.equal(await evaluate('Lab.state.rhino.summary.session.unloaded_t'),62);
+  assert.equal(await evaluate('Lab.state.rhino.summary.session.total_t'),62);
+  await wait('Lab.state.rhino.summary.navigation.bearing!==null');
+  assert.match(await evaluate("document.querySelector('[data-rhino-navigation]').textContent"),/Heading/);
+  await shot('rhino-docked-desktop');await shot('rhino-docked-mobile',390,1200);
   // An open form belongs to the commander who opened it, even across logins.
   await click('[data-rhino-tab=spots]');
   await click('[data-rhino-report=hip39418-a11]');

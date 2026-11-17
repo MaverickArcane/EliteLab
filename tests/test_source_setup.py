@@ -59,6 +59,42 @@ class BrowserReadinessTests(unittest.TestCase):
             browser.assert_not_called()
         core.close()
 
+    def test_slow_start_still_opens_after_the_former_timeout(self):
+        core = Core(); core.ready = True
+        opened = threading.Event()
+        clock = [0]
+        def health(*args):
+            if not clock[0]:
+                clock[0] = 31  # A busy startup can exceed the old ten-second limit.
+                return None
+            return {'ready': True, 'pid': os.getpid()}
+        with patch('elitelab.core.time.monotonic', side_effect=lambda: clock[0]), patch(
+                'elitelab.instance.health', side_effect=health) as probe, patch(
+                'webbrowser.open', side_effect=lambda url: opened.set()) as browser:
+            timer = core._open_browser('127.0.0.1', 19000)
+            try:
+                self.assertTrue(opened.wait(2), 'A slow startup must still open its app window')
+                browser.assert_called_once_with('http://127.0.0.1:19000/')
+                self.assertEqual(probe.call_count, 2)
+            finally:
+                core.ready = False; timer.cancel(); timer.join(2); core.close()
+
+    def test_cancel_during_probe_prevents_a_late_window(self):
+        core = Core(); core.ready = True
+        entered, release = threading.Event(), threading.Event()
+        def health(*args):
+            entered.set(); release.wait(2)
+            return {'ready': True, 'pid': os.getpid()}
+        with patch('elitelab.instance.health', side_effect=health), patch('webbrowser.open') as browser:
+            timer = core._open_browser('127.0.0.1', 19000)
+            try:
+                self.assertTrue(entered.wait(2))
+                timer.cancel(); release.set(); timer.join(2)
+                self.assertFalse(timer.is_alive())
+                browser.assert_not_called()
+            finally:
+                release.set(); core.ready = False; timer.cancel(); timer.join(2); core.close()
+
 
 class SourceSetupTests(unittest.TestCase):
     def setUp(self):
