@@ -1,5 +1,24 @@
 # Testing
 
+PTN hold-sale adverts: `test_ptn_sale.py` covers direct/unloading drafts without
+a sourcing plan, exact prices and estimated margins, unknown stock, buy-order
+separation, owner changes, manual quantities and unchanged inventory/plans.
+Price suggestions cover full-load demand, unlimited demand, strict radius/age/pad
+filters, mean-price settings, failed feeds and current-system buyers. The PTN
+browser run checks draft persistence, journal updates while editing, price
+suggestions, overrides, regeneration on copy, HTML escaping and desktop/mobile
+layouts. All providers and cargo records are synthetic in these tests.
+Materials replay: `test_material_sessions.py` observes the published session
+stream and queries HTTP tool data mid-replay. Historical gains must stay private
+until replay completes; repeated replay must not reset the visible counter.
+Fresh receipts still publish immediately. The API returns rows and totals from
+one completed snapshot. `node tests/materials-feed.mjs` covers response ordering,
+pending filter changes and retry.
+`BrowserReadinessTests` in `test_source_setup.py` exercises startup beyond the
+former ten-second deadline, verifies the owning PID before opening, and cancels
+an in-flight health probe without opening a late window. Startup remains bounded
+by the server's lifetime; individual health requests retain their short timeout.
+
 Rhino mining: `python -m unittest discover -s tests -p test_rhino.py -v`
 and `node tests/rhino-browser.mjs` cover commander-local site persistence,
 surface navigation, legacy note preservation, input validation, escaping,

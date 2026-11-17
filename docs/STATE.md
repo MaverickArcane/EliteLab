@@ -1,5 +1,13 @@
 # State reference
 
+`ptn.sale_cargo` lists physical carrier stock evidence for the hold-sale builder:
+commodity, display name, nullable stock, source/time and nullable active sell
+price/order time. It does not infer available stock from buy orders. The existing
+PTN plan and Carrier job remain independent. Sale-price suggestions and generated
+direct/unloading adverts are request results, not persisted operations. Browser
+drafts use `ptn.sale.v1` local storage scoped to commander and carrier callsign;
+generated text is invalidated when its inputs or context change.
+
 `rhino.summary` contains commander-local saved sites, selected surface target,
 bundled catalog locations with confirmation/availability/evidence/source fields,
 timestamped Status position, same-body distance/bearing and the guide topic index.
@@ -203,6 +211,10 @@ Client-side manual overrides live in `localStorage.loopManual` as `{system: {don
 Client-only: `ui_selected` (the browser's Show on map toggle; the map draws the dashed line to `progress.next`) and `ui_powerplay` (an explicit request to populate the finder). The card keeps the last search result in memory only. The targets extension keeps `handoff_active` and `handoff_last` browser-local to prevent late legacy search responses from replacing a bound map selection.
 
 ## materials (module: materials)
+
+Historical replay rebuilds private observations and publishes once at completion.
+The materials API returns matching rows and totals from the last completed
+publication while replay is in progress. Live gains still publish immediately.
 
 | Key | Type |
 |---|---|
