@@ -25,6 +25,14 @@ from elitelab.window import installed_windows_browsers
 from smoke_windows_desktop import smoke_shortcut
 
 
+def protocol_command(scheme):
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Software\\Classes\\' + scheme + r'\shell\open\command') as key:
+            return winreg.QueryValueEx(key, '')[0]
+    except FileNotFoundError:
+        return None
+
+
 def smoke(installer):
     installer = Path(installer).resolve()
     metadata_path = installer.with_suffix(installer.suffix + '.build.json')
@@ -37,6 +45,9 @@ def smoke(installer):
         raise ValueError('installer must have a unique compiled Start Menu group')
     if hashlib.sha256(installer.read_bytes()).hexdigest() != metadata.get('sha256'):
         raise ValueError('installer does not match its build metadata')
+    scheme = app_id + '-hud'
+    production_protocol = protocol_command('elitelab-hud')
+    assert protocol_command(scheme) is None, 'Unique test protocol already exists'
     with tempfile.TemporaryDirectory(prefix='EliteLab installer test ') as tmp:
         root = Path(tmp).resolve()
         app = root / 'Installed EliteLab'
@@ -109,6 +120,9 @@ def smoke(installer):
             installed = subprocess.run(args + ['/LOG=' + str(setup_log)], env=env, creationflags=flags, timeout=120)
             if installed.returncode:
                 raise RuntimeError('Default-profile install failed: ' + setup_log.read_text(errors='replace')[-4000:])
+            assert protocol_command(scheme) == f'"{app / "runtime" / "pythonw.exe"}" -m elitelab.overlay --uri "%1"'
+            assert protocol_command('elitelab-hud') == production_protocol, 'Test install replaced the production HUD link'
+            assert (shortcut.parent / 'EliteLab HUD.lnk').is_file()
             for name in ('runtime/pythonw.exe', '.windows-bundle', 'Launch EliteLab.vbs', 'elitelab/windows_tray.py'):
                 assert (app / name).is_file(), name
             def browser_settings():
@@ -209,6 +223,8 @@ def smoke(installer):
             assert not (app/'runtime'/'pythonw.exe').exists(), 'Application was not removed'
             assert not shortcut.exists(), 'Uninstall retained the test Start Menu shortcut'
             assert not uninstall_shortcut.exists(), 'Uninstall retained its own Start Menu shortcut'
+            assert protocol_command(scheme) is None, 'Uninstall retained its owned HUD link'
+            assert protocol_command('elitelab-hud') == production_protocol, 'Test uninstall changed the production HUD link'
             assert startup.status() == 'disabled', 'Owned sign-in entry should be removed on uninstall'
             assert sentinel.read_text(encoding='ascii') == 'preserve' and legacy.read_text(encoding='ascii') == 'keep'
             # The uninstaller clone can briefly retain the guard after its
@@ -234,12 +250,15 @@ def smoke(installer):
             if result.returncode:
                 raise RuntimeError('Second test install failed: ' + second_log.read_text(errors='replace')[-4000:])
             foreign = 'synthetic-other-installation'
+            with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, 'Software\\Classes\\' + scheme + r'\shell\open\command', 0, winreg.KEY_SET_VALUE) as key:
+                winreg.SetValueEx(key, '', 0, winreg.REG_SZ, foreign)
             with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as key:
                 winreg.SetValueEx(key, app_id, 0, winreg.REG_SZ, foreign)
             foreign_startup = Autostart(second, value_name=app_id)
             assert foreign_startup.status() == 'conflict'
             subprocess.run([str(second/'unins000.exe'), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'],
                            env=env, creationflags=flags, timeout=120, check=True)
+            assert protocol_command(scheme) == foreign, 'Uninstall removed a foreign HUD link'
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_QUERY_VALUE | winreg.KEY_SET_VALUE) as key:
                 assert winreg.QueryValueEx(key, app_id)[0] == foreign, 'Uninstall removed a foreign startup entry'
                 winreg.DeleteValue(key, app_id)
@@ -265,6 +284,10 @@ def smoke(installer):
                         winreg.DeleteValue(key, app_id)
             except FileNotFoundError:
                 pass
+            if protocol_command(scheme) == 'synthetic-other-installation':
+                for suffix in (r'\shell\open\command', r'\shell\open', r'\shell', ''):
+                    winreg.DeleteKey(winreg.HKEY_CURRENT_USER, 'Software\\Classes\\' + scheme + suffix)
+            assert protocol_command('elitelab-hud') == production_protocol, 'Production HUD link changed during smoke test'
 
 
 

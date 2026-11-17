@@ -10,9 +10,18 @@
 #ifndef AppGroupName
   #define AppGroupName "EliteLab"
 #endif
+#if AppIdValue == "MaverickArcane.EliteLab"
+  #define HudScheme "elitelab-hud"
+#else
+  ; A test installer must never replace the player's protocol registration.
+  #define HudScheme AppIdValue + "-hud"
+#endif
 
 [Setup]
 AppId={#AppIdValue}
+#if AppIdValue == "MaverickArcane.EliteLab"
+AppMutex=Local\EliteLabRhinoNavigationOverlayV1
+#endif
 AppName=EliteLab
 AppVersion={#AppVersion}
 #ifdef NativeVersion
@@ -42,7 +51,15 @@ Source: "{#StagingDir}\.windows-bundle"; DestDir: "{app}"; Flags: ignoreversion
 [Icons]
 Name: "{group}\EliteLab"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\Launch EliteLab.vbs"""; WorkingDir: "{app}"
 Name: "{group}\Uninstall EliteLab"; Filename: "{uninstallexe}"
+Name: "{group}\EliteLab HUD"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\EliteLab HUD.vbs"""; WorkingDir: "{app}"
 Name: "{autodesktop}\EliteLab"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\Launch EliteLab.vbs"""; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{autodesktop}\EliteLab HUD"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\EliteLab HUD.vbs"""; WorkingDir: "{app}"; Tasks: desktopicon
+
+[Registry]
+Root: HKCU; Subkey: "Software\Classes\{#HudScheme}"; ValueType: string; ValueName: ""; ValueData: "URL:EliteLab HUD"
+Root: HKCU; Subkey: "Software\Classes\{#HudScheme}"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+; The launcher accepts only elitelab-hud:open and a known mode; no commands or paths.
+Root: HKCU; Subkey: "Software\Classes\{#HudScheme}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\runtime\pythonw.exe"" -m elitelab.overlay --uri ""%1"""
 
 [Run]
 Filename: "{sys}\wscript.exe"; Parameters: """{app}\Launch EliteLab.vbs"""; WorkingDir: "{app}"; Description: "Launch EliteLab"; Flags: nowait postinstall skipifsilent
@@ -265,7 +282,7 @@ begin
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
-var ExitCode: Integer; Python: String;
+var ExitCode: Integer; Python, Command, Expected: String;
 begin
   if CurUninstallStep = usUninstall then begin
     Python := ExpandConstant('{app}\runtime\pythonw.exe');
@@ -274,6 +291,10 @@ begin
       SuppressibleMsgBox('The bundled launcher is missing or its sign-in entry could not be checked. Reinstall EliteLab over this folder and try uninstalling again.', mbError, MB_OK, IDOK);
       Abort;
     end;
+    Expected := '"' + Python + '" -m elitelab.overlay --uri "%1"';
+    if RegQueryStringValue(HKCU, 'Software\Classes\{#HudScheme}\shell\open\command', '', Command)
+       and (CompareText(Command, Expected) = 0) then
+      RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\{#HudScheme}');
   end;
 end;
 

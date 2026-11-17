@@ -18,6 +18,11 @@ NS = "materials"
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
+def matches(row, category=None, grade=None, only_wishlist=False, only_short=False):
+    return (not category or (row["category"] or "").lower() == category.lower()) and (
+        not grade or row["grade"] == int(grade)) and (not only_wishlist or row["need"] > 0) and (not only_short or row["short"] > 0)
+
+
 class Materials:
     def __init__(self, core):
         self.core = core
@@ -102,6 +107,8 @@ class Materials:
                     self.reset_observations()
                     self._replaying = True
                 self._on_event(name, ev)
+                if self._replaying:
+                    return  # Historical sessions must not animate the live gains counter.
                 state = self._snapshot()
             self.core.store.update(NS, state)
 
@@ -174,6 +181,16 @@ class Materials:
         with self._lock:
             return self._rows(category, grade, only_wishlist, only_short)
 
+    def view(self, q):
+        # Serve rows and session totals from the same completed publication,
+        # including while the watcher is rebuilding its private observations.
+        with self._lock:
+            result = copy.deepcopy(self._display)
+        result["materials"] = [r for r in result["materials"] if matches(r, q.get("category"), q.get("grade"),
+                               str(q.get("only_wishlist", "")).lower() in ("1", "true"),
+                               str(q.get("only_short", "")).lower() in ("1", "true"))]
+        return result
+
     def _rows(self, category=None, grade=None, only_wishlist=False, only_short=False):
         keys = set(self.inv) | set(self.wishlist) | set(self.session_gained)
         out = []
@@ -184,13 +201,7 @@ class Materials:
             r["need"] = w["need"] if w else 0
             r["label"] = w.get("label") if w else None
             r["short"] = max(0, r["need"] - r["count"])
-            if category and (r["category"] or "").lower() != category.lower():
-                continue
-            if grade and r["grade"] != int(grade):
-                continue
-            if only_wishlist and not w:
-                continue
-            if only_short and r["short"] <= 0:
+            if not matches(r, category, grade, only_wishlist, only_short):
                 continue
             out.append(r)
         out.sort(key=lambda r: (-(r["short"] > 0), r["category"] or "", -(r["grade"] or 0), r["name"]))
@@ -201,6 +212,8 @@ class Materials:
         # synchronous callbacks read other modules (wishlist/build).
         with self._publish_lock:
             with self._lock:
+                if self._replaying:
+                    return
                 state = self._snapshot()
             self.core.store.update(NS, state)
 
@@ -216,12 +229,14 @@ class Materials:
             if cat in gains:
                 gains[cat] += c
         self._version += 1
+        session = {"started_at": self.session_started_at,
+                   "gained": sum(self.session_gained.values()) if self.session_started_at else None,
+                   "totals": gains, "last_gain": copy.deepcopy(self.last_gain)}
+        self._display = {"totals": copy.deepcopy(totals), "session": copy.deepcopy(session), "materials": self._rows()}
         # The inventory itself is not in the store (it would go over SSE on every pickup); other modules read it through
         # the get_material_inventory tool and recompute on inventory_version.
         return {"inventory_known": self.snapshot_at is not None, "inventory_observed_at": self.snapshot_at, "totals": totals, "wishlist": copy.deepcopy(self.wishlist),
-                                    "session": {"started_at": self.session_started_at,
-                                                "gained": sum(self.session_gained.values()) if self.session_started_at else None,
-                                                "totals": gains, "last_gain": copy.deepcopy(self.last_gain)},
+                                    "session": session,
                                     "shortfalls": [r for r in self.rows(only_wishlist=True)],
                                     "inventory_count": len(self.inv), "inventory_version": self._version}
 
@@ -239,6 +254,8 @@ class Materials:
         with self._publish_lock:
             with self._lock:
                 result = self._set_wishlist(items, mode, label)
+                if self._replaying:
+                    return result
                 state = self._snapshot()
             self.core.store.update(NS, state)
             return result
@@ -290,14 +307,12 @@ class Materials:
 
 def setup(core, module):
     m = Materials(core)
-    core.http.route("/api/materials", lambda q: {"totals": core.store.get(NS, "totals"),
-                                                 "session": core.store.get(NS, "session"),
-                                                 "materials": m.rows(q.get("category"), q.get("grade"), str(q.get("only_wishlist", "")).lower() in ("1", "true"),
-                                                                     str(q.get("only_short", "")).lower() in ("1", "true"))},
+    core.http.route("/api/materials", m.view,
                     tool="get_materials", module=module.name,
                     description="Engineering materials inventory with category, family, grade, cap (300/250/200/150/100 for G1-G5), wishlist need and shortfall per material. "
                                 "Each row also has gained: pickups, rewards and trader receipts since the latest LoadGame, rebuilt on replay; "
-                                "null if that session boundary is unavailable. Session totals and the latest gain are included.",
+                                "null if that session boundary is unavailable. Session totals and the latest gain are included. "
+                                "Journal replay publishes one completed snapshot; intermediate historical totals are not exposed.",
                     params={"category": {"type": "string", "description": "Raw, Manufactured or Encoded", "enum": ["Raw", "Manufactured", "Encoded"]},
                             "grade": {"type": "integer", "description": "1-5"},
                             "only_wishlist": {"type": "boolean", "description": "Only materials on the wishlist", "default": False},

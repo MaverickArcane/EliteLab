@@ -45,6 +45,22 @@ class MaterialSessionTests(unittest.TestCase):
             self.core.watcher.replay()
             self.assertEqual(self.materials(), result)
 
+    def test_replay_publishes_completed_gains_once_and_keeps_http_snapshot_consistent(self):
+        updates, during = [], []
+        self.core.bus.on('state.materials.session', lambda name, value: updates.append(value['gained']))
+        self.core.bus.on('journal.MaterialCollected', lambda name, value: during.append(self.materials()))
+        self.core.watcher.replay()
+        self.assertEqual(updates, [14])
+        self.assertTrue(all(r['session']['gained'] is None and r['materials'] == [] for r in during))
+        complete = self.materials()
+        updates.clear(); during.clear()
+        self.core.watcher.replay()
+        self.assertEqual(updates, [])  # Rebuilding the same totals does not reset the counter.
+        self.assertTrue(all(r == complete for r in during))
+        self.emit('MaterialCollected', timestamp='2026-10-30T10:07:00Z', Name='iron', Count=1, Category='Raw')
+        self.assertEqual(updates, [15])
+        self.assertEqual(self.materials()['session']['gained'], 15)
+
     def test_new_game_resets_gains_but_inventory_dump_is_not_a_pickup(self):
         self.core.watcher.replay()
         self.emit('LoadGame', timestamp='2026-10-30T11:00:00Z')
@@ -75,18 +91,21 @@ class MaterialSessionTests(unittest.TestCase):
                 emit('Commander', Name='Test pilot', FID='F-TEST')
                 emit('Materials', Raw=[{'Name':'iron', 'Count':10}])
                 emit('LoadGame', Commander='Test pilot', FID='F-TEST')
-                self.assertEqual(self.materials(core)['session']['gained'], 0)
-                self.assertEqual(self.materials(core)['materials'][0]['count'], 10)
+                if not replay:
+                    self.assertEqual(self.materials(core)['session']['gained'], 0)
+                    self.assertEqual(self.materials(core)['materials'][0]['count'], 10)
                 emit('MaterialCollected', timestamp='2026-11-15T19:20:03Z', Name='iron', Count=1, Category='Raw')
                 # Repeated login metadata at the same boundary must not wipe gains.
                 emit('LoadGame', Commander='Test pilot', FID='F-TEST')
+                if replay:
+                    core.bus.emit('journal.replay.done', 5)
                 result = self.materials(core)
                 self.assertEqual(result['session']['started_at'], '2026-11-15T18:30:09Z')
                 self.assertEqual(result['session']['gained'], 1)
                 self.assertEqual((result['materials'][0]['count'], result['materials'][0]['gained']), (11, 1))
-                emit('Commander', timestamp='2026-11-15T20:00:00Z', Name='Other pilot', FID='F-OTHER')
-                emit('Materials', timestamp='2026-11-15T20:00:00Z', Raw=[{'Name':'nickel','Count':2}])
-                emit('LoadGame', timestamp='2026-11-15T20:00:00Z', Commander='Other pilot', FID='F-OTHER')
+                emit('Commander', timestamp='2026-11-15T20:00:00Z', Name='Other pilot', FID='F-OTHER', _replay=False)
+                emit('Materials', timestamp='2026-11-15T20:00:00Z', Raw=[{'Name':'nickel','Count':2}], _replay=False)
+                emit('LoadGame', timestamp='2026-11-15T20:00:00Z', Commander='Other pilot', FID='F-OTHER', _replay=False)
                 self.assertEqual(self.materials(core)['session']['gained'], 0)
                 self.assertEqual([r['key'] for r in self.materials(core)['materials']], ['nickel'])
 

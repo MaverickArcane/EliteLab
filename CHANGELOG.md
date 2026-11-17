@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+## 0.6.0-beta.4
+
+- Add a transparent, borderless Windows activity HUD with 28 views, global and
+  per-panel launchers, pinning, click-through lock and recovery hotkeys. Preserve
+  Rhino progress while quiet GPS reports age during rig processing.
+- Group Rhino deposits by system/body/PML, retaining individual directions,
+  confirmation and depletion reports. Capture additional deposits into a group;
+  record circuit rig totals separately from per-deposit observations and show
+  missing coordinates explicitly. Expose the same grouping through MCP.
+
+- PTN: build direct-sale or unloading adverts from carrier hold stock, your
+  chosen tonnes and price, without a sourcing route. Suggest sale prices from
+  nearby reported buyers after a configurable hauler payout. Show quote age,
+  demand, distance and carrier price settings; keep unknown stock explicit.
+  Preserve sale drafts through live updates and expose both flows through MCP.
+- Keep Materials session gains steady during journal replay: publish the final
+  rebuilt totals once and return matching inventory rows and session totals.
+  New pickups still update immediately.
+- Show system distance and estimated jumps on Rhino location cards and the
+  selected destination. Lead with the jump and body approach before surface
+  directions; keep live distance updates from closing location notes.
+
+- Update the Rhino module's ship and SRV holds when transferring cargo, including
+  unloading without boarding. Later cargo reports replace the running count.
+  Boarding also empties the Rhino hold and records its known remaining cargo as
+  an automatic unload; cached SRV reports cannot restore cargo after docking.
+- Keep the app-window request pending during slow startup instead of silently
+  giving up after ten seconds. Shutdown and cancellation prevent late windows.
+
 ## 0.6.0-beta.3
 
 - Add Rhino surface mining under Mining: observed collections, cargo space,

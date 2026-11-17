@@ -2,13 +2,144 @@
 
 Open **Mining > Rhino surface mining**. The **Mining** tab combines a selected
 destination, automatic collection progress, hold space and useful next-step
-instructions. **Locations** groups confirmed visits and unconfirmed leads;
+instructions. **Locations** groups deposits by system/body/PML, with visited
+locations and unconfirmed leads;
 **How to mine** contains the
 full sourced guide. Forms and long explanations open only when needed.
 The existing Materials panel appears alongside it for visual
 progress; when first opened from Mining it selects **gained this session**.
 Those gains include pickups, mission rewards and trader receipts since game
 login, not only Rhino output.
+
+## Single-screen navigation overlay
+
+### Transparent Windows HUD
+
+Click **Open clear HUD** in the Rhino panel or **Open HUD** in the dashboard
+header. Allow the browser's external-app prompt if it appears. The Windows
+installer registers this launcher; portable users can open **EliteLab HUD.vbs**.
+The **EliteLab HUD** desktop / Start Menu shortcut also opens or recovers it.
+Existing **Rhino Overlay** shortcuts still work. Source users can run
+`pythonw -m elitelab.overlay`. Keep EliteLab running; this HUD does not need the
+browser tab to stay open.
+
+The HUD is shared across EliteLab. The header's **Current activity** picker can
+open any activity, and **HUD** beside each panel title opens that panel's readout.
+Reopening changes the existing window's activity, then shows, pins and unlocks
+it. No extra overlay window is created. The native selector groups the views:
+
+| Group | Available readouts |
+|---|---|
+| Flight | Ship/location and live alerts, plotted next jump, cargo, last market report, combat shield/last hull status, neutron waypoints, 24-hour travel, recent event |
+| Mining | Automatic Rhino approach/progress, surface compass, Rhino collections, last prospector report |
+| Trade | Rare loop next stop, selected trade route, cargo sale plan, personal crew run, carrier job, PTN order progress, followed/owned carrier |
+| Powerplay | Recorded session/total merits, merit pace, first candidate from the last buyer search |
+| Engineering | Material collection, wishlist budget, pinned build progress, reviewed engineer access, FSD synthesis availability |
+| Missions | Earliest-deadline mission, allocated cargo and remaining delivery |
+
+Farming opens material collection; recipes open their wishlist budget; the map
+opens the plotted ship route. These panels' browser-only selections are not
+treated as saved HUD targets. Engineer access covers the reviewed catalog, not
+every engineer in the game. A buyer search result is a candidate, not a selected
+destination. This release does not implement asteroid route books; see the
+[future mapped-mining investigation](MAPPED-MINING-RESEARCH.md).
+
+Only the selected view is polled, using existing local read endpoints. No HUD
+view starts market searches, changes plans, joins parties or posts adverts.
+Slow-changing views poll less often. Disconnected or unavailable data pauses
+readouts; stale game Status pauses combat flags. Cargo and hull retain explicit
+last-report labels. A changed ship/fit suppresses neutron guidance, and a wrong
+ship suppresses build completion. Current settings live in `data/overlay.json`;
+older Rhino settings migrate on first launch. Errors go to `data/logs/overlay.log`.
+
+`web/hud-modes.json` supplies the shared activity labels and panel mapping.
+`elitelab/hud_activities.py` maps local API responses into `hud_model.Card`;
+`overlay.py` owns polling and validated `elitelab-hud:open?mode=...` links;
+`windows_overlay.py` owns rendering and window controls. The protocol accepts
+only known mode IDs and never reads an arbitrary path or endpoint from a link.
+Source and portable users can select a view with `pythonw -m elitelab.overlay
+--mode flight`; the installer enables the dashboard protocol links.
+
+Use the activity selector beneath the header:
+
+- **Rhino - automatic**: directions on approach, then collection progress during
+  an active deployment within 25 m of the point, or within 2 km after collecting
+  ore. Mining without a selected destination also shows progress after collecting.
+  Once arrival is observed, progress stays visible while GPS is quiet during
+  processing. Changing commander, deployment or target resets that memory;
+  fresh GPS at least 2.5 km away, a different body/system, or the end of the
+  deployment returns to navigation. A connection failure still hides readouts.
+  Rig processing percentages/timers are not reported; totals advance on collection
+  receipts. Arrival memory lasts for the running HUD; it does not invent arrival
+  when opened with stale GPS.
+- **Surface navigation**: keep the prominent STEER bearing, turn instruction and
+  rotating compass visible. Choose the target in **Locations > Navigate**.
+- **Rhino mining progress**: collected and unloaded tonnes, Rhino hold gauge,
+  free ship space, deployment average and a low-space warning. Totals cover the
+  deployment across deposits; they do not measure reserves or individual rigs.
+- **Mining readouts**: the last dated prospector composition, remaining percentage
+  from that report, refined session tonnes and average rate. These are journal
+  reports, not live rock identification or mapped-asteroid navigation.
+
+The native window has no border or Windows title bar. Its background starts
+fully transparent and it starts pinned above normal windows. Controls in the
+small header are:
+
+- **PINNED / PIN**: turn always-on-top on or off.
+- **LOCK**: pass all clicks through to the game. Ctrl+Alt+L toggles it.
+- **MENU**: clear/shaded background, opacity in 10% steps, activity and hide.
+- **X**: close only the HUD. Drag **ELITELAB / HUD** to reposition it.
+- **Ctrl+Alt+H**: hide/show. **Ctrl+Alt+R**: show, pin and unlock.
+
+The large **STEER** readout is the target compass heading; the turn instruction
+or **On course** sits beneath it. **YOUR HEADING** shows the vehicle's current heading.
+The compass rose rotates with that heading, while its arrow points toward the
+saved target. Text uses grayscale antialiasing and a light shadow for contrast.
+
+Right-click a visible part for the same controls. Position, pin, background and
+opacity and activity are saved locally. Reopening the shortcut recovers the
+existing HUD, showing it pinned and unlocked. Lock is never persisted. If the
+recovery hotkey is already taken, Lock is disabled and the footer says so.
+Clear mode also removes control and header fills, leaving just outlines and
+labels. Click a label or outline to operate a control or drag the header;
+transparent pixels pass mouse clicks through. The HUD shows without activating or taking keyboard focus.
+Use Elite's Borderless or Windowed display mode. Exclusive fullscreen still
+needs switching modes. Readouts use the same saved target and GPS guards as the
+browser overlay, with a local authenticated read-only feed. Rig detection and
+terrain routing are not available.
+
+The implementation uses the built-in [Windows layered window APIs](https://learn.microsoft.com/en-us/windows/win32/winmsg/window-features)
+through Python's standard library; no extra GUI package is installed.
+
+### Browser overlay
+
+In **Locations**, choose **Navigate** on a saved deposit. Return to **Mining**
+and click **Browser overlay**. A small always-on-top window shows:
+
+- A forward-relative arrow and the shortest left/right turn toward the target.
+- Surface distance, target compass bearing, current heading and last reported Rhino cargo.
+- A green **On course** cue within 5 degrees, then **At saved spot** within 25 m.
+- Clear waiting, travel and disconnected states, with no stale steering arrow.
+
+Drag the window's title bar to an unused corner, resize it, or choose **Compact**.
+Keep the dashboard tab open; switching its workspace does not stop the overlay.
+Changing the selected deposit updates the overlay automatically. Closing or
+reloading the dashboard closes the overlay; open it again from the Rhino panel.
+The selected target works in either the main ship or the SRV near the surface.
+
+Use a browser with [Document Picture-in-Picture](https://developer.chrome.com/docs/web-platform/document-picture-in-picture),
+such as current Chrome or Edge, on localhost (or HTTPS). Unsupported browsers
+show an explanation when you click the button. This is a browser window, so use
+Elite's **Borderless** or **Windowed** display mode. It is not click-through;
+place it away from controls. Exclusive fullscreen and in-game rendering are not
+supported by this version. In-game foreground behavior still needs a play test.
+
+The overlay reads the existing Rhino endpoint once per second while open and
+clears directions if that connection fails. It requires fresh, same-body GPS
+(the existing 120-second limit). Missing vehicle heading shows a numeric compass
+bearing without a relative arrow. Directions lead to the saved area, not a
+terrain-safe route or a detected rig. Unconfirmed and depleted reports remain
+visible; the overlay cannot detect reserves or rigs.
 
 ## Watch a deployment
 
@@ -81,7 +212,38 @@ or field guide. No network fetch is required at runtime.
 Choose **Add a spot > Use current position**, then enter a name, commodity and
 useful notes. Alternatively enter a reported system, full body name, latitude
 and longitude. Save only what was observed: a tested approach, productive
-deposit or working rig positions. There is no separate rig counter.
+deposit or working rig positions. Optional rig observations belong in the
+deposit report; they are not a live rig counter.
+
+### Deposits within a PML
+
+A known PML on the same system and body groups its deposits into one location.
+Unknown-PML bookmarks remain separate. Mixed groups stay under Visited locations
+when at least one deposit is confirmed; every deposit retains its own status,
+coordinates, Navigate button, source evidence and depletion report.
+
+Open Circuit notes and actions to add a deposit or report a circuit.
+Add deposit here fills system/body/PML, but requires a fresh position capture
+or entered coordinates for the new deposit. Capturing on another body clears
+the PML. No coordinates are invented for unvisited deposits.
+
+A circuit report records the deposit count and rigs TOTAL across the circuit.
+Three deposits and six rigs means six total, never six per deposit. Separately,
+an individual report may record two rigs at one deposit. These are dated
+commander observations, not live telemetry or maximum placement capacity.
+Missing coordinate pairs are shown as still to capture. Circuit totals are
+not summed from survey estimates or observations made on different visits,
+and a circuit report does not confirm individual deposits.
+
+MCP: get_rhino_status/get_rhino_sites retain flat sites and add groups with
+site_ids, mapped_deposits, confirmed_deposits, reported_deposits,
+unmapped_deposits and rigs_observed_total. Filters do not alter group totals;
+site_ids may include filtered-out deposits. Use report_rhino_group with the
+group ID for circuit observations. Pass pml to save_rhino_site to join deposits,
+and rigs_observed to report_rhino_site only for the specific coordinate.
+Omit optional observation/PML fields on update to preserve them; null clears.
+Moving a bookmark to another system/body clears an omitted PML.
+Pass commander_key on every write to reject an account switch.
 
 Saved spots and selection belong to the current commander (FID when available,
 otherwise commander name), in `rhino-sites.json`. Up to 100 personal spots can
@@ -143,7 +305,10 @@ current purchases, compatibility and changed mechanics before advising.
 
 - `get_rhino_status`: GET `/api/rhino`; notebook, selected destination,
   current position, navigation, deployment collection totals/chart points,
-  separate last-reported holds, equipment evidence and guide topic index.
+  separate holds updated by cargo reports and transfers, equipment evidence and
+  guide topic index. Missing starting counts remain unknown. Every site includes
+  travel distance and estimated jumps from your ship. Follow system -> body ->
+  surface directions; the surface bearing works in the ship or SRV.
 - `get_rhino_guide`: GET `/api/rhino/guide`; optional `topic`, default `overview`.
 - `get_rhino_sites`: GET `/api/rhino/sites`; `verification` defaults to `all`;
   accepts `confirmed` or `unconfirmed`, plus optional exact `commodity` filter.

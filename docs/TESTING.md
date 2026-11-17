@@ -13,6 +13,54 @@ arrive, checking that an older response cannot replace current search state.
 For real multi-machine sessions, use [private staging](STAGING.md). The isolated
 launcher captures bounded redacted logs; the collector exports an allowlisted
 support ZIP without journals, settings or saved state.
+Native Rhino HUD: `python -m unittest discover -s tests -p test_rhino_overlay.py -v`
+checks navigation, stale telemetry, unknown cargo and preference persistence.
+`python -m unittest discover -s tests -p test_overlay.py -v` checks automatic
+arrival/progress, deployment totals, dated prospector reports, mode changes,
+late replies and stale/disconnected readouts. Quiet-GPS regression cases keep
+observed Rhino arrival through processing, including before the first receipt,
+and reset it for commander/deployment/target changes, departure and run end.
+`python -m unittest discover -s tests -p test_hud_activities.py -v` checks the
+shared activity catalog covers every dashboard card, rejects invalid launch
+links, preserves unknown quantities, pauses stale combat/crew telemetry and
+invalid route/build guidance, and exercises polling through a real local HTTP
+server including unavailable modules. The browser check also verifies every
+panel's HUD link, the global activity picker and narrow-screen layout.
+On Windows, `python scripts/smoke_rhino_overlay.py` launches a labeled synthetic
+HUD and inspects real HWND styles: no frame/caption, transparent background,
+pin/unpin, opacity, clear/shaded modes, click-through lock, hide/recovery hotkeys,
+all activities, duplicate launch and close. Demo hotkeys include Shift to avoid
+conflicting with the player's HUD. The smoke test
+uses isolated settings and captures `artifacts/rhino/rhino-native.png`; it never
+closes the player's HUD or changes their settings. Actual game foreground and
+terrain legibility remain a play test.
+
+Rhino overlay: `node tests/rhino-overlay.mjs` checks north-crossing turns,
+alignment, arrival, absent heading, stale/future GPS, wrong body/system and
+disconnected states. `node tests/rhino-browser.mjs` opens a real Document PiP
+window with user activation and checks live headings, disconnect/recovery,
+departure, workspace switches, compact mode, close/reopen and duplicate launches.
+It captures the same HUD renderer with synthetic data as `rhino-overlay.png`
+and `rhino-overlay-compact.png`, including a narrow-layout and text-escaping check.
+These are browser checks; borderless Elite foreground behavior needs a play test.
+PTN hold-sale adverts: `test_ptn_sale.py` covers direct/unloading drafts without
+a sourcing plan, exact prices and estimated margins, unknown stock, buy-order
+separation, owner changes, manual quantities and unchanged inventory/plans.
+Price suggestions cover full-load demand, unlimited demand, strict radius/age/pad
+filters, mean-price settings, failed feeds and current-system buyers. The PTN
+browser run checks draft persistence, journal updates while editing, price
+suggestions, overrides, regeneration on copy, HTML escaping and desktop/mobile
+layouts. All providers and cargo records are synthetic in these tests.
+Materials replay: `test_material_sessions.py` observes the published session
+stream and queries HTTP tool data mid-replay. Historical gains must stay private
+until replay completes; repeated replay must not reset the visible counter.
+Fresh receipts still publish immediately. The API returns rows and totals from
+one completed snapshot. `node tests/materials-feed.mjs` covers response ordering,
+pending filter changes and retry.
+`BrowserReadinessTests` in `test_source_setup.py` exercises startup beyond the
+former ten-second deadline, verifies the owning PID before opening, and cancels
+an in-flight health probe without opening a late window. Startup remains bounded
+by the server's lifetime; individual health requests retain their short timeout.
 
 Rhino mining: `python -m unittest discover -s tests -p test_rhino.py -v`
 and `node tests/rhino-browser.mjs` cover commander-local site persistence,
@@ -21,6 +69,19 @@ stable forms under SSE, guide topics shared through HTTP/MCP and the browser,
 guide load/retry, and live material gains in the Mining workspace.
 Regressions also submit forms across commander switches, retry failed quick
 confirmation, preserve a 1200-character report and reject cached departure GPS.
+Hold regressions reproduce nine unloads totaling 610 t without a ship Cargo
+snapshot, reverse/carrier transfers, missing baselines, stale snapshots and
+same-second ordering. The browser checks that unloads update ship free space
+through the watcher, API, SSE and rendered hold count.
+The `rhino-docking` fixture reproduces automatic boarding unloads without a
+CargoTransfer or an empty SRV report. Tests cover live/replayed docking, cached
+SRV snapshots, different vehicle IDs, manual unloading before docking, and the
+surface bearing while flying the main ship. Browser docking captures are saved
+as `rhino-docked-desktop.png` and `rhino-docked-mobile.png`.
+Travel tests distinguish another system, another body in the same system, and a
+surface target. They cover missing/invalid coordinates, zero/unknown range, SRV
+range fallback and jump rounding. Browser captures `rhino-travel-*` show the
+destination system before its surface coordinates and distances in Locations.
 Browser screenshots use synthetic data and are saved under `artifacts/rhino`.
 See [Rhino mining](RHINO-MINING.md). Use a separate `ELITELAB_INSTANCE_DIR`
 when running the full suite alongside a player's live installation.
@@ -356,6 +417,13 @@ stale-response rejection, current filters and refresh after a failure; the
 browser suite imports it and checks the visible live pickup and session totals.
 
 ## Integrated review regressions
+
+Rhino grouping regressions in `test_rhino.py` cover system/body/PML identity,
+unknown-PML isolation, circuit totals versus per-deposit observations, missing
+coordinates, mixed confirmation, filtered catalog context, persistence, account
+switches and input validation. `rhino-browser.mjs` exercises a three-deposit,
+six-rig circuit with independent navigation, escaped notes, current-position
+capture, stable forms and desktop/mobile screenshots.
 
 `test_party_persistence.py` forces a scheduler pause between deferred batch
 capture and disk I/O, then checks that a newer synchronous receipt wins.
