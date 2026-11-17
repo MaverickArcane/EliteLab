@@ -151,9 +151,10 @@ def mode_from_uri(uri):
     parsed = urlsplit(uri)
     if parsed.scheme != 'elitelab-hud' or parsed.path != 'open' or parsed.netloc or parsed.fragment:
         raise ValueError('Invalid HUD link')
-    params = parse_qs(parsed.query, keep_blank_values=True, strict_parsing=True)
-    if not params:
+    # Python 3.10's strict query parser rejects an empty query string.
+    if not parsed.query:
         return None
+    params = parse_qs(parsed.query, keep_blank_values=True, strict_parsing=True)
     if set(params) != {'mode'} or len(params['mode']) != 1 or params['mode'][0] not in MODES:
         raise ValueError('Unknown HUD activity')
     return params['mode'][0]
