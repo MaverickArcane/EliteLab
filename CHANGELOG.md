@@ -10,6 +10,8 @@
   unloading without boarding. Later cargo reports replace the running count.
   Boarding also empties the Rhino hold and records its known remaining cargo as
   an automatic unload; cached SRV reports cannot restore cargo after docking.
+- Keep the app-window request pending during slow startup instead of silently
+  giving up after ten seconds. Shutdown and cancellation prevent late windows.
 
 - Add Rhino surface mining under Mining: observed collections, cargo space,
   coordinate navigation and a sourced procedure guide shared by the UI and MCP.

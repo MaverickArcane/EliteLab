@@ -1,5 +1,10 @@
 # Testing
 
+`BrowserReadinessTests` in `test_source_setup.py` exercises startup beyond the
+former ten-second deadline, verifies the owning PID before opening, and cancels
+an in-flight health probe without opening a late window. Startup remains bounded
+by the server's lifetime; individual health requests retain their short timeout.
+
 Rhino mining: `python -m unittest discover -s tests -p test_rhino.py -v`
 and `node tests/rhino-browser.mjs` cover commander-local site persistence,
 surface navigation, legacy note preservation, input validation, escaping,
