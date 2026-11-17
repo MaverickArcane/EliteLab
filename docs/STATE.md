@@ -1,5 +1,17 @@
 # State reference
 
+`profits.session` is rebuilt from the latest game session's commodity sales.
+`profit` is sale proceeds less journal average purchase cost, before fuel,
+repairs, fees and NPC crew deductions. Missing costs or receipts make the total
+null; `known_profit` is only the known subtotal, `unknown_sales` counts incomplete
+receipts, and `recent` retains ten sales. Zero acquisition cost is valid,
+including for mined cargo. `partial` means LoadGame was not seen; LoadGame or a
+changed commander/FID resets the session, and Shutdown ends it.
+`profits.estimate` is independent: active crew load at agreed prices, otherwise
+the selected personal trade leg at quoted prices. Owner transfers, stale/paused
+crew work, unknown cargo, changed commander and completed routes do not invent
+earnings. `/api/profits`, the Trading panel and profit HUD expose these fields.
+
 `ptn.sale_cargo` lists physical carrier stock evidence for the hold-sale builder:
 commodity, display name, nullable stock, source/time and nullable active sell
 price/order time. It does not infer available stock from buy orders. The existing

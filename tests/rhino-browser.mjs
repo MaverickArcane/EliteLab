@@ -62,7 +62,7 @@ try {
   assert.equal(await evaluate("document.querySelector('#card-materials').classList.contains('workspace-off')"),false);
   assert.equal(await evaluate("document.querySelector('[data-rhino-native-overlay]').textContent"),'Open clear HUD');
   assert.equal(await evaluate("document.querySelector('header a[href=\"elitelab-hud:open\"]').textContent"),'Open HUD');
-  await wait("document.querySelectorAll('#hud-activity option').length===29");
+  await wait(`document.querySelectorAll('#hud-activity option').length===${JSON.parse(fs.readFileSync(path.join(root,'web/hud-modes.json'),'utf8')).length+1}`);
   await evaluate("document.querySelector('#hud-activity').value='flight';document.querySelector('#hud-activity').dispatchEvent(new Event('change'));true");
   assert.equal(await evaluate("document.querySelector('#hud-open').getAttribute('href')"),'elitelab-hud:open?mode=flight');
   const hudModes = JSON.parse(fs.readFileSync(path.join(root,'web/hud-modes.json'),'utf8'));

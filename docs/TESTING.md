@@ -1,5 +1,12 @@
 # Testing
 
+Trading profit: `python -m unittest discover -s tests -p test_trading_profits.py -v`
+checks sale receipts, missing costs, losses, replay/session boundaries and
+separate route/crew estimates. `node tests/trading-profits-browser.mjs` uses an
+isolated real server and synthetic journal/Cargo.json to check live profit,
+partial sales, external Inara links, stable filters, commander changes,
+escaping and desktop/narrow screenshots under `artifacts/trading-profits/`.
+
 Native Rhino HUD: `python -m unittest discover -s tests -p test_rhino_overlay.py -v`
 checks navigation, stale telemetry, unknown cargo and preference persistence.
 `python -m unittest discover -s tests -p test_overlay.py -v` checks automatic

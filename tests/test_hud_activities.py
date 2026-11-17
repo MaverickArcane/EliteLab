@@ -94,6 +94,17 @@ class HudActivityTests(unittest.TestCase):
         self.assertEqual(card.stats[0][1], '1/2')
         self.assertIn('EST.', card.stats[1][0])
 
+    def test_profit_hud_separates_receipts_estimates_and_missing_costs(self):
+        sample = copy.deepcopy(SAMPLES['profits'])
+        card = a.profits(sample)
+        self.assertEqual(card.primary, '2.48M Cr')
+        self.assertEqual(card.metric, '640.00k Cr')
+        self.assertIn('ESTIMATE', card.metric_label)
+        sample['session'].update(profit=None, unknown_sales=1)
+        self.assertEqual(a.profits(sample).primary, '--')
+        self.assertIn('unknown', a.profits(sample).warning)
+        self.assertEqual(a.profits(sample, False).status, 'OFFLINE')
+
     def test_real_http_feed_mode_change_and_missing_module(self):
         calls = []
         class Handler(BaseHTTPRequestHandler):

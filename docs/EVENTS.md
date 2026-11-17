@@ -1,5 +1,12 @@
 # Journal events consumed
 
+`profits` consumes MarketSell.Count, TotalSale (falling back to Count *
+SellPrice) and AvgPricePaid. Profit is the receipt less Count * AvgPricePaid;
+missing values remain unknown. Purchases, transfers, mission rewards, balance
+snapshots and planned prices never add to earned profit. LoadGame and Commander
+scope the session, Shutdown ends it, and journal.replay.done publishes the
+replayed totals. Same-second sales are separate receipts.
+
 `rhino` uses LoadGame/Commander for notebook identity, location/jump/approach
 events for the system, and Status latitude/longitude/radius for navigation.
 Departure, Died and Shutdown clear the position; a new login resets navigation.

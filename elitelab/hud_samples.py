@@ -12,6 +12,10 @@ JOURNAL = {'ship': 'Python', 'ship_name': 'Sample hauler', 'system': 'Sample A',
                       'commodities': [{}, {}], 'rares_in_stock': [{'stock': 12}]}}
 
 SAMPLES = {
+    'profits': {'session': {'profit': 2480000, 'sales': 4, 'sold_tons': 512,
+                'recent': [{'commodity': 'Gold', 'quantity': 128, 'profit': 620000}]},
+                'estimate': {'commodity': 'Gold', 'profit': 640000, 'label': 'Current leg estimate',
+                'note': 'At selected route prices; actual prices may differ.'}},
     **{key: JOURNAL for key in ('overview', 'cargo', 'market', 'combat', 'feed')},
     'flight': {'status': 'plotted', 'next_system': 'Sample B', 'destination': 'Sample D', 'remaining_jumps': 3,
                'current_location': {'system': 'Sample A'}, 'remaining_distance_ly': 83.7, 'remaining_route': [{'star_class': 'K'}]},

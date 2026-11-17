@@ -1,4 +1,5 @@
 /* Trading: ship-aware searches, a comparison table, and one selected route with its next action. */
+import {profitSummary, mountInara} from './trade-tools.js';
 (() => {
   const {esc, fmt, ls} = Lab.util;
   const KEY = 'personal.search.v2', TOP = 10;
@@ -66,11 +67,12 @@
   };
 
   Lab.card({
-    id: 'personal', requires: ['journal', 'personal'],
+    id: 'personal', requires: ['journal', 'personal', 'profits'],
     mount(el) {
       const u = el._personal = {destroyed: false, result: null, expanded: null, all: false, planHtml: ''};
       el.classList.add('trading-body');
-      el.innerHTML = `<div data-personal-plan></div>
+      el.innerHTML = `<section class="trade-profits" data-trade-profits></section><div data-personal-plan></div>
+        <section class="trade-inara" data-inara-search></section>
         <div class="row trade-nav"><b>Find a trade route</b>${external('https://inara.cz/elite/market-traderoutes-search/', 'Open Inara')}</div>
         <form data-personal-search class="trade-form trading-form">
           <label>Route type<select name="route_type"><option value="round_trip">Round trip (return to start)</option><option value="one_way">One way</option></select></label>
@@ -92,6 +94,7 @@
           <div class="trade-wide note" data-ship-context></div>
           <div class="trade-wide row"><button type="submit" class="mini primary">Find routes</button><span class="note">Fleet carriers excluded. Round trips return to the same station; return cargo is chosen independently.</span></div>
         </form><p class="note trading-status" data-personal-status role="status">Choose your filters and find routes. Blank load uses your ship capacity.</p><div class="trade-pairs" data-personal-results></div>`;
+      u.inara = mountInara(el.querySelector('[data-inara-search]'), Lab);
       const form = el.querySelector('form'), status = el.querySelector('[data-personal-status]'), results = el.querySelector('[data-personal-results]');
       const old = ls.get('personal.search.v1', {});
       const saved = ls.get(KEY, {...old, breadth: '100'});
@@ -171,6 +174,13 @@
     },
     render(el, S) {
       const u = el._personal, j = S.journal || {}, form = el.querySelector('form');
+      u.inara.update();
+      const profits = profitSummary(S, esc, fmt);
+      if (u.profitHtml !== profits) {
+        const panel = el.querySelector('[data-trade-profits]'), open = panel.querySelector('details')?.open;
+        u.profitHtml = profits; panel.innerHTML = profits;
+        if (open && panel.querySelector('details')) panel.querySelector('details').open = true;
+      }
       form.elements.origin.placeholder = j.system || 'Enter starting system';
       form.elements.quantity.placeholder = j.cargo_capacity ? `${fmt(j.cargo_capacity)} t` : 'Enter load size';
       el.querySelector('[data-ship-context]').textContent = `${j.ship_name || j.ship || 'Current ship'} | ${j.system || 'Location unknown'} | ${j.cargo_capacity == null ? 'Capacity unknown' : fmt(j.cargo_capacity) + ' t capacity'} | ${j.jump_range_laden == null ? 'Laden range unknown; use light-years' : fmt(j.jump_range_laden) + ' Ly fully laden'}. Jump limits are straight-line estimates, not plotted navigation. Results retain their search settings and prices until searched again.`;
@@ -179,7 +189,7 @@
       const planId = S.personal?.plan?.id || null;
       if (u.result && u.planId !== planId) { u.planId = planId; u.draw(); }
     },
-    unmount(el) { el._personal.destroyed = true; },
+    unmount(el) { el._personal.destroyed = true; el._personal.inara.destroy(); },
   });
 
   Lab.map.addLayer('personal', {

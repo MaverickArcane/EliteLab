@@ -326,6 +326,13 @@ label.chk input { margin: 4px 0 0; } label.chk.done .n { text-decoration: line-t
 .trade-filters input { width: 100px; }
 /* Trading keeps leg prices and station actions readable at every card width. */
 .trading-body { min-width: 0; }
+.trade-profits, .trade-inara { border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.trade-profit-head { justify-content: space-between; flex-wrap: wrap; margin-bottom: 12px; }
+.trade-profit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 16px; }
+.trade-profit-grid > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.trade-profit-grid strong { font-size: 23px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.trade-profits .k { font-size: 11px; }
+.trade-inara a { display: inline-block; }
 .trading-form { grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }
 .trading-form [hidden] { display: none; }
 .trading-status { line-height: 1.6; overflow-wrap: anywhere; }

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Show earned commodity profit, latest sale profit and a separate current-run
+  estimate in Trading and a transparent profit HUD. Use journal acquisition
+  costs, preserve losses and unknown costs, and reset with the game session.
+- Add Inara buy/sell commodity searches to Trading, prefilled with your system
+  and chosen commodity, pad size, price age, surface and carrier filters.
+  Open results on Inara without changing your selected EliteLab route.
+
 - Group Rhino deposits by system/body/PML, retaining individual directions,
   confirmation and depletion reports. Capture additional deposits into a group;
   record circuit rig totals separately from per-deposit observations and show

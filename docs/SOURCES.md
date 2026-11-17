@@ -7,6 +7,8 @@ to a market or station when an appropriate resource is available.
 
 | Feature | Resource used | Notes |
 | --- | --- | --- |
+| Trading profit | [Frontier journal manual, section 7.6](https://hosting.zaonce.net/community/journal/v37/Journal_Manual_v37.pdf) | MarketSell receipts and recorded average purchase cost; estimates remain separate |
+| Inara commodity handoff | [Inara commodity search](https://inara.cz/elite/commodities/) | Public form fields and 269 commodity ID/name pairs verified 2026-11-17 in `modules/personal/web/inara-commodities.json`. Opens the website with explicit buy/sell, system, pad, report-age, surface and carrier filters; does not import market results or alter a saved route. If the local list fails, commodity selection stays on Inara. |
 | Cargo buyers and personal trades | [Spansh station search](https://spansh.co.uk/stations) | Community EDDN markets; cargo buyers link directly to `/station/{market_id}` |
 | Flight route generation | [Spansh neutron planner](https://spansh.co.uk/plotter) | Asynchronous external route job, saved locally after validation |
 | Mining rings and buyers | [Spansh body search](https://spansh.co.uk/bodies), [station search](https://spansh.co.uk/stations) | Reported rings/hotspots and commodity markets |

@@ -1,0 +1,8 @@
+{"timestamp":"2026-11-17T11:00:00Z","event":"LoadGame","Commander":"Old Trader","FID":"F0"}
+{"timestamp":"2026-11-17T11:01:00Z","event":"MarketSell","Type":"gold","Count":1,"TotalSale":99999,"AvgPricePaid":1}
+{"timestamp":"2026-11-17T12:00:00Z","event":"LoadGame","Commander":"Test Trader","FID":"F1","Credits":1000000}
+{"timestamp":"2026-11-17T12:01:00Z","event":"MarketBuy","Type":"gold","Count":10,"BuyPrice":100,"TotalCost":1000}
+{"timestamp":"2026-11-17T12:02:00Z","event":"MarketSell","Type":"gold","Type_Localised":"Gold","Count":4,"SellPrice":500,"TotalSale":2000,"AvgPricePaid":100}
+{"timestamp":"2026-11-17T12:03:00Z","event":"MarketSell","Type":"gold","Type_Localised":"Gold","Count":6,"SellPrice":450,"AvgPricePaid":100}
+{"timestamp":"2026-11-17T12:04:00Z","event":"MissionCompleted","MissionID":1,"Reward":2000000}
+{"timestamp":"2026-11-17T12:05:00Z","event":"Shutdown"}

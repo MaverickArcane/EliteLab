@@ -377,6 +377,22 @@ def targets(s):
                 note='Search candidate; verify demand, access and merit eligibility.', visual=badge('BUYER'))
 
 
+@connected
+def profits(s):
+    session, run = s.get('session') or {}, s.get('estimate') or {}
+    last = (session.get('recent') or [{}])[0]
+    value = session.get('profit')
+    warning = 'Missing sale evidence; total unknown.' if session.get('unknown_sales') else 'Partial journal session.' if session.get('partial') else ''
+    return Card(title='Trading profit', context=run.get('commodity') or last.get('commodity') or '',
+                status='SESSION ENDED' if session.get('ended') else 'RECORDED MARKET SALES',
+                primary=money(value), primary_label='EARNED THIS SESSION',
+                secondary=n(session.get('sold_tons'), ' t sold'),
+                metric=money(run.get('profit')), metric_label=(run.get('label') or 'CURRENT RUN ESTIMATE').upper(),
+                stats=(('LATEST SALE PROFIT', money(last.get('profit'))), ('SALES', n(session.get('sales')))),
+                note='Before fuel, repairs, fees and crew. ' + (run.get('note') or 'Select a route or hauling job for an estimate.'),
+                warning=warning or run.get('warning') or '', tone='green' if finite(value) and value >= 0 else 'amber', visual=badge('PROFIT', 'Cr'))
+
+
 # Endpoint choices deliberately exclude discovery, search, join, posting and planning operations.
 PROVIDERS = {
     'overview': ('/api/journal', 'status', overview, 1),
@@ -388,6 +404,7 @@ PROVIDERS = {
     'merits': ('/api/merits', 'session_merits', merits, 3),
     'loop': ('/api/loop', 'stations', loop, 1),
     'personal': ('/api/personal/plan', 'plan', personal, 1),
+    'profits': ('/api/profits', 'session', profits, 1),
     'selling': ('/api/selling', 'plan', selling, 2),
     'hauling': ('/api/party', 'mode', hauling, 1),
     'trade': ('/api/trade', 'plan', trade, 2),

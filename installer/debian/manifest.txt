@@ -110,9 +110,13 @@ modules/personal/module.py
 modules/personal/plan.py
 modules/personal/powerplay.py
 modules/personal/web/card.js
+modules/personal/web/inara-commodities.json
+modules/personal/web/trade-tools.js
 modules/powerplay/module.json
 modules/powerplay/module.py
 modules/powerplay/web/card.js
+modules/profits/module.json
+modules/profits/module.py
 modules/progression/module.json
 modules/progression/module.py
 modules/ptn/mining.py

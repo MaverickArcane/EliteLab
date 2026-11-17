@@ -1,5 +1,14 @@
 # Code reference
 
+`modules/profits/module.py` rebuilds bounded sale receipts and full session
+totals from MarketSell, separate from read-only personal/party run estimates.
+`modules/personal/web/trade-tools.js` renders that summary and builds public
+Inara buy/sell search links from a verified local commodity catalog. The Trading
+panel has a dedicated profit HUD link; the same mode is in the global HUD menu.
+`tests/test_trading_profits.py` covers accounting/session boundaries and
+`tests/trading-profits-browser.mjs` checks real journal/SSE updates, external
+link parameters, escaping and desktop/narrow layouts in an isolated instance.
+
 Release files: `modules/selling/planning.py` validates reports and allocates
 quantity-limited sale stops; `module.py` owns background search, commander plans,
 journal receipt deduplication and a serialized writer; `web/card.js` renders

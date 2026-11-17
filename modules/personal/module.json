@@ -15,6 +15,7 @@
       "title": "Trading",
       "span": 12,
       "script": "card.js",
+      "script_type": "module",
       "order": 46,
       "sources": [
         {
@@ -24,6 +25,10 @@
         {
           "label": "Inara route search",
           "url": "https://inara.cz/elite/market-traderoutes-search/"
+        },
+        {
+          "label": "Inara commodity search",
+          "url": "https://inara.cz/elite/commodities/"
         }
       ]
     }
