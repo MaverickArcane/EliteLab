@@ -43,6 +43,128 @@ class RhinoTests(unittest.TestCase):
             "Flags":(1 << 21) | (1 << 26), "BodyName":"Shinrarta Dezhra AB 2 j", "PlanetRadius":5963896,
             "Latitude":35.950340, "Longitude":-31.233133, **overrides})
 
+    def test_groups_match_system_body_pml_without_merging_unknowns(self):
+        self.launch()
+        first = self.save(pml=4)
+        second = self.save(name="Another deposit", pml=4, latitude=36)
+        other_pml = self.save(pml=3)
+        other_body = self.save(pml=4, body="Shinrarta Dezhra AB 2 k")
+        other_system = self.save(pml=4, system="Other system")
+        unknown1, unknown2 = self.save(), self.save()
+        groups = self.call()["groups"]
+        own = next(g for g in groups if first["id"] in g["site_ids"])
+        self.assertEqual(own["site_ids"], [first["id"], second["id"]])
+        self.assertEqual(own["mapped_deposits"], 2)
+        self.assertEqual(own["confirmed_deposits"], 0)
+        self.assertIsNone(own["rigs_observed_total"])
+        for site in (other_pml, other_body, other_system, unknown1, unknown2):
+            self.assertNotEqual(site["group_id"], first["group_id"])
+        self.assertNotEqual(unknown1["group_id"], unknown2["group_id"])
+        self.assertEqual(self.save(pml=4, system="shinrarta dezhra",
+                                   body="shinrarta dezhra ab 2 j")["group_id"], first["group_id"])
+
+    def test_circuit_total_is_separate_from_deposit_capacity_and_missing_coordinates(self):
+        self.launch()
+        first = next(s for s in self.call()["sites"] if s["id"] == "wregoe-iridium-31")
+        group = self.call("report_rhino_group", id=first["group_id"], reported_deposits=3,
+                          rigs_observed_total=6, evidence="Six rigs total across three deposits")
+        self.assertEqual((group["mapped_deposits"], group["unmapped_deposits"]), (1, 2))
+        self.assertEqual(group["rigs_observed_total"], 6)
+        self.assertEqual(len(self.call()["sites"]), self.catalog_size)
+        self.assertEqual(group["confirmed_deposits"], 0)
+        self.assertNotIn("rigs_observed", next(s for s in self.call()["sites"] if s["id"] == first["id"]))
+        self.call("report_rhino_site", id=first["id"], verification="confirmed", availability="unknown",
+                  evidence="Two rigs here on first visit", rigs_observed=2)
+        group = next(g for g in self.call()["groups"] if g["id"] == first["group_id"])
+        self.assertEqual(group["confirmed_deposits"], 1)
+        for latitude in (-26.56, -26.57):
+            self.save(pml=4, system=first["system"], body=first["body"], commodity="Iridium", latitude=latitude)
+        group = next(g for g in self.call()["groups"] if g["id"] == first["group_id"])
+        self.assertEqual((group["mapped_deposits"], group["unmapped_deposits"], group["rigs_observed_total"]), (3, 0, 6))
+        deposits = [s for s in self.call()["sites"] if s["group_id"] == group["id"]]
+        self.assertEqual([s.get("rigs_observed") for s in deposits], [2, None, None])
+        self.assertEqual(deposits[0]["rigs_reported"], 6)
+
+    def test_filtered_catalog_retains_full_group_context(self):
+        self.launch()
+        first = self.save(pml=4)
+        second = self.save(pml=4, commodity="Water", latitude=36)
+        self.call("confirm_rhino_site", id=first["id"])
+        self.call("report_rhino_group", id=first["group_id"], reported_deposits=3,
+                  rigs_observed_total=6, evidence="Field report")
+        result = self.call("get_rhino_sites", verification="confirmed", commodity="Tritium")
+        group = next(g for g in result["groups"] if g["id"] == first["group_id"])
+        self.assertIn(second["id"], group["site_ids"])
+        self.assertNotIn(second["id"], [s["id"] for s in result["sites"]])
+        self.assertEqual((group["mapped_deposits"], group["confirmed_deposits"], group["rigs_observed_total"]), (2, 1, 6))
+
+    def test_group_reports_persist_and_reject_commander_switch(self):
+        self.launch()
+        site = self.save(pml=4)
+        params = dict(id=site["group_id"], reported_deposits=3, rigs_observed_total=6,
+                      evidence="Observed circuit", commander_key="fid:F-RHINO")
+        expected = self.call("report_rhino_group", **params)
+        restarted = Core(); loader.load_all(restarted); self.addCleanup(restarted.close)
+        restarted.watcher.replay()
+        self.assertIn(expected, restarted.http.tools["get_rhino_status"].fn({})["groups"])
+        self.emit("Commander", Name="Other", FID="OTHER")
+        with self.assertRaisesRegex(ValueError, "Commander changed"):
+            self.call("report_rhino_group", **params)
+        self.assertNotIn(site["group_id"], [g["id"] for g in self.call()["groups"]])
+        self.emit("Commander", Name="Rhino Test", FID="F-RHINO")
+        self.assertIn(expected, self.call()["groups"])
+
+    def test_group_and_rig_reports_validate_without_writing(self):
+        self.launch()
+        site = self.save(pml=4)
+        original = self.call()
+        params = dict(id=site["group_id"], reported_deposits=3, rigs_observed_total=6, evidence="Observed")
+        for field, values in (("reported_deposits", [0, -1, 101, 1.5, True, "3", None]),
+                              ("rigs_observed_total", [-1, 601, 1.5, True, "6", None])):
+            for value in values:
+                with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                    self.call("report_rhino_group", **{**params, field:value})
+        for extra in (dict(id="missing"), dict(evidence="")):
+            with self.assertRaises(ValueError):
+                self.call("report_rhino_group", **{**params, **extra})
+        for value in (-1, 7, 1.5, True, "2"):
+            with self.assertRaises(ValueError):
+                self.call("report_rhino_site", id=site["id"], verification="confirmed",
+                          availability="unknown", evidence="Observed", rigs_observed=value)
+        self.assertEqual(self.call(), original)
+        unknown = self.save()
+        with self.assertRaisesRegex(ValueError, "known PML"):
+            self.call("report_rhino_group", **{**params, "id":unknown["group_id"]})
+
+    def test_deposit_rig_observation_preserved_cleared_and_source_retained(self):
+        self.launch()
+        params = dict(id="wregoe-iridium-30", verification="unconfirmed",
+                      availability="reported_depleted", evidence="Only tested two here")
+        report = self.call("report_rhino_site", **params, rigs_observed=2)
+        self.assertEqual((report["rigs_observed"], report["reference_rigs_observed"]), (2, 6))
+        report = self.call("confirm_rhino_site", id=params["id"])
+        self.assertEqual((report["personal_rigs_observed"], report["availability"]), (2, "reported_depleted"))
+        self.assertEqual(self.call("report_rhino_site", **params)["personal_rigs_observed"], 2)
+        report = self.call("report_rhino_site", **params, rigs_observed=None)
+        self.assertNotIn("personal_rigs_observed", report)
+        self.assertEqual(report["rigs_observed"], 6)
+        self.assertEqual(self.call("report_rhino_site", **params, rigs_observed=0)["rigs_observed"], 0)
+
+    def test_pml_update_legacy_clear_and_moving_deposit(self):
+        self.launch()
+        site = self.save(pml=4)
+        self.assertEqual(self.save(id=site["id"], notes="New notes")["group_id"], site["group_id"])
+        changed = self.save(id=site["id"], pml=3)
+        self.assertNotEqual(changed["group_id"], site["group_id"])
+        cleared = self.save(id=site["id"], pml=None)
+        self.assertIsNone(cleared["pml"])
+        for value in (0, -1, 1000001, 1.5, True, "4"):
+            with self.assertRaises(ValueError):
+                self.save(pml=value)
+        self.save(id=site["id"], pml=4)
+        moved = self.save(id=site["id"], body="Shinrarta Dezhra AB 2 k")
+        self.assertIsNone(moved["pml"])
+
     def test_fixture_replay_live_and_repeat_preserve_notebook(self):
         self.launch(); site = self.save()
         for line in next(FIXTURE.glob("Journal.*")).read_text().splitlines():

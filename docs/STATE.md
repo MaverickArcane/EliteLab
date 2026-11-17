@@ -29,7 +29,12 @@ Jump estimates use unrounded distance and the current ship range, or a labelled
 laden/loadout fallback while driving an SRV. They are not plotted routes.
 The guide itself is read on demand through `get_rhino_guide`, not repeated in SSE.
 Only explicit notebook/report actions persist to `rhino-sites.json`. Commander
-accounts contain `sites`, `selected` and `reports` keyed by site ID. Local reports
+accounts contain `sites`, `selected` and `reports` keyed by site ID,
+plus `group_reports` keyed by the stable system/body/PML group ID.
+Personal sites retain optional `pml`; reports retain optional `rigs_observed`.
+`summary.groups` links flat site IDs and separates reported circuit totals
+from mapped deposit counts. Unknown-PML entries are not merged by proximity.
+Local reports
 override effective classification while retaining `reference_evidence` and
 `reference_verification`; bundled catalog data is never rewritten. The earlier
 preview's rig-fit field is preserved as a note. See [Rhino mining](RHINO-MINING.md).

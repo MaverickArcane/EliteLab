@@ -375,6 +375,13 @@ browser suite imports it and checks the visible live pickup and session totals.
 
 ## Integrated review regressions
 
+Rhino grouping regressions in `test_rhino.py` cover system/body/PML identity,
+unknown-PML isolation, circuit totals versus per-deposit observations, missing
+coordinates, mixed confirmation, filtered catalog context, persistence, account
+switches and input validation. `rhino-browser.mjs` exercises a three-deposit,
+six-rig circuit with independent navigation, escaped notes, current-position
+capture, stable forms and desktop/mobile screenshots.
+
 `test_party_persistence.py` forces a scheduler pause between deferred batch
 capture and disk I/O, then checks that a newer synchronous receipt wins.
 Engineering tests preserve a Commander/Materials/LoadGame baseline while

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Group Rhino deposits by system/body/PML, retaining individual directions,
+  confirmation and depletion reports. Capture additional deposits into a group;
+  record circuit rig totals separately from per-deposit observations and show
+  missing coordinates explicitly. Expose the same grouping through MCP.
+
 - PTN: build direct-sale or unloading adverts from carrier hold stock, your
   chosen tonnes and price, without a sourcing route. Suggest sale prices from
   nearby reported buyers after a configurable hauler payout. Show quote age,

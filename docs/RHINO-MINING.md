@@ -2,7 +2,8 @@
 
 Open **Mining > Rhino surface mining**. The **Mining** tab combines a selected
 destination, automatic collection progress, hold space and useful next-step
-instructions. **Locations** groups confirmed visits and unconfirmed leads;
+instructions. **Locations** groups deposits by system/body/PML, with visited
+locations and unconfirmed leads;
 **How to mine** contains the
 full sourced guide. Forms and long explanations open only when needed.
 The existing Materials panel appears alongside it for visual
@@ -81,7 +82,38 @@ or field guide. No network fetch is required at runtime.
 Choose **Add a spot > Use current position**, then enter a name, commodity and
 useful notes. Alternatively enter a reported system, full body name, latitude
 and longitude. Save only what was observed: a tested approach, productive
-deposit or working rig positions. There is no separate rig counter.
+deposit or working rig positions. Optional rig observations belong in the
+deposit report; they are not a live rig counter.
+
+### Deposits within a PML
+
+A known PML on the same system and body groups its deposits into one location.
+Unknown-PML bookmarks remain separate. Mixed groups stay under Visited locations
+when at least one deposit is confirmed; every deposit retains its own status,
+coordinates, Navigate button, source evidence and depletion report.
+
+Open Circuit notes and actions to add a deposit or report a circuit.
+Add deposit here fills system/body/PML, but requires a fresh position capture
+or entered coordinates for the new deposit. Capturing on another body clears
+the PML. No coordinates are invented for unvisited deposits.
+
+A circuit report records the deposit count and rigs TOTAL across the circuit.
+Three deposits and six rigs means six total, never six per deposit. Separately,
+an individual report may record two rigs at one deposit. These are dated
+commander observations, not live telemetry or maximum placement capacity.
+Missing coordinate pairs are shown as still to capture. Circuit totals are
+not summed from survey estimates or observations made on different visits,
+and a circuit report does not confirm individual deposits.
+
+MCP: get_rhino_status/get_rhino_sites retain flat sites and add groups with
+site_ids, mapped_deposits, confirmed_deposits, reported_deposits,
+unmapped_deposits and rigs_observed_total. Filters do not alter group totals;
+site_ids may include filtered-out deposits. Use report_rhino_group with the
+group ID for circuit observations. Pass pml to save_rhino_site to join deposits,
+and rigs_observed to report_rhino_site only for the specific coordinate.
+Omit optional observation/PML fields on update to preserve them; null clears.
+Moving a bookmark to another system/body clears an omitted PML.
+Pass commander_key on every write to reject an account switch.
 
 Saved spots and selection belong to the current commander (FID when available,
 otherwise commander name), in `rhino-sites.json`. Up to 100 personal spots can
