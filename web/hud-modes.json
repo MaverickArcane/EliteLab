@@ -110,6 +110,12 @@
     ]
   },
   {
+    "id": "profits",
+    "label": "Trading profit",
+    "group": "Trade",
+    "cards": []
+  },
+  {
     "id": "selling",
     "label": "Sell cargo",
     "group": "Trade",

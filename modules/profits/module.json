@@ -1,0 +1,9 @@
+{
+  "name": "profits",
+  "version": "1.0.0",
+  "description": "Journal commodity sale margins and a separate current trade-run estimate.",
+  "requires": ["journal", "personal", "party"],
+  "provides": ["profits"],
+  "order": 29,
+  "cards": []
+}
