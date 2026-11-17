@@ -95,7 +95,10 @@ class MinedUnloadingTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.f.mutate('confirm',price=250000,remaining=100,
             checks={k:True for k in ('near_station','docking_open','funds_checked','competition_checked')})
         self.assertTrue(self.confirm()['operation']['ready'])
-        self.core.store.set('trade','inventory',{'platinum':{'stock':110,'updated_at':self.f.time()}})
+        # Coarse Windows clocks can give consecutive calls the same timestamp.
+        # Model explicitly ordered past evidence, followed by a fresh confirmation.
+        self.desk.data['plan']['source']['checked_at']=self.f.time(-2/3600)
+        self.core.store.set('trade','inventory',{'platinum':{'stock':110,'updated_at':self.f.time(-1/3600)}})
         self.assertFalse(self.desk.view()['operation']['ready'])
         with self.assertRaises(ValueError):self.f.call('prepare_ptn_advert',revision=self.desk.data['revision'])
         # Owner explicitly rechecks reduced physical stock and outstanding order.
