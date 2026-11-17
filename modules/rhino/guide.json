@@ -30,7 +30,7 @@
         "Collect minerals while leaving the rigs deployed. Use Inventory > Transfer > Transfer all to ship under your ship's bay when you need cargo space.",
         "Save coordinates and practical notes. Recover every rig you want to keep before boarding or leaving."
       ],
-      "notes": ["The Mining tab follows refined cargo for the current Rhino deployment and last reported hold space. Open the steps for the task at hand. The Materials panel's gained this session view includes other activities since login too."],
+      "notes": ["The Mining tab follows refined cargo for the current Rhino deployment and last reported hold space. Open the steps for the task at hand. The Materials panel's gained this session view includes other activities since login too.", "Locations show system distance and estimated jumps before selection. If the destination is in another system, jump there first, then approach the listed body. Surface distance and bearing work in the ship or SRV once fresh coordinates match that body. Jump counts are estimates at the stated ship range; plot the route in game."],
       "evidence": "Overview of the procedures below; follow their source notes and limitations.",
       "sources": ["release", "quick", "transfer", "owner"]
     },

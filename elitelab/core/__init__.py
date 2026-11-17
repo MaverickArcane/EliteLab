@@ -117,22 +117,24 @@ class Core:
         t.start()
 
     def _open_browser(self, host, port, path="/"):
-        """Open only after this process answers a ready health probe; stop cancels pending work."""
+        """Wait for this process's ready health response until stopped or cancelled."""
         from ..window import open_dashboard
         from ..instance import health
         url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}/"
 
         def open_when_ready():
-            deadline = time.monotonic() + 10
-            while self.ready and time.monotonic() < deadline:
+            notice_at = time.monotonic() + 10
+            while self.ready and not t.finished.is_set():
                 state = health(url, config.AUTH_TOKEN)
                 if state and state.get("ready") and state.get("pid") == os.getpid():
-                    if self.ready:
+                    if self.ready and not t.finished.is_set():
                         open_dashboard(url + path.lstrip("/"), config)
                     return
-                time.sleep(.1)
-            if self.ready:
-                log.warning("Browser readiness check timed out; open %s%s", url, path.lstrip("/"))
+                if notice_at is not None and time.monotonic() >= notice_at:
+                    log.info("Still waiting for the local dashboard; the app window will open automatically at %s%s",
+                             url, path.lstrip("/"))
+                    notice_at = None
+                t.finished.wait(.1)
 
         t = threading.Timer(0.1, open_when_ready)
         t.daemon = True

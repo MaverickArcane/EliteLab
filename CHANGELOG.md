@@ -7,6 +7,19 @@
   nearby reported buyers after a configurable hauler payout. Show quote age,
   demand, distance and carrier price settings; keep unknown stock explicit.
   Preserve sale drafts through live updates and expose both flows through MCP.
+- Keep Materials session gains steady during journal replay: publish the final
+  rebuilt totals once and return matching inventory rows and session totals.
+  New pickups still update immediately.
+- Show system distance and estimated jumps on Rhino location cards and the
+  selected destination. Lead with the jump and body approach before surface
+  directions; keep live distance updates from closing location notes.
+
+- Update the Rhino module's ship and SRV holds when transferring cargo, including
+  unloading without boarding. Later cargo reports replace the running count.
+  Boarding also empties the Rhino hold and records its known remaining cargo as
+  an automatic unload; cached SRV reports cannot restore cargo after docking.
+- Keep the app-window request pending during slow startup instead of silently
+  giving up after ten seconds. Shutdown and cancellation prevent late windows.
 
 - Add Rhino surface mining under Mining: observed collections, cargo space,
   coordinate navigation and a sourced procedure guide shared by the UI and MCP.
