@@ -119,6 +119,7 @@ modules/ptn/mining.py
 modules/ptn/module.json
 modules/ptn/module.py
 modules/ptn/planning.py
+modules/ptn/sale.py
 modules/ptn/web/card.js
 modules/recipes/module.json
 modules/recipes/module.py
