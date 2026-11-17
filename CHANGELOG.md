@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Keep the app-window request pending during slow startup instead of silently
+  giving up after ten seconds. Shutdown and cancellation prevent late windows.
+
 - Add Rhino surface mining under Mining: observed collections, cargo space,
   coordinate navigation and a sourced procedure guide shared by the UI and MCP.
   Browse confirmed locations and unconfirmed research leads, retaining sources,
